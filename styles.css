@@ -33,3 +33,18 @@
 .chat-bubbles{overflow:auto;max-height:520px}
 .chat-empty{margin:auto;color:#8195ac;font-size:13px;text-align:center}
 .chat-compose .send-btn:disabled{opacity:.55;cursor:wait}
+
+/* Anatomical tooth chart based on the supplied two-arch reference */
+.tooth-chart{max-width:420px;padding:10px;border-radius:14px;background:#41494b;box-shadow:inset 0 0 0 1px #374043}
+.tooth-chart svg{display:block;width:100%;height:auto}
+.teeth-layout{grid-template-columns:minmax(0,420px) minmax(300px,1fr);max-width:1000px}
+.tooth .tooth-outline{fill:#f7f3e3;stroke:#d3d5c4;stroke-width:2.2;stroke-linejoin:round}
+.tooth .tooth-detail{fill:none;stroke:#a0ac99;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.tooth text{fill:#48584f;font-size:26px;font-weight:600;paint-order:stroke;stroke:#f7f3e3;stroke-width:2.2px}
+.tooth:hover .tooth-outline{fill:#e7f3ff;stroke:#66aaff;stroke-width:3}
+.tooth.selected .tooth-outline{fill:#237dea;stroke:#c7e3ff;stroke-width:3}
+.tooth.selected .tooth-detail{fill:none;stroke:#b9dcff}
+.tooth.selected text{fill:#fff;stroke:#237dea}
+.confirmation .tooth-chart{max-width:300px}
+.detail-grid .tooth-chart{max-width:220px}
+@media(max-width:1100px){.teeth-layout{grid-template-columns:1fr;max-width:650px}}
