@@ -1,5 +1,11 @@
 const technicians = ['Анна Смирнова', 'Дмитрий Орлов', 'Мария Ким', 'Илья Федоров'];
 const clinics = ['Dental Clinic', 'Smile Studio', 'White Line', 'Nova Dent'];
+const seedClients = [
+  {id:'clinic-1',originalName:'Dental Clinic',name:'Dental Clinic',contact:'Иван Иванов',phone:'+7 (495) 123-45-67',email:'info@dentalclinic.ru',address:'Москва'},
+  {id:'clinic-2',originalName:'Smile Studio',name:'Smile Studio',contact:'Елена Морозова',phone:'+7 (495) 234-56-78',email:'hello@smilestudio.ru',address:'Москва'},
+  {id:'clinic-3',originalName:'White Line',name:'White Line',contact:'Андрей Козлов',phone:'+7 (812) 345-67-89',email:'office@whiteline.ru',address:'Санкт-Петербург'},
+  {id:'clinic-4',originalName:'Nova Dent',name:'Nova Dent',contact:'Мария Сергеева',phone:'+7 (495) 456-78-90',email:'team@novadent.ru',address:'Москва'}
+];
 const stages = ['Ожидает распределения', 'Подготовка', 'Моделирование', 'Изготовление', 'Контроль качества', 'Готово к выдаче'];
 const monthLabels = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 const analyticsYear = new Date().getFullYear();
@@ -36,12 +42,19 @@ const stageTone = stage => stage==='Ожидает распределения'?'
 export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isActive}) {
   let overrides={};
   try { overrides=JSON.parse(localStorage.getItem('create-dental-tech-orders') || '{}') || {}; } catch { overrides={}; }
-  const state={page:'overview',filter:'Все',search:'',orderId:'CD-1042',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',toast:''};
+  let clients=seedClients.map(client=>({...client}));
+  try {
+    const saved=JSON.parse(localStorage.getItem('create-dental-tech-clients') || 'null');
+    if(Array.isArray(saved))clients=saved.filter(client=>client&&typeof client.id==='string'&&typeof client.name==='string');
+  } catch { /* Keep the demo directory if local data is damaged. */ }
+  const state={page:'overview',filter:'Все',search:'',orderId:'CD-1042',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',clientSearch:'',editClientId:null,confirmDeleteId:null,toast:''};
+  function saveClients(){localStorage.setItem('create-dental-tech-clients',JSON.stringify(clients))}
+  function clientName(original){return clients.find(client=>client.originalName===original)?.name||original}
 
   function allOrders(){
     return orders.map(order => {
       const details={stage:'Ожидает распределения',assignee:'',priority:'Обычный',teeth:[],clinic:'Dental Clinic',...seedDetails[order.id],...overrides[order.id]};
-      return {...order,...details};
+      return {...order,...details,clinic:clientName(details.clinic)};
     });
   }
   function orderById(id){return allOrders().find(order=>order.id===id)}
@@ -59,7 +72,7 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     toast.timer=setTimeout(()=>{state.toast='';root().querySelector('.toast')?.classList.remove('visible')},3200);
   }
   function filteredRecords(month=state.month){
-    return analyticsRecords.filter(record=>record.month===month&&(state.technician==='Все техники'||record.technician===state.technician));
+    return analyticsRecords.filter(record=>record.month===month&&(state.technician==='Все техники'||record.technician===state.technician)).map(record=>({...record,clinic:clientName(record.clinic)}));
   }
   function groupRows(records,key){
     const grouped=new Map();
@@ -139,6 +152,19 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
   function analyticsPage(){
     return `<div class="tech-heading"><div><span class="tech-eyebrow">АНАЛИТИКА</span><h1>Финансовые результаты</h1><p>Сравнивайте месяцы, клиники и исполнителей.</p></div></div>${filters()}${kpis()}${chart()}<div class="tech-analytics-grid tech-breakdown-grid">${breakdown('clinic')}${breakdown('technician')}</div>`;
   }
+  function clientForm(){
+    if(!state.editClientId)return '';
+    const client=state.editClientId==='new'?{name:'',contact:'',phone:'',email:'',address:''}:clients.find(item=>item.id===state.editClientId);
+    if(!client)return '';
+    const field=(label,name,type='text',required=false)=>`<label>${label}<input name="${name}" type="${type}" value="${safe(client[name]||'')}" ${required?'required':''}></label>`;
+    return `<section class="tech-panel tech-client-editor"><div class="tech-panel-heading"><div><h2>${state.editClientId==='new'?'Новый клиент':'Редактировать клиента'}</h2><p>Данные клиники для справочника</p></div><button class="tech-client-close" data-tech-client-action="cancel" aria-label="Закрыть">×</button></div><form id="tech-client-form" class="tech-client-form">${field('Название клиники','name','text',true)}${field('Контактное лицо','contact')}${field('Телефон','phone','tel')}${field('Электронная почта','email','email')}${field('Город или адрес','address')}<div class="tech-client-form-actions"><button type="button" class="btn outline" data-tech-client-action="cancel">Отмена</button><button type="submit" class="btn primary">Сохранить</button></div></form></section>`;
+  }
+  function clientsPage(){
+    const active=clients.filter(client=>!client.deleted);
+    const q=state.clientSearch.trim().toLowerCase();
+    const visible=active.filter(client=>[client.name,client.contact,client.phone,client.email,client.address].some(value=>String(value||'').toLowerCase().includes(q)));
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">СПРАВОЧНИК</span><h1>Клиенты</h1><p>Контакты клиник и результаты сотрудничества.</p></div><button class="btn primary" data-tech-client-action="new">+ Добавить клиента</button></div><div class="tech-client-layout"><section class="tech-panel"><div class="tech-client-toolbar"><div><h2>Клиники <span>${active.length}</span></h2><p>Финансовые показатели демонстрационные · ${analyticsYear} год</p></div><input id="tech-client-search" type="search" placeholder="Поиск по клинике или контакту" value="${safe(state.clientSearch)}" aria-label="Поиск клиентов"></div><div class="tech-table-wrap"><table class="tech-table tech-client-table"><thead><tr><th>Клиника</th><th>Контакт</th><th>Заказов</th><th>Выручка</th><th>Действия</th></tr></thead><tbody>${visible.map(client=>{const records=analyticsRecords.filter(record=>record.clinic===client.originalName);const total=records.reduce((sum,record)=>sum+record.amount,0);return `<tr><td><strong>${safe(client.name)}</strong><small>${safe(client.address||'Адрес не указан')}</small></td><td>${safe(client.contact||'Не указано')}<small>${safe(client.phone||client.email||'Контакт не указан')}</small></td><td>${records.length}</td><td><strong>${money(total)}</strong></td><td><div class="tech-client-actions"><button data-tech-client-action="edit" data-client-id="${safe(client.id)}">Изменить</button><button class="danger" data-tech-client-action="delete" data-client-id="${safe(client.id)}">Удалить</button></div></td></tr>`}).join('')||'<tr><td colspan="5" class="tech-empty">Клиентов не найдено</td></tr>'}</tbody></table></div></section>${clientForm()}</div>${state.confirmDeleteId?`<div class="tech-dialog-backdrop"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="tech-delete-title"><h2 id="tech-delete-title">Удалить клиента из списка?</h2><p>${safe(clients.find(client=>client.id===state.confirmDeleteId)?.name||'Клиент')} исчезнет из справочника. История заказов и финансовые результаты сохранятся.</p><div><button class="btn outline" data-tech-client-action="cancel-delete">Отмена</button><button class="btn danger" data-tech-client-action="confirm-delete" data-client-id="${safe(state.confirmDeleteId)}">Удалить</button></div></section></div>`:''}`;
+  }
   function teamPage(){
     const list=allOrders();
     const records=analyticsRecords.filter(record=>record.month===state.month);
@@ -152,15 +178,33 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОФИЛЬ</span><h1>Главный техник</h1><p>Доступ к работе лаборатории и её результатам.</p></div></div><div class="tech-panel tech-profile"><span class="tech-person-avatar">АП</span><div><h2>Александр Петров</h2><p>Роль: главный техник</p><p>Доступ: распределение заказов, управление этапами, контроль качества и аналитика.</p><small>Это демонстрационный кабинет. Для реальных сотрудников потребуется авторизация и подключение данных лаборатории.</small></div></div>`;
   }
   function shell(content){
-    const nav=[['overview','Обзор','home'],['orders','Заказы','orders'],['analytics','Аналитика','filter'],['team','Команда','user'],['quality','Контроль качества','check'],['profile','Профиль','clinic']];
+    const nav=[['overview','Обзор','home'],['orders','Заказы','orders'],['clients','Клиенты','clinic'],['analytics','Аналитика','filter'],['team','Команда','user'],['quality','Контроль качества','check'],['profile','Профиль','user']];
     root().innerHTML=`<aside class="sidebar tech-sidebar" id="tech-sidebar"><div class="brand"><img src="${assets}create-dental-logo.png" alt="Create Dental"></div><div class="tech-side-label">Кабинет главного техника</div><nav class="sidebar-nav">${nav.map(([page,label,ico])=>`<button class="nav-link ${state.page===page||state.page==='detail'&&page==='orders'?'active':''}" data-tech-page="${page}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav><button class="tech-switch" data-role="clinic">← Кабинет клиники</button></aside><div class="shell tech-shell"><header class="topbar"><button class="mobile-menu" data-tech-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><span class="tech-header-label">Лаборатория</span><button class="role-toggle" data-role="clinic">Кабинет клиники →</button><button class="profile" data-tech-page="profile"><span class="avatar">АП</span><span><strong>Александр Петров</strong><small>Главный техник</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>`;
   }
   function render(){
-    const pages={overview,orders:ordersPage,detail:orderDetail,analytics:analyticsPage,team:teamPage,quality:qualityPage,profile:profilePage};
+    const pages={overview,orders:ordersPage,detail:orderDetail,clients:clientsPage,analytics:analyticsPage,team:teamPage,quality:qualityPage,profile:profilePage};
     shell((pages[state.page]||overview)());
   }
   document.addEventListener('click',event=>{
     if(!isActive())return;
+    const clientAction=event.target.closest('[data-tech-client-action]');
+    if(clientAction){
+      const action=clientAction.dataset.techClientAction;
+      const id=clientAction.dataset.clientId;
+      if(action==='new')state.editClientId='new';
+      else if(action==='edit')state.editClientId=id;
+      else if(action==='cancel')state.editClientId=null;
+      else if(action==='delete')state.confirmDeleteId=id;
+      else if(action==='cancel-delete')state.confirmDeleteId=null;
+      else if(action==='confirm-delete'){
+        const client=clients.find(item=>item.id===id);
+        if(client){client.deleted=true;saveClients()}
+        state.confirmDeleteId=null;
+        if(state.editClientId===id)state.editClientId=null;
+      }
+      render();
+      return;
+    }
     const action=event.target.closest('[data-tech-action]');
     if(action){
       const id=action.dataset.id;
@@ -205,8 +249,34 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
       saveOrder(id,{assignee:name,stage:name&&current.stage==='Ожидает распределения'?'Подготовка':current.stage});
     }
   });
+  document.addEventListener('submit',event=>{
+    if(!isActive()||event.target.id!=='tech-client-form')return;
+    event.preventDefault();
+    const form=event.target;
+    const values={};
+    for(const name of ['name','contact','phone','email','address'])values[name]=form.elements.namedItem(name).value.trim();
+    if(!values.name)return toast('Укажите название клиники');
+    const duplicate=clients.some(client=>client.name.toLowerCase()===values.name.toLowerCase()&&client.id!==state.editClientId);
+    if(duplicate)return toast('Клиент с таким названием уже есть');
+    if(state.editClientId==='new')clients.push({id:`client-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,originalName:values.name,...values});
+    else {
+      const client=clients.find(item=>item.id===state.editClientId&&!item.deleted);
+      if(!client)return;
+      Object.assign(client,values);
+    }
+    saveClients();
+    state.editClientId=null;
+    toast('Данные клиента сохранены локально');
+  });
   document.addEventListener('input',event=>{
-    if(!isActive()||event.target.id!=='tech-search')return;
+    if(!isActive())return;
+    if(event.target.id==='tech-client-search'){
+      state.clientSearch=event.target.value;
+      render();
+      root().querySelector('#tech-client-search')?.focus();
+      return;
+    }
+    if(event.target.id!=='tech-search')return;
     state.search=event.target.value;
     root().querySelectorAll('.tech-order-row').forEach(row=>{
       row.hidden=!row.textContent.toLowerCase().includes(state.search.toLowerCase());

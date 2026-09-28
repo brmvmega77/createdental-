@@ -142,3 +142,17 @@
 @media(max-width:1250px){.tech-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.tech-analytics-grid,.tech-work-grid{grid-template-columns:1fr}.tech-team-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.role-toggle{font-size:10px;padding:8px}.tech-header-label{display:none}.tech-heading{align-items:flex-start}.tech-heading h1{font-size:24px}.tech-task-count{padding:8px}.tech-task-count span{display:none}.tech-filters select{min-width:140px}.tech-demo-note{margin-left:0}.tech-bars{gap:3px}.tech-bar small{font-size:9px}.tech-panel{padding:16px}.tech-detail-grid,.tech-team-grid{grid-template-columns:1fr}.tech-quality-item{display:block}.tech-quality-item>div:last-child{margin-top:13px}.tech-order-tools input{width:100%}}
 @media(max-width:480px){.tech-kpis{gap:8px}.tech-kpis article{padding:12px;min-height:100px}.tech-kpis article strong{font-size:18px}.tech-heading p{font-size:12px}.tech-filters{gap:8px}.tech-filters select{min-width:130px}.tech-panel-heading{display:block}.tech-panel-heading .tech-segment{margin-top:12px;width:max-content}.tech-attention .tech-stage{display:none}.tech-facts{gap:12px}.tech-breakdown-row strong{font-size:11px}}
+
+/* Client directory for the chief technician */
+.tech-client-layout{display:grid;gap:18px;align-items:start}
+.tech-client-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.tech-client-toolbar h2{font-size:18px}.tech-client-toolbar h2 span{font-size:12px;color:#1b70dd;background:#e8f3ff;border-radius:15px;padding:4px 8px;margin-left:5px}
+.tech-client-toolbar p{font-size:11px;margin:5px 0 0}
+.tech-client-toolbar input{width:min(100%,300px);height:37px;border:1px solid #dfe9f4;border-radius:8px;padding:0 12px;font-size:12px}
+.tech-client-table{min-width:750px}.tech-client-table td{vertical-align:middle}.tech-client-actions{display:flex;align-items:center;gap:6px}
+.tech-client-actions button{background:#eff6ff;border:0;border-radius:6px;color:#176eda;font-size:11px;font-weight:650;padding:8px 10px;white-space:nowrap}
+.tech-client-actions button:hover{background:#dcecff}.tech-client-actions button.danger{color:#c65156;background:#fff0f0}.tech-client-actions button.danger:hover{background:#ffe1e1}
+.tech-client-editor{max-width:780px}.tech-client-close{border:0;background:transparent;color:#8da0b8;font-size:24px;line-height:1;padding:0 5px}
+.tech-client-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.tech-client-form label{display:grid;gap:6px;color:#526b8c;font-size:12px;font-weight:650}.tech-client-form input{height:40px;border:1px solid #dce8f6;border-radius:7px;padding:0 11px;color:#253d5e;font-size:13px}.tech-client-form-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:9px;margin-top:4px}
+.tech-dialog-backdrop{position:fixed;inset:0;background:#14243b77;display:grid;place-items:center;z-index:40;padding:18px}.tech-dialog{width:min(100%,420px);background:#fff;border-radius:13px;padding:25px;box-shadow:0 20px 65px #101d3240}.tech-dialog h2{font-size:20px;color:#182e4c;margin:0 0 10px}.tech-dialog p{font-size:13px;line-height:1.6;color:#617b9a;margin:0 0 22px}.tech-dialog>div{display:flex;justify-content:flex-end;gap:9px}.tech-dialog .btn.danger{background:#df4b52;border-color:#df4b52;color:#fff}
+@media(max-width:760px){.tech-client-toolbar{display:block}.tech-client-toolbar input{margin-top:14px;width:100%}.tech-client-form{grid-template-columns:1fr}.tech-heading>.btn{padding:0 11px;font-size:11px}}
