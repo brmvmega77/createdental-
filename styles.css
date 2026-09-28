@@ -2,3 +2,34 @@
 @media(max-width:1100px){.sidebar{width:190px}.shell{margin-left:190px;padding:0 20px 32px}.stats{grid-template-columns:repeat(2,1fr)}.detail-grid{grid-template-columns:1fr 1fr}.detail-grid section:last-child{grid-column:1/-1}.file-grid{grid-template-columns:repeat(4,1fr)}.stepper{gap:3px}.step-line{display:none}.step{font-size:11px}.teeth-layout{gap:20px}}
 @media(max-width:760px){.sidebar{transform:translateX(-100%);transition:transform .2s;width:230px;box-shadow:10px 0 30px #1b416329}.sidebar.open{transform:translateX(0)}.shell{margin-left:0;padding:0 15px 30px}.topbar{height:66px;gap:9px}.mobile-menu{display:block;border:0;background:#eaf3ff;border-radius:7px;color:#145fbd;width:36px;height:36px;font-size:18px}.topbar-label,.profile small,.profile>svg{display:none}.clinic-select{min-width:110px;max-width:120px;padding:0 5px}.profile>span:nth-child(2){display:none}.page-title h1{font-size:23px}.page-title{align-items:center}.page-title p{font-size:12px}.page-title>.btn{font-size:0;padding:0 12px;min-width:43px}.page-title>.btn svg{width:18px}.stats{gap:9px}.stat{height:75px;padding:10px;gap:8px}.stat-icon{width:36px;height:36px}.stat-icon svg{width:20px}.stat strong{font-size:23px}.stat span:not(.stat-icon){font-size:10px;white-space:normal}.hero{height:150px}.hero>div{padding:20px}.hero h2{font-size:19px}.hero p{font-size:11px}.hero img{width:49%}.tabs{gap:4px}.tab{font-size:11px;padding:0 7px}.wizard{padding:22px 16px;min-height:0}.stepper{overflow:auto;padding-bottom:8px;justify-content:flex-start;gap:15px}.step{flex:0 0 auto}.step:not(.active){font-size:0}.step b{font-size:11px}.teeth-layout,.confirmation{grid-template-columns:1fr}.teeth-options{max-width:500px;margin:auto}.form-grid{grid-template-columns:1fr}.detail-grid{grid-template-columns:1fr;gap:20px}.detail-grid section:last-child{grid-column:auto}.file-grid{grid-template-columns:repeat(2,1fr)}.messages-layout{grid-template-columns:1fr}.contacts{display:none}.clinic-content{grid-template-columns:1fr}.clinic-photo{display:flex;align-items:center;gap:18px}.clinic-photo img{width:90px;height:90px}.reference-grid{grid-template-columns:1fr}.attachment,.attachment-add{width:100px;height:85px}.toolbar .btn{font-size:0;width:43px;padding:0}.toolbar .btn svg{width:18px}.summary-list>div:not(.attachment-grid){grid-template-columns:110px 1fr}}
 @media(max-width:420px){.stat{gap:5px}.stat-x{display:none}.hero img{width:42%}.page-title h1{font-size:21px}.profile{padding:0}.bell{padding:3px}.stepper{margin-bottom:16px}.work-options{grid-template-columns:repeat(2,1fr)}}
+
+/* Create Dental identity and order flow */
+.brand{height:93px;padding:0;justify-content:center}
+.brand img{display:block;width:185px;height:74px;object-fit:cover;object-position:center;background:#fff}
+.sidebar-nav{gap:5px;margin-top:3px}
+.nav-link{height:46px;gap:13px}
+.nav-link svg{stroke-width:2}
+.help-box{width:100%;border:0;text-align:left;cursor:pointer}
+.help-box strong,.help-box small{display:block}
+.help-box small{font-size:11px;margin-top:2px}
+.stepper{justify-content:flex-start;gap:13px;max-width:900px;margin:10px 0 24px}
+.step{gap:8px;font-size:13px}
+.step b{width:27px;height:27px}
+.step-line{font-size:15px;margin:0 5px}
+.tooth-chart{max-width:520px}
+.teeth-layout{grid-template-columns:minmax(0,520px) minmax(300px,1fr);max-width:1070px;gap:35px}
+.arch-guide{fill:none;stroke:#d7e2ef;stroke-width:1.5;stroke-dasharray:4 5}
+.tooth path{fill:#fff;stroke:#69809e;stroke-width:1.4}
+.tooth text{fill:#314769;font-size:8px;font-weight:700;pointer-events:none}
+.tooth:hover path{stroke:#1476ef;stroke-width:2}
+.tooth.selected path{fill:#1476ef;stroke:#0767d8}
+.tooth.selected text{fill:#fff}
+.estimate-card{margin-top:22px;border:1px solid #c8dfff;background:linear-gradient(110deg,#f3f8ff,#e9f3ff);border-radius:10px;padding:17px 19px;display:grid;gap:5px}
+.estimate-card span{font-size:12px;color:#45648b;font-weight:600}
+.estimate-card strong{font-size:26px;color:#0b65d8}
+.estimate-card small{font-size:11px;color:#6681a4;line-height:1.4}
+@media(max-width:1100px){.stepper{gap:7px}.step{font-size:11px}.teeth-layout{grid-template-columns:1fr;max-width:650px}}
+@media(max-width:760px){.brand img{width:185px}.stepper{max-width:100%;gap:12px}.step:not(.active){font-size:0}.step-line{display:none}.teeth-layout{gap:20px}.tooth-chart{max-width:520px}}
+.chat-bubbles{overflow:auto;max-height:520px}
+.chat-empty{margin:auto;color:#8195ac;font-size:13px;text-align:center}
+.chat-compose .send-btn:disabled{opacity:.55;cursor:wait}

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create Dental — поддержка</title>
+  <style>
+    :root{font:14px Inter,system-ui,sans-serif;color:#172a4d;background:#f3f8fe}*{box-sizing:border-box}body{margin:0}button,input{font:inherit}button{cursor:pointer}header{height:68px;background:#fff;border-bottom:1px solid #dfe9f5;display:flex;align-items:center;justify-content:space-between;padding:0 28px}header strong{font-size:19px}header a{color:#126ff2;text-decoration:none}.login{max-width:420px;margin:90px auto;padding:32px;background:#fff;border:1px solid #dfe9f5;border-radius:12px;display:grid;gap:15px}.login h1{font-size:23px;margin:0}.login p{color:#6680a0;margin:0;line-height:1.5}.login input,.compose input{border:1px solid #d7e5f5;border-radius:8px;padding:12px;min-width:0}.primary{border:0;border-radius:8px;padding:12px 18px;background:#0e73ed;color:#fff;font-weight:700}.error{color:#b42318;min-height:20px}.workspace{height:calc(100vh - 68px);display:grid;grid-template-columns:300px 1fr}.threads{background:#fff;border-right:1px solid #dfe9f5;overflow:auto}.threads h2{font-size:16px;margin:0;padding:20px;border-bottom:1px solid #e8eff8}.thread{display:block;width:100%;padding:16px 20px;background:#fff;border:0;border-bottom:1px solid #eef3f9;text-align:left}.thread:hover,.thread.active{background:#eaf4ff}.thread strong,.thread small{display:block}.thread small{color:#7088a5;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chat{display:flex;flex-direction:column;min-width:0}.chat h2{background:#fff;font-size:16px;margin:0;padding:20px;border-bottom:1px solid #e8eff8}.messages{flex:1;overflow:auto;padding:24px;display:flex;flex-direction:column;gap:12px}.message{max-width:70%;padding:12px 15px;border-radius:10px;background:#fff;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}.message.support{align-self:flex-end;background:#dcecff}.message time{display:block;margin-top:6px;color:#8093aa;font-size:11px}.compose{display:flex;gap:10px;padding:16px;background:#fff;border-top:1px solid #e8eff8}.compose input{flex:1}.empty{color:#8093aa;margin:auto}@media(max-width:700px){.workspace{grid-template-columns:1fr;height:auto}.threads{max-height:180px}.chat{height:calc(100vh - 250px)}}
+  </style>
+  <script type="module" src="/support.js"></script>
+</head>
+<body>
+  <header><strong>Create Dental · Поддержка</strong><a href="/">К порталу</a></header>
+  <section class="login" id="login">
+    <h1>Вход оператора</h1>
+    <p>Введите ключ доступа, настроенный для службы поддержки.</p>
+    <input id="token" type="password" autocomplete="off" placeholder="Ключ доступа">
+    <button id="login-button" class="primary">Открыть диалоги</button>
+    <div class="error" id="login-error"></div>
+  </section>
+  <div class="workspace" id="workspace" hidden>
+    <aside class="threads"><h2>Диалоги</h2><div id="threads"></div></aside>
+    <section class="chat"><h2 id="chat-title">Выберите диалог</h2><div class="messages" id="messages"><div class="empty">Выберите диалог слева</div></div>
+      <form class="compose" id="reply-form"><input id="reply" placeholder="Ответить клиенту..." autocomplete="off" disabled><button class="primary" disabled>Отправить</button></form>
+    </section>
+  </div>
+</body>
+</html>
