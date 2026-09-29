@@ -1,4 +1,5 @@
 import {savePortal,authRequest} from './portal-client.js';
+import {routeFromPath,pathFor,navigate} from './routes.js';
 
 export const seedEmployees = [];
 export function loadEmployees(){
@@ -28,17 +29,11 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     const saved=JSON.parse(localStorage.getItem('create-dental-tech-clients') || 'null');
     if(Array.isArray(saved))clients=saved.filter(client=>client&&typeof client.id==='string'&&typeof client.name==='string');
   } catch { /* Keep the demo directory if local data is damaged. */ }
-  const requestedPage=new URLSearchParams(location.search).get('page');
-  const requestedOrder=new URLSearchParams(location.search).get('order');
-  const initialPage=new URLSearchParams(location.search).get('role')==='technician'&&['overview','orders','detail','clients','analytics','team','quality','profile'].includes(requestedPage)?requestedPage:'overview';
-  const state={page:initialPage,filter:'Все',search:'',orderId:orders.some(order=>order.id===requestedOrder)?requestedOrder:'CD-1042',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',clientSearch:'',editClientId:null,confirmDeleteId:null,employeeSearch:'',employeeFilter:'all',editEmployeeId:null,confirmFireId:null,toast:''};
+  const initialRoute=routeFromPath(location.pathname);
+  const state={page:initialRoute.role==='technician'?initialRoute.page:'overview',filter:'Все',search:'',orderId:initialRoute.orderId||'',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',clientSearch:'',editClientId:null,confirmDeleteId:null,employeeSearch:'',employeeFilter:'all',editEmployeeId:null,confirmFireId:null,toast:''};
   function setPage(page){
     state.page=page;
-    const url=new URL(location.href);
-    url.searchParams.set('page',page);
-    if(page==='detail')url.searchParams.set('order',state.orderId);
-    else url.searchParams.delete('order');
-    history.replaceState(null,'',url);
+    navigate(pathFor('technician',page,state.orderId));
     render();
   }
   function saveClients(){localStorage.setItem('create-dental-tech-clients',JSON.stringify(clients));savePortal('clients',clients).catch(error=>toast('Не удалось сохранить клиентов на сервере: '+error.message))}
@@ -202,6 +197,8 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     root().innerHTML=`<aside class="sidebar tech-sidebar" id="tech-sidebar"><div class="brand"><img src="${assets}create-dental-logo.png" alt="Create Dental"></div><div class="tech-side-label">Кабинет главного техника</div><nav class="sidebar-nav">${nav.map(([page,label,ico])=>`<button class="nav-link ${state.page===page||state.page==='detail'&&page==='orders'?'active':''}" data-tech-page="${page}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav></aside><div class="shell tech-shell"><header class="topbar"><button class="mobile-menu" data-tech-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><button class="role-toggle" data-auth-logout>Выйти</button><button class="profile" data-tech-page="profile"><span class="avatar">ГТ</span><span><strong>Главный техник</strong><small>Главный техник</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>`;
   }
   function render(){
+    const route=routeFromPath(location.pathname);
+    if(route.role==='technician'){state.page=route.page;if(route.orderId)state.orderId=route.orderId}
     try {overrides=JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}} catch {overrides={}}
     team=loadEmployees();
     try {const saved=JSON.parse(localStorage.getItem('create-dental-tech-clients')||'null');if(Array.isArray(saved))clients=saved} catch { /* Keep current directory. */ }

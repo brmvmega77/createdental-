@@ -3,6 +3,7 @@ import { createWorkerCabinet } from './worker.js';
 import { seedOrders } from './seed-orders.js';
 import { seedDetails } from './technician.js';
 import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal,authRequest} from './portal-client.js';
+import {routeFromPath,pathFor,navigate} from './routes.js';
 
 const $ = (selector) => document.querySelector(selector);
 const icons = {
@@ -32,8 +33,13 @@ const assets = '/assets/';
 const orders = seedOrders.map(order=>({...order}));
 const nav = [['home','Главная','home'],['new','Новый заказ','plus'],['orders','Мои заказы','orders'],['files','Файлы','file'],['messages','Сообщения','message'],['reference','Справочник','book'],['clinic','Моя клиника','clinic']];
 const steps = ['Пациент','Конструкция','Зубы','Дополнительно','Подтверждение'];
-const requestedRole=new URLSearchParams(location.search).get('role');
-const state = {role:['technician','worker'].includes(requestedRole)?requestedRole:'clinic',page:'home',step:0,filter:'Все',query:'',orderId:'CD-1042',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',selectedTeeth:[],dentition:'Постоянные зубы',work:'Коронка',messages:[],chatText:'',chatStatus:'Подключение к чату...',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),uploaded:[],form:{surname:'',initials:'',phone:'',birth:'',construction:'Коронка E.max',material:'Керамика E.max',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A2',comment:''},toast:''};
+const oldLink=new URLSearchParams(location.search);
+if(oldLink.has('role')||oldLink.has('page')){
+  const oldRole=['technician','worker'].includes(oldLink.get('role'))?oldLink.get('role'):'clinic';
+  navigate(pathFor(oldRole,oldLink.get('page')|| (oldRole==='clinic'?'home':'overview'),oldLink.get('order')),{replace:true});
+}
+const initialRoute=routeFromPath(location.pathname);
+const state = {role:initialRoute.role||'clinic',page:initialRoute.role==='clinic'?initialRoute.page:'home',step:0,filter:'Все',query:'',orderId:initialRoute.orderId||'',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',selectedTeeth:[],dentition:'Постоянные зубы',work:'Коронка',messages:[],chatText:'',chatStatus:'Подключение к чату...',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),uploaded:[],form:{surname:'',initials:'',phone:'',birth:'',construction:'Коронка E.max',material:'Керамика E.max',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A2',comment:''},toast:''};
 const chatId = localStorage.getItem('create-dental-chat-id') || Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2,'0')).join('');
 localStorage.setItem('create-dental-chat-id', chatId);
 const demoUnitPrices = {'Коронка E.max':12500,'Винир':14000,'Мост':9000,'Абатмент':7600,'Вкладка':8500};
@@ -182,7 +188,7 @@ const technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,asset
 const workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser});
 let portalReady=false;
 let portalUser=null;
-let authMode='login';
+let authMode=initialRoute.mode||'login';
 let portalError='';
 function loginView(){
   const field=(label,name,type='text')=>`<label>${label}<input name="${name}" type="${type}" ${name==='password'?'minlength="10"':''} required></label>`;
@@ -198,6 +204,13 @@ function loginView(){
   $('#app').innerHTML=`<main class="portal-login"><section><img src="${assets}create-dental-logo.png" alt="Create Dental"><h1>${authMode==='register'?'Регистрация клиники':'Личный кабинет Create Dental'}</h1><p>Заказы, производство и связь с лабораторией.</p>${content}${links}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
 }
 function render(){if(!portalReady){loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
+function syncRoute(){
+  const route=routeFromPath(location.pathname);
+  if(!portalReady){authMode=route.mode||'login';render();return}
+  if(route.role!==portalUser.role){navigate(pathFor(portalUser.role,portalUser.role==='clinic'?'home':'overview'),{replace:true});state.page='home'}
+  else if(portalUser.role==='clinic'){state.page=route.page;state.orderId=route.orderId||state.orderId}
+  render();
+}
 async function hydratePortal(){
   const data=await loadPortal();
   portalUser=data.user;
@@ -207,7 +220,7 @@ async function hydratePortal(){
   localStorage.setItem('create-dental-employees',JSON.stringify(data.employees));
   portalReady=true;
   portalError='';
-  render();
+  syncRoute();
 }
 async function createOrder(){
   const id=`CD-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0,4).toUpperCase()}`;
@@ -216,13 +229,14 @@ async function createOrder(){
     await savePortal('orders',[order,...orders]);
     orders.unshift(order);
     state.page='detail';state.orderId=id;
+    navigate(pathFor('clinic','detail',id));
     notify('Заказ создан и доступен лаборатории');
   } catch(error){notify('Не удалось создать заказ: '+error.message)}
 }
 function notify(message){state.toast=message;render();clearTimeout(notify.timer);notify.timer=setTimeout(()=>{state.toast='';$('.toast')?.classList.remove('visible')},3000)}
-document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';loginView()});
- document.addEventListener('click',async event=>{if(!event.target.closest('[data-auth-logout]'))return;try{await authRequest('logout',{})}catch{}clearPortalToken();portalReady=false;portalUser=null;state.role='clinic';history.replaceState(null,'',location.pathname);render()});
-document.addEventListener('click',event=>{const el=event.target.closest('[data-page],[data-order],[data-tooth],[data-step],[data-action]');if(!el)return;if(el.dataset.page){state.page=el.dataset.page;if(state.page==='new')state.step=0;render();return}if(el.dataset.order){state.orderId=el.dataset.order;state.page='detail';render();return}if(el.dataset.tooth){const n=Number(el.dataset.tooth);state.selectedTeeth=state.selectedTeeth.includes(n)?state.selectedTeeth.filter(x=>x!==n):[...state.selectedTeeth,n].sort((a,b)=>a-b);render();return}if(el.dataset.step!==undefined){state.step=Number(el.dataset.step);render();return}const a=el.dataset.action,v=el.dataset.value;if(a==='new'){state.page='new';state.step=0}else if(a==='next'){if(state.step<4)state.step++;else{createOrder();return}}else if(a==='previous')state.step--;else if(a==='filter')state.filter=v;else if(a==='file-tab')state.fileTab=v;else if(a==='detail-tab')state.detailTab=v;else if(a==='clinic-tab')state.clinicTab=v;else if(a==='dentition')state.dentition=v;else if(a==='work')state.work=v;else if(a==='clear-teeth')state.selectedTeeth=[];else if(a==='open-messages')state.page='messages';else if(a==='upload'){$('#page-upload')?.click();return}else if(a==='remove-file'){state.uploaded=state.uploaded.filter(n=>n!==v)}else if(a==='menu'){$('#sidebar').classList.toggle('open');return}else if(a==='save-clinic'){notify('Изменения сохранены локально');return}else if(a==='file-preview'){notify(v);return}else if(a==='notifications'){notify('Новых уведомлений нет');return}else if(a==='filters'){notify('Используйте вкладки для фильтрации заказов');return}else if(a==='more'){notify('Дополнительные действия появятся после подключения сервера');return}else if(a==='change-logo'){notify('Загрузка логотипа появится после подключения сервера');return}else if(a==='attach'){notify('Прикрепление файлов доступно в разделе «Файлы»');return}else if(a==='contact'){notify('Демонстрационный диалог');return}else return;render()});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';navigate(pathFor(null,authMode));loginView()});
+document.addEventListener('click',async event=>{if(!event.target.closest('[data-auth-logout]'))return;try{await authRequest('logout',{})}catch{}clearPortalToken();portalReady=false;portalUser=null;state.role='clinic';authMode='login';navigate('/login',{replace:true});render()});
+document.addEventListener('click',event=>{const el=event.target.closest('[data-page],[data-order],[data-tooth],[data-step],[data-action]');if(!el)return;if(el.dataset.page){state.page=el.dataset.page;if(state.page==='new')state.step=0;navigate(pathFor('clinic',state.page));render();return}if(el.dataset.order){state.orderId=el.dataset.order;state.page='detail';navigate(pathFor('clinic','detail',state.orderId));render();return}if(el.dataset.tooth){const n=Number(el.dataset.tooth);state.selectedTeeth=state.selectedTeeth.includes(n)?state.selectedTeeth.filter(x=>x!==n):[...state.selectedTeeth,n].sort((a,b)=>a-b);render();return}if(el.dataset.step!==undefined){state.step=Number(el.dataset.step);render();return}const a=el.dataset.action,v=el.dataset.value;if(a==='new'){state.page='new';state.step=0}else if(a==='next'){if(state.step<4)state.step++;else{createOrder();return}}else if(a==='previous')state.step--;else if(a==='filter')state.filter=v;else if(a==='file-tab')state.fileTab=v;else if(a==='detail-tab')state.detailTab=v;else if(a==='clinic-tab')state.clinicTab=v;else if(a==='dentition')state.dentition=v;else if(a==='work')state.work=v;else if(a==='clear-teeth')state.selectedTeeth=[];else if(a==='open-messages')state.page='messages';else if(a==='upload'){$('#page-upload')?.click();return}else if(a==='remove-file'){state.uploaded=state.uploaded.filter(n=>n!==v)}else if(a==='menu'){$('#sidebar').classList.toggle('open');return}else if(a==='save-clinic'){notify('Изменения сохранены локально');return}else if(a==='file-preview'){notify(v);return}else if(a==='notifications'){notify('Новых уведомлений нет');return}else if(a==='filters'){notify('Используйте вкладки для фильтрации заказов');return}else if(a==='more'){notify('Дополнительные действия появятся после подключения сервера');return}else if(a==='change-logo'){notify('Загрузка логотипа появится после подключения сервера');return}else if(a==='attach'){notify('Прикрепление файлов доступно в разделе «Файлы»');return}else if(a==='contact'){notify('Демонстрационный диалог');return}else return;if(['new','open-messages'].includes(a))navigate(pathFor('clinic',state.page));render()});
 document.addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-tooth][role="button"]')){event.preventDefault();event.target.click()}});
 document.addEventListener('click',event=>{
   const button=event.target.closest('[data-action^="calendar-"]');
@@ -248,6 +262,7 @@ document.addEventListener('submit',async event=>{
   try{await authRequest(action,body);await hydratePortal()}
   catch(error){clearPortalToken();portalError=error.message;render()}
 });
+window.addEventListener('popstate',syncRoute);
 setInterval(loadMessages,3000);
 render();
 if(portalToken())hydratePortal().catch(error=>{clearPortalToken();portalError=error.message;render()});

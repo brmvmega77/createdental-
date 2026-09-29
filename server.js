@@ -11,7 +11,7 @@ const host = process.env.HOST || '127.0.0.1';
 const supportToken = process.env.SUPPORT_TOKEN || (process.env.SUPPORT_TOKEN_FILE ? fs.readFileSync(process.env.SUPPORT_TOKEN_FILE, 'utf8').trim() : '');
 const portalToken = process.env.PORTAL_TOKEN || supportToken;
 const chatFile = process.env.CHAT_DATA_FILE || path.join(root, '.data', 'chat.json');
-const publicFiles = new Set(['/','/index.html','/app.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/styles.css','/support.html','/support.js']);
+const publicFiles = new Set(['/','/index.html','/app.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/styles.css','/support.html','/support.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png'};
 const conversationIdPattern = /^[a-f0-9]{32}$/;
 let chats = {};
@@ -193,8 +193,9 @@ async function handleChat(req, res, url) {
 
 function serveFile(req, res, pathname) {
   let file;
-  if (publicFiles.has(pathname)) {
-    file = path.join(root, pathname === '/' ? 'index.html' : pathname);
+  const appRoute=/^\/(?:login|register|forgot-password|(?:clinic|technician|worker)(?:\/[A-Za-z0-9_-]+){0,2})\/?$/.test(pathname);
+  if (publicFiles.has(pathname)||appRoute) {
+    file = path.join(root, appRoute||pathname==='/' ? 'index.html' : pathname);
   } else if (pathname.startsWith('/assets/')) {
     file = path.resolve(root, 'public', '.' + pathname);
     if (!file.startsWith(path.join(root, 'public', 'assets') + path.sep)) return json(res, 403, {error:'Доступ запрещён'});

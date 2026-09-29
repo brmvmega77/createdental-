@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check app.js && node --check technician.js && node --check worker.js && node --check seed-orders.js && node --check portal-client.js && node --check portal-data.js && node --check auth-data.js && node --check server.js"
+    "check": "node --check app.js && node --check technician.js && node --check worker.js && node --check seed-orders.js && node --check portal-client.js && node --check portal-data.js && node --check auth-data.js && node --check routes.js && node --check server.js"
   },
   "engines": {"node": ">=20"}
 }

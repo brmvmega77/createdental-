@@ -1,14 +1,14 @@
 import {loadEmployees,seedDetails,stages} from './technician.js';
 import {savePortal} from './portal-client.js';
+import {routeFromPath,pathFor,navigate} from './routes.js';
 
 const safe=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const tone=stage=>stage==='Контроль качества'?'review':stage==='Готово к выдаче'?'ready':'work';
 const readOrders=()=>{try{return JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}}catch{return {}}};
 
 export function createWorkerCabinet({root,orders,assets,icon,toothChart,isActive,currentUser}){
-  const params=new URLSearchParams(location.search);
-  const requestedPage=params.get('page');
-  const state={page:params.get('role')==='worker'&&['overview','orders','detail','profile'].includes(requestedPage)?requestedPage:'overview',employeeId:params.get('employee')||'',orderId:params.get('order')||'',toast:''};
+  const initialRoute=routeFromPath(location.pathname);
+  const state={page:initialRoute.role==='worker'?initialRoute.page:'overview',employeeId:'',orderId:initialRoute.orderId||'',toast:''};
   function employees(){return loadEmployees()}
   function current(){
     state.employeeId=currentUser()?.subjectId||'';
@@ -22,11 +22,7 @@ export function createWorkerCabinet({root,orders,assets,icon,toothChart,isActive
   }
   function setPage(page){
     state.page=page;
-    const url=new URL(location.href);
-    url.searchParams.set('page',page);
-    if(page==='detail')url.searchParams.set('order',state.orderId);
-    else url.searchParams.delete('order');
-    history.replaceState(null,'',url);
+    navigate(pathFor('worker',page,state.orderId));
     render();
   }
   function orderList(list){
@@ -60,6 +56,8 @@ export function createWorkerCabinet({root,orders,assets,icon,toothChart,isActive
     root().innerHTML=`<aside class="sidebar tech-sidebar" id="worker-sidebar"><div class="brand"><img src="${assets}create-dental-logo.png" alt="Create Dental"></div><div class="tech-side-label">Кабинет техника</div><nav class="sidebar-nav">${nav.map(([page,label,ico])=>`<button class="nav-link ${state.page===page||state.page==='detail'&&page==='orders'?'active':''}" data-worker-page="${page}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav></aside><div class="shell tech-shell"><header class="topbar"><button class="mobile-menu" data-worker-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><button class="role-toggle" data-auth-logout>Выйти</button><button class="profile" data-worker-page="profile"><span class="avatar">${safe(employee?.name.split(' ').map(part=>part[0]).join('')||'Т')}</span><span><strong>${safe(employee?.name||'Техник')}</strong><small>Зубной техник</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>`;
   }
   function render(){
+    const route=routeFromPath(location.pathname);
+    if(route.role==='worker'){state.page=route.page;if(route.orderId)state.orderId=route.orderId}
     const employee=current();
     if(!employee){shell(`<div class="tech-heading"><div><span class="tech-eyebrow">КАБИНЕТ ТЕХНИКА</span><h1>Доступ недоступен</h1><p>Выбранный сотрудник отключён, уволен или отсутствует. Переключитесь на активного техника в верхней панели либо вернитесь к главному технику.</p></div></div>`);return}
     shell(({overview,orders:ordersPage,detail:detailPage,profile}[state.page]||overview)());
