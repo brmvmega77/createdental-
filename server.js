@@ -9,7 +9,6 @@ const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || '127.0.0.1';
 const supportToken = process.env.SUPPORT_TOKEN || (process.env.SUPPORT_TOKEN_FILE ? fs.readFileSync(process.env.SUPPORT_TOKEN_FILE, 'utf8').trim() : '');
-const portalToken = process.env.PORTAL_TOKEN || supportToken;
 const chatFile = process.env.CHAT_DATA_FILE || path.join(root, '.data', 'chat.json');
 const publicFiles = new Set(['/','/index.html','/app.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/styles.css','/support.html','/support.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png'};
@@ -106,11 +105,6 @@ async function handlePortal(req,res,url){
 async function handleAuth(req,res,url){
   if(req.method==='POST'&&url.pathname==='/api/auth/logout'){revokeSession(req.headers['x-portal-token']);return json(res,200,{ok:true})}
   let body;try{body=await readBody(req,12000)}catch{return json(res,400,{error:'Неверные данные'})}
-  if(req.method==='POST'&&url.pathname==='/api/auth/chief'){
-    const incoming=String(body.key||'');
-    if(!portalToken||Buffer.byteLength(incoming)!==Buffer.byteLength(portalToken)||!timingSafeEqual(Buffer.from(incoming),Buffer.from(portalToken)))return json(res,401,{error:'Неверный ключ'});
-    return json(res,200,{token:issueSession('technician','chief'),user:{role:'technician',subjectId:'chief'}});
-  }
   if(req.method==='POST'&&url.pathname==='/api/auth/register'){
     const name=String(body.name||'').trim(),email=String(body.email||'').trim().toLowerCase();
     if(name.length<2||name.length>120||/[<>]/.test(name)||!validEmail(email)||!validPassword(body.password)||hasAccount(email))return json(res,400,{error:'Проверьте название, email и пароль (от 10 символов)'});
@@ -119,17 +113,12 @@ async function handleAuth(req,res,url){
     const client={id,originalName:id,name,email,contact:'',phone:'',address:''};
     try{if(!existing)await replacePortalCollection('clients',[...portalSnapshot().clients,client]);await createAccount({email,password:body.password,role:'clinic',subjectId:id})}
     catch{return json(res,500,{error:'Не удалось создать кабинет'})}
-    return json(res,201,{token:issueSession('clinic',id),user:{role:'clinic',subjectId:id}});
+    return json(res,201,{token:issueSession('clinic',id,name),user:{role:'clinic',subjectId:id}});
   }
   if(req.method==='POST'&&url.pathname==='/api/auth/login'){
-    if(String(body.email||'').trim().toLowerCase()==='chief'){
-      const incoming=String(body.password||'');
-      if(!portalToken||Buffer.byteLength(incoming)!==Buffer.byteLength(portalToken)||!timingSafeEqual(Buffer.from(incoming),Buffer.from(portalToken)))return json(res,401,{error:'Неверный логин или пароль'});
-      return json(res,200,{token:issueSession('technician','chief'),user:{role:'technician',subjectId:'chief'}});
-    }
     const account=login(body.email,body.password);
     if(!account||account.role==='worker'&&portalEmployee(account.subjectId)?.status!=='active'||account.role==='clinic'&&!portalClient(account.subjectId))return json(res,401,{error:'Неверный email или пароль'});
-    return json(res,200,{token:issueSession(account.role,account.subjectId),user:{role:account.role,subjectId:account.subjectId}});
+    return json(res,200,{token:issueSession(account.role,account.subjectId,account.displayName||account.email),user:{role:account.role,subjectId:account.subjectId}});
   }
   if(req.method==='POST'&&url.pathname==='/api/auth/staff'){
     if(session(req)?.role!=='technician')return json(res,403,{error:'Доступ запрещён'});

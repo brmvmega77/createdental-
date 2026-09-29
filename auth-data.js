@@ -22,6 +22,13 @@ async function save(){
   await queue;
 }
 export function hasAccount(email){return accounts.some(account=>account.email===normalize(email))}
+export async function resetAccountsToChief(username,password){
+  const name=String(username||'').trim();
+  if(!/^[A-Za-z0-9_-]{3,40}$/.test(name)||typeof password!=='string'||password.length<8)throw new Error('invalid_chief_credentials');
+  accounts=[{id:randomBytes(16).toString('hex'),username:name.toLowerCase(),displayName:name,passwordHash:hash(password),role:'technician',subjectId:'chief'}];
+  sessions.clear();
+  await save();
+}
 export async function createAccount({email,password,role,subjectId}){
   if(!validEmail(email)||!validPassword(password)||hasAccount(email))throw new Error('invalid_account');
   const account={id:randomBytes(16).toString('hex'),email:normalize(email),passwordHash:hash(password),role,subjectId};
@@ -41,13 +48,13 @@ export async function upsertWorkerAccount({employeeId,email,password}){
   return account;
 }
 export function login(email,password){
-  const account=accounts.find(item=>item.email===normalize(email));
+  const account=accounts.find(item=>item.email===normalize(email)||item.username===normalize(email));
   if(!account||typeof password!=='string'||!verify(password,account.passwordHash))return null;
   return account;
 }
-export function issueSession(role,subjectId){
+export function issueSession(role,subjectId,displayName=''){
   const token=randomBytes(32).toString('hex');
-  sessions.set(token,{role,subjectId,expires:Date.now()+7*86400000});
+  sessions.set(token,{role,subjectId,displayName,expires:Date.now()+7*86400000});
   return token;
 }
 export function sessionFor(token){

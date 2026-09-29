@@ -184,22 +184,22 @@ function clinicPage(){
   shell(`${title('Моя клиника')}${tabs([['Основная информация'],['Контактные лица'],['Настройки'],['Безопасность']],state.clinicTab,'clinic-tab')}<div class="clinic-content"><div class="clinic-photo"><img src="${assets}clinic.png" alt="Здание клиники"><button data-action="change-logo">Изменить логотип</button></div><form id="clinic-form" class="clinic-form"><div class="form-grid">${field('Название клиники',input('name',clinic.name))}${field('ИНН',input('inn',clinic.inn))}${field('Адрес',input('address',clinic.address))}${field('Телефон',input('phone',clinic.phone))}${field('Email',input('email',clinic.email))}<div class="save-field"><button class="btn primary" type="submit">Сохранить изменения</button></div></div></form></div>`);
 }
 function referencePage(){shell(`${title('Справочник','Информация о конструкциях, материалах и оформлении заказов.')}<div class="reference-grid">${[['Коронки E.max','Эстетичные цельнокерамические реставрации.'],['Виниры','Тонкие накладки для восстановления улыбки.'],['Мостовидные протезы','Конструкции для замещения отсутствующих зубов.'],['3D сканирование','Цифровые слепки для точной работы.']].map(([h,p])=>`<article class="reference-card">${icon('book',25)}<h3>${h}</h3><p>${p}</p></article>`).join('')}</div>`)}
-const technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,icon,toothChart,isActive:()=>state.role==='technician'});
+const technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser});
 const workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser});
 let portalReady=false;
 let portalUser=null;
 let authMode=initialRoute.mode||'login';
 let portalError='';
 function loginView(){
-  const field=(label,name,type='text')=>`<label>${label}<input name="${name}" type="${type}" ${name==='password'?'minlength="10"':''} required></label>`;
+  const field=(label,name,type='text',minimum='')=>`<label>${label}<input name="${name}" type="${type}" ${minimum?`minlength="${minimum}"`:''} required></label>`;
   const form=authMode==='register'
-    ?`${field('Название клиники','name')}${field('Email','email','email')}${field('Пароль от 10 символов','password','password')}<button class="btn primary">Зарегистрироваться</button>`
+    ?`${field('Название клиники','name')}${field('Email','email','email')}${field('Пароль от 10 символов','password','password',10)}<button class="btn primary">Зарегистрироваться</button>`
     :`${field('Email или логин','email')}${field('Пароль','password','password')}<button class="btn primary">Войти</button>`;
   const links=authMode==='login'
     ?'<div class="auth-links"><button type="button" data-auth-mode="register">Регистрация</button><button type="button" data-auth-mode="recover">Забыли пароль?</button></div>'
     :'<div class="auth-links"><button type="button" data-auth-mode="login">← Вернуться ко входу</button></div>';
   const content=authMode==='recover'
-    ?'<div class="auth-recovery"><h2>Восстановление пароля</h2><p>Обратитесь к главному технику лаборатории, чтобы получить новый пароль. Для входа главного техника используется административный ключ.</p></div>'
+    ?'<div class="auth-recovery"><h2>Восстановление пароля</h2><p>Обратитесь к главному технику лаборатории, чтобы получить новый пароль.</p></div>'
     :`<form id="portal-login-form" data-mode="${authMode}">${form}</form>`;
   $('#app').innerHTML=`<main class="portal-login"><section><img src="${assets}create-dental-logo.png" alt="Create Dental"><h1>${authMode==='register'?'Регистрация клиники':'Личный кабинет Create Dental'}</h1><p>Заказы, производство и связь с лабораторией.</p>${content}${links}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
 }
