@@ -156,3 +156,21 @@
 .tech-client-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.tech-client-form label{display:grid;gap:6px;color:#526b8c;font-size:12px;font-weight:650}.tech-client-form input{height:40px;border:1px solid #dce8f6;border-radius:7px;padding:0 11px;color:#253d5e;font-size:13px}.tech-client-form-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:9px;margin-top:4px}
 .tech-dialog-backdrop{position:fixed;inset:0;background:#14243b77;display:grid;place-items:center;z-index:40;padding:18px}.tech-dialog{width:min(100%,420px);background:#fff;border-radius:13px;padding:25px;box-shadow:0 20px 65px #101d3240}.tech-dialog h2{font-size:20px;color:#182e4c;margin:0 0 10px}.tech-dialog p{font-size:13px;line-height:1.6;color:#617b9a;margin:0 0 22px}.tech-dialog>div{display:flex;justify-content:flex-end;gap:9px}.tech-dialog .btn.danger{background:#df4b52;border-color:#df4b52;color:#fff}
 @media(max-width:760px){.tech-client-toolbar{display:block}.tech-client-toolbar input{margin-top:14px;width:100%}.tech-client-form{grid-template-columns:1fr}.tech-heading>.btn{padding:0 11px;font-size:11px}}
+
+/* Team administration and individual technician cabinet */
+.tech-employee-filters{width:max-content;max-width:100%;margin-bottom:15px}
+.tech-employee-table{min-width:920px}
+.tech-employee-table td{vertical-align:middle}
+.tech-employee-status{display:inline-flex;border-radius:18px;padding:6px 9px;font-size:10px;font-weight:750;white-space:nowrap}
+.tech-employee-status.active{color:#15905c;background:#e7f8ef}
+.tech-employee-status.disabled{color:#a86712;background:#fff4e4}
+.tech-employee-status.fired{color:#8d98a8;background:#edf1f6}
+.worker-account{display:flex;align-items:center;gap:8px;color:#7b8fa9;font-size:11px;font-weight:650;white-space:nowrap}
+.worker-account select{max-width:190px;height:36px;padding:0 9px;border:1px solid #dce8f6;border-radius:7px;background:#fff;color:#314e70;font-size:12px}
+.worker-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin-bottom:18px}
+.worker-stats article{display:grid;gap:7px;background:#fff;border:1px solid #e2ebf6;border-radius:12px;padding:19px;box-shadow:0 7px 24px #274f7a08}
+.worker-stats span{color:#758ba7;font-size:12px}.worker-stats strong{color:#1a3457;font-size:28px}.worker-stats small{color:#8ca0b7;font-size:11px}
+.worker-table{min-width:760px}
+@media(max-width:1000px){.tech-shell .topbar{gap:8px}.tech-shell .topbar .profile>span:nth-child(2){display:none}.worker-account select{max-width:145px}}
+@media(max-width:760px){.worker-stats{gap:8px}.worker-stats article{padding:12px}.worker-stats strong{font-size:22px}.worker-account{font-size:0}.worker-account select{max-width:125px}.tech-shell .topbar .role-toggle{font-size:9px;padding:7px}.tech-shell .topbar .profile{display:none}}
+@media(max-width:500px){.worker-stats{grid-template-columns:1fr}.worker-stats article{grid-template-columns:1fr auto;align-items:center;gap:3px}.worker-stats article small{grid-column:1/-1}.tech-shell .topbar .role-toggle[data-role="clinic"]{display:none}.tech-employee-filters{overflow:auto;flex-wrap:nowrap;width:100%}}

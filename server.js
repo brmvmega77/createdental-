@@ -8,7 +8,7 @@ const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || '127.0.0.1';
 const supportToken = process.env.SUPPORT_TOKEN || (process.env.SUPPORT_TOKEN_FILE ? fs.readFileSync(process.env.SUPPORT_TOKEN_FILE, 'utf8').trim() : '');
 const chatFile = process.env.CHAT_DATA_FILE || path.join(root, '.data', 'chat.json');
-const publicFiles = new Set(['/','/index.html','/app.js','/technician.js','/styles.css','/support.html','/support.js']);
+const publicFiles = new Set(['/','/index.html','/app.js','/technician.js','/worker.js','/styles.css','/support.html','/support.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png'};
 const conversationIdPattern = /^[a-f0-9]{32}$/;
 let chats = {};
