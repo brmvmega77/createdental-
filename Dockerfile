@@ -2,7 +2,7 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-COPY package.json index.html app.js technician.js worker.js styles.css support.html support.js server.js ./
+COPY package.json index.html app.js technician.js worker.js seed-orders.js portal-client.js portal-data.js styles.css support.html support.js server.js ./
 COPY public/assets ./public/assets
 
 RUN mkdir -p /app/.data && chown node:node /app/.data

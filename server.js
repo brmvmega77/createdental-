@@ -2,13 +2,15 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
+import {portalSnapshot,replacePortalCollection} from './portal-data.js';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || '127.0.0.1';
 const supportToken = process.env.SUPPORT_TOKEN || (process.env.SUPPORT_TOKEN_FILE ? fs.readFileSync(process.env.SUPPORT_TOKEN_FILE, 'utf8').trim() : '');
+const portalToken = process.env.PORTAL_TOKEN || supportToken;
 const chatFile = process.env.CHAT_DATA_FILE || path.join(root, '.data', 'chat.json');
-const publicFiles = new Set(['/','/index.html','/app.js','/technician.js','/worker.js','/styles.css','/support.html','/support.js']);
+const publicFiles = new Set(['/','/index.html','/app.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/styles.css','/support.html','/support.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png'};
 const conversationIdPattern = /^[a-f0-9]{32}$/;
 let chats = {};
@@ -33,13 +35,33 @@ function isOperator(req) {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-async function readBody(req) {
+function isPortalUser(req){
+  const incoming=req.headers['x-portal-token'];
+  if(!portalToken||typeof incoming!=='string')return false;
+  const left=Buffer.from(incoming),right=Buffer.from(portalToken);
+  return left.length===right.length&&timingSafeEqual(left,right);
+}
+
+async function readBody(req,limit=8192) {
   let body = '';
   for await (const chunk of req) {
     body += chunk;
-    if (body.length > 8192) throw new Error('too_large');
+    if (body.length > limit) throw new Error('too_large');
   }
   return JSON.parse(body || '{}');
+}
+
+async function handlePortal(req,res,url){
+  if(!isPortalUser(req))return json(res,portalToken?401:503,{error:portalToken?'Требуется ключ доступа':'Доступ не настроен'});
+  if(req.method==='GET'&&url.pathname==='/api/portal')return json(res,200,portalSnapshot());
+  const key=url.pathname.slice('/api/portal/'.length);
+  if(req.method==='PUT'&&['orders','orderOverrides','clients','employees'].includes(key)){
+    let value;
+    try {value=await readBody(req,500000)} catch {return json(res,400,{error:'Неверные данные'})}
+    try {await replacePortalCollection(key,value);return json(res,200,{ok:true})}
+    catch(error){return json(res,error.message==='invalid_collection'?400:500,{error:error.message==='invalid_collection'?'Неверные данные':'Не удалось сохранить'})}
+  }
+  return json(res,404,{error:'Не найдено'});
 }
 
 function saveChats() {
@@ -111,6 +133,7 @@ function serveFile(req, res, pathname) {
 http.createServer(async (req,res) => {
   let url;
   try { url = new URL(req.url || '/', 'http://localhost'); } catch { return json(res, 400, {error:'Неверный адрес'}); }
+  if(url.pathname==='/api/portal'||url.pathname.startsWith('/api/portal/'))return handlePortal(req,res,url);
   if (url.pathname.startsWith('/api/')) {
     try { return await handleChat(req,res,url); } catch { return json(res, 500, {error:'Ошибка сервера'}); }
   }

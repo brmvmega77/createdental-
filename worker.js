@@ -1,4 +1,5 @@
 import {loadEmployees,seedDetails,stages} from './technician.js';
+import {savePortal} from './portal-client.js';
 
 const safe=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const tone=stage=>stage==='Контроль качества'?'review':stage==='Готово к выдаче'?'ready':'work';
@@ -18,7 +19,7 @@ export function createWorkerCabinet({root,orders,assets,icon,toothChart,isActive
     const employee=current();
     if(!employee)return [];
     const overrides=readOrders();
-    return orders.map(order=>({...order,stage:'Ожидает распределения',assignee:'',priority:'Обычный',teeth:[],clinic:'Dental Clinic',...seedDetails[order.id],...overrides[order.id]})).filter(order=>order.assignee===employee.originalName);
+    return orders.map(order=>({...order,stage:'Ожидает распределения',assignee:'',priority:'Обычный',teeth:[],clinic:order.clinic||'Dental Clinic',...seedDetails[order.id],...overrides[order.id]})).filter(order=>order.assignee===employee.originalName);
   }
   function setPage(page){
     state.page=page;
@@ -77,6 +78,7 @@ export function createWorkerCabinet({root,orders,assets,icon,toothChart,isActive
         const overrides=readOrders();
         overrides[order.id]={...(overrides[order.id]||{}),stage:stages[index+1]};
         localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
+        savePortal('orderOverrides',overrides).catch(error=>{state.toast='Не удалось сохранить этап на сервере: '+error.message;render()});
         render();
       }
       return;

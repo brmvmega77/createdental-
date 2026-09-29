@@ -1,3 +1,5 @@
+import {savePortal} from './portal-client.js';
+
 const technicians = ['Анна Смирнова', 'Дмитрий Орлов', 'Мария Ким', 'Илья Федоров'];
 export const seedEmployees = technicians.map((name,index)=>({
   id:`tech-${index+1}`,originalName:name,name,
@@ -14,7 +16,7 @@ export function loadEmployees(){
   return seedEmployees.map(item=>({...item}));
 }
 const clinics = ['Dental Clinic', 'Smile Studio', 'White Line', 'Nova Dent'];
-const seedClients = [
+export const seedClients = [
   {id:'clinic-1',originalName:'Dental Clinic',name:'Dental Clinic',contact:'Иван Иванов',phone:'+7 (495) 123-45-67',email:'info@dentalclinic.ru',address:'Москва'},
   {id:'clinic-2',originalName:'Smile Studio',name:'Smile Studio',contact:'Елена Морозова',phone:'+7 (495) 234-56-78',email:'hello@smilestudio.ru',address:'Москва'},
   {id:'clinic-3',originalName:'White Line',name:'White Line',contact:'Андрей Козлов',phone:'+7 (812) 345-67-89',email:'office@whiteline.ru',address:'Санкт-Петербург'},
@@ -34,19 +36,6 @@ export const seedDetails = {
   'CD-1035': {stage:'Ожидает распределения',assignee:'',priority:'Высокий',teeth:[34,35,36,37],clinic:'Nova Dent'}
 };
 
-const analyticsRecords = [];
-for (let month=0; month<12; month++) {
-  clinics.forEach((clinic, clientIndex) => {
-    const count=2+((month+clientIndex*2)%4);
-    for(let number=0; number<count; number++) {
-      analyticsRecords.push({
-        month, clinic,
-        technician:technicians[(month+clientIndex+number)%technicians.length],
-        amount:7600+clientIndex*2100+((month*3+number*2+clientIndex)%6)*1800
-      });
-    }
-  });
-}
 
 const money = amount => new Intl.NumberFormat('ru-RU').format(amount) + ' ₽';
 const safe = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -75,15 +64,15 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     history.replaceState(null,'',url);
     render();
   }
-  function saveClients(){localStorage.setItem('create-dental-tech-clients',JSON.stringify(clients))}
+  function saveClients(){localStorage.setItem('create-dental-tech-clients',JSON.stringify(clients));savePortal('clients',clients).catch(error=>toast('Не удалось сохранить клиентов на сервере: '+error.message))}
   function clientName(original){return clients.find(client=>client.originalName===original)?.name||original}
-  function saveTeam(){localStorage.setItem('create-dental-employees',JSON.stringify(team))}
+  function saveTeam(){localStorage.setItem('create-dental-employees',JSON.stringify(team));savePortal('employees',team).catch(error=>toast('Не удалось сохранить команду на сервере: '+error.message))}
   function employeeName(original){return team.find(employee=>employee.originalName===original)?.name||original}
   function activeTeam(){return team.filter(employee=>employee.status==='active')}
 
   function allOrders(){
     return orders.map(order => {
-      const details={stage:'Ожидает распределения',assignee:'',priority:'Обычный',teeth:[],clinic:'Dental Clinic',...seedDetails[order.id],...overrides[order.id]};
+      const details={stage:'Ожидает распределения',assignee:'',priority:'Обычный',teeth:[],clinic:order.clinic||'Dental Clinic',...seedDetails[order.id],...overrides[order.id]};
       return {...order,...details,clinic:clientName(details.clinic),assigneeKey:details.assignee,assignee:employeeName(details.assignee)};
     });
   }
@@ -93,6 +82,7 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     if(!current)return;
     overrides[id]={...(overrides[id]||{}),...change};
     localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
+    savePortal('orderOverrides',overrides).catch(error=>toast('Не удалось сохранить этап на сервере: '+error.message));
     render();
   }
   function toast(message){
@@ -101,8 +91,15 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     clearTimeout(toast.timer);
     toast.timer=setTimeout(()=>{state.toast='';root().querySelector('.toast')?.classList.remove('visible')},3200);
   }
+  function analyticsRecords(){
+    return allOrders().map(order=>{
+      const completed=order.stage==='Готово к выдаче'||order.status==='Завершен';
+      const date=order.completedAt?new Date(order.completedAt):parseDate(order.date);
+      return {year:date.getFullYear(),month:date.getMonth(),clinic:order.clinic,technician:order.assignee,amount:completed?Number(String(order.sum).replace(/[^0-9]/g,'')):0};
+    });
+  }
   function filteredRecords(month=state.month){
-    return analyticsRecords.filter(record=>record.month===month&&(state.technician==='Все техники'||employeeName(record.technician)===state.technician)).map(record=>({...record,clinic:clientName(record.clinic),technician:employeeName(record.technician)}));
+    return analyticsRecords().filter(record=>record.year===analyticsYear&&record.month===month&&(state.technician==='Все техники'||record.technician===state.technician));
   }
   function groupRows(records,key){
     const grouped=new Map();
@@ -116,7 +113,7 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
   }
   function monthName(month){return new Intl.DateTimeFormat('ru-RU',{month:'long'}).format(new Date(analyticsYear,month,1))}
   function filters(){
-    return `<div class="tech-filters"><label>Месяц<select data-tech-month-select>${monthLabels.map((label,index)=>`<option value="${index}" ${state.month===index?'selected':''}>${monthName(index)} ${analyticsYear}</option>`).join('')}</select></label><label>Исполнитель<select data-tech-technician><option>Все техники</option>${team.map(employee=>`<option ${state.technician===employee.name?'selected':''}>${safe(employee.name)}</option>`).join('')}</select></label><span class="tech-demo-note">Демонстрационные данные</span></div>`;
+    return `<div class="tech-filters"><label>Месяц<select data-tech-month-select>${monthLabels.map((label,index)=>`<option value="${index}" ${state.month===index?'selected':''}>${monthName(index)} ${analyticsYear}</option>`).join('')}</select></label><label>Исполнитель<select data-tech-technician><option>Все техники</option>${team.map(employee=>`<option ${state.technician===employee.name?'selected':''}>${safe(employee.name)}</option>`).join('')}</select></label><span class="tech-demo-note">По сохранённым заказам · выручка после проверки качества</span></div>`;
   }
   function kpis(){
     const current=filteredRecords();
@@ -200,7 +197,7 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     const active=clients.filter(client=>!client.deleted);
     const q=state.clientSearch.trim().toLowerCase();
     const visible=active.filter(client=>[client.name,client.contact,client.phone,client.email,client.address].some(value=>String(value||'').toLowerCase().includes(q)));
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">СПРАВОЧНИК</span><h1>Клиенты</h1><p>Контакты клиник и результаты сотрудничества.</p></div><button class="btn primary" data-tech-client-action="new">+ Добавить клиента</button></div><div class="tech-client-layout"><section class="tech-panel"><div class="tech-client-toolbar"><div><h2>Клиники <span>${active.length}</span></h2><p>Финансовые показатели демонстрационные · ${analyticsYear} год</p></div><input id="tech-client-search" type="search" placeholder="Поиск по клинике или контакту" value="${safe(state.clientSearch)}" aria-label="Поиск клиентов"></div><div class="tech-table-wrap"><table class="tech-table tech-client-table"><thead><tr><th>Клиника</th><th>Контакт</th><th>Заказов</th><th>Выручка</th><th>Действия</th></tr></thead><tbody>${visible.map(client=>{const records=analyticsRecords.filter(record=>record.clinic===client.originalName);const total=records.reduce((sum,record)=>sum+record.amount,0);return `<tr><td><strong>${safe(client.name)}</strong><small>${safe(client.address||'Адрес не указан')}</small></td><td>${safe(client.contact||'Не указано')}<small>${safe(client.phone||client.email||'Контакт не указан')}</small></td><td>${records.length}</td><td><strong>${money(total)}</strong></td><td><div class="tech-client-actions"><button data-tech-client-action="edit" data-client-id="${safe(client.id)}">Изменить</button><button class="danger" data-tech-client-action="delete" data-client-id="${safe(client.id)}">Удалить</button></div></td></tr>`}).join('')||'<tr><td colspan="5" class="tech-empty">Клиентов не найдено</td></tr>'}</tbody></table></div></section>${clientForm()}</div>${state.confirmDeleteId?`<div class="tech-dialog-backdrop"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="tech-delete-title"><h2 id="tech-delete-title">Удалить клиента из списка?</h2><p>${safe(clients.find(client=>client.id===state.confirmDeleteId)?.name||'Клиент')} исчезнет из справочника. История заказов и финансовые результаты сохранятся.</p><div><button class="btn outline" data-tech-client-action="cancel-delete">Отмена</button><button class="btn danger" data-tech-client-action="confirm-delete" data-client-id="${safe(state.confirmDeleteId)}">Удалить</button></div></section></div>`:''}`;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">СПРАВОЧНИК</span><h1>Клиенты</h1><p>Контакты клиник и результаты сотрудничества.</p></div><button class="btn primary" data-tech-client-action="new">+ Добавить клиента</button></div><div class="tech-client-layout"><section class="tech-panel"><div class="tech-client-toolbar"><div><h2>Клиники <span>${active.length}</span></h2><p>По сохранённым заказам · ${analyticsYear} год</p></div><input id="tech-client-search" type="search" placeholder="Поиск по клинике или контакту" value="${safe(state.clientSearch)}" aria-label="Поиск клиентов"></div><div class="tech-table-wrap"><table class="tech-table tech-client-table"><thead><tr><th>Клиника</th><th>Контакт</th><th>Заказов</th><th>Выручка</th><th>Действия</th></tr></thead><tbody>${visible.map(client=>{const records=analyticsRecords().filter(record=>record.clinic===client.name);const total=records.reduce((sum,record)=>sum+record.amount,0);return `<tr><td><strong>${safe(client.name)}</strong><small>${safe(client.address||'Адрес не указан')}</small></td><td>${safe(client.contact||'Не указано')}<small>${safe(client.phone||client.email||'Контакт не указан')}</small></td><td>${records.length}</td><td><strong>${money(total)}</strong></td><td><div class="tech-client-actions"><button data-tech-client-action="edit" data-client-id="${safe(client.id)}">Изменить</button><button class="danger" data-tech-client-action="delete" data-client-id="${safe(client.id)}">Удалить</button></div></td></tr>`}).join('')||'<tr><td colspan="5" class="tech-empty">Клиентов не найдено</td></tr>'}</tbody></table></div></section>${clientForm()}</div>${state.confirmDeleteId?`<div class="tech-dialog-backdrop"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="tech-delete-title"><h2 id="tech-delete-title">Удалить клиента из списка?</h2><p>${safe(clients.find(client=>client.id===state.confirmDeleteId)?.name||'Клиент')} исчезнет из справочника. История заказов и финансовые результаты сохранятся.</p><div><button class="btn outline" data-tech-client-action="cancel-delete">Отмена</button><button class="btn danger" data-tech-client-action="confirm-delete" data-client-id="${safe(state.confirmDeleteId)}">Удалить</button></div></section></div>`:''}`;
   }
   function employeeForm(){
     if(!state.editEmployeeId)return '';
@@ -214,14 +211,14 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     const query=state.employeeSearch.trim().toLowerCase();
     const visible=team.filter(employee=>(state.employeeFilter==='all'||employee.status===state.employeeFilter)&&[employee.name,employee.specialty,employee.phone,employee.email].some(value=>String(value||'').toLowerCase().includes(query)));
     const statusText={active:'Активен',disabled:'Отключен',fired:'Уволен'};
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">КОМАНДА</span><h1>Сотрудники лаборатории</h1><p>Управление составом команды и доступом техников.</p></div><button class="btn primary" data-tech-employee-action="new">+ Добавить техника</button></div><div class="tech-client-layout"><section class="tech-panel"><div class="tech-client-toolbar"><div><h2>Техники <span>${team.length}</span></h2><p>Активных: ${activeTeam().length} · данные сохраняются в этом браузере</p></div><input id="tech-employee-search" type="search" placeholder="Поиск по имени, специализации или контакту" value="${safe(state.employeeSearch)}" aria-label="Поиск техников"></div><div class="tech-segment tech-employee-filters">${[['all','Все'],['active','Активные'],['disabled','Отключённые'],['fired','Уволенные']].map(([value,label])=>`<button data-tech-employee-filter="${value}" class="${state.employeeFilter===value?'active':''}">${label}</button>`).join('')}</div><div class="tech-table-wrap"><table class="tech-table tech-employee-table"><thead><tr><th>Техник</th><th>Специализация</th><th>Контакты</th><th>В работе</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${visible.map(employee=>`<tr><td><strong>${safe(employee.name)}</strong></td><td>${safe(employee.specialty||'Не указана')}</td><td>${safe(employee.phone||'—')}<small>${safe(employee.email||'')}</small></td><td>${open.filter(order=>order.assigneeKey===employee.originalName).length}</td><td><span class="tech-employee-status ${employee.status}">${statusText[employee.status]||'Неизвестно'}</span></td><td><div class="tech-client-actions"><button data-tech-employee-action="edit" data-employee-id="${safe(employee.id)}">Изменить</button>${employee.status==='active'?`<button data-tech-employee-action="disable" data-employee-id="${safe(employee.id)}">Отключить</button>`:employee.status==='disabled'?`<button data-tech-employee-action="enable" data-employee-id="${safe(employee.id)}">Включить</button>`:''}${employee.status!=='fired'?`<button class="danger" data-tech-employee-action="fire" data-employee-id="${safe(employee.id)}">Уволить</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="6" class="tech-empty">Техников не найдено</td></tr>'}</tbody></table></div></section>${employeeForm()}</div>${state.confirmFireId?`<div class="tech-dialog-backdrop"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="tech-fire-title"><h2 id="tech-fire-title">Уволить техника?</h2><p>${safe(team.find(employee=>employee.id===state.confirmFireId)?.name||'Сотрудник')} потеряет доступ к демонстрационному кабинету. Незавершённые заказы перейдут в очередь на распределение; история выручки сохранится.</p><div><button class="btn outline" data-tech-employee-action="cancel-fire">Отмена</button><button class="btn danger" data-tech-employee-action="confirm-fire" data-employee-id="${safe(state.confirmFireId)}">Уволить</button></div></section></div>`:''}`;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">КОМАНДА</span><h1>Сотрудники лаборатории</h1><p>Управление составом команды и назначениями техников.</p></div><button class="btn primary" data-tech-employee-action="new">+ Добавить техника</button></div><div class="tech-client-layout"><section class="tech-panel"><div class="tech-client-toolbar"><div><h2>Техники <span>${team.length}</span></h2><p>Активных: ${activeTeam().length} · данные сохраняются на сервере</p></div><input id="tech-employee-search" type="search" placeholder="Поиск по имени, специализации или контакту" value="${safe(state.employeeSearch)}" aria-label="Поиск техников"></div><div class="tech-segment tech-employee-filters">${[['all','Все'],['active','Активные'],['disabled','Отключённые'],['fired','Уволенные']].map(([value,label])=>`<button data-tech-employee-filter="${value}" class="${state.employeeFilter===value?'active':''}">${label}</button>`).join('')}</div><div class="tech-table-wrap"><table class="tech-table tech-employee-table"><thead><tr><th>Техник</th><th>Специализация</th><th>Контакты</th><th>В работе</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${visible.map(employee=>`<tr><td><strong>${safe(employee.name)}</strong></td><td>${safe(employee.specialty||'Не указана')}</td><td>${safe(employee.phone||'—')}<small>${safe(employee.email||'')}</small></td><td>${open.filter(order=>order.assigneeKey===employee.originalName).length}</td><td><span class="tech-employee-status ${employee.status}">${statusText[employee.status]||'Неизвестно'}</span></td><td><div class="tech-client-actions"><button data-tech-employee-action="edit" data-employee-id="${safe(employee.id)}">Изменить</button>${employee.status==='active'?`<button data-tech-employee-action="disable" data-employee-id="${safe(employee.id)}">Отключить</button>`:employee.status==='disabled'?`<button data-tech-employee-action="enable" data-employee-id="${safe(employee.id)}">Включить</button>`:''}${employee.status!=='fired'?`<button class="danger" data-tech-employee-action="fire" data-employee-id="${safe(employee.id)}">Уволить</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="6" class="tech-empty">Техников не найдено</td></tr>'}</tbody></table></div></section>${employeeForm()}</div>${state.confirmFireId?`<div class="tech-dialog-backdrop"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="tech-fire-title"><h2 id="tech-fire-title">Уволить техника?</h2><p>${safe(team.find(employee=>employee.id===state.confirmFireId)?.name||'Сотрудник')} исчезнет из списка активных исполнителей. Незавершённые заказы перейдут в очередь на распределение; история выручки сохранится.</p><div><button class="btn outline" data-tech-employee-action="cancel-fire">Отмена</button><button class="btn danger" data-tech-employee-action="confirm-fire" data-employee-id="${safe(state.confirmFireId)}">Уволить</button></div></section></div>`:''}`;
   }
   function qualityPage(){
     const list=allOrders().filter(order=>order.stage==='Контроль качества');
     return `<div class="tech-heading"><div><span class="tech-eyebrow">КОНТРОЛЬ КАЧЕСТВА</span><h1>Работы на проверке</h1><p>Проверьте результат перед выдачей клинике.</p></div><div class="tech-task-count"><strong>${list.length}</strong><span>ждут решения</span></div></div><div class="tech-quality-list">${list.map(order=>`<article class="tech-panel tech-quality-item"><div><span class="tech-eyebrow">${safe(order.clinic)} · ${order.date}</span><h2>${order.id} · ${safe(order.work)}</h2><p>${safe(order.patient)} · исполнитель: ${safe(order.assignee)}</p></div><div><button class="btn outline" data-tech-order="${order.id}">Подробнее</button><button class="btn outline" data-tech-action="rework" data-id="${order.id}">На доработку</button><button class="btn primary" data-tech-action="approve" data-id="${order.id}">Принять</button></div></article>`).join('')||'<div class="tech-panel tech-empty">Сейчас нет работ на проверке</div>'}</div>`;
   }
   function profilePage(){
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОФИЛЬ</span><h1>Главный техник</h1><p>Доступ к работе лаборатории и её результатам.</p></div></div><div class="tech-panel tech-profile"><span class="tech-person-avatar">АП</span><div><h2>Александр Петров</h2><p>Роль: главный техник</p><p>Доступ: распределение заказов, управление этапами, контроль качества и аналитика.</p><small>Это демонстрационный кабинет. Для реальных сотрудников потребуется авторизация и подключение данных лаборатории.</small></div></div>`;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОФИЛЬ</span><h1>Главный техник</h1><p>Доступ к работе лаборатории и её результатам.</p></div></div><div class="tech-panel tech-profile"><span class="tech-person-avatar">АП</span><div><h2>Александр Петров</h2><p>Роль: главный техник</p><p>Возможности: распределение заказов, управление этапами, контроль качества и аналитика.</p><small>Данные заказов хранятся на сервере. Для реальных сотрудников требуются отдельные учётные записи.</small></div></div>`;
   }
   function shell(content){
     const nav=[['overview','Обзор','home'],['orders','Заказы','orders'],['clients','Клиенты','clinic'],['analytics','Аналитика','filter'],['team','Команда','user'],['quality','Контроль качества','check'],['profile','Профиль','user']];
@@ -230,6 +227,7 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
   function render(){
     try {overrides=JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}} catch {overrides={}}
     team=loadEmployees();
+    try {const saved=JSON.parse(localStorage.getItem('create-dental-tech-clients')||'null');if(Array.isArray(saved))clients=saved} catch { /* Keep current directory. */ }
     const pages={overview,orders:ordersPage,detail:orderDetail,clients:clientsPage,analytics:analyticsPage,team:teamPage,quality:qualityPage,profile:profilePage};
     shell((pages[state.page]||overview)());
   }
@@ -252,6 +250,7 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
           overrides[order.id]={...(overrides[order.id]||{}),assignee:'',stage:'Ожидает распределения'};
         }
         localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
+        savePortal('orderOverrides',overrides).catch(error=>toast('Не удалось сохранить заказы на сервере: '+error.message));
         employee.status='fired';
         saveTeam();
         state.confirmFireId=null;
@@ -289,7 +288,7 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
         const next=stages[stages.indexOf(order.stage)+1];
         if(next)saveOrder(id,{stage:next});
       }
-      if(action.dataset.techAction==='approve'&&order.stage==='Контроль качества')saveOrder(id,{stage:'Готово к выдаче'});
+      if(action.dataset.techAction==='approve'&&order.stage==='Контроль качества')saveOrder(id,{stage:'Готово к выдаче',completedAt:new Date().toISOString()});
       if(action.dataset.techAction==='rework'&&order.stage==='Контроль качества')saveOrder(id,{stage:'Изготовление'});
       return;
     }
