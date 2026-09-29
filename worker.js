@@ -5,15 +5,14 @@ const safe=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'
 const tone=stage=>stage==='Контроль качества'?'review':stage==='Готово к выдаче'?'ready':'work';
 const readOrders=()=>{try{return JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}}catch{return {}}};
 
-export function createWorkerCabinet({root,orders,assets,icon,toothChart,isActive}){
+export function createWorkerCabinet({root,orders,assets,icon,toothChart,isActive,currentUser}){
   const params=new URLSearchParams(location.search);
   const requestedPage=params.get('page');
   const state={page:params.get('role')==='worker'&&['overview','orders','detail','profile'].includes(requestedPage)?requestedPage:'overview',employeeId:params.get('employee')||'',orderId:params.get('order')||'',toast:''};
   function employees(){return loadEmployees()}
   function current(){
-    const active=employees().filter(employee=>employee.status==='active');
-    if(!state.employeeId&&active.length)state.employeeId=active[0].id;
-    return active.find(employee=>employee.id===state.employeeId);
+    state.employeeId=currentUser()?.subjectId||'';
+    return employees().find(employee=>employee.id===state.employeeId&&employee.status==='active');
   }
   function myOrders(){
     const employee=current();
@@ -39,7 +38,7 @@ export function createWorkerCabinet({root,orders,assets,icon,toothChart,isActive
     const working=list.filter(order=>!['Контроль качества','Готово к выдаче'].includes(order.stage));
     const checking=list.filter(order=>order.stage==='Контроль качества');
     const done=list.filter(order=>order.stage==='Готово к выдаче');
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">МОЙ РАБОЧИЙ КАБИНЕТ</span><h1>Здравствуйте, ${safe(employee.name.split(' ')[0])}</h1><p>Ваши задания и текущие этапы производства.</p></div><span class="tech-demo-note">Демонстрационный кабинет</span></div><div class="worker-stats"><article><span>В работе</span><strong>${working.length}</strong><small>Нужно выполнить</small></article><article><span>На проверке</span><strong>${checking.length}</strong><small>Передано главному технику</small></article><article><span>Готово</span><strong>${done.length}</strong><small>Проверка пройдена</small></article></div><section class="tech-panel"><div class="tech-panel-heading"><div><h2>Мои текущие заказы</h2><p>Откройте работу, чтобы посмотреть детали и сменить этап</p></div><button class="tech-link" data-worker-page="orders">Все мои заказы →</button></div>${orderList(list.filter(order=>order.stage!=='Готово к выдаче'))}</section>`;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">МОЙ РАБОЧИЙ КАБИНЕТ</span><h1>Здравствуйте, ${safe(employee.name.split(' ')[0])}</h1><p>Ваши задания и текущие этапы производства.</p></div><span class="tech-demo-note">Личный кабинет</span></div><div class="worker-stats"><article><span>В работе</span><strong>${working.length}</strong><small>Нужно выполнить</small></article><article><span>На проверке</span><strong>${checking.length}</strong><small>Передано главному технику</small></article><article><span>Готово</span><strong>${done.length}</strong><small>Проверка пройдена</small></article></div><section class="tech-panel"><div class="tech-panel-heading"><div><h2>Мои текущие заказы</h2><p>Откройте работу, чтобы посмотреть детали и сменить этап</p></div><button class="tech-link" data-worker-page="orders">Все мои заказы →</button></div>${orderList(list.filter(order=>order.stage!=='Готово к выдаче'))}</section>`;
   }
   function ordersPage(){return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОИЗВОДСТВО</span><h1>Мои заказы</h1><p>Работы, назначенные вам главным техником.</p></div></div><section class="tech-panel">${orderList(myOrders())}</section>`}
   function detailPage(){
@@ -58,7 +57,7 @@ export function createWorkerCabinet({root,orders,assets,icon,toothChart,isActive
     const employee=current();
     const active=employees().filter(item=>item.status==='active');
     const nav=[['overview','Главная','home'],['orders','Мои заказы','orders'],['profile','Мой профиль','user']];
-    root().innerHTML=`<aside class="sidebar tech-sidebar" id="worker-sidebar"><div class="brand"><img src="${assets}create-dental-logo.png" alt="Create Dental"></div><div class="tech-side-label">Кабинет техника</div><nav class="sidebar-nav">${nav.map(([page,label,ico])=>`<button class="nav-link ${state.page===page||state.page==='detail'&&page==='orders'?'active':''}" data-worker-page="${page}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav><button class="tech-switch" data-role="technician">← Главный техник</button></aside><div class="shell tech-shell"><header class="topbar"><button class="mobile-menu" data-worker-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><label class="worker-account">Техник<select data-worker-employee>${active.map(item=>`<option value="${safe(item.id)}" ${item.id===state.employeeId?'selected':''}>${safe(item.name)}</option>`).join('')}</select></label><button class="role-toggle" data-role="technician">Главный техник →</button><button class="profile" data-worker-page="profile"><span class="avatar">${safe(employee?.name.split(' ').map(part=>part[0]).join('')||'Т')}</span><span><strong>${safe(employee?.name||'Техник')}</strong><small>Зубной техник</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>`;
+    root().innerHTML=`<aside class="sidebar tech-sidebar" id="worker-sidebar"><div class="brand"><img src="${assets}create-dental-logo.png" alt="Create Dental"></div><div class="tech-side-label">Кабинет техника</div><nav class="sidebar-nav">${nav.map(([page,label,ico])=>`<button class="nav-link ${state.page===page||state.page==='detail'&&page==='orders'?'active':''}" data-worker-page="${page}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav></aside><div class="shell tech-shell"><header class="topbar"><button class="mobile-menu" data-worker-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><button class="role-toggle" data-auth-logout>Выйти</button><button class="profile" data-worker-page="profile"><span class="avatar">${safe(employee?.name.split(' ').map(part=>part[0]).join('')||'Т')}</span><span><strong>${safe(employee?.name||'Техник')}</strong><small>Зубной техник</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>`;
   }
   function render(){
     const employee=current();
@@ -91,19 +90,6 @@ export function createWorkerCabinet({root,orders,assets,icon,toothChart,isActive
   document.addEventListener('keydown',event=>{
     if(!isActive())return;
     if((event.key==='Enter'||event.key===' ')&&event.target.matches('tr[data-worker-order]')){event.preventDefault();event.target.click()}
-  });
-  document.addEventListener('change',event=>{
-    if(!isActive()||!event.target.matches('[data-worker-employee]'))return;
-    const id=event.target.value;
-    if(!employees().some(employee=>employee.id===id&&employee.status==='active'))return;
-    state.employeeId=id;
-    const url=new URL(location.href);
-    url.searchParams.set('employee',id);
-    url.searchParams.delete('order');
-    url.searchParams.set('page','overview');
-    history.replaceState(null,'',url);
-    state.page='overview';
-    render();
   });
   return {render};
 }

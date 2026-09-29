@@ -2,7 +2,7 @@ import { createTechnicianCabinet } from './technician.js';
 import { createWorkerCabinet } from './worker.js';
 import { seedOrders } from './seed-orders.js';
 import { seedDetails } from './technician.js';
-import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal} from './portal-client.js';
+import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal,authRequest} from './portal-client.js';
 
 const $ = (selector) => document.querySelector(selector);
 const icons = {
@@ -33,7 +33,7 @@ const orders = seedOrders.map(order=>({...order}));
 const nav = [['home','Главная','home'],['new','Новый заказ','plus'],['orders','Мои заказы','orders'],['files','Файлы','file'],['messages','Сообщения','message'],['reference','Справочник','book'],['clinic','Моя клиника','clinic']];
 const steps = ['Пациент','Конструкция','Зубы','Дополнительно','Подтверждение'];
 const requestedRole=new URLSearchParams(location.search).get('role');
-const state = {role:['technician','worker'].includes(requestedRole)?requestedRole:'clinic',page:'home',step:0,filter:'Все',query:'',orderId:'CD-1042',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',selectedTeeth:[16,26],dentition:'Постоянные зубы',work:'Коронка',messages:[],chatText:'',chatStatus:'Подключение к чату...',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),uploaded:[],form:{surname:'Иванов',initials:'А.В.',phone:'',birth:'',construction:'Коронка E.max',material:'Керамика E.max',quantity:'2',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A2',comment:''},toast:''};
+const state = {role:['technician','worker'].includes(requestedRole)?requestedRole:'clinic',page:'home',step:0,filter:'Все',query:'',orderId:'CD-1042',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',selectedTeeth:[],dentition:'Постоянные зубы',work:'Коронка',messages:[],chatText:'',chatStatus:'Подключение к чату...',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),uploaded:[],form:{surname:'',initials:'',phone:'',birth:'',construction:'Коронка E.max',material:'Керамика E.max',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A2',comment:''},toast:''};
 const chatId = localStorage.getItem('create-dental-chat-id') || Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2,'0')).join('');
 localStorage.setItem('create-dental-chat-id', chatId);
 const demoUnitPrices = {'Коронка E.max':12500,'Винир':14000,'Мост':9000,'Абатмент':7600,'Вкладка':8500};
@@ -43,7 +43,7 @@ const statusClass = s => s==='В работе'?'green':s==='Завершен'?'g
 const badge = s => `<span class="badge ${statusClass(s)}">${s}</span>`;
 const button = (label,action,kind='primary',extra='') => `<button class="btn ${kind}" data-action="${action}" ${extra}>${label}</button>`;
 function sidebar(){return `<aside class="sidebar" id="sidebar"><div class="brand" aria-label="Create Dental"><img src="${assets}create-dental-logo.png" alt="Create Dental"></div><nav class="sidebar-nav">${nav.map(([id,label,ico])=>`<button class="nav-link ${state.page===id||(state.page==='detail'&&id==='orders')?'active':''}" data-page="${id}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav><button class="help-box" data-page="messages">${icon('message',20)}<span><strong>Нужна помощь?</strong><small>Напишите нам</small></span></button></aside>`}
-function header(){return `<header class="topbar"><button class="mobile-menu" data-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><button class="role-toggle" data-role="technician">Кабинет главного техника →</button><span class="topbar-label">Клиника</span><select class="clinic-select" aria-label="Клиника"><option>${escapeHtml(clinicRecord()?.name||'Dental Clinic')}</option></select><button class="bell" aria-label="Уведомления" data-action="notifications">${icon('bell',19)}<i></i></button><button class="profile" data-page="clinic"><span class="avatar">ДИ</span><span><strong>Dr. Иванов</strong><small>Стоматологическая клиника</small></span>${icon('chevron',13)}</button></header>`}
+function header(){return `<header class="topbar"><button class="mobile-menu" data-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><button class="role-toggle" data-auth-logout>Выйти</button><span class="topbar-label">Клиника</span><select class="clinic-select" aria-label="Клиника"><option>${escapeHtml(clinicRecord()?.name||'Клиника')}</option></select><button class="bell" aria-label="Уведомления" data-action="notifications">${icon('bell',19)}<i></i></button><button class="profile" data-page="clinic"><span class="avatar">К</span><span><strong>${escapeHtml(clinicRecord()?.contact||clinicRecord()?.name||'Клиника')}</strong><small>Стоматологическая клиника</small></span>${icon('chevron',13)}</button></header>`}
 function shell(content){$('#app').innerHTML=`${sidebar()}<div class="shell">${header()}<main class="content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${escapeHtml(state.toast)}</div>`;}
 function title(text,sub='',right=''){return `<div class="page-title"><div><h1>${text}</h1>${sub?`<p>${sub}</p>`:''}</div>${right}</div>`}
 function tabs(items,selected,action='filter'){return `<div class="tabs">${items.map(([label,count])=>`<button class="tab ${selected===label?'active':''}" data-action="${action}" data-value="${label}">${label}${count!==undefined?` <span class="count">${count}</span>`:''}</button>`).join('')}</div>`}
@@ -75,8 +75,7 @@ function currentOrders(){
   let overrides={};
   try {overrides=JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}} catch {overrides={}}
   const status={"Ожидает распределения":"Новый","Подготовка":"В работе","Моделирование":"В работе","Изготовление":"В работе","Контроль качества":"На согласовании","Готово к выдаче":"Завершен"};
-  const clinic=clinicRecord()?.originalName||'Dental Clinic';
-  return orders.filter(order=>(seedDetails[order.id]?.clinic||order.clinic||'Dental Clinic')===clinic).map(order=>({...order,status:status[overrides[order.id]?.stage]||order.status}));
+  return orders.map(order=>({...order,status:status[overrides[order.id]?.stage]||order.status}));
 }
 function orderTabs(){
   const list=currentOrders();
@@ -85,7 +84,7 @@ function orderTabs(){
 function dashboard(){
   const list=currentOrders();
   const stats=[['orders',list.filter(o=>o.status!=='Завершен').length,'Активных заказов','blue'],['clock',list.filter(o=>['На согласовании','Согласование'].includes(o.status)).length,'На согласовании','orange'],['user',list.filter(o=>o.status==='В работе').length,'В работе','navy'],['heart',list.filter(o=>o.status==='Завершен').length,'Завершено','green']];
-  shell(`${title('Доброе утро, Dr. Иванов!','Создавайте заказы, отслеживайте статус и получайте готовые работы в срок.',button(`${icon('plus',16)} Создать новый заказ`,'new'))}<div class="stats">${stats.map(([ico,n,label,color])=>`<div class="stat card"><span class="stat-icon ${color}">${icon(ico,25)}</span><div><strong>${n}</strong><span>${label}</span></div></div>`).join('')}</div><div class="dashboard-grid"><div class="dashboard-main"><section class="hero"><div><h2>Качество в каждой детали</h2><p>Современные технологии. Надежные сроки.<br>Индивидуальный подход.</p></div><img src="${assets}banner-teeth.png" alt="Керамические зубные конструкции"></section><div class="section-heading"><h2>Мои заказы</h2><button class="text-link" data-page="orders">Все заказы →</button></div>${tabs(orderTabs(),state.filter)}${orderTable(filteredOrders().slice(0,4))}</div><aside class="dashboard-aside">${deadlineCalendar()}${recentMessagesCard()}</aside></div>`);
+  shell(`${title('Добро пожаловать, '+escapeHtml(clinicRecord()?.name||'клиника')+'!','Создавайте заказы, отслеживайте статус и получайте готовые работы в срок.',button(`${icon('plus',16)} Создать новый заказ`,'new'))}<div class="stats">${stats.map(([ico,n,label,color])=>`<div class="stat card"><span class="stat-icon ${color}">${icon(ico,25)}</span><div><strong>${n}</strong><span>${label}</span></div></div>`).join('')}</div><div class="dashboard-grid"><div class="dashboard-main"><section class="hero"><div><h2>Качество в каждой детали</h2><p>Современные технологии. Надежные сроки.<br>Индивидуальный подход.</p></div><img src="${assets}banner-teeth.png" alt="Керамические зубные конструкции"></section><div class="section-heading"><h2>Мои заказы</h2><button class="text-link" data-page="orders">Все заказы →</button></div>${tabs(orderTabs(),state.filter)}${orderTable(filteredOrders().slice(0,4))}</div><aside class="dashboard-aside">${deadlineCalendar()}${recentMessagesCard()}</aside></div>`);
 }
 function filteredOrders(){let list=currentOrders();if(state.filter==='Новые')list=list.filter(o=>o.status==='Новый');else if(state.filter==='В работе')list=list.filter(o=>o.status==='В работе');else if(state.filter==='На согласовании')list=list.filter(o=>['На согласовании','Согласование'].includes(o.status));else if(state.filter==='Завершенные')list=list.filter(o=>o.status==='Завершен');if(state.query)list=list.filter(o=>Object.values(o).some(v=>String(v).toLowerCase().includes(state.query.toLowerCase())));return list}
 function ordersPage(){shell(`${title('Мои заказы')}${tabs(orderTabs(),state.filter)}<div class="toolbar"><label class="search">${icon('search',17)}<input id="order-search" value="${escapeHtml(state.query)}" placeholder="Поиск по номеру заказа, пациенту или типу работы..."></label>${button(`${icon('filter',15)} Фильтры`,'filters','outline')}</div>${orderTable(filteredOrders())}`)}
@@ -172,21 +171,34 @@ async function loadMessages(){
     }
   }catch(error){state.chatStatus=error.message; if($('#chat-status'))$('#chat-status').textContent=state.chatStatus}
 }
-function clinicRecord(){try{return JSON.parse(localStorage.getItem('create-dental-tech-clients')||'[]').find(client=>client.originalName==='Dental Clinic')}catch{return null}}
+function clinicRecord(){try{return JSON.parse(localStorage.getItem('create-dental-tech-clients')||'[]').find(client=>client.id===portalUser?.subjectId)}catch{return null}}
 function clinicPage(){
-  const clinic=clinicRecord()||{name:'Dental Clinic',inn:'',address:'Москва',phone:'',email:''};
+  const clinic=clinicRecord()||{name:'Клиника',inn:'',address:'Москва',phone:'',email:''};
   const input=(name,value)=>`<input name="${name}" value="${escapeHtml(value||'')}">`;
   shell(`${title('Моя клиника')}${tabs([['Основная информация'],['Контактные лица'],['Настройки'],['Безопасность']],state.clinicTab,'clinic-tab')}<div class="clinic-content"><div class="clinic-photo"><img src="${assets}clinic.png" alt="Здание клиники"><button data-action="change-logo">Изменить логотип</button></div><form id="clinic-form" class="clinic-form"><div class="form-grid">${field('Название клиники',input('name',clinic.name))}${field('ИНН',input('inn',clinic.inn))}${field('Адрес',input('address',clinic.address))}${field('Телефон',input('phone',clinic.phone))}${field('Email',input('email',clinic.email))}<div class="save-field"><button class="btn primary" type="submit">Сохранить изменения</button></div></div></form></div>`);
 }
 function referencePage(){shell(`${title('Справочник','Информация о конструкциях, материалах и оформлении заказов.')}<div class="reference-grid">${[['Коронки E.max','Эстетичные цельнокерамические реставрации.'],['Виниры','Тонкие накладки для восстановления улыбки.'],['Мостовидные протезы','Конструкции для замещения отсутствующих зубов.'],['3D сканирование','Цифровые слепки для точной работы.']].map(([h,p])=>`<article class="reference-card">${icon('book',25)}<h3>${h}</h3><p>${p}</p></article>`).join('')}</div>`)}
 const technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,icon,toothChart,isActive:()=>state.role==='technician'});
-const workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,icon,toothChart,isActive:()=>state.role==='worker'});
+const workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser});
 let portalReady=false;
+let portalUser=null;
+let authMode='login';
 let portalError='';
-function loginView(){$('#app').innerHTML=`<main class="portal-login"><section><img src="${assets}create-dental-logo.png" alt="Create Dental"><h1>Вход в Create Dental</h1><p>Введите ключ доступа, чтобы открыть общие данные лаборатории.</p><form id="portal-login-form"><label>Ключ доступа<input name="token" type="password" autocomplete="current-password" required autofocus></label><button class="btn primary" type="submit">Войти</button></form>${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}<small>Демонстрационная версия. Не вводите реальные данные пациентов до настройки защищённого доступа.</small></section></main>`}
-function render(){if(!portalReady){loginView();return}if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
+function loginView(){
+  const modes=[['login','Клиентам'],['register','Регистрация клиники'],['staff','Техникам'],['chief','Главному технику']];
+  const field=(label,name,type='text')=>`<label>${label}<input name="${name}" type="${type}" ${name==='password'?'minlength="10"':''} required></label>`;
+  const contents={
+    login:`${field('Email','email','email')}${field('Пароль','password','password')}<button class="btn primary">Войти в кабинет клиники</button>`,
+    register:`${field('Название клиники','name')}${field('Email','email','email')}${field('Пароль от 10 символов','password','password')}<button class="btn primary">Зарегистрировать клинику</button>`,
+    staff:`${field('Рабочий email','email','email')}${field('Пароль','password','password')}<button class="btn primary">Войти как техник</button>`,
+    chief:`${field('Ключ главного техника','key','password')}<button class="btn primary">Войти в панель</button>`
+  };
+  $('#app').innerHTML=`<main class="portal-login"><section><img src="${assets}create-dental-logo.png" alt="Create Dental"><h1>Личный кабинет Create Dental</h1><p>Заказы, производство и связь с лабораторией.</p><div class="auth-tabs">${modes.map(([mode,label])=>`<button type="button" data-auth-mode="${mode}" class="${authMode===mode?'active':''}">${label}</button>`).join('')}</div><form id="portal-login-form" data-mode="${authMode}">${contents[authMode]}</form>${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
+}
+function render(){if(!portalReady){loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
 async function hydratePortal(){
   const data=await loadPortal();
+  portalUser=data.user;
   orders.splice(0,orders.length,...data.orders);
   localStorage.setItem('create-dental-tech-orders',JSON.stringify(data.orderOverrides));
   localStorage.setItem('create-dental-tech-clients',JSON.stringify(data.clients));
@@ -196,8 +208,8 @@ async function hydratePortal(){
   render();
 }
 async function createOrder(){
-  const id=`CD-${Math.max(1042,...orders.map(order=>Number(order.id.replace('CD-',''))||0))+1}`;
-  const order={id,patient:`${state.form.surname} ${state.form.initials}`.trim(),work:state.form.construction,date:state.form.due.split('-').reverse().join('.'),status:'Новый',sum:rubles(orderEstimate()),image:'tooth.png',clinic:clinicRecord()?.originalName||'Dental Clinic',teeth:[...state.selectedTeeth],shade:state.form.shade,comment:state.form.comment,createdAt:new Date().toISOString()};
+  const id=`CD-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0,4).toUpperCase()}`;
+  const order={id,patient:`${state.form.surname} ${state.form.initials}`.trim(),work:state.form.construction,date:state.form.due.split('-').reverse().join('.'),status:'Новый',sum:rubles(orderEstimate()),image:'tooth.png',clinicId:portalUser.subjectId,clinic:clinicRecord()?.name||'Клиника',teeth:[...state.selectedTeeth],shade:state.form.shade,comment:state.form.comment,createdAt:new Date().toISOString()};
   try {
     await savePortal('orders',[order,...orders]);
     orders.unshift(order);
@@ -206,7 +218,8 @@ async function createOrder(){
   } catch(error){notify('Не удалось создать заказ: '+error.message)}
 }
 function notify(message){state.toast=message;render();clearTimeout(notify.timer);notify.timer=setTimeout(()=>{state.toast='';$('.toast')?.classList.remove('visible')},3000)}
-document.addEventListener('click',event=>{const button=event.target.closest('[data-role]');if(!button)return;state.role=['technician','worker'].includes(button.dataset.role)?button.dataset.role:'clinic';const url=new URL(location.href);if(state.role==='clinic')url.searchParams.delete('role');else url.searchParams.set('role',state.role);url.searchParams.delete('page');url.searchParams.delete('order');if(state.role!=='worker')url.searchParams.delete('employee');history.replaceState(null,'',url);render()});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';loginView()});
+ document.addEventListener('click',async event=>{if(!event.target.closest('[data-auth-logout]'))return;try{await authRequest('logout',{})}catch{}clearPortalToken();portalReady=false;portalUser=null;state.role='clinic';history.replaceState(null,'',location.pathname);render()});
 document.addEventListener('click',event=>{const el=event.target.closest('[data-page],[data-order],[data-tooth],[data-step],[data-action]');if(!el)return;if(el.dataset.page){state.page=el.dataset.page;if(state.page==='new')state.step=0;render();return}if(el.dataset.order){state.orderId=el.dataset.order;state.page='detail';render();return}if(el.dataset.tooth){const n=Number(el.dataset.tooth);state.selectedTeeth=state.selectedTeeth.includes(n)?state.selectedTeeth.filter(x=>x!==n):[...state.selectedTeeth,n].sort((a,b)=>a-b);render();return}if(el.dataset.step!==undefined){state.step=Number(el.dataset.step);render();return}const a=el.dataset.action,v=el.dataset.value;if(a==='new'){state.page='new';state.step=0}else if(a==='next'){if(state.step<4)state.step++;else{createOrder();return}}else if(a==='previous')state.step--;else if(a==='filter')state.filter=v;else if(a==='file-tab')state.fileTab=v;else if(a==='detail-tab')state.detailTab=v;else if(a==='clinic-tab')state.clinicTab=v;else if(a==='dentition')state.dentition=v;else if(a==='work')state.work=v;else if(a==='clear-teeth')state.selectedTeeth=[];else if(a==='open-messages')state.page='messages';else if(a==='upload'){$('#page-upload')?.click();return}else if(a==='remove-file'){state.uploaded=state.uploaded.filter(n=>n!==v)}else if(a==='menu'){$('#sidebar').classList.toggle('open');return}else if(a==='save-clinic'){notify('Изменения сохранены локально');return}else if(a==='file-preview'){notify(v);return}else if(a==='notifications'){notify('Новых уведомлений нет');return}else if(a==='filters'){notify('Используйте вкладки для фильтрации заказов');return}else if(a==='more'){notify('Дополнительные действия появятся после подключения сервера');return}else if(a==='change-logo'){notify('Загрузка логотипа появится после подключения сервера');return}else if(a==='attach'){notify('Прикрепление файлов доступно в разделе «Файлы»');return}else if(a==='contact'){notify('Демонстрационный диалог');return}else return;render()});
 document.addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-tooth][role="button"]')){event.preventDefault();event.target.click()}});
 document.addEventListener('click',event=>{
@@ -222,9 +235,17 @@ document.addEventListener('click',event=>{
 });
 document.addEventListener('input',event=>{if(event.target.dataset.field)state.form[event.target.dataset.field]=event.target.value;if(event.target.id==='order-search'){state.query=event.target.value;const table=$('.table-wrap');if(table)table.outerHTML=orderTable(filteredOrders());}if(event.target.id==='chat-input')state.chatText=event.target.value});
 document.addEventListener('change',event=>{if(event.target.dataset.field)state.form[event.target.dataset.field]=event.target.value;if(event.target.type==='file'){state.uploaded.push(...Array.from(event.target.files).map(f=>f.name));notify(`${event.target.files.length} файл(ов) добавлено локально`)}});
-document.addEventListener('submit',event=>{if(event.target.id!=='clinic-form')return;event.preventDefault();let clients=[];try{clients=JSON.parse(localStorage.getItem('create-dental-tech-clients')||'[]')}catch{}const clinic=clients.find(client=>client.originalName==='Dental Clinic');if(!clinic)return notify('Клиника не найдена');for(const key of ['name','inn','address','phone','email'])clinic[key]=event.target.elements.namedItem(key).value.trim();if(!clinic.name)return notify('Укажите название клиники');localStorage.setItem('create-dental-tech-clients',JSON.stringify(clients));savePortal('clients',clients).then(()=>notify('Данные клиники сохранены')).catch(error=>notify('Не удалось сохранить клинику на сервере: '+error.message))});
+document.addEventListener('submit',event=>{if(event.target.id!=='clinic-form')return;event.preventDefault();let clients=[];try{clients=JSON.parse(localStorage.getItem('create-dental-tech-clients')||'[]')}catch{}const clinic=clients.find(client=>client.id===portalUser?.subjectId);if(!clinic)return notify('Клиника не найдена');for(const key of ['name','inn','address','phone','email'])clinic[key]=event.target.elements.namedItem(key).value.trim();if(!clinic.name)return notify('Укажите название клиники');localStorage.setItem('create-dental-tech-clients',JSON.stringify(clients));savePortal('clients',clients).then(()=>notify('Данные клиники сохранены')).catch(error=>notify('Не удалось сохранить клинику на сервере: '+error.message))});
 document.addEventListener('submit',async event=>{if(event.target.id==='chat-form'){event.preventDefault();const msg=state.chatText.trim();if(!msg)return;const send=event.target.querySelector('.send-btn');send.disabled=true;try{const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversation:chatId,text:msg})});if(!response.ok)throw new Error('Не удалось отправить сообщение');state.chatText='';$('#chat-input').value='';await loadMessages()}catch(error){state.chatStatus=error.message;$('#chat-status').textContent=state.chatStatus}finally{send.disabled=false}}});
-document.addEventListener('submit',async event=>{if(event.target.id!=='portal-login-form')return;event.preventDefault();setPortalToken(event.target.elements.namedItem('token').value);try{await hydratePortal()}catch(error){clearPortalToken();portalError=error.message;render()}});
+document.addEventListener('submit',async event=>{
+  if(event.target.id!=='portal-login-form')return;
+  event.preventDefault();
+  const form=event.target;
+  const body=Object.fromEntries(new FormData(form));
+  const action=form.dataset.mode==='register'?'register':form.dataset.mode==='chief'?'chief':'login';
+  try{const response=await authRequest(action,body);if(form.dataset.mode==='staff'&&response.user.role!=='worker'||form.dataset.mode==='login'&&response.user.role!=='clinic')throw new Error('Для этой учётной записи выберите другой вход');await hydratePortal()}
+  catch(error){clearPortalToken();portalError=error.message;render()}
+});
 setInterval(loadMessages,3000);
 render();
 if(portalToken())hydratePortal().catch(error=>{clearPortalToken();portalError=error.message;render()});

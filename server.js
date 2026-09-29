@@ -1,8 +1,9 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { timingSafeEqual } from 'node:crypto';
-import {portalSnapshot,replacePortalCollection} from './portal-data.js';
+import { timingSafeEqual,randomBytes } from 'node:crypto';
+import {portalSnapshot,replacePortalCollection,portalClient,portalEmployee} from './portal-data.js';
+import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
@@ -35,11 +36,12 @@ function isOperator(req) {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-function isPortalUser(req){
-  const incoming=req.headers['x-portal-token'];
-  if(!portalToken||typeof incoming!=='string')return false;
-  const left=Buffer.from(incoming),right=Buffer.from(portalToken);
-  return left.length===right.length&&timingSafeEqual(left,right);
+function session(req){
+  const current=sessionFor(req.headers['x-portal-token']);
+  if(!current)return null;
+  if(current.role==='clinic'&&!portalClient(current.subjectId))return null;
+  if(current.role==='worker'&&portalEmployee(current.subjectId)?.status!=='active')return null;
+  return current;
 }
 
 async function readBody(req,limit=8192) {
@@ -52,14 +54,85 @@ async function readBody(req,limit=8192) {
 }
 
 async function handlePortal(req,res,url){
-  if(!isPortalUser(req))return json(res,portalToken?401:503,{error:portalToken?'Требуется ключ доступа':'Доступ не настроен'});
-  if(req.method==='GET'&&url.pathname==='/api/portal')return json(res,200,portalSnapshot());
+  const user=session(req);
+  if(!user)return json(res,401,{error:'Войдите в кабинет'});
+  const snapshot=portalSnapshot();
+  if(req.method==='GET'&&url.pathname==='/api/portal'){
+    if(user.role==='clinic'){
+      snapshot.clients=snapshot.clients.filter(item=>item.id===user.subjectId);
+      snapshot.orders=snapshot.orders.filter(item=>item.clinicId===user.subjectId);
+      snapshot.employees=[];
+      snapshot.orderOverrides=Object.fromEntries(Object.entries(snapshot.orderOverrides).filter(([id])=>snapshot.orders.some(order=>order.id===id)));
+    }else if(user.role==='worker'){
+      const employee=portalEmployee(user.subjectId);
+      snapshot.orders=snapshot.orders.filter(item=>snapshot.orderOverrides[item.id]?.assignee===employee.originalName);
+      snapshot.clients=[];
+      snapshot.employees=[employee];
+      snapshot.orderOverrides=Object.fromEntries(Object.entries(snapshot.orderOverrides).filter(([id])=>snapshot.orders.some(order=>order.id===id)));
+    }
+    return json(res,200,{...snapshot,user});
+  }
   const key=url.pathname.slice('/api/portal/'.length);
   if(req.method==='PUT'&&['orders','orderOverrides','clients','employees'].includes(key)){
     let value;
     try {value=await readBody(req,500000)} catch {return json(res,400,{error:'Неверные данные'})}
-    try {await replacePortalCollection(key,value);return json(res,200,{ok:true})}
+    if(user.role==='clinic'){
+      if(key==='clients'){
+        if(!Array.isArray(value)||value.length!==1||value[0].id!==user.subjectId)return json(res,403,{error:'Доступ запрещён'});
+        value=snapshot.clients.map(item=>item.id===user.subjectId?{...item,...value[0],id:item.id,originalName:item.originalName}:item);
+      }else if(key==='orders'){
+        if(!Array.isArray(value))return json(res,400,{error:'Неверные данные'});
+        const existing=new Set(snapshot.orders.map(item=>item.id));
+        const additions=value.filter(item=>!existing.has(item.id));
+        if(additions.length!==1||value.length!==snapshot.orders.filter(item=>item.clinicId===user.subjectId).length+1||additions[0].clinicId!==user.subjectId||snapshot.orders.some(item=>item.id===additions[0].id))return json(res,403,{error:'Можно добавить только свой заказ'});
+        value=[...additions,...snapshot.orders];
+      }else return json(res,403,{error:'Доступ запрещён'});
+    }else if(user.role==='worker'){
+      if(key!=='orderOverrides'||!value||typeof value!=='object')return json(res,403,{error:'Доступ запрещён'});
+      const employee=portalEmployee(user.subjectId);
+      const stages=['Подготовка','Моделирование','Изготовление','Контроль качества'];
+      const changes=Object.entries(value).filter(([id,detail])=>JSON.stringify(detail)!==JSON.stringify(snapshot.orderOverrides[id]));
+      if(changes.length!==1)return json(res,403,{error:'Можно изменить только один свой заказ'});
+      const [id,next]=changes[0],old=snapshot.orderOverrides[id];
+      if(!old||old.assignee!==employee.originalName||!next||next.assignee!==old.assignee||stages.indexOf(next.stage)!==stages.indexOf(old.stage)+1||Object.keys(next).some(field=>field!=='stage'&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:'Неверный переход этапа'});
+      value={...snapshot.orderOverrides,[id]:next};
+    }
+    try {await replacePortalCollection(key,value);if(key==='employees')for(const employee of value)if(employee.status!=='active')revokeSubjectSessions('worker',employee.id);return json(res,200,{ok:true})}
     catch(error){return json(res,error.message==='invalid_collection'?400:500,{error:error.message==='invalid_collection'?'Неверные данные':'Не удалось сохранить'})}
+  }
+  return json(res,404,{error:'Не найдено'});
+}
+
+async function handleAuth(req,res,url){
+  if(req.method==='POST'&&url.pathname==='/api/auth/logout'){revokeSession(req.headers['x-portal-token']);return json(res,200,{ok:true})}
+  let body;try{body=await readBody(req,12000)}catch{return json(res,400,{error:'Неверные данные'})}
+  if(req.method==='POST'&&url.pathname==='/api/auth/chief'){
+    const incoming=String(body.key||'');
+    if(!portalToken||Buffer.byteLength(incoming)!==Buffer.byteLength(portalToken)||!timingSafeEqual(Buffer.from(incoming),Buffer.from(portalToken)))return json(res,401,{error:'Неверный ключ'});
+    return json(res,200,{token:issueSession('technician','chief'),user:{role:'technician',subjectId:'chief'}});
+  }
+  if(req.method==='POST'&&url.pathname==='/api/auth/register'){
+    const name=String(body.name||'').trim(),email=String(body.email||'').trim().toLowerCase();
+    if(name.length<2||name.length>120||/[<>]/.test(name)||!validEmail(email)||!validPassword(body.password)||hasAccount(email))return json(res,400,{error:'Проверьте название, email и пароль (от 10 символов)'});
+    const existing=portalSnapshot().clients.find(item=>item.email?.toLowerCase()===email&&!item.deleted);
+    const id=existing?.id||'client-'+randomBytes(12).toString('hex');
+    const client={id,originalName:id,name,email,contact:'',phone:'',address:''};
+    try{if(!existing)await replacePortalCollection('clients',[...portalSnapshot().clients,client]);await createAccount({email,password:body.password,role:'clinic',subjectId:id})}
+    catch{return json(res,500,{error:'Не удалось создать кабинет'})}
+    return json(res,201,{token:issueSession('clinic',id),user:{role:'clinic',subjectId:id}});
+  }
+  if(req.method==='POST'&&url.pathname==='/api/auth/login'){
+    const account=login(body.email,body.password);
+    if(!account||account.role==='worker'&&portalEmployee(account.subjectId)?.status!=='active'||account.role==='clinic'&&!portalClient(account.subjectId))return json(res,401,{error:'Неверный email или пароль'});
+    return json(res,200,{token:issueSession(account.role,account.subjectId),user:{role:account.role,subjectId:account.subjectId}});
+  }
+  if(req.method==='POST'&&url.pathname==='/api/auth/staff'){
+    if(session(req)?.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
+    const employee=portalEmployee(body.employeeId);
+    if(!employee||employee.status==='fired'||employee.email?.toLowerCase()!==String(body.email||'').toLowerCase())return json(res,400,{error:'Сначала сохраните техника с email'});
+    try{await upsertWorkerAccount({employeeId:employee.id,email:body.email,password:body.password||''});revokeSubjectSessions('worker',employee.id)}
+    catch(error){return json(res,400,{error:error.message==='password_required'?'Укажите пароль для нового техника':'Проверьте email и пароль (от 10 символов)'})}
+    return json(res,200,{ok:true});
   }
   return json(res,404,{error:'Не найдено'});
 }
@@ -133,6 +206,7 @@ function serveFile(req, res, pathname) {
 http.createServer(async (req,res) => {
   let url;
   try { url = new URL(req.url || '/', 'http://localhost'); } catch { return json(res, 400, {error:'Неверный адрес'}); }
+  if(url.pathname.startsWith('/api/auth/'))return handleAuth(req,res,url);
   if(url.pathname==='/api/portal'||url.pathname.startsWith('/api/portal/'))return handlePortal(req,res,url);
   if (url.pathname.startsWith('/api/')) {
     try { return await handleChat(req,res,url); } catch { return json(res, 500, {error:'Ошибка сервера'}); }

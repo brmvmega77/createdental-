@@ -1,13 +1,6 @@
-import {savePortal} from './portal-client.js';
+import {savePortal,authRequest} from './portal-client.js';
 
-const technicians = ['Анна Смирнова', 'Дмитрий Орлов', 'Мария Ким', 'Илья Федоров'];
-export const seedEmployees = technicians.map((name,index)=>({
-  id:`tech-${index+1}`,originalName:name,name,
-  specialty:['Керамика и эстетика','CAD/CAM моделирование','Ортопедические конструкции','Имплантология'][index],
-  phone:['+7 (999) 110-20-30','+7 (999) 210-30-40','+7 (999) 310-40-50','+7 (999) 410-50-60'][index],
-  email:['anna@create-dental.example','dmitry@create-dental.example','maria@create-dental.example','ilya@create-dental.example'][index],
-  status:'active'
-}));
+export const seedEmployees = [];
 export function loadEmployees(){
   try {
     const saved=JSON.parse(localStorage.getItem('create-dental-employees')||'null');
@@ -15,27 +8,11 @@ export function loadEmployees(){
   } catch { /* Use demo team when local data is invalid. */ }
   return seedEmployees.map(item=>({...item}));
 }
-const clinics = ['Dental Clinic', 'Smile Studio', 'White Line', 'Nova Dent'];
-export const seedClients = [
-  {id:'clinic-1',originalName:'Dental Clinic',name:'Dental Clinic',contact:'Иван Иванов',phone:'+7 (495) 123-45-67',email:'info@dentalclinic.ru',address:'Москва'},
-  {id:'clinic-2',originalName:'Smile Studio',name:'Smile Studio',contact:'Елена Морозова',phone:'+7 (495) 234-56-78',email:'hello@smilestudio.ru',address:'Москва'},
-  {id:'clinic-3',originalName:'White Line',name:'White Line',contact:'Андрей Козлов',phone:'+7 (812) 345-67-89',email:'office@whiteline.ru',address:'Санкт-Петербург'},
-  {id:'clinic-4',originalName:'Nova Dent',name:'Nova Dent',contact:'Мария Сергеева',phone:'+7 (495) 456-78-90',email:'team@novadent.ru',address:'Москва'}
-];
+export const seedClients = [];
 export const stages = ['Ожидает распределения', 'Подготовка', 'Моделирование', 'Изготовление', 'Контроль качества', 'Готово к выдаче'];
 const monthLabels = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 const analyticsYear = new Date().getFullYear();
-export const seedDetails = {
-  'CD-1042': {stage:'Изготовление',assignee:'Анна Смирнова',priority:'Высокий',teeth:[16,26],clinic:'Dental Clinic'},
-  'CD-1041': {stage:'Контроль качества',assignee:'Дмитрий Орлов',priority:'Средний',teeth:[14,15,16],clinic:'Smile Studio'},
-  'CD-1040': {stage:'Ожидает распределения',assignee:'',priority:'Высокий',teeth:[24],clinic:'White Line'},
-  'CD-1039': {stage:'Готово к выдаче',assignee:'Мария Ким',priority:'Обычный',teeth:[11,12,21,22,23,24],clinic:'Nova Dent'},
-  'CD-1038': {stage:'Моделирование',assignee:'Мария Ким',priority:'Средний',teeth:[36,37],clinic:'Dental Clinic'},
-  'CD-1037': {stage:'Контроль качества',assignee:'Анна Смирнова',priority:'Обычный',teeth:[44],clinic:'Smile Studio'},
-  'CD-1036': {stage:'Подготовка',assignee:'Илья Федоров',priority:'Средний',teeth:[13],clinic:'White Line'},
-  'CD-1035': {stage:'Ожидает распределения',assignee:'',priority:'Высокий',teeth:[34,35,36,37],clinic:'Nova Dent'}
-};
-
+export const seedDetails = {};
 
 const money = amount => new Intl.NumberFormat('ru-RU').format(amount) + ' ₽';
 const safe = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -66,7 +43,7 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
   }
   function saveClients(){localStorage.setItem('create-dental-tech-clients',JSON.stringify(clients));savePortal('clients',clients).catch(error=>toast('Не удалось сохранить клиентов на сервере: '+error.message))}
   function clientName(original){return clients.find(client=>client.originalName===original)?.name||original}
-  function saveTeam(){localStorage.setItem('create-dental-employees',JSON.stringify(team));savePortal('employees',team).catch(error=>toast('Не удалось сохранить команду на сервере: '+error.message))}
+  function saveTeam(){localStorage.setItem('create-dental-employees',JSON.stringify(team));return savePortal('employees',team).catch(error=>{toast('Не удалось сохранить команду на сервере: '+error.message);throw error})}
   function employeeName(original){return team.find(employee=>employee.originalName===original)?.name||original}
   function activeTeam(){return team.filter(employee=>employee.status==='active')}
 
@@ -204,7 +181,7 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     const employee=state.editEmployeeId==='new'?{name:'',specialty:'',phone:'',email:''}:team.find(item=>item.id===state.editEmployeeId);
     if(!employee)return '';
     const field=(label,name,type='text',required=false)=>`<label>${label}<input name="${name}" type="${type}" value="${safe(employee[name]||'')}" ${required?'required':''}></label>`;
-    return `<section class="tech-panel tech-client-editor"><div class="tech-panel-heading"><div><h2>${state.editEmployeeId==='new'?'Новый техник':'Редактировать техника'}</h2><p>Данные сотрудника лаборатории</p></div><button class="tech-client-close" data-tech-employee-action="cancel" aria-label="Закрыть">×</button></div><form id="tech-employee-form" class="tech-client-form">${field('Имя и фамилия','name','text',true)}${field('Специализация','specialty','text',true)}${field('Телефон','phone','tel')}${field('Электронная почта','email','email')}<div class="tech-client-form-actions"><button type="button" class="btn outline" data-tech-employee-action="cancel">Отмена</button><button type="submit" class="btn primary">Сохранить</button></div></form></section>`;
+    return `<section class="tech-panel tech-client-editor"><div class="tech-panel-heading"><div><h2>${state.editEmployeeId==='new'?'Новый техник':'Редактировать техника'}</h2><p>Данные сотрудника лаборатории</p></div><button class="tech-client-close" data-tech-employee-action="cancel" aria-label="Закрыть">×</button></div><form id="tech-employee-form" class="tech-client-form">${field('Имя и фамилия','name','text',true)}${field('Специализация','specialty','text',true)}${field('Телефон','phone','tel')}${field('Электронная почта','email','email',true)}<label>${state.editEmployeeId==='new'?'Пароль для входа':'Новый пароль (если нужно сменить)'}<input name="password" type="password" minlength="10" ${state.editEmployeeId==='new'?'required':''}></label><div class="tech-client-form-actions"><button type="button" class="btn outline" data-tech-employee-action="cancel">Отмена</button><button type="submit" class="btn primary">Сохранить</button></div></form></section>`;
   }
   function teamPage(){
     const open=allOrders().filter(order=>order.stage!=='Готово к выдаче');
@@ -218,11 +195,11 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     return `<div class="tech-heading"><div><span class="tech-eyebrow">КОНТРОЛЬ КАЧЕСТВА</span><h1>Работы на проверке</h1><p>Проверьте результат перед выдачей клинике.</p></div><div class="tech-task-count"><strong>${list.length}</strong><span>ждут решения</span></div></div><div class="tech-quality-list">${list.map(order=>`<article class="tech-panel tech-quality-item"><div><span class="tech-eyebrow">${safe(order.clinic)} · ${order.date}</span><h2>${order.id} · ${safe(order.work)}</h2><p>${safe(order.patient)} · исполнитель: ${safe(order.assignee)}</p></div><div><button class="btn outline" data-tech-order="${order.id}">Подробнее</button><button class="btn outline" data-tech-action="rework" data-id="${order.id}">На доработку</button><button class="btn primary" data-tech-action="approve" data-id="${order.id}">Принять</button></div></article>`).join('')||'<div class="tech-panel tech-empty">Сейчас нет работ на проверке</div>'}</div>`;
   }
   function profilePage(){
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОФИЛЬ</span><h1>Главный техник</h1><p>Доступ к работе лаборатории и её результатам.</p></div></div><div class="tech-panel tech-profile"><span class="tech-person-avatar">АП</span><div><h2>Александр Петров</h2><p>Роль: главный техник</p><p>Возможности: распределение заказов, управление этапами, контроль качества и аналитика.</p><small>Данные заказов хранятся на сервере. Для реальных сотрудников требуются отдельные учётные записи.</small></div></div>`;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОФИЛЬ</span><h1>Главный техник</h1><p>Доступ к работе лаборатории и её результатам.</p></div></div><div class="tech-panel tech-profile"><span class="tech-person-avatar">ГТ</span><div><h2>Главный техник</h2><p>Роль: главный техник</p><p>Возможности: распределение заказов, управление этапами, контроль качества и аналитика.</p><small>Данные заказов хранятся на сервере. Для реальных сотрудников требуются отдельные учётные записи.</small></div></div>`;
   }
   function shell(content){
     const nav=[['overview','Обзор','home'],['orders','Заказы','orders'],['clients','Клиенты','clinic'],['analytics','Аналитика','filter'],['team','Команда','user'],['quality','Контроль качества','check'],['profile','Профиль','user']];
-    root().innerHTML=`<aside class="sidebar tech-sidebar" id="tech-sidebar"><div class="brand"><img src="${assets}create-dental-logo.png" alt="Create Dental"></div><div class="tech-side-label">Кабинет главного техника</div><nav class="sidebar-nav">${nav.map(([page,label,ico])=>`<button class="nav-link ${state.page===page||state.page==='detail'&&page==='orders'?'active':''}" data-tech-page="${page}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav><button class="tech-switch" data-role="clinic">← Кабинет клиники</button></aside><div class="shell tech-shell"><header class="topbar"><button class="mobile-menu" data-tech-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><button class="role-toggle" data-role="worker">Кабинет техника →</button><button class="role-toggle" data-role="clinic">Кабинет клиники →</button><button class="profile" data-tech-page="profile"><span class="avatar">АП</span><span><strong>Александр Петров</strong><small>Главный техник</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>`;
+    root().innerHTML=`<aside class="sidebar tech-sidebar" id="tech-sidebar"><div class="brand"><img src="${assets}create-dental-logo.png" alt="Create Dental"></div><div class="tech-side-label">Кабинет главного техника</div><nav class="sidebar-nav">${nav.map(([page,label,ico])=>`<button class="nav-link ${state.page===page||state.page==='detail'&&page==='orders'?'active':''}" data-tech-page="${page}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav></aside><div class="shell tech-shell"><header class="topbar"><button class="mobile-menu" data-tech-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><button class="role-toggle" data-auth-logout>Выйти</button><button class="profile" data-tech-page="profile"><span class="avatar">ГТ</span><span><strong>Главный техник</strong><small>Главный техник</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>`;
   }
   function render(){
     try {overrides=JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}} catch {overrides={}}
@@ -241,8 +218,8 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
       if(action==='new')state.editEmployeeId='new';
       else if(action==='edit'&&employee)state.editEmployeeId=id;
       else if(action==='cancel')state.editEmployeeId=null;
-      else if(action==='disable'&&employee&&employee.status==='active'){employee.status='disabled';saveTeam()}
-      else if(action==='enable'&&employee&&employee.status==='disabled'){employee.status='active';saveTeam()}
+      else if(action==='disable'&&employee&&employee.status==='active'){employee.status='disabled';saveTeam().catch(()=>{})}
+      else if(action==='enable'&&employee&&employee.status==='disabled'){employee.status='active';saveTeam().catch(()=>{})}
       else if(action==='fire'&&employee&&employee.status!=='fired')state.confirmFireId=id;
       else if(action==='cancel-fire')state.confirmFireId=null;
       else if(action==='confirm-fire'&&employee&&employee.status!=='fired'){
@@ -252,7 +229,7 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
         localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
         savePortal('orderOverrides',overrides).catch(error=>toast('Не удалось сохранить заказы на сервере: '+error.message));
         employee.status='fired';
-        saveTeam();
+        saveTeam().catch(()=>{});
         state.confirmFireId=null;
         if(state.editEmployeeId===id)state.editEmployeeId=null;
       }
@@ -324,13 +301,14 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
       saveOrder(id,{assignee:name,stage:name&&current.stage==='Ожидает распределения'?'Подготовка':current.stage});
     }
   });
-  document.addEventListener('submit',event=>{
+  document.addEventListener('submit',async event=>{
     if(!isActive()||event.target.id!=='tech-employee-form')return;
     event.preventDefault();
     const form=event.target;
     const values={};
     for(const name of ['name','specialty','phone','email'])values[name]=form.elements.namedItem(name).value.trim();
-    if(!values.name||!values.specialty)return toast('Укажите имя и специализацию');
+    if(!values.name||!values.specialty||!values.email)return toast('Укажите имя, специализацию и email');
+    const password=form.elements.namedItem('password').value;
     if(team.some(employee=>employee.name.toLowerCase()===values.name.toLowerCase()&&employee.id!==state.editEmployeeId))return toast('Техник с таким именем уже есть');
     if(state.editEmployeeId==='new')team.push({id:`tech-custom-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,originalName:values.name,...values,status:'active'});
     else {
@@ -338,10 +316,8 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
       if(!employee)return;
       Object.assign(employee,values);
     }
-    saveTeam();
-    state.editEmployeeId=null;
-    state.technician='Все техники';
-    toast('Данные техника сохранены локально');
+    const saved=team.find(item=>item.id===state.editEmployeeId)||team.at(-1);
+    try{await saveTeam();await authRequest('staff',{employeeId:saved.id,email:saved.email,password});state.editEmployeeId=null;state.technician='Все техники';toast('Данные техника и вход сохранены')}catch(error){toast('Не удалось создать вход техника: '+error.message)}
   });
   document.addEventListener('submit',event=>{
     if(!isActive()||event.target.id!=='tech-client-form')return;

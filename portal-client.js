@@ -1,6 +1,6 @@
 const key='create-dental-portal-token';
 
-export const portalToken=()=>sessionStorage.getItem(key)||sessionStorage.getItem('create-dental-support-token')||'';
+export const portalToken=()=>sessionStorage.getItem(key)||'';
 export function setPortalToken(token){sessionStorage.setItem(key,token.trim())}
 export function clearPortalToken(){sessionStorage.removeItem(key)}
 
@@ -14,3 +14,8 @@ async function request(path,options={}){
 
 export const loadPortal=()=>request('/api/portal');
 export const savePortal=(collection,value)=>request(`/api/portal/${collection}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
+export async function authRequest(action,value){
+  const data=await request('/api/auth/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
+  if(data.token)setPortalToken(data.token);
+  return data;
+}
