@@ -1,0 +1,10 @@
+services:
+  web:
+    build: .
+    image: create-dental:latest
+    container_name: create-dental
+    restart: unless-stopped
+    ports:
+      - "4173:4173"
+    volumes:
+      - ./.data:/app/.data

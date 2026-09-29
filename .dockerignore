@@ -1,0 +1,7 @@
+.git
+.data
+artifacts
+sources
+src
+*.md
+.DS_Store
