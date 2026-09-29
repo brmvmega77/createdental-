@@ -47,7 +47,19 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     const saved=JSON.parse(localStorage.getItem('create-dental-tech-clients') || 'null');
     if(Array.isArray(saved))clients=saved.filter(client=>client&&typeof client.id==='string'&&typeof client.name==='string');
   } catch { /* Keep the demo directory if local data is damaged. */ }
-  const state={page:'overview',filter:'Все',search:'',orderId:'CD-1042',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',clientSearch:'',editClientId:null,confirmDeleteId:null,toast:''};
+  const requestedPage=new URLSearchParams(location.search).get('page');
+  const requestedOrder=new URLSearchParams(location.search).get('order');
+  const initialPage=['overview','orders','detail','clients','analytics','team','quality','profile'].includes(requestedPage)?requestedPage:'overview';
+  const state={page:initialPage,filter:'Все',search:'',orderId:orders.some(order=>order.id===requestedOrder)?requestedOrder:'CD-1042',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',clientSearch:'',editClientId:null,confirmDeleteId:null,toast:''};
+  function setPage(page){
+    state.page=page;
+    const url=new URL(location.href);
+    url.searchParams.set('page',page);
+    if(page==='detail')url.searchParams.set('order',state.orderId);
+    else url.searchParams.delete('order');
+    history.replaceState(null,'',url);
+    render();
+  }
   function saveClients(){localStorage.setItem('create-dental-tech-clients',JSON.stringify(clients))}
   function clientName(original){return clients.find(client=>client.originalName===original)?.name||original}
 
@@ -229,9 +241,9 @@ export function createTechnicianCabinet({root,orders,assets,icon,toothChart,isAc
     const filter=event.target.closest('[data-tech-filter]');
     if(filter){state.filter=filter.dataset.techFilter;render();return}
     const page=event.target.closest('[data-tech-page]');
-    if(page){state.page=page.dataset.techPage;render();return}
+    if(page){setPage(page.dataset.techPage);return}
     const order=event.target.closest('[data-tech-order]');
-    if(order){state.orderId=order.dataset.techOrder;state.page='detail';render()}
+    if(order){state.orderId=order.dataset.techOrder;setPage('detail')}
   });
   document.addEventListener('keydown',event=>{
     if(!isActive())return;
