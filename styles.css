@@ -183,6 +183,8 @@
 .portal-login form{display:grid;gap:13px}.portal-login label{display:grid;gap:7px;color:#435d7d;font-size:12px;font-weight:650}.portal-login input{height:42px;border:1px solid #d8e6f6;border-radius:8px;padding:0 12px}
 .portal-login .btn{width:100%}.portal-login small{display:block;margin-top:20px;color:#9aacbd;font-size:11px;line-height:1.5}.portal-login .portal-login-error{color:#c74b53;margin:14px 0 0}
 .portal-login section{width:min(100%,480px)}
-.auth-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0 0 20px}
-.auth-tabs button{min-height:42px;border:1px solid #d8e6f6;border-radius:8px;background:#f7faff;color:#4e6788;font:inherit;font-size:12px;cursor:pointer}
-.auth-tabs button.active{background:#1769ed;border-color:#1769ed;color:#fff}
+.auth-links{display:flex;justify-content:space-between;gap:12px;margin-top:18px}
+.auth-links button{border:0;background:none;padding:0;color:#1769ed;font:inherit;font-size:13px;cursor:pointer;text-align:left}
+.auth-links button:hover{text-decoration:underline}
+.auth-recovery h2{font-size:18px;margin:4px 0 10px;color:#172b49}
+.auth-recovery p{margin-bottom:0}

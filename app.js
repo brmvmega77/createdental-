@@ -185,15 +185,17 @@ let portalUser=null;
 let authMode='login';
 let portalError='';
 function loginView(){
-  const modes=[['login','Клиентам'],['register','Регистрация клиники'],['staff','Техникам'],['chief','Главному технику']];
   const field=(label,name,type='text')=>`<label>${label}<input name="${name}" type="${type}" ${name==='password'?'minlength="10"':''} required></label>`;
-  const contents={
-    login:`${field('Email','email','email')}${field('Пароль','password','password')}<button class="btn primary">Войти в кабинет клиники</button>`,
-    register:`${field('Название клиники','name')}${field('Email','email','email')}${field('Пароль от 10 символов','password','password')}<button class="btn primary">Зарегистрировать клинику</button>`,
-    staff:`${field('Рабочий email','email','email')}${field('Пароль','password','password')}<button class="btn primary">Войти как техник</button>`,
-    chief:`${field('Ключ главного техника','key','password')}<button class="btn primary">Войти в панель</button>`
-  };
-  $('#app').innerHTML=`<main class="portal-login"><section><img src="${assets}create-dental-logo.png" alt="Create Dental"><h1>Личный кабинет Create Dental</h1><p>Заказы, производство и связь с лабораторией.</p><div class="auth-tabs">${modes.map(([mode,label])=>`<button type="button" data-auth-mode="${mode}" class="${authMode===mode?'active':''}">${label}</button>`).join('')}</div><form id="portal-login-form" data-mode="${authMode}">${contents[authMode]}</form>${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
+  const form=authMode==='register'
+    ?`${field('Название клиники','name')}${field('Email','email','email')}${field('Пароль от 10 символов','password','password')}<button class="btn primary">Зарегистрироваться</button>`
+    :`${field('Email или логин','email')}${field('Пароль','password','password')}<button class="btn primary">Войти</button>`;
+  const links=authMode==='login'
+    ?'<div class="auth-links"><button type="button" data-auth-mode="register">Регистрация</button><button type="button" data-auth-mode="recover">Забыли пароль?</button></div>'
+    :'<div class="auth-links"><button type="button" data-auth-mode="login">← Вернуться ко входу</button></div>';
+  const content=authMode==='recover'
+    ?'<div class="auth-recovery"><h2>Восстановление пароля</h2><p>Обратитесь к главному технику лаборатории, чтобы получить новый пароль. Для входа главного техника используется административный ключ.</p></div>'
+    :`<form id="portal-login-form" data-mode="${authMode}">${form}</form>`;
+  $('#app').innerHTML=`<main class="portal-login"><section><img src="${assets}create-dental-logo.png" alt="Create Dental"><h1>${authMode==='register'?'Регистрация клиники':'Личный кабинет Create Dental'}</h1><p>Заказы, производство и связь с лабораторией.</p>${content}${links}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
 }
 function render(){if(!portalReady){loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
 async function hydratePortal(){
@@ -242,8 +244,8 @@ document.addEventListener('submit',async event=>{
   event.preventDefault();
   const form=event.target;
   const body=Object.fromEntries(new FormData(form));
-  const action=form.dataset.mode==='register'?'register':form.dataset.mode==='chief'?'chief':'login';
-  try{const response=await authRequest(action,body);if(form.dataset.mode==='staff'&&response.user.role!=='worker'||form.dataset.mode==='login'&&response.user.role!=='clinic')throw new Error('Для этой учётной записи выберите другой вход');await hydratePortal()}
+  const action=form.dataset.mode==='register'?'register':'login';
+  try{await authRequest(action,body);await hydratePortal()}
   catch(error){clearPortalToken();portalError=error.message;render()}
 });
 setInterval(loadMessages,3000);

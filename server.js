@@ -122,6 +122,11 @@ async function handleAuth(req,res,url){
     return json(res,201,{token:issueSession('clinic',id),user:{role:'clinic',subjectId:id}});
   }
   if(req.method==='POST'&&url.pathname==='/api/auth/login'){
+    if(String(body.email||'').trim().toLowerCase()==='chief'){
+      const incoming=String(body.password||'');
+      if(!portalToken||Buffer.byteLength(incoming)!==Buffer.byteLength(portalToken)||!timingSafeEqual(Buffer.from(incoming),Buffer.from(portalToken)))return json(res,401,{error:'Неверный логин или пароль'});
+      return json(res,200,{token:issueSession('technician','chief'),user:{role:'technician',subjectId:'chief'}});
+    }
     const account=login(body.email,body.password);
     if(!account||account.role==='worker'&&portalEmployee(account.subjectId)?.status!=='active'||account.role==='clinic'&&!portalClient(account.subjectId))return json(res,401,{error:'Неверный email или пароль'});
     return json(res,200,{token:issueSession(account.role,account.subjectId),user:{role:account.role,subjectId:account.subjectId}});
