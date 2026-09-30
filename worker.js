@@ -80,6 +80,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
       if(key==='date'){x=dateKey(x);y=dateKey(y)}
       if(key==='createdAt'){x=Date.parse(x)||0;y=Date.parse(y)||0;return (x-y)*sign}
       if(key==='clinic'){x=`${a.clinic} ${a.patient}`;y=`${b.clinic} ${b.patient}`}
+      if(key==='work'){x=`${a.work} ${a.patient}`;y=`${b.work} ${b.patient}`}
       return String(x).localeCompare(String(y),'ru',{numeric:true})*sign;
     });
   }
@@ -94,7 +95,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   }
   function orderList(list){
     const rows=sortedOrders(list);
-    return `<div class="tech-table-wrap"><table class="tech-table worker-table"><thead><tr><th>Заказ</th>${sortHeading('createdAt','Создан')}${sortHeading('clinic','Клиника и пациент')}${sortHeading('work','Работа')}${sortHeading('date','Срок')}${sortHeading('stage','Этап')}<th></th></tr></thead><tbody>${rows.map(order=>`<tr data-worker-order="${safe(order.id)}" tabindex="0" class="tech-order-row"><td><strong>${safe(order.id)}</strong></td><td>${shortDate(order.createdAt)}</td><td>${safe(order.clinic)}<small>${safe(order.patient)}</small></td><td>${safe(order.work)}</td><td>${safe(order.date)}</td><td><span class="tech-stage ${tone(order.stage)}">${safe(order.stage)}</span></td><td><button class="tech-link" data-worker-order="${safe(order.id)}">Открыть →</button></td></tr>`).join('')||'<tr><td colspan="7" class="tech-empty">Назначенных заказов пока нет</td></tr>'}</tbody></table></div>`;
+    return `<div class="tech-table-wrap"><table class="tech-table worker-table"><thead><tr><th>Заказ / клиника</th>${sortHeading('createdAt','Создан')}${sortHeading('work','Работа / пациент')}${sortHeading('date','Срок')}${sortHeading('stage','Этап')}<th></th></tr></thead><tbody>${rows.map(order=>`<tr data-worker-order="${safe(order.id)}" tabindex="0" class="tech-order-row"><td><strong>${safe(order.id)}</strong><small>${safe(order.clinic)}</small></td><td>${shortDate(order.createdAt)}</td><td>${safe(order.work)}<small>${safe(order.patient)}</small></td><td>${safe(order.date)}</td><td><span class="tech-stage ${tone(order.stage)}">${safe(order.stage)}</span></td><td><button class="tech-link" data-worker-order="${safe(order.id)}">Открыть →</button></td></tr>`).join('')||'<tr><td colspan="6" class="tech-empty">Назначенных заказов пока нет</td></tr>'}</tbody></table></div>`;
   }
   function overview(){
     const employee=current();

@@ -233,3 +233,5 @@
 .tech-table th[aria-sort="ascending"] .order-sort,.tech-table th[aria-sort="descending"] .order-sort{color:#333333}
 .auth-recovery a{color:#333333;font-weight:650;text-decoration:none}
 .auth-recovery a:hover{text-decoration:underline}
+/* Match sidebar logo spacing across all cabinets */
+.sidebar:not(#worker-sidebar) .sidebar-nav{margin-top:61px}
