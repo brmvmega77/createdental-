@@ -1,5 +1,5 @@
-import { createTechnicianCabinet, seedDetails } from './technician.js?v=avatar-spacing-2';
-import { createWorkerCabinet } from './worker.js';
+import { createTechnicianCabinet, seedDetails } from './technician.js?v=orders-worker-profile-1';
+import { createWorkerCabinet } from './worker.js?v=orders-worker-profile-1';
 import { seedOrders } from './seed-orders.js';
 import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal,authRequest} from './portal-client.js';
 import {routeFromPath,pathFor,navigate} from './routes.js';
@@ -186,7 +186,7 @@ function clinicPage(){
 }
 function referencePage(){shell(`${title('Справочник','Информация о конструкциях, материалах и оформлении заказов.')}<div class="reference-grid">${[['Коронки E.max','Эстетичные цельнокерамические реставрации.'],['Виниры','Тонкие накладки для восстановления улыбки.'],['Мостовидные протезы','Конструкции для замещения отсутствующих зубов.'],['3D сканирование','Цифровые слепки для точной работы.']].map(([h,p])=>`<article class="reference-card">${icon('book',25)}<h3>${h}</h3><p>${p}</p></article>`).join('')}</div>`)}
 const technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,onUserUpdate:user=>{portalUser=user}});
-const workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser});
+const workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,onUserUpdate:user=>{portalUser=user}});
 let portalReady=false;
 let portalUser=null;
 let authMode=initialRoute.mode||'login';
@@ -200,7 +200,7 @@ function loginView(){
     ?'<div class="auth-links"><button type="button" data-auth-mode="register">Регистрация</button><button type="button" data-auth-mode="recover">Забыли пароль?</button></div>'
     :'<div class="auth-links"><button type="button" data-auth-mode="login">← Вернуться ко входу</button></div>';
   const content=authMode==='recover'
-    ?'<div class="auth-recovery"><h2>Восстановление пароля</h2><p>Обратитесь к главному технику лаборатории, чтобы получить новый пароль.</p></div>'
+    ?'<div class="auth-recovery"><h2>Восстановление пароля</h2><p>Обратитесь по почте <a href="mailto:ceo@createdental.ai">ceo@createdental.ai</a>, чтобы получить новый пароль.</p></div>'
     :`<form id="portal-login-form" data-mode="${authMode}">${form}</form>`;
   $('#app').innerHTML=`<main class="portal-login"><section><img class="portal-logo" src="${logo}" alt="Create Dental"><h1>${authMode==='register'?'Регистрация клиники':'Личный кабинет Create Dental'}</h1><p>Заказы, производство и связь с лабораторией.</p>${content}${links}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
 }

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { timingSafeEqual,randomBytes } from 'node:crypto';
 import {portalSnapshot,replacePortalCollection,portalClient,portalEmployee} from './portal-data.js';
-import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
+import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
@@ -49,6 +49,10 @@ function session(req){
 }
 function publicUser(user){
   if(user?.role==='technician'&&user.subjectId==='chief')return {...user,...chiefAccountProfile()};
+  if(user?.role==='worker'){
+    const employee=portalEmployee(user.subjectId);
+    return {...user,...workerAccountProfile(user.subjectId),displayName:employee?.name||workerAccountProfile(user.subjectId).displayName||'Техник',email:workerAccountProfile(user.subjectId).email||employee?.email||''};
+  }
   return user;
 }
 
@@ -120,6 +124,24 @@ async function handleAuth(req,res,url){
     try{return json(res,200,{ok:true,profile:await updateChiefAccount(body),user:publicUser(user)})}
     catch(error){
       const messages={missing_account:'Аккаунт главного техника не найден',invalid_profile:'Проверьте имя и email',duplicate_email:'Такой email уже используется',invalid_password:'Пароль должен быть от 8 символов',invalid_avatar:'Аватар должен быть изображением до 1.8 МБ'};
+      return json(res,400,{error:messages[error.message]||'Не удалось сохранить профиль'});
+    }
+  }
+  if(req.method==='POST'&&url.pathname==='/api/auth/worker-profile'){
+    const user=session(req);
+    if(user?.role!=='worker')return json(res,403,{error:'Доступ запрещён'});
+    let body;try{body=await readBody(req,2000000)}catch(error){return json(res,400,{error:error.message==='too_large'?'Фото слишком большое. Загрузите изображение поменьше.':'Неверные данные'})}
+    const employee=portalEmployee(user.subjectId);
+    if(!employee||employee.status!=='active')return json(res,403,{error:'Доступ недоступен'});
+    const name=String(body.name||'').trim(),specialty=String(body.specialty||'').trim(),phone=String(body.phone||'').trim(),email=String(body.email||'').trim().toLowerCase();
+    if(name.length<2||name.length>120||/[<>]/.test(name+specialty+phone)||specialty.length>120||phone.length>40||!validEmail(email))return json(res,400,{error:'Проверьте имя, почту и телефон'});
+    try{
+      const profile=await updateWorkerAccount({employeeId:employee.id,displayName:name,email,password:body.password||'',avatar:body.avatar||''});
+      const updated={...employee,name,specialty,phone,email};
+      await replacePortalCollection('employees',portalSnapshot().employees.map(item=>item.id===employee.id?updated:item));
+      return json(res,200,{ok:true,employee:updated,profile,user:publicUser(user)});
+    }catch(error){
+      const messages={missing_account:'Аккаунт техника не найден',invalid_profile:'Проверьте имя и email',duplicate_email:'Такой email уже используется',invalid_password:'Пароль должен быть от 8 символов',invalid_avatar:'Аватар должен быть изображением до 1.8 МБ'};
       return json(res,400,{error:messages[error.message]||'Не удалось сохранить профиль'});
     }
   }

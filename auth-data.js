@@ -73,6 +73,32 @@ export async function updateChiefAccount({displayName,email,password,avatar}){
   await save();
   return chiefAccountProfile();
 }
+export function workerAccountProfile(employeeId){
+  const account=accounts.find(item=>item.role==='worker'&&item.subjectId===employeeId);
+  return {
+    displayName:account?.displayName||'',
+    email:account?.email||'',
+    avatar:account?.avatar||''
+  };
+}
+export async function updateWorkerAccount({employeeId,displayName,email,password,avatar}){
+  const account=accounts.find(item=>item.role==='worker'&&item.subjectId===employeeId);
+  if(!account)throw new Error('missing_account');
+  const name=String(displayName||'').trim();
+  const normalizedEmail=normalize(email);
+  if(name&&(/[<>]/.test(name)||name.length>80))throw new Error('invalid_profile');
+  if(!validEmail(normalizedEmail))throw new Error('invalid_profile');
+  if(accounts.some(item=>item!==account&&item.email===normalizedEmail))throw new Error('duplicate_email');
+  if(password!==undefined&&password!==''&&(typeof password!=='string'||password.length<8||password.length>200))throw new Error('invalid_password');
+  const image=String(avatar||'');
+  if(image&&(!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(image)||image.length>1800000))throw new Error('invalid_avatar');
+  if(name)account.displayName=name;
+  account.email=normalizedEmail;
+  if(password)account.passwordHash=hash(password);
+  if(image)account.avatar=image;else delete account.avatar;
+  await save();
+  return workerAccountProfile(employeeId);
+}
 export function login(email,password){
   const account=accounts.find(item=>item.email===normalize(email)||item.username===normalize(email));
   if(!account||typeof password!=='string'||!verify(password,account.passwordHash))return null;

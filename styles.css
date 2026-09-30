@@ -225,3 +225,11 @@
 .tech-person-avatar img,.profile .avatar img{width:100%;height:100%;display:block;object-fit:cover;border-radius:inherit}
 .profile .avatar{overflow:hidden}
 @media(max-width:760px){.tech-profile-editor{grid-template-columns:1fr;padding-right:16px}.chief-messages .chat-bubbles{height:330px;max-height:330px}.tech-client-editor{padding-right:16px}}
+
+/* Message contrast and sortable staff tables */
+.bubble.me{background:#333333;color:#fff}
+.bubble.me time{color:#eeeeee}
+.bubble.them{background:#f5f5f5;color:#333333}
+.tech-table th[aria-sort="ascending"] .order-sort,.tech-table th[aria-sort="descending"] .order-sort{color:#333333}
+.auth-recovery a{color:#333333;font-weight:650;text-decoration:none}
+.auth-recovery a:hover{text-decoration:underline}
