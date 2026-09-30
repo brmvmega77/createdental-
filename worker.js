@@ -6,7 +6,7 @@ const safe=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'
 const tone=stage=>stage==='Контроль качества'?'review':stage==='Готово к выдаче'?'ready':'work';
 const readOrders=()=>{try{return JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}}catch{return {}}};
 
-export function createWorkerCabinet({root,orders,assets,icon,toothChart,isActive,currentUser}){
+export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isActive,currentUser}){
   const initialRoute=routeFromPath(location.pathname);
   const state={page:initialRoute.role==='worker'?initialRoute.page:'overview',employeeId:'',orderId:initialRoute.orderId||'',toast:''};
   function employees(){return loadEmployees()}
@@ -53,7 +53,7 @@ export function createWorkerCabinet({root,orders,assets,icon,toothChart,isActive
     const employee=current();
     const active=employees().filter(item=>item.status==='active');
     const nav=[['overview','Главная','home'],['orders','Мои заказы','orders'],['profile','Мой профиль','user']];
-    root().innerHTML=`<aside class="sidebar tech-sidebar" id="worker-sidebar"><div class="brand"><img src="${assets}create-dental-logo.png" alt="Create Dental"></div><div class="tech-side-label">Кабинет техника</div><nav class="sidebar-nav">${nav.map(([page,label,ico])=>`<button class="nav-link ${state.page===page||state.page==='detail'&&page==='orders'?'active':''}" data-worker-page="${page}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav></aside><div class="shell tech-shell"><header class="topbar"><button class="mobile-menu" data-worker-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><button class="role-toggle" data-auth-logout>Выйти</button><button class="profile" data-worker-page="profile"><span class="avatar">${safe(employee?.name.split(' ').map(part=>part[0]).join('')||'Т')}</span><span><strong>${safe(employee?.name||'Техник')}</strong><small>Зубной техник</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>`;
+    root().innerHTML=`<aside class="sidebar tech-sidebar" id="worker-sidebar"><div class="brand"><img class="portal-logo" src="${logo}" alt="Create Dental"></div><div class="tech-side-label">Кабинет техника</div><nav class="sidebar-nav">${nav.map(([page,label,ico])=>`<button class="nav-link ${state.page===page||state.page==='detail'&&page==='orders'?'active':''}" data-worker-page="${page}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav></aside><div class="shell tech-shell"><header class="topbar"><button class="mobile-menu" data-worker-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><button class="role-toggle" data-auth-logout>Выйти</button><button class="profile" data-worker-page="profile"><span class="avatar">${safe(employee?.name.split(' ').map(part=>part[0]).join('')||'Т')}</span><span><strong>${safe(employee?.name||'Техник')}</strong><small>Зубной техник</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>`;
   }
   function render(){
     const route=routeFromPath(location.pathname);

@@ -5,8 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f3f8fe">
   <title>Create Dental — клиентский портал</title>
-  <link rel="stylesheet" href="/styles.css">
-  <script type="module" src="/app.js"></script>
+  <link rel="stylesheet" href="/styles.css?v=avatar-spacing-2">
+  <style>
+    .startup-notice{min-height:100vh;display:grid;place-items:center;padding:24px;color:#203653;font:16px/1.5 system-ui,sans-serif;text-align:center}
+  </style>
+  <script>
+    window.addEventListener('error',function(event){
+      if(!event.filename||!event.filename.endsWith('.js'))return;
+      const notice=document.getElementById('startup-notice');
+      if(notice)notice.textContent='Не удалось загрузить кабинет. Обновите страницу. Если ошибка повторится, сообщите администрации.';
+    });
+    window.addEventListener('DOMContentLoaded',function(){
+      setTimeout(function(){
+        const notice=document.getElementById('startup-notice');
+        if(notice)notice.textContent='Кабинет не загрузился. Обновите страницу или сообщите администрации.';
+      },8000);
+    });
+  </script>
+  <script type="module" src="/app.js?v=avatar-spacing-2"></script>
 </head>
-<body><div id="app"></div></body>
+<body><div id="app"><div id="startup-notice" class="startup-notice">Загрузка кабинета...</div></div></body>
 </html>
