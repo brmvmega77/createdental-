@@ -201,7 +201,7 @@
 .portal-login .portal-logo{width:190px;height:76px;margin:0 auto 25px}
 .portal-login h1{font-size:23px;color:#333333;margin:0 0 9px}.portal-login p{color:#808080;font-size:13px;line-height:1.55;margin:0 0 22px}
 .portal-login form{display:grid;gap:13px}.portal-login label{display:grid;gap:7px;color:#808080;font-size:12px;font-weight:650}.portal-login input{height:42px;border:1px solid #eeeeee;border-radius:8px;padding:0 12px}
-.portal-login .btn{width:100%}.portal-login small{display:block;margin-top:20px;color:#c8c8c8;font-size:11px;line-height:1.5}.portal-login .portal-login-error{color:#c74b53;margin:14px 0 0}
+.portal-login .btn{width:100%}.portal-login .btn.primary:hover{background:#333333;border-color:#333333}.portal-login small{display:block;margin-top:20px;color:#c8c8c8;font-size:11px;line-height:1.5}.portal-login .portal-login-error{color:#c74b53;margin:14px 0 0}
 .portal-login section{width:min(100%,480px)}
 .auth-links{display:flex;justify-content:space-between;gap:12px;margin-top:18px}
 .auth-links button{border:0;background:none;padding:0;color:#808080;font:inherit;font-size:13px;cursor:pointer;text-align:left}
