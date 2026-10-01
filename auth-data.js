@@ -29,12 +29,23 @@ export async function resetAccountsToChief(username,password){
   sessions.clear();
   await save();
 }
-export async function createAccount({email,password,role,subjectId}){
+export async function createAccount({email,password,role,subjectId,emailVerified=role!=='clinic'}){
   if(!validEmail(email)||!validPassword(password)||hasAccount(email))throw new Error('invalid_account');
-  const account={id:randomBytes(16).toString('hex'),email:normalize(email),passwordHash:hash(password),role,subjectId};
+  const account={id:randomBytes(16).toString('hex'),email:normalize(email),passwordHash:hash(password),role,subjectId,emailVerified:!!emailVerified};
+  if(!account.emailVerified){account.verificationToken=randomBytes(24).toString('hex');account.verificationSentAt=new Date().toISOString()}
   accounts.push(account);
   try{await save()}catch(error){accounts=accounts.filter(item=>item!==account);throw error}
   return account;
+}
+export function isEmailVerified(account){return account?.role!=='clinic'||account.emailVerified!==false}
+export function verificationLinkFor(account,origin=''){return account?.verificationToken?`${String(origin||'').replace(/\/$/,'')}/verify-email?token=${account.verificationToken}`:''}
+export async function verifyEmailToken(token){
+  const current=accounts.find(account=>account.verificationToken===String(token||''));
+  if(!current)return null;
+  current.emailVerified=true;
+  delete current.verificationToken;
+  await save();
+  return current;
 }
 export async function upsertWorkerAccount({employeeId,email,password}){
   if(!validEmail(email)||password&&!validPassword(password))throw new Error('invalid_account');

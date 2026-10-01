@@ -3,7 +3,7 @@ import {savePortal,authRequest} from './portal-client.js';
 import {routeFromPath,pathFor,navigate} from './routes.js';
 
 const safe=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const tone=stage=>stage==='Контроль качества'?'review':stage==='Готово к выдаче'?'ready':'work';
+const tone=stage=>stage==='Контроль качества'?'review':['Работа принята','В доставке','Доставлено','Готово к выдаче'].includes(stage)?'ready':'work';
 const readOrders=()=>{try{return JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}}catch{return {}}};
 const initials=value=>String(value||'Т').trim().split(/\s+/).map(part=>part[0]).join('').slice(0,2).toUpperCase()||'Т';
 const shortDate=value=>value?new Date(value).toLocaleDateString('ru-RU'):'—';
@@ -100,10 +100,10 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   function overview(){
     const employee=current();
     const list=myOrders();
-    const working=list.filter(order=>!['Контроль качества','Готово к выдаче'].includes(order.stage));
+    const working=list.filter(order=>!['Контроль качества','Работа принята','В доставке','Доставлено','Готово к выдаче'].includes(order.stage));
     const checking=list.filter(order=>order.stage==='Контроль качества');
-    const done=list.filter(order=>order.stage==='Готово к выдаче');
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">МОЙ РАБОЧИЙ КАБИНЕТ</span><h1>Здравствуйте, ${safe(employee.name.split(' ')[0])}</h1><p>Ваши задания и текущие этапы производства.</p></div><span class="tech-demo-note">Личный кабинет</span></div><div class="worker-stats"><article><span>В работе</span><strong>${working.length}</strong><small>Нужно выполнить</small></article><article><span>На проверке</span><strong>${checking.length}</strong><small>Передано главному технику</small></article><article><span>Готово</span><strong>${done.length}</strong><small>Проверка пройдена</small></article></div><section class="tech-panel"><div class="tech-panel-heading"><div><h2>Мои текущие заказы</h2><p>Откройте работу, чтобы посмотреть детали и сменить этап</p></div><button class="tech-link" data-worker-page="orders">Все мои заказы →</button></div>${orderList(list.filter(order=>order.stage!=='Готово к выдаче'))}</section>`;
+    const done=list.filter(order=>['Работа принята','В доставке','Доставлено','Готово к выдаче'].includes(order.stage));
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">МОЙ РАБОЧИЙ КАБИНЕТ</span><h1>Здравствуйте, ${safe(employee.name.split(' ')[0])}</h1><p>Ваши задания и текущие этапы производства.</p></div><span class="tech-demo-note">Личный кабинет</span></div><div class="worker-stats"><article><span>В работе</span><strong>${working.length}</strong><small>Нужно выполнить</small></article><article><span>На проверке</span><strong>${checking.length}</strong><small>Передано главному технику</small></article><article><span>Готово</span><strong>${done.length}</strong><small>Проверка пройдена</small></article></div><section class="tech-panel"><div class="tech-panel-heading"><div><h2>Мои текущие заказы</h2><p>Откройте работу, чтобы посмотреть детали и сменить этап</p></div><button class="tech-link" data-worker-page="orders">Все мои заказы →</button></div>${orderList(list.filter(order=>!['Работа принята','В доставке','Доставлено','Готово к выдаче'].includes(order.stage)))}</section>`;
   }
   function ordersPage(){return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОИЗВОДСТВО</span><h1>Мои заказы</h1><p>Работы, назначенные вам главным техником.</p></div></div><section class="tech-panel">${orderList(myOrders())}</section>`}
   function detailPage(){
@@ -111,8 +111,9 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     if(!order)return ordersPage();
     const index=stages.indexOf(order.stage);
     const canAdvance=index>=1&&index<4;
+    const canRollback=index>1&&index<=4;
     const next=canAdvance?stages[index+1]:'';
-    return `<button class="tech-back" data-worker-page="orders">← Мои заказы</button><div class="tech-heading"><div><span class="tech-eyebrow">${safe(order.clinic)} · срок ${safe(order.date)}</span><h1>Заказ ${safe(order.id)}</h1><p>${safe(order.work)} · ${safe(order.patient)}</p></div><span class="tech-stage ${tone(order.stage)}">${safe(order.stage)}</span></div><div class="tech-detail-grid"><section class="tech-panel"><h2>Данные работы</h2><div class="tech-facts"><div><span>Клиника</span><strong>${safe(order.clinic)}</strong></div><div><span>Пациент</span><strong>${safe(order.patient)}</strong></div><div><span>Конструкция</span><strong>${safe(order.work)}</strong></div><div><span>Создан</span><strong>${shortDate(order.createdAt)}</strong></div><div><span>Срок сдачи</span><strong>${safe(order.date)}</strong></div><div><span>Приоритет</span><strong>${safe(order.priority)}</strong></div><div><span>Номера зубов</span><strong>${order.teeth.join(', ')||'Не указаны'}</strong></div></div><div class="tech-detail-teeth">${toothChart(false,order.teeth)}</div></section><section class="tech-panel"><h2>Ход выполнения</h2><ol class="tech-timeline">${stages.map((stage,position)=>`<li class="${position<index?'done':position===index?'current':''}"><i></i><span>${stage}</span></li>`).join('')}</ol><div class="tech-detail-actions">${canAdvance?`<button class="btn primary" data-worker-action="advance" data-order-id="${safe(order.id)}">${next==='Контроль качества'?'Передать на проверку':'Перейти к этапу «'+next+'»'}</button>`:order.stage==='Контроль качества'?'<p>Работа передана главному технику на проверку.</p>':order.stage==='Готово к выдаче'?'<p>Работа принята и готова к выдаче.</p>':'<p>Дождитесь назначения работы.</p>'}</div></section></div>`;
+    return `<button class="tech-back" data-worker-page="orders">← Мои заказы</button><div class="tech-heading"><div><span class="tech-eyebrow">${safe(order.clinic)} · срок ${safe(order.date)}</span><h1>Заказ ${safe(order.id)}</h1><p>${safe(order.work)} · ${safe(order.patient)}</p></div><span class="tech-stage ${tone(order.stage)}">${safe(order.stage)}</span></div><div class="tech-detail-grid"><section class="tech-panel"><h2>Данные работы</h2><div class="tech-facts"><div><span>Клиника</span><strong>${safe(order.clinic)}</strong></div><div><span>Пациент</span><strong>${safe(order.patient)}</strong></div><div><span>Конструкция</span><strong>${safe(order.work)}</strong></div><div><span>Создан</span><strong>${shortDate(order.createdAt)}</strong></div><div><span>Срок сдачи</span><strong>${safe(order.date)}</strong></div><div><span>Приоритет</span><strong>${safe(order.priority)}</strong></div><div><span>Номера зубов</span><strong>${order.teeth.join(', ')||'Не указаны'}</strong></div></div><div class="tech-detail-teeth">${toothChart(false,order.teeth)}</div></section><section class="tech-panel"><h2>Ход выполнения</h2><ol class="tech-timeline">${stages.map((stage,position)=>`<li class="${position<index?'done':position===index?'current':''}"><i></i><span>${stage}</span></li>`).join('')}</ol><div class="tech-detail-actions">${canRollback?`<button class="btn outline" data-worker-action="rollback" data-order-id="${safe(order.id)}">Вернуть на предыдущий статус</button>`:''}${canAdvance?`<button class="btn primary" data-worker-action="advance" data-order-id="${safe(order.id)}">${next==='Контроль качества'?'Передать на проверку':'Перейти к этапу «'+next+'»'}</button>`:order.stage==='Контроль качества'?'<p>Работа передана главному технику на проверку.</p>':['Работа принята','Готово к выдаче'].includes(order.stage)?'<p>Работа принята главным техником.</p>':order.stage==='В доставке'?'<p>Заказ в доставке.</p>':order.stage==='Доставлено'?'<p>Заказ доставлен клинике.</p>':'<p>Дождитесь назначения работы.</p>'}</div></section></div>`;
   }
   function profile(){
     const profile=workerProfile();
@@ -142,13 +143,15 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     const action=event.target.closest('[data-worker-action]');
     if(action){
       if(action.dataset.workerAction==='menu'){root().querySelector('#worker-sidebar')?.classList.toggle('open');return}
-      if(action.dataset.workerAction==='advance'){
+      if(['advance','rollback'].includes(action.dataset.workerAction)){
         const employee=current();
         const order=myOrders().find(item=>item.id===action.dataset.orderId);
         const index=order&&stages.indexOf(order.stage);
-        if(!employee||!order||index<1||index>=4)return;
+        if(!employee||!order)return;
+        if(action.dataset.workerAction==='advance'&&(index<1||index>=4))return;
+        if(action.dataset.workerAction==='rollback'&&(index<=1||index>4))return;
         const overrides=readOrders();
-        overrides[order.id]={...(overrides[order.id]||{}),stage:stages[index+1]};
+        overrides[order.id]={...(overrides[order.id]||{}),stage:stages[index+(action.dataset.workerAction==='advance'?1:-1)]};
         localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
         savePortal('orderOverrides',overrides).catch(error=>toast('Не удалось сохранить этап на сервере: '+error.message));
         render();
@@ -156,7 +159,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
       return;
     }
     const page=event.target.closest('[data-worker-page]');
-    if(page){setPage(page.dataset.workerPage);return}
+    if(page){root().querySelector('#worker-sidebar')?.classList.remove('open');setPage(page.dataset.workerPage);return}
     const order=event.target.closest('[data-worker-order]');
     if(order){state.orderId=order.dataset.workerOrder;setPage('detail')}
   });

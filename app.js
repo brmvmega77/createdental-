@@ -44,7 +44,7 @@ const state = {role:initialRoute.role||'clinic',page:initialRoute.role==='clinic
 const demoUnitPrices = {'Коронка E.max':12500,'Винир':14000,'Мост':9000,'Абатмент':7600,'Вкладка':8500};
 const orderEstimate = () => (demoUnitPrices[state.form.construction] || 12500) * Math.max(1, Number(state.form.quantity) || 1);
 const rubles = amount => new Intl.NumberFormat('ru-RU').format(amount) + ' ₽';
-const statusClass = s => s==='В работе'?'green':s==='Завершен'?'green':s==='Новый'?'blue':'orange';
+const statusClass = s => ['В работе','Работа принята','Доставлено','Завершен'].includes(s)?'green':s==='Новый'?'blue':'orange';
 const badge = s => `<span class="badge ${statusClass(s)}">${s}</span>`;
 const button = (label,action,kind='primary',extra='') => `<button class="btn ${kind}" data-action="${action}" ${extra}>${label}</button>`;
 function sidebar(){return `<aside class="sidebar" id="sidebar"><div class="brand" aria-label="Create Dental"><img class="portal-logo" src="${logo}" alt="Create Dental"></div><nav class="sidebar-nav">${nav.map(([id,label,ico])=>`<button class="nav-link ${state.page===id||(state.page==='detail'&&id==='orders')?'active':''}" data-page="${id}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav><button class="help-box" data-page="messages">${icon('message',20)}<span><strong>Нужна помощь?</strong><small>Напишите нам</small></span></button></aside>`}
@@ -79,19 +79,19 @@ function recentMessagesCard(){return `<section class="dashboard-card recent-card
 function currentOrders(){
   let overrides={};
   try {overrides=JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}} catch {overrides={}}
-  const status={"Ожидает распределения":"Новый","Подготовка":"В работе","Моделирование":"В работе","Изготовление":"В работе","Контроль качества":"На согласовании","Готово к выдаче":"Завершен"};
+  const status={"Ожидает распределения":"Новый","Подготовка":"В работе","Моделирование":"В работе","Изготовление":"В работе","Контроль качества":"На согласовании","Работа принята":"Работа принята","В доставке":"В доставке","Доставлено":"Доставлено","Готово к выдаче":"Работа принята"};
   return orders.filter(order=>order.clinicId===portalUser?.subjectId).map(order=>({...order,status:status[overrides[order.id]?.stage]||order.status}));
 }
 function orderTabs(){
   const list=currentOrders();
-  return [['Все',list.length],['Новые',list.filter(o=>o.status==='Новый').length],['В работе',list.filter(o=>o.status==='В работе').length],['На согласовании',list.filter(o=>['На согласовании','Согласование'].includes(o.status)).length],['Завершенные',list.filter(o=>o.status==='Завершен').length]];
+  return [['Все',list.length],['Новые',list.filter(o=>o.status==='Новый').length],['В работе',list.filter(o=>o.status==='В работе').length],['На согласовании',list.filter(o=>['На согласовании','Согласование'].includes(o.status)).length],['Приняты',list.filter(o=>o.status==='Работа принята').length],['В доставке',list.filter(o=>o.status==='В доставке').length],['Доставлены',list.filter(o=>o.status==='Доставлено').length]];
 }
 function dashboard(){
   const list=currentOrders();
-  const stats=[['orders',list.filter(o=>o.status!=='Завершен').length,'Активных заказов','blue'],['clock',list.filter(o=>['На согласовании','Согласование'].includes(o.status)).length,'На согласовании','orange'],['user',list.filter(o=>o.status==='В работе').length,'В работе','navy'],['heart',list.filter(o=>o.status==='Завершен').length,'Завершено','green']];
+  const stats=[['orders',list.filter(o=>!['Доставлено','Завершен'].includes(o.status)).length,'Активных заказов','blue'],['clock',list.filter(o=>['На согласовании','Согласование'].includes(o.status)).length,'На согласовании','orange'],['user',list.filter(o=>o.status==='В работе').length,'В работе','navy'],['heart',list.filter(o=>['Работа принята','В доставке','Доставлено','Завершен'].includes(o.status)).length,'После приемки','green']];
   shell(`${title('Добро пожаловать, '+escapeHtml(clinicRecord()?.name||'клиника')+'!','Создавайте заказы, отслеживайте статус и получайте готовые работы в срок.',button(`${icon('plus',16)} Создать новый заказ`,'new'))}<div class="stats">${stats.map(([ico,n,label,color])=>`<div class="stat card"><span class="stat-icon ${color}">${icon(ico,25)}</span><div><strong>${n}</strong><span>${label}</span></div></div>`).join('')}</div><div class="dashboard-grid"><div class="dashboard-main"><section class="hero"><div><h2>Качество в каждой детали</h2><p>Современные технологии. Надежные сроки.<br>Индивидуальный подход.</p></div><img src="${assets}banner-teeth.png" alt="Керамические зубные конструкции"></section><div class="section-heading"><h2>Мои заказы</h2><button class="text-link" data-page="orders">Все заказы →</button></div>${tabs(orderTabs(),state.filter)}${orderTable(filteredOrders().slice(0,4))}</div><aside class="dashboard-aside">${deadlineCalendar()}${recentMessagesCard()}</aside></div>`);
 }
-function filteredOrders(){let list=currentOrders();if(state.filter==='Новые')list=list.filter(o=>o.status==='Новый');else if(state.filter==='В работе')list=list.filter(o=>o.status==='В работе');else if(state.filter==='На согласовании')list=list.filter(o=>['На согласовании','Согласование'].includes(o.status));else if(state.filter==='Завершенные')list=list.filter(o=>o.status==='Завершен');if(state.query)list=list.filter(o=>Object.values(o).some(v=>String(v).toLowerCase().includes(state.query.toLowerCase())));if(['work','createdAt','date','status','sum'].includes(state.sortKey)){const key=state.sortKey,sign=state.sortDirection==='asc'?1:-1;list.sort((a,b)=>{let x=a[key]??'',y=b[key]??'';if(key==='sum'){x=Number(String(x).replace(/\D/g,''));y=Number(String(y).replace(/\D/g,''));return (x-y)*sign}if(key==='date'){x=String(x).split('.').reverse().join('-');y=String(y).split('.').reverse().join('-')}return String(x).localeCompare(String(y),'ru',{numeric:true})*sign})}return list}
+function filteredOrders(){let list=currentOrders();if(state.filter==='Новые')list=list.filter(o=>o.status==='Новый');else if(state.filter==='В работе')list=list.filter(o=>o.status==='В работе');else if(state.filter==='На согласовании')list=list.filter(o=>['На согласовании','Согласование'].includes(o.status));else if(state.filter==='Приняты')list=list.filter(o=>o.status==='Работа принята');else if(state.filter==='В доставке')list=list.filter(o=>o.status==='В доставке');else if(state.filter==='Доставлены')list=list.filter(o=>o.status==='Доставлено');if(state.query)list=list.filter(o=>Object.values(o).some(v=>String(v).toLowerCase().includes(state.query.toLowerCase())));if(['work','createdAt','date','status','sum'].includes(state.sortKey)){const key=state.sortKey,sign=state.sortDirection==='asc'?1:-1;list.sort((a,b)=>{let x=a[key]??'',y=b[key]??'';if(key==='sum'){x=Number(String(x).replace(/\D/g,''));y=Number(String(y).replace(/\D/g,''));return (x-y)*sign}if(key==='date'){x=String(x).split('.').reverse().join('-');y=String(y).split('.').reverse().join('-')}return String(x).localeCompare(String(y),'ru',{numeric:true})*sign})}return list}
 function ordersPage(){shell(`${title('Мои заказы')}${tabs(orderTabs(),state.filter)}<div class="toolbar"><label class="search">${icon('search',17)}<input id="order-search" value="${escapeHtml(state.query)}" placeholder="Поиск по номеру заказа, пациенту или типу работы..."></label>${button(`${icon('filter',15)} Фильтры`,'filters','outline')}</div>${orderTable(filteredOrders())}`)}
 function toothChart(interactive=true, selectedTeeth=state.selectedTeeth){
   const teeth=[
@@ -191,6 +191,8 @@ let portalReady=false;
 let portalUser=null;
 let authMode=initialRoute.mode||'login';
 let portalError='';
+let authNotice='';
+let verifyingEmail=false;
 function loginView(){
   const field=(label,name,type='text',minimum='')=>`<label>${label}<input name="${name}" type="${type}" ${minimum?`minlength="${minimum}"`:''} required></label>`;
   const form=authMode==='register'
@@ -199,10 +201,11 @@ function loginView(){
   const links=authMode==='login'
     ?'<div class="auth-links"><button type="button" data-auth-mode="register">Регистрация</button><button type="button" data-auth-mode="recover">Забыли пароль?</button></div>'
     :'<div class="auth-links"><button type="button" data-auth-mode="login">← Вернуться ко входу</button></div>';
-  const content=authMode==='recover'
+  let content=authMode==='recover'
     ?'<div class="auth-recovery"><h2>Восстановление пароля</h2><p>Обратитесь по почте <a href="mailto:ceo@createdental.ai">ceo@createdental.ai</a>, чтобы получить новый пароль.</p></div>'
     :`<form id="portal-login-form" data-mode="${authMode}">${form}</form>`;
-  $('#app').innerHTML=`<main class="portal-login"><section><img class="portal-logo" src="${logo}" alt="Create Dental"><h1>${authMode==='register'?'Регистрация клиники':'Личный кабинет Create Dental'}</h1><p>Заказы, производство и связь с лабораторией.</p>${content}${links}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
+  if(authMode==='verify')content=`<div class="auth-recovery"><h2>Подтверждение почты</h2><p>${verifyingEmail?'Проверяем ссылку...':authNotice||'Подтвердите регистрацию по ссылке из письма.'}</p></div>`;
+  $('#app').innerHTML=`<main class="portal-login"><section><img class="portal-logo" src="${logo}" alt="Create Dental"><h1>${authMode==='register'?'Регистрация клиники':authMode==='verify'?'Подтверждение регистрации':'Личный кабинет Create Dental'}</h1><p>Заказы, производство и связь с лабораторией.</p>${content}${authMode==='verify'?'<div class="auth-links"><button type="button" data-auth-mode="login">Перейти ко входу</button></div>':links}${authNotice&&authMode!=='verify'?`<p class="portal-login-success">${escapeHtml(authNotice)}</p>`:''}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
 }
 function render(){if(!portalReady){loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
 function syncRoute(){
@@ -236,10 +239,10 @@ async function createOrder(){
   } catch(error){notify('Не удалось создать заказ: '+error.message)}
 }
 function notify(message){state.toast=message;render();clearTimeout(notify.timer);notify.timer=setTimeout(()=>{state.toast='';$('.toast')?.classList.remove('visible')},3000)}
-document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';navigate(pathFor(null,authMode));loginView()});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';authNotice='';navigate(pathFor(null,authMode));loginView()});
 document.addEventListener('click',async event=>{if(!event.target.closest('[data-auth-logout]'))return;try{await authRequest('logout',{})}catch{}clearPortalToken();portalReady=false;portalUser=null;state.messages=[];state.chatText='';state.role='clinic';authMode='login';navigate('/login',{replace:true});render()});
 document.addEventListener('click',event=>{const sort=event.target.closest('[data-order-sort]');if(!sort||state.role!=='clinic')return;const key=sort.dataset.orderSort;state.sortDirection=state.sortKey===key&&state.sortDirection==='asc'?'desc':'asc';state.sortKey=key;const table=$('.table-wrap');if(table)table.outerHTML=orderTable(filteredOrders().slice(0,state.page==='home'?4:Infinity))});
-document.addEventListener('click',event=>{const el=event.target.closest('[data-page],[data-order],[data-tooth],[data-step],[data-action]');if(!el)return;if(el.dataset.page){state.page=el.dataset.page;if(state.page==='new')state.step=0;navigate(pathFor('clinic',state.page));render();return}if(el.dataset.order){state.orderId=el.dataset.order;state.page='detail';navigate(pathFor('clinic','detail',state.orderId));render();return}if(el.dataset.tooth){const n=Number(el.dataset.tooth);state.selectedTeeth=state.selectedTeeth.includes(n)?state.selectedTeeth.filter(x=>x!==n):[...state.selectedTeeth,n].sort((a,b)=>a-b);render();return}if(el.dataset.step!==undefined){state.step=Number(el.dataset.step);render();return}const a=el.dataset.action,v=el.dataset.value;if(a==='new'){state.page='new';state.step=0}else if(a==='next'){if(state.step<4)state.step++;else{createOrder();return}}else if(a==='previous')state.step--;else if(a==='filter')state.filter=v;else if(a==='file-tab')state.fileTab=v;else if(a==='detail-tab')state.detailTab=v;else if(a==='clinic-tab')state.clinicTab=v;else if(a==='dentition')state.dentition=v;else if(a==='work')state.work=v;else if(a==='clear-teeth')state.selectedTeeth=[];else if(a==='open-messages')state.page='messages';else if(a==='upload'){$('#page-upload')?.click();return}else if(a==='remove-file'){state.uploaded=state.uploaded.filter(n=>n!==v)}else if(a==='menu'){$('#sidebar').classList.toggle('open');return}else if(a==='save-clinic'){notify('Изменения сохранены локально');return}else if(a==='file-preview'){notify(v);return}else if(a==='notifications'){notify('Новых уведомлений нет');return}else if(a==='filters'){notify('Используйте вкладки для фильтрации заказов');return}else if(a==='more'){notify('Дополнительные действия появятся после подключения сервера');return}else if(a==='change-logo'){notify('Загрузка логотипа появится после подключения сервера');return}else if(a==='attach'){notify('Прикрепление файлов доступно в разделе «Файлы»');return}else if(a==='contact'){notify('Демонстрационный диалог');return}else return;if(['new','open-messages'].includes(a))navigate(pathFor('clinic',state.page));render()});
+document.addEventListener('click',event=>{const el=event.target.closest('[data-page],[data-order],[data-tooth],[data-step],[data-action]');if(!el)return;if(el.dataset.page){state.page=el.dataset.page;if(state.page==='new')state.step=0;document.querySelector('#sidebar')?.classList.remove('open');navigate(pathFor('clinic',state.page));render();return}if(el.dataset.order){state.orderId=el.dataset.order;state.page='detail';navigate(pathFor('clinic','detail',state.orderId));render();return}if(el.dataset.tooth){const n=Number(el.dataset.tooth);state.selectedTeeth=state.selectedTeeth.includes(n)?state.selectedTeeth.filter(x=>x!==n):[...state.selectedTeeth,n].sort((a,b)=>a-b);render();return}if(el.dataset.step!==undefined){state.step=Number(el.dataset.step);render();return}const a=el.dataset.action,v=el.dataset.value;if(a==='new'){state.page='new';state.step=0}else if(a==='next'){if(state.step<4)state.step++;else{createOrder();return}}else if(a==='previous')state.step--;else if(a==='filter')state.filter=v;else if(a==='file-tab')state.fileTab=v;else if(a==='detail-tab')state.detailTab=v;else if(a==='clinic-tab')state.clinicTab=v;else if(a==='dentition')state.dentition=v;else if(a==='work')state.work=v;else if(a==='clear-teeth')state.selectedTeeth=[];else if(a==='open-messages')state.page='messages';else if(a==='upload'){$('#page-upload')?.click();return}else if(a==='remove-file'){state.uploaded=state.uploaded.filter(n=>n!==v)}else if(a==='menu'){$('#sidebar').classList.toggle('open');return}else if(a==='save-clinic'){notify('Изменения сохранены локально');return}else if(a==='file-preview'){notify(v);return}else if(a==='notifications'){notify('Новых уведомлений нет');return}else if(a==='filters'){notify('Используйте вкладки для фильтрации заказов');return}else if(a==='more'){notify('Дополнительные действия появятся после подключения сервера');return}else if(a==='change-logo'){notify('Загрузка логотипа появится после подключения сервера');return}else if(a==='attach'){notify('Прикрепление файлов доступно в разделе «Файлы»');return}else if(a==='contact'){notify('Демонстрационный диалог');return}else return;if(['new','open-messages'].includes(a))navigate(pathFor('clinic',state.page));render()});
 document.addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-tooth][role="button"]')){event.preventDefault();event.target.click()}});
 document.addEventListener('click',event=>{
   const button=event.target.closest('[data-action^="calendar-"]');
@@ -262,12 +265,20 @@ document.addEventListener('submit',async event=>{
   const form=event.target;
   const body=Object.fromEntries(new FormData(form));
   const action=form.dataset.mode==='register'?'register':'login';
-  try{await authRequest(action,body);await hydratePortal()}
+  try{const data=await authRequest(action,body);if(data.pendingVerification){clearPortalToken();authNotice='Регистрация создана. Подтвердите почту по ссылке из письма, затем войдите в кабинет.';authMode='login';navigate('/login',{replace:true});render();return}await hydratePortal()}
   catch(error){clearPortalToken();portalError=error.message;render()}
 });
+async function verifyEmailFromLink(){
+  if(authMode!=='verify')return;
+  const token=new URLSearchParams(location.search).get('token')||'';
+  if(!token){portalError='Ссылка подтверждения недействительна';render();return}
+  verifyingEmail=true;render();
+  try{await authRequest('verify-email',{token});authNotice='Почта подтверждена. Теперь можно войти в кабинет.';portalError=''}catch(error){portalError=error.message;authNotice=''}finally{verifyingEmail=false;render()}
+}
 window.addEventListener('popstate',syncRoute);
 setInterval(()=>{loadMessages();technicianCabinet.refreshMessages()},3000);
 render();
+verifyEmailFromLink();
 if(portalToken())hydratePortal().catch(error=>{clearPortalToken();portalError=error.message;render()});
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&portalReady&&!document.querySelector('input:focus,textarea:focus,select:focus')){

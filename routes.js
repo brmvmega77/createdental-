@@ -9,6 +9,7 @@ export function routeFromPath(pathname){
   if(!parts.length||parts[0]==='login')return {role:null,mode:'login'};
   if(parts[0]==='register')return {role:null,mode:'register'};
   if(parts[0]==='forgot-password')return {role:null,mode:'recover'};
+  if(parts[0]==='verify-email')return {role:null,mode:'verify'};
   const role=parts[0];
   if(!pages[role])return {role:null,mode:'login'};
   const defaultPage=role==='clinic'?'home':'overview';
@@ -17,7 +18,7 @@ export function routeFromPath(pathname){
 }
 
 export function pathFor(role,page,orderId){
-  if(!role)return page==='register'?'/register':page==='recover'?'/forgot-password':'/login';
+  if(!role)return page==='register'?'/register':page==='recover'?'/forgot-password':page==='verify'?'/verify-email':'/login';
   const defaultPage=role==='clinic'?'home':'overview';
   if(page==='detail'&&orderId)return `/${role}/orders/${encodeURIComponent(orderId)}`;
   return page===defaultPage?`/${role}`:`/${role}/${page}`;
