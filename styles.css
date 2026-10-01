@@ -273,3 +273,6 @@
 @media(max-width:420px){
   .shell,.tech-shell{padding-left:10px;padding-right:10px}.topbar{margin-left:-10px;margin-right:-10px;padding-left:10px;padding-right:10px}.page-title h1,.tech-heading h1{font-size:22px}.tech-panel,.wizard{padding:14px}.orders-table td,.tech-table td{grid-template-columns:1fr;gap:3px}.orders-table td::before,.tech-table td::before{font-size:10px}.work-options{grid-template-columns:1fr}.file-grid,.attachment-grid{grid-template-columns:1fr}.bubble{max-width:94%}
 }
+
+.detail-actions,.clinic-accept-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.detail-actions .btn,.clinic-accept-actions .btn{width:auto}.clinic-accept-actions{margin-top:18px}.tech-status-note{margin:0;color:#808080;font-weight:650;line-height:1.5}.btn.danger{background:#fff;border-color:#f1d7d7;color:#b64141}.btn.danger:hover{background:#fff7f7}.tech-client-form textarea{width:100%;border:1px solid #eeeeee;background:#fff;border-radius:7px;padding:12px 13px;color:#333333;font-size:13px;resize:vertical}
+@media(max-width:760px){.detail-actions,.clinic-accept-actions{display:grid;grid-template-columns:1fr}.detail-actions .btn,.clinic-accept-actions .btn{width:100%}}

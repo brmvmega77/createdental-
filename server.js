@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { timingSafeEqual,randomBytes } from 'node:crypto';
 import {portalSnapshot,replacePortalCollection,portalClient,portalEmployee} from './portal-data.js';
-import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions,isEmailVerified,verificationLinkFor,verifyEmailToken} from './auth-data.js';
+import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
@@ -13,7 +13,6 @@ const chatFile = process.env.CHAT_DATA_FILE || path.join(root, '.data', 'chat.js
 const clinicMessagesFile=process.env.CLINIC_MESSAGES_FILE||path.join(root,'.data','clinic-messages.json');
 const publicFiles = new Set(['/','/index.html','/app.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/styles.css','/support.html','/support.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png'};
-const originFor=req=>process.env.PUBLIC_URL||`${req.headers['x-forwarded-proto']||'http'}://${req.headers.host||'localhost:'+port}`;
 const conversationIdPattern = /^[a-f0-9]{32}$/;
 let chats = {};
 let saveQueue = Promise.resolve();
@@ -99,6 +98,13 @@ async function handlePortal(req,res,url){
         const additions=value.filter(item=>!existing.has(item.id));
         if(additions.length!==1||value.length!==snapshot.orders.filter(item=>item.clinicId===user.subjectId).length+1||additions[0].clinicId!==user.subjectId||snapshot.orders.some(item=>item.id===additions[0].id))return json(res,403,{error:'Можно добавить только свой заказ'});
         value=[...additions,...snapshot.orders];
+      }else if(key==='orderOverrides'){
+        if(!value||typeof value!=='object'||Array.isArray(value))return json(res,400,{error:'Неверные данные'});
+        const changes=Object.entries(value).filter(([id,detail])=>JSON.stringify(detail)!==JSON.stringify(snapshot.orderOverrides[id]));
+        if(changes.length!==1)return json(res,403,{error:'Можно изменить только один свой заказ'});
+        const [id,next]=changes[0],order=snapshot.orders.find(item=>item.id===id&&item.clinicId===user.subjectId),old=snapshot.orderOverrides[id]||{};
+        if(!order||old.stage!=='В доставке'||next.stage!=='Принято доктором'||Object.keys(next).some(field=>field!=='stage'&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:'Неверный переход этапа'});
+        value={...snapshot.orderOverrides,[id]:next};
       }else return json(res,403,{error:'Доступ запрещён'});
     }else if(user.role==='worker'){
       if(key!=='orderOverrides'||!value||typeof value!=='object')return json(res,403,{error:'Доступ запрещён'});
@@ -119,12 +125,6 @@ async function handlePortal(req,res,url){
 
 async function handleAuth(req,res,url){
   if(req.method==='POST'&&url.pathname==='/api/auth/logout'){revokeSession(req.headers['x-portal-token']);return json(res,200,{ok:true})}
-  if(req.method==='POST'&&url.pathname==='/api/auth/verify-email'){
-    let body;try{body=await readBody(req,12000)}catch{return json(res,400,{error:'Неверная ссылка подтверждения'})}
-    const account=await verifyEmailToken(body.token);
-    if(!account)return json(res,400,{error:'Ссылка подтверждения недействительна'});
-    return json(res,200,{ok:true});
-  }
   if(req.method==='POST'&&url.pathname==='/api/auth/chief-profile'){
     const user=session(req);
     if(user?.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
@@ -161,14 +161,14 @@ async function handleAuth(req,res,url){
     if(phone&&!/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/.test(phone)||city.length>120||address.length>250||/[<>]/.test(city+address))return json(res,400,{error:'Проверьте телефон, город и адрес'});
     const existing=portalSnapshot().clients.find(item=>item.email?.toLowerCase()===email&&!item.deleted);
     const id=existing?.id||'client-'+randomBytes(12).toString('hex');
-    const client={id,originalName:id,name,email,contact:'',phone,city,address};
-    try{if(!existing)await replacePortalCollection('clients',[...portalSnapshot().clients,client]);const account=await createAccount({email,password:body.password,role:'clinic',subjectId:id,emailVerified:false});const link=verificationLinkFor(account,originFor(req));console.log(`Create Dental verification for ${email}: ${link}`);return json(res,201,{pendingVerification:true,email});}
+    const client={id,originalName:id,name,email,contact:'',phone,city,address,approved:false};
+    try{if(!existing)await replacePortalCollection('clients',[...portalSnapshot().clients,client]);await createAccount({email,password:body.password,role:'clinic',subjectId:id});return json(res,201,{pendingApproval:true,email});}
     catch{return json(res,500,{error:'Не удалось создать кабинет'})}
   }
   if(req.method==='POST'&&url.pathname==='/api/auth/login'){
     const account=login(body.email,body.password);
     if(!account||account.role==='worker'&&portalEmployee(account.subjectId)?.status!=='active'||account.role==='clinic'&&!portalClient(account.subjectId))return json(res,401,{error:'Неверный email или пароль'});
-    if(!isEmailVerified(account))return json(res,403,{error:'Подтвердите регистрацию по ссылке из письма'});
+    if(account.role==='clinic'&&portalClient(account.subjectId).approved===false)return json(res,403,{error:'Кабинет ожидает подтверждения главным техником'});
     return json(res,200,{token:issueSession(account.role,account.subjectId,account.displayName||account.email),user:publicUser({role:account.role,subjectId:account.subjectId})});
   }
   if(req.method==='POST'&&url.pathname==='/api/auth/staff'){
@@ -297,7 +297,7 @@ async function handleChat(req, res, url) {
 
 function serveFile(req, res, pathname) {
   let file;
-  const appRoute=/^\/(?:login|register|forgot-password|verify-email|(?:clinic|technician|worker)(?:\/[A-Za-z0-9_-]+){0,2})\/?$/.test(pathname);
+  const appRoute=/^\/(?:login|register|forgot-password|(?:clinic|technician|worker)(?:\/[A-Za-z0-9_-]+){0,2})\/?$/.test(pathname);
   if (publicFiles.has(pathname)||appRoute) {
     file = path.join(root, appRoute||pathname==='/' ? 'index.html' : pathname);
   } else if (pathname.startsWith('/assets/')) {

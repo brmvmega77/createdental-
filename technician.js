@@ -10,7 +10,7 @@ export function loadEmployees(){
   return seedEmployees.map(item=>({...item}));
 }
 export const seedClients = [];
-export const stages = ['Ожидает распределения', 'Подготовка', 'Моделирование', 'Изготовление', 'Контроль качества', 'Работа принята', 'В доставке', 'Доставлено'];
+export const stages = ['Ожидает распределения', 'Подготовка', 'Моделирование', 'Изготовление', 'Контроль качества', 'Работа принята', 'В доставке', 'Принято доктором'];
 const monthLabels = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 const analyticsYear = new Date().getFullYear();
 export const seedDetails = {};
@@ -18,7 +18,7 @@ export const seedDetails = {};
 const money = amount => new Intl.NumberFormat('ru-RU').format(amount) + ' ₽';
 const safe = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const parseDate = value => {const [day,month,year]=value.split('.').map(Number);return new Date(year,month-1,day)};
-const stageTone = stage => stage==='Ожидает распределения'?'new':stage==='Контроль качества'?'review':['Работа принята','В доставке','Доставлено','Готово к выдаче'].includes(stage)?'ready':'work';
+const stageTone = stage => stage==='Ожидает распределения'?'new':stage==='Контроль качества'?'review':['Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(stage)?'ready':'work';
 const initials = value => String(value||'ГТ').trim().split(/\s+/).map(part=>part[0]).join('').slice(0,2).toUpperCase()||'ГТ';
 const shortDate = value => value ? new Date(value).toLocaleDateString('ru-RU') : '—';
 
@@ -106,7 +106,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
 
   function allOrders(){
     return orders.map(order => {
-      const details={stage:'Ожидает распределения',assignee:'',priority:'Обычный',teeth:[],clinic:order.clinic||'Dental Clinic',...seedDetails[order.id],...overrides[order.id]};
+      const details={stage:'Ожидает распределения',assignee:'',priority:'Обычный',teeth:order.teeth||[],clinic:order.clinic||'Dental Clinic',...seedDetails[order.id],...overrides[order.id]};
       return {...order,...details,clinic:clientName(details.clinic),assigneeKey:details.assignee,assignee:employeeName(details.assignee)};
     });
   }
@@ -119,6 +119,24 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     savePortal('orderOverrides',overrides).catch(error=>toast('Не удалось сохранить этап на сервере: '+error.message));
     render();
   }
+
+  async function saveOrderRecord(id,change){
+    const index=orders.findIndex(order=>order.id===id);
+    if(index<0)return toast('Заказ не найден');
+    const updated={...orders[index],...change,id:orders[index].id,clinicId:orders[index].clinicId,createdAt:orders[index].createdAt};
+    const next=[...orders];next[index]=updated;
+    orders.splice(0,orders.length,...next);
+    try{await savePortal('orders',next);toast('Заказ сохранён');render()}catch(error){toast('Не удалось сохранить заказ: '+error.message)}
+  }
+  async function deleteOrderRecord(id){
+    const next=orders.filter(order=>order.id!==id);
+    if(next.length===orders.length)return toast('Заказ не найден');
+    const nextOverrides={...overrides};delete nextOverrides[id];
+    orders.splice(0,orders.length,...next);
+    overrides=nextOverrides;
+    localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
+    try{await savePortal('orders',next);await savePortal('orderOverrides',nextOverrides);state.page='orders';state.orderId='';toast('Заказ удалён');render()}catch(error){toast('Не удалось удалить заказ: '+error.message)}
+  }
   function toast(message){
     state.toast=message;
     render();
@@ -127,7 +145,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   }
   function analyticsRecords(){
     return allOrders().map(order=>{
-      const completed=['Работа принята','В доставке','Доставлено','Готово к выдаче'].includes(order.stage)||order.status==='Завершен';
+      const completed=['Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(order.stage)||order.status==='Завершен';
       const date=order.completedAt?new Date(order.completedAt):parseDate(order.date);
       return {year:date.getFullYear(),month:date.getMonth(),clinic:order.clinic,technician:order.assignee,amount:completed?Number(String(order.sum).replace(/[^0-9]/g,'')):0};
     });
@@ -183,7 +201,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     return `<section class="tech-panel"><div class="tech-panel-heading"><div><h2>Требует внимания</h2><p>Новые заказы и контроль качества</p></div><button class="tech-link" data-tech-page="orders">Все заказы →</button></div><div class="tech-attention">${list.map(order=>`<button data-tech-order="${order.id}"><span class="tech-order-icon">${icon('orders',20)}</span><span><strong>${order.id} · ${safe(order.work)}</strong><small>${safe(order.clinic)} · срок ${order.date}</small></span><em class="tech-stage ${stageTone(order.stage)}">${order.stage}</em></button>`).join('')||'<p class="tech-empty">Все заказы распределены и проверены</p>'}</div></section>`;
   }
   function teamSnapshot(){
-    const open=allOrders().filter(order=>!['Работа принята','В доставке','Доставлено','Готово к выдаче'].includes(order.stage));
+    const open=allOrders().filter(order=>!['Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(order.stage));
     return `<section class="tech-panel"><div class="tech-panel-heading"><div><h2>Загрузка команды</h2><p>Текущие работы</p></div><button class="tech-link" data-tech-page="team">Команда →</button></div><div class="tech-team-snapshot">${activeTeam().map(employee=>`<div><span class="tech-mini-avatar">${safe(employee.name.split(' ').map(part=>part[0]).join(''))}</span><span>${safe(employee.name)}</span><strong>${open.filter(order=>order.assigneeKey===employee.originalName).length}</strong></div>`).join('')||'<p class="tech-empty">Активных техников пока нет</p>'}</div></section>`;
   }
   function overview(){
@@ -215,14 +233,14 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   function ordersPage(){
     const list=allOrders().filter(order=>{
       if(state.filter==='Новые'&&order.stage!=='Ожидает распределения')return false;
-      if(state.filter==='В работе'&&['Ожидает распределения','Контроль качества','Работа принята','В доставке','Доставлено','Готово к выдаче'].includes(order.stage))return false;
+      if(state.filter==='В работе'&&['Ожидает распределения','Контроль качества','Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(order.stage))return false;
       if(state.filter==='На проверке'&&order.stage!=='Контроль качества')return false;
       if(state.filter==='Приняты'&&!['Работа принята','Готово к выдаче'].includes(order.stage))return false;
       if(state.filter==='В доставке'&&order.stage!=='В доставке')return false;
-      if(state.filter==='Доставлено'&&order.stage!=='Доставлено')return false;
+      if(state.filter==='Принято доктором'&&order.stage!=='Принято доктором')return false;
       return !state.search||[order.id,order.work,order.patient,order.clinic,order.assignee].some(value=>String(value).toLowerCase().includes(state.search.toLowerCase()));
     });
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОИЗВОДСТВО</span><h1>Заказы лаборатории</h1></div></div><div class="tech-panel"><div class="tech-order-tools"><div class="tech-segment">${['Все','Новые','В работе','На проверке','Приняты','В доставке','Доставлено'].map(label=>`<button data-tech-filter="${label}" class="${state.filter===label?'active':''}">${label}</button>`).join('')}</div><input id="tech-search" placeholder="Поиск по заказу, клинике или технику..." value="${safe(state.search)}"></div><div class="tech-table-wrap"><table class="tech-table"><thead><tr><th>Заказ / клиника</th>${orderSortHeading('createdAt','Создан')}${orderSortHeading('work','Работа / пациент')}${orderSortHeading('date','Срок')}${orderSortHeading('stage','Этап')}${orderSortHeading('assignee','Исполнитель')}<th></th></tr></thead><tbody>${orderRows(list)}</tbody></table></div></div>`;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОИЗВОДСТВО</span><h1>Заказы лаборатории</h1></div></div><div class="tech-panel"><div class="tech-order-tools"><div class="tech-segment">${['Все','Новые','В работе','На проверке','Приняты','В доставке','Принято доктором'].map(label=>`<button data-tech-filter="${label}" class="${state.filter===label?'active':''}">${label}</button>`).join('')}</div><input id="tech-search" placeholder="Поиск по заказу, клинике или технику..." value="${safe(state.search)}"></div><div class="tech-table-wrap"><table class="tech-table"><thead><tr><th>Заказ / клиника</th>${orderSortHeading('createdAt','Создан')}${orderSortHeading('work','Работа / пациент')}${orderSortHeading('date','Срок')}${orderSortHeading('stage','Этап')}${orderSortHeading('assignee','Исполнитель')}<th></th></tr></thead><tbody>${orderRows(list)}</tbody></table></div></div>`;
   }
   function assignmentOptions(order){
     const active=activeTeam();
@@ -235,7 +253,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const order=orderById(state.orderId);
     if(!order)return ordersPage();
     const stageIndex=stages.indexOf(order.stage);
-    return `<button class="tech-back" data-tech-page="orders">← Все заказы</button><div class="tech-heading"><div><span class="tech-eyebrow">${safe(order.clinic)} · ${order.date}</span><h1>Заказ ${order.id}</h1><p>${safe(order.work)} · ${safe(order.patient)}</p></div><span class="tech-stage ${stageTone(order.stage)}">${order.stage}</span></div><div class="tech-detail-grid"><section class="tech-panel"><h2>Данные заказа</h2><div class="tech-facts"><div><span>Клиника</span><strong>${safe(order.clinic)}</strong></div><div><span>Пациент</span><strong>${safe(order.patient)}</strong></div><div><span>Конструкция</span><strong>${safe(order.work)}</strong></div><div><span>Создан</span><strong>${shortDate(order.createdAt)}</strong></div><div><span>Срок</span><strong>${order.date}</strong></div><div><span>Приоритет</span><strong>${order.priority}</strong></div><div><span>Сумма</span><strong>${safe(order.sum)}</strong></div></div><div class="tech-detail-teeth"><h3>Зубы: ${order.teeth.join(', ')||'не указаны'}</h3>${toothChart(false,order.teeth)}</div></section><section class="tech-panel"><h2>Управление работой</h2><label class="tech-assign">Исполнитель<select data-tech-assign="${order.id}"><option value="">Не назначен</option>${assignmentOptions(order)}</select></label><h3>Этапы производства</h3><ol class="tech-timeline">${stages.map((stage,index)=>`<li class="${index<stageIndex?'done':index===stageIndex?'current':''}"><i></i><span>${stage}</span></li>`).join('')}</ol><div class="tech-detail-actions">${stageIndex>0?`<button class="btn outline" data-tech-action="rollback" data-id="${order.id}">Вернуть на предыдущий статус</button>`:''}${order.stage==='Ожидает распределения'?'<p>Назначьте техника, чтобы принять заказ в работу.</p>':order.stage==='Контроль качества'?`<button class="btn primary" data-tech-action="approve" data-id="${order.id}">Работа принята</button><button class="btn outline" data-tech-action="rework" data-id="${order.id}">Вернуть на доработку</button>`:order.stage==='Доставлено'?'<p>Заказ доставлен клинике.</p>':`<button class="btn primary" data-tech-action="advance" data-id="${order.id}">Перевести на следующий статус</button>`}</div></section></div>`;
+    return `<button class="tech-back" data-tech-page="orders">← Все заказы</button><div class="tech-heading"><div><span class="tech-eyebrow">${safe(order.clinic)} · ${order.date}</span><h1>Заказ ${order.id}</h1><p>${safe(order.work)} · ${safe(order.patient)}</p></div><span class="tech-stage ${stageTone(order.stage)}">${order.stage}</span></div><div class="tech-detail-grid"><section class="tech-panel"><h2>Данные заказа</h2><div class="tech-facts"><div><span>Клиника</span><strong>${safe(order.clinic)}</strong></div><div><span>Пациент</span><strong>${safe(order.patient)}</strong></div><div><span>Конструкция</span><strong>${safe(order.work)}</strong></div><div><span>Создан</span><strong>${shortDate(order.createdAt)}</strong></div><div><span>Срок</span><strong>${order.date}</strong></div><div><span>Приоритет</span><strong>${order.priority}</strong></div><div><span>Сумма</span><strong>${safe(order.sum)}</strong></div></div><div class="tech-detail-teeth"><h3>Зубы: ${order.teeth.join(', ')||'не указаны'}</h3>${toothChart(false,order.teeth)}</div></section><section class="tech-panel"><h2>Редактирование заказа</h2><form id="tech-order-edit-form" class="tech-client-form"><label>Пациент<input name="patient" value="${safe(order.patient)}" required></label><label>Работа<input name="work" value="${safe(order.work)}" required></label><label>Срок<input name="date" value="${safe(order.date)}" required placeholder="дд.мм.гггг"></label><label>Сумма<input name="sum" value="${safe(order.sum)}"></label><label>Зубы через запятую<input name="teeth" value="${safe(order.teeth.join(', '))}"></label><label>Комментарий<textarea name="comment" rows="3">${safe(order.comment||'')}</textarea></label><div class="tech-client-form-actions"><button type="submit" class="btn primary">Сохранить заказ</button><button type="button" class="btn danger" data-tech-action="delete-order" data-id="${order.id}">Удалить заказ</button></div></form></section><section class="tech-panel"><h2>Управление работой</h2><label class="tech-assign">Исполнитель<select data-tech-assign="${order.id}"><option value="">Не назначен</option>${assignmentOptions(order)}</select></label><h3>Этапы производства</h3><ol class="tech-timeline">${stages.map((stage,index)=>`<li class="${index<stageIndex?'done':index===stageIndex?'current':''}"><i></i><span>${stage}</span></li>`).join('')}</ol><div class="tech-detail-actions">${stageIndex>0?`<button class="btn outline" data-tech-action="rollback" data-id="${order.id}">Вернуть на предыдущий статус</button>`:''}${order.stage==='Ожидает распределения'?'<p class="tech-status-note">Назначьте техника, чтобы принять заказ в работу.</p>':order.stage==='Контроль качества'?`<button class="btn primary" data-tech-action="approve" data-id="${order.id}">Работа принята</button><button class="btn outline" data-tech-action="rework" data-id="${order.id}">Вернуть на доработку</button>`:order.stage==='Принято доктором'?'<p class="tech-status-note">Работа принята доктором.</p>':`<button class="btn primary" data-tech-action="advance" data-id="${order.id}">Перевести на следующий статус</button>`}</div></section></div>`;
   }
   function analyticsPage(){
     return `<div class="tech-heading"><div><span class="tech-eyebrow">АНАЛИТИКА</span><h1>Финансовые результаты</h1><p>Сравнивайте месяцы, клиники и исполнителей.</p></div></div>${filters()}${kpis()}${chart()}<div class="tech-analytics-grid tech-breakdown-grid">${breakdown('clinic')}${breakdown('technician')}</div>`;
@@ -251,7 +269,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const active=clients.filter(client=>!client.deleted);
     const q=state.clientSearch.trim().toLowerCase();
     const visible=active.filter(client=>[client.name,client.contact,client.phone,client.email,client.address].some(value=>String(value||'').toLowerCase().includes(q)));
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">СПРАВОЧНИК</span><h1>Заказчики</h1></div><button class="btn primary" data-tech-client-action="new">+ Добавить заказчика</button></div><div class="tech-client-layout"><section class="tech-panel"><div class="tech-client-toolbar"><div><h2>Клиники <span>${active.length}</span></h2><p>По сохранённым заказам · ${analyticsYear} год</p></div><input id="tech-client-search" type="search" placeholder="Поиск по заказчику или контакту" value="${safe(state.clientSearch)}" aria-label="Поиск заказчиков"></div><div class="tech-table-wrap"><table class="tech-table tech-client-table"><thead><tr><th>Клиника</th><th>Контакт</th><th>Заказов</th><th>Выручка</th><th>Действия</th></tr></thead><tbody>${visible.map(client=>{const records=analyticsRecords().filter(record=>record.clinic===client.name);const total=records.reduce((sum,record)=>sum+record.amount,0);return `<tr><td><strong>${safe(client.name)}</strong><small>${safe(client.address||'Адрес не указан')}</small></td><td>${safe(client.contact||'Не указано')}<small>${safe(client.phone||client.email||'Контакт не указан')}</small></td><td>${records.length}</td><td><strong>${money(total)}</strong></td><td><div class="tech-client-actions"><button data-tech-client-action="edit" data-client-id="${safe(client.id)}">Изменить</button><button class="danger" data-tech-client-action="delete" data-client-id="${safe(client.id)}">Удалить</button></div></td></tr>`}).join('')||'<tr><td colspan="5" class="tech-empty">Заказчиков не найдено</td></tr>'}</tbody></table></div></section>${clientForm()}</div>${state.confirmDeleteId?`<div class="tech-dialog-backdrop"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="tech-delete-title"><h2 id="tech-delete-title">Удалить заказчика из списка?</h2><p>${safe(clients.find(client=>client.id===state.confirmDeleteId)?.name||'Заказчик')} исчезнет из справочника. История заказов и финансовые результаты сохранятся.</p><div><button class="btn outline" data-tech-client-action="cancel-delete">Отмена</button><button class="btn danger" data-tech-client-action="confirm-delete" data-client-id="${safe(state.confirmDeleteId)}">Удалить</button></div></section></div>`:''}`;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">СПРАВОЧНИК</span><h1>Заказчики</h1></div><button class="btn primary" data-tech-client-action="new">+ Добавить заказчика</button></div><div class="tech-client-layout"><section class="tech-panel"><div class="tech-client-toolbar"><div><h2>Клиники <span>${active.length}</span></h2><p>По сохранённым заказам · ${analyticsYear} год</p></div><input id="tech-client-search" type="search" placeholder="Поиск по заказчику или контакту" value="${safe(state.clientSearch)}" aria-label="Поиск заказчиков"></div><div class="tech-table-wrap"><table class="tech-table tech-client-table"><thead><tr><th>Клиника</th><th>Контакт</th><th>Заказов</th><th>Доступ</th><th>Действия</th></tr></thead><tbody>${visible.map(client=>{const records=analyticsRecords().filter(record=>record.clinic===client.name);return `<tr><td><strong>${safe(client.name)}</strong><small>${safe(client.address||'Адрес не указан')}</small></td><td>${safe(client.contact||'Не указано')}<small>${safe(client.phone||client.email||'Контакт не указан')}</small></td><td>${records.length}</td><td><span class="tech-employee-status ${client.approved===false?'disabled':'active'}">${client.approved===false?'Ожидает апрув':'Подтверждён'}</span></td><td><div class="tech-client-actions"><button data-tech-client-action="edit" data-client-id="${safe(client.id)}">Изменить</button>${client.approved===false?`<button data-tech-client-action="approve" data-client-id="${safe(client.id)}">Апрув</button>`:''}<button class="danger" data-tech-client-action="delete" data-client-id="${safe(client.id)}">Удалить</button></div></td></tr>`}).join('')||'<tr><td colspan="5" class="tech-empty">Заказчиков не найдено</td></tr>'}</tbody></table></div></section>${clientForm()}</div>${state.confirmDeleteId?`<div class="tech-dialog-backdrop"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="tech-delete-title"><h2 id="tech-delete-title">Удалить заказчика из списка?</h2><p>${safe(clients.find(client=>client.id===state.confirmDeleteId)?.name||'Заказчик')} исчезнет из справочника. История заказов и финансовые результаты сохранятся.</p><div><button class="btn outline" data-tech-client-action="cancel-delete">Отмена</button><button class="btn danger" data-tech-client-action="confirm-delete" data-client-id="${safe(state.confirmDeleteId)}">Удалить</button></div></section></div>`:''}`;
   }
   function employeeForm(){
     if(!state.editEmployeeId)return '';
@@ -261,7 +279,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     return `<section class="tech-panel tech-client-editor"><div class="tech-panel-heading"><div><h2>${state.editEmployeeId==='new'?'Новый техник':'Редактировать техника'}</h2><p>Данные сотрудника лаборатории</p></div><button class="tech-client-close" data-tech-employee-action="cancel" aria-label="Закрыть">×</button></div><form id="tech-employee-form" class="tech-client-form">${field('Имя и фамилия','name','text',true)}${field('Специализация','specialty','text',true)}${field('Телефон','phone','tel')}${field('Электронная почта','email','email',true)}<label>${state.editEmployeeId==='new'?'Пароль для входа':'Новый пароль (если нужно сменить)'}<input name="password" type="password" minlength="10" ${state.editEmployeeId==='new'?'required':''}></label><div class="tech-client-form-actions"><button type="button" class="btn outline" data-tech-employee-action="cancel">Отмена</button><button type="submit" class="btn primary">Сохранить</button></div></form></section>`;
   }
   function teamPage(){
-    const open=allOrders().filter(order=>!['Работа принята','В доставке','Доставлено','Готово к выдаче'].includes(order.stage));
+    const open=allOrders().filter(order=>!['Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(order.stage));
     const query=state.employeeSearch.trim().toLowerCase();
     const visible=team.filter(employee=>(state.employeeFilter==='all'||employee.status===state.employeeFilter)&&[employee.name,employee.specialty,employee.phone,employee.email].some(value=>String(value||'').toLowerCase().includes(query)));
     const statusText={active:'Активен',disabled:'Отключен',fired:'Уволен'};
@@ -355,7 +373,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       else if(action==='fire'&&employee&&employee.status!=='fired')state.confirmFireId=id;
       else if(action==='cancel-fire')state.confirmFireId=null;
       else if(action==='confirm-fire'&&employee&&employee.status!=='fired'){
-        for(const order of allOrders().filter(order=>order.assigneeKey===employee.originalName&&!['Работа принята','В доставке','Доставлено','Готово к выдаче'].includes(order.stage))){
+        for(const order of allOrders().filter(order=>order.assigneeKey===employee.originalName&&!['Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(order.stage))){
           overrides[order.id]={...(overrides[order.id]||{}),assignee:'',stage:'Ожидает распределения'};
         }
         localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
@@ -375,6 +393,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(action==='new')state.editClientId='new';
       else if(action==='edit')state.editClientId=id;
       else if(action==='cancel')state.editClientId=null;
+      else if(action==='approve'){const client=clients.find(item=>item.id===id);if(client){client.approved=true;saveClients();toast('Доступ клиники подтверждён')}}
       else if(action==='delete')state.confirmDeleteId=id;
       else if(action==='cancel-delete')state.confirmDeleteId=null;
       else if(action==='confirm-delete'){
@@ -399,6 +418,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       }
       if(action.dataset.techAction==='approve'&&order.stage==='Контроль качества')saveOrder(id,{stage:'Работа принята',completedAt:new Date().toISOString()});
       if(action.dataset.techAction==='rework'&&order.stage==='Контроль качества')saveOrder(id,{stage:'Изготовление'});
+      if(action.dataset.techAction==='delete-order'){if(confirm('Удалить заказ '+id+'?'))deleteOrderRecord(id);return}
       if(action.dataset.techAction==='rollback'){const previous=stages[stages.indexOf(order.stage)-1];if(previous)saveOrder(id,{stage:previous});}
       return;
     }
@@ -439,6 +459,16 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(!current)return;
       saveOrder(id,{assignee:name,stage:name&&current.stage==='Ожидает распределения'?'Подготовка':current.stage});
     }
+  });
+
+  document.addEventListener('submit',async event=>{
+    if(!isActive()||event.target.id!=='tech-order-edit-form')return;
+    event.preventDefault();
+    const form=event.target;
+    const teeth=String(form.elements.namedItem('teeth').value||'').split(',').map(value=>Number(value.trim())).filter(Boolean);
+    const date=form.elements.namedItem('date').value.trim();
+    if(!/^\d{2}\.\d{2}\.\d{4}$/.test(date))return toast('Укажите срок в формате дд.мм.гггг');
+    await saveOrderRecord(state.orderId,{patient:form.elements.namedItem('patient').value.trim(),work:form.elements.namedItem('work').value.trim(),date,sum:form.elements.namedItem('sum').value.trim(),teeth,comment:form.elements.namedItem('comment').value.trim()});
   });
   document.addEventListener('submit',async event=>{
     if(!isActive()||event.target.id!=='chief-chat-form')return;
