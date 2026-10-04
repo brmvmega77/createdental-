@@ -279,3 +279,10 @@
 
 .tech-order-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}.tech-icon-btn{width:30px;height:30px;border:1px solid #f5f5f5;border-radius:8px;background:#fff;color:#808080;font-size:16px;line-height:1;display:grid;place-items:center}.tech-icon-btn:hover{background:#f5f5f5;color:#333333}.tech-icon-btn.danger{color:#b64141;border-color:#f3dddd}.tech-icon-btn.danger:hover{background:#fff0f0;color:#9f2f2f}.tech-order-modal{width:min(100%,560px);position:relative}.tech-dialog-close{position:absolute;right:14px;top:12px;width:30px;height:30px;border:0;border-radius:50%;background:#f5f5f5;color:#808080;font-size:18px;line-height:1}.tech-dialog-close:hover{background:#eeeeee;color:#333333}
 @media(max-width:760px){.tech-order-actions{justify-content:stretch;display:grid;grid-template-columns:40px 40px 1fr}.tech-icon-btn{width:40px;height:38px}.tech-order-actions .tech-link{text-align:center}}
+/* Final alignment fixes for laboratory order controls */
+.tech-detail-actions{align-items:center;gap:12px}
+.tech-detail-actions .btn{min-height:44px}
+.tech-status-note{display:flex;align-items:center;min-height:44px;margin:0;color:#808080;font-weight:650;line-height:1.35}
+.tech-order-actions{align-items:center;justify-content:flex-end;gap:10px;padding-right:14px;min-width:240px}
+.tech-order-actions .tech-link{height:34px;min-width:112px;display:inline-flex;align-items:center;justify-content:center;padding:0 12px;border-radius:8px;white-space:nowrap}
+@media(max-width:760px){.tech-order-actions{grid-template-columns:1fr 40px 40px;padding-right:0;min-width:0}.tech-order-actions .tech-link{width:100%;min-width:0}}

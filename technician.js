@@ -145,7 +145,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   }
   function analyticsRecords(){
     return allOrders().map(order=>{
-      const completed=['Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(order.stage)||order.status==='Завершен';
+      const completed=order.stage==='Принято доктором';
       const date=order.completedAt?new Date(order.completedAt):parseDate(order.date);
       return {year:date.getFullYear(),month:date.getMonth(),clinic:order.clinic,technician:order.assignee,amount:completed?Number(String(order.sum).replace(/[^0-9]/g,'')):0};
     });
@@ -165,7 +165,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   }
   function monthName(month){return new Intl.DateTimeFormat('ru-RU',{month:'long'}).format(new Date(analyticsYear,month,1))}
   function filters(){
-    return `<div class="tech-filters"><label>Месяц<select data-tech-month-select>${monthLabels.map((label,index)=>`<option value="${index}" ${state.month===index?'selected':''}>${monthName(index)} ${analyticsYear}</option>`).join('')}</select></label><label>Исполнитель<select data-tech-technician><option>Все техники</option>${team.map(employee=>`<option ${state.technician===employee.name?'selected':''}>${safe(employee.name)}</option>`).join('')}</select></label><span class="tech-demo-note">По сохранённым заказам · выручка после проверки качества</span></div>`;
+    return `<div class="tech-filters"><label>Месяц<select data-tech-month-select>${monthLabels.map((label,index)=>`<option value="${index}" ${state.month===index?'selected':''}>${monthName(index)} ${analyticsYear}</option>`).join('')}</select></label><label>Исполнитель<select data-tech-technician><option>Все техники</option>${team.map(employee=>`<option ${state.technician===employee.name?'selected':''}>${safe(employee.name)}</option>`).join('')}</select></label><span class="tech-demo-note">По сохранённым заказам · выручка после статуса «Принято доктором»</span></div>`;
   }
   function kpis(){
     const current=filteredRecords();
@@ -228,7 +228,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     });
   }
   function orderRows(list){
-    return sortedOrderRows(list).map(order=>`<tr data-tech-order="${order.id}" tabindex="0" class="tech-order-row"><td><strong>${order.id}</strong><small>${safe(order.clinic)}</small></td><td>${shortDate(order.createdAt)}</td><td>${safe(order.work)}<small>${safe(order.patient)}</small></td><td>${order.date}</td><td><span class="tech-stage ${stageTone(order.stage)}">${order.stage}</span></td><td>${safe(order.assignee||'Не назначен')}</td><td><div class="tech-order-actions"><button type="button" class="tech-icon-btn" data-tech-order-action="edit" data-id="${order.id}" aria-label="Редактировать заказ ${order.id}">✎</button><button type="button" class="tech-icon-btn danger" data-tech-order-action="delete" data-id="${order.id}" aria-label="Удалить заказ ${order.id}">×</button><button class="tech-link" data-tech-order="${order.id}">Открыть →</button></div></td></tr>`).join('')||'<tr><td colspan="7" class="tech-empty">Заказов не найдено</td></tr>';
+    return sortedOrderRows(list).map(order=>`<tr data-tech-order="${order.id}" tabindex="0" class="tech-order-row"><td><strong>${order.id}</strong><small>${safe(order.clinic)}</small></td><td>${shortDate(order.createdAt)}</td><td>${safe(order.work)}<small>${safe(order.patient)}</small></td><td>${order.date}</td><td><span class="tech-stage ${stageTone(order.stage)}">${order.stage}</span></td><td>${safe(order.assignee||'Не назначен')}</td><td><div class="tech-order-actions"><button class="tech-link" data-tech-order="${order.id}">Открыть →</button><button type="button" class="tech-icon-btn" data-tech-order-action="edit" data-id="${order.id}" aria-label="Редактировать заказ ${order.id}">✎</button><button type="button" class="tech-icon-btn danger" data-tech-order-action="delete" data-id="${order.id}" aria-label="Удалить заказ ${order.id}">×</button></div></td></tr>`).join('')||'<tr><td colspan="7" class="tech-empty">Заказов не найдено</td></tr>';
   }
 
   function orderEditModal(){
