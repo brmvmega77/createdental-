@@ -286,3 +286,14 @@
 .tech-order-actions{align-items:center;justify-content:flex-end;gap:10px;padding-right:14px;min-width:240px}
 .tech-order-actions .tech-link{height:34px;min-width:112px;display:inline-flex;align-items:center;justify-content:center;padding:0 12px;border-radius:8px;white-space:nowrap}
 @media(max-width:760px){.tech-order-actions{grid-template-columns:1fr 40px 40px;padding-right:0;min-width:0}.tech-order-actions .tech-link{width:100%;min-width:0}}
+/* Requested layout polish */
+.tech-timeline .final i{display:grid;place-items:center;background:#18a65a;border-color:#18a65a;box-shadow:none;color:#fff}
+.tech-timeline .final i::before{content:"✓";font-size:10px;font-weight:800;line-height:1}
+.tech-order-actions{justify-content:flex-start;min-width:0;padding-right:0}
+.tech-table th:last-child,.tech-table td:last-child{width:196px;max-width:196px}
+.tech-table th:nth-child(6),.tech-table td:nth-child(6){width:170px}
+.tech-table th:nth-child(7),.tech-table td:nth-child(7){padding-left:8px}
+.clinic-form textarea{width:100%;border:1px solid #eeeeee;background:#fff;border-radius:7px;padding:12px 13px;color:#333333;font-size:13px;resize:vertical}
+.clinic-photo img{background:#f5f5f5}
+@media(max-width:1350px){.dashboard-aside{grid-template-columns:1fr}}
+@media(max-width:760px){.tech-table th:last-child,.tech-table td:last-child,.tech-table th:nth-child(6),.tech-table td:nth-child(6){width:auto;max-width:none}.tech-order-actions{grid-template-columns:1fr 40px 40px}}
