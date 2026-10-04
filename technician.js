@@ -32,7 +32,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(Array.isArray(saved))clients=saved.filter(client=>client&&typeof client.id==='string'&&typeof client.name==='string');
   } catch { /* Keep the demo directory if local data is damaged. */ }
   const initialRoute=routeFromPath(location.pathname);
-  const state={page:initialRoute.role==='technician'?initialRoute.page:'overview',filter:'Все',search:'',orderId:initialRoute.orderId||'',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',orderSortKey:'createdAt',orderSortDirection:'desc',clientSearch:'',editClientId:null,confirmDeleteId:null,employeeSearch:'',employeeFilter:'all',editEmployeeId:null,confirmFireId:null,conversations:[],activeConversation:null,conversationMessages:[],messagesError:'',profile:null,editOrderId:null,confirmOrderDeleteId:null,toast:''};
+  const state={page:initialRoute.role==='technician'?initialRoute.page:'overview',filter:'Все',search:'',orderId:initialRoute.orderId||'',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',orderSortKey:'createdAt',orderSortDirection:'desc',orderFilterOpen:false,orderClinicFilters:[],orderMonthFilter:'',clientSearch:'',editClientId:null,confirmDeleteId:null,employeeSearch:'',employeeFilter:'all',editEmployeeId:null,confirmFireId:null,conversations:[],activeConversation:null,conversationMessages:[],messagesError:'',profile:null,editOrderId:null,confirmOrderDeleteId:null,toast:''};
   let messagesRequest=0;
   const chiefAvatarKey='create-dental-chief-avatar';
   function storedChiefAvatar(){try{return localStorage.getItem(chiefAvatarKey)||''}catch{return ''}}
@@ -231,6 +231,29 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     return sortedOrderRows(list).map(order=>`<tr data-tech-order="${order.id}" tabindex="0" class="tech-order-row"><td><strong>${order.id}</strong><small>${safe(order.clinic)}</small></td><td>${shortDate(order.createdAt)}</td><td>${safe(order.work)}<small>${safe(order.patient)}</small></td><td>${order.date}</td><td><span class="tech-stage ${stageTone(order.stage)}">${order.stage}</span></td><td>${safe(order.assignee||'Не назначен')}</td><td><div class="tech-order-actions"><button class="tech-link" data-tech-order="${order.id}">Открыть →</button><button type="button" class="tech-icon-btn" data-tech-order-action="edit" data-id="${order.id}" aria-label="Редактировать заказ ${order.id}">✎</button><button type="button" class="tech-icon-btn danger" data-tech-order-action="delete" data-id="${order.id}" aria-label="Удалить заказ ${order.id}">×</button></div></td></tr>`).join('')||'<tr><td colspan="7" class="tech-empty">Заказов не найдено</td></tr>';
   }
 
+  function orderCreatedDate(order){
+    const created=Date.parse(order.createdAt);
+    if(created)return new Date(created);
+    return parseDate(order.date);
+  }
+  function orderMonthKey(order){
+    const date=orderCreatedDate(order);
+    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+  }
+  function orderMonthLabel(key){
+    const [year,month]=key.split('-').map(Number);
+    const name=new Intl.DateTimeFormat('ru-RU',{month:'long'}).format(new Date(year,month-1,1));
+    return `${name.charAt(0).toUpperCase()+name.slice(1)} ${year}`;
+  }
+  function orderFilterPanel(all){
+    const clinics=[...new Set(all.map(order=>order.clinic).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+    const months=[...new Set(all.map(orderMonthKey))].sort().reverse();
+    const activeCount=state.orderClinicFilters.length+(state.orderMonthFilter?1:0);
+    const button=`<button type="button" class="btn outline tech-filter-button ${activeCount?'active':''}" data-tech-filter-panel="toggle">Фильтр${activeCount?` · ${activeCount}`:''}</button>`;
+    if(!state.orderFilterOpen)return button;
+    return `${button}<div class="tech-order-filter-panel"><div><strong>Клиника</strong><div class="tech-filter-checks">${clinics.map(clinic=>`<label><input type="checkbox" data-tech-order-clinic="${safe(clinic)}" ${state.orderClinicFilters.includes(clinic)?'checked':''}>${safe(clinic)}</label>`).join('')||'<p class="tech-empty">Клиник пока нет</p>'}</div></div><div><strong>Месяц заказа</strong><select data-tech-order-month-filter><option value="">Все месяцы</option>${months.map(month=>`<option value="${month}" ${state.orderMonthFilter===month?'selected':''}>${orderMonthLabel(month)}</option>`).join('')}</select></div><div class="tech-order-filter-actions"><button type="button" class="btn outline" data-tech-filter-panel="reset">Сбросить</button><button type="button" class="btn primary" data-tech-filter-panel="close">Готово</button></div></div>`;
+  }
+
   function orderEditModal(){
     if(!state.editOrderId)return '';
     const order=orderById(state.editOrderId);
@@ -244,16 +267,19 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     return `<div class="tech-dialog-backdrop" data-tech-modal="order-delete"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="tech-order-delete-title"><button class="tech-dialog-close" data-tech-order-action="close-modal" aria-label="Закрыть">×</button><h2 id="tech-order-delete-title">Удалить заказ?</h2><p>Заказ ${safe(order.id)} будет удалён из списка лаборатории. Данные клиники и остальные заказы не изменятся.</p><div><button class="btn outline" data-tech-order-action="close-modal">Отмена</button><button class="btn danger" data-tech-order-action="confirm-delete" data-id="${safe(order.id)}">Удалить</button></div></section></div>`;
   }
   function ordersPage(){
-    const list=allOrders().filter(order=>{
+    const all=allOrders();
+    const list=all.filter(order=>{
       if(state.filter==='Новые'&&order.stage!=='Ожидает распределения')return false;
       if(state.filter==='В работе'&&['Ожидает распределения','Контроль качества','Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(order.stage))return false;
       if(state.filter==='На проверке'&&order.stage!=='Контроль качества')return false;
       if(state.filter==='Приняты'&&!['Работа принята','Готово к выдаче'].includes(order.stage))return false;
       if(state.filter==='В доставке'&&order.stage!=='В доставке')return false;
       if(state.filter==='Принято доктором'&&order.stage!=='Принято доктором')return false;
+      if(state.orderClinicFilters.length&&!state.orderClinicFilters.includes(order.clinic))return false;
+      if(state.orderMonthFilter&&orderMonthKey(order)!==state.orderMonthFilter)return false;
       return !state.search||[order.id,order.work,order.patient,order.clinic,order.assignee].some(value=>String(value).toLowerCase().includes(state.search.toLowerCase()));
     });
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОИЗВОДСТВО</span><h1>Заказы лаборатории</h1></div></div><div class="tech-panel"><div class="tech-order-tools"><div class="tech-segment">${['Все','Новые','В работе','На проверке','Приняты','В доставке','Принято доктором'].map(label=>`<button data-tech-filter="${label}" class="${state.filter===label?'active':''}">${label}</button>`).join('')}</div><input id="tech-search" placeholder="Поиск по заказу, клинике или технику..." value="${safe(state.search)}"></div><div class="tech-table-wrap"><table class="tech-table"><thead><tr><th>Заказ / клиника</th>${orderSortHeading('createdAt','Создан')}${orderSortHeading('work','Работа / пациент')}${orderSortHeading('date','Срок')}${orderSortHeading('stage','Этап')}${orderSortHeading('assignee','Исполнитель')}<th></th></tr></thead><tbody>${orderRows(list)}</tbody></table></div></div>${orderEditModal()}${orderDeleteModal()}`;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОИЗВОДСТВО</span><h1>Заказы лаборатории</h1></div></div><div class="tech-panel"><div class="tech-order-tools"><div class="tech-segment">${['Все','Новые','В работе','На проверке','Приняты','В доставке','Принято доктором'].map(label=>`<button data-tech-filter="${label}" class="${state.filter===label?'active':''}">${label}</button>`).join('')}</div><div class="tech-order-searchbar">${orderFilterPanel(all)}<input id="tech-search" placeholder="Поиск по заказу, клинике или технику..." value="${safe(state.search)}"></div></div><div class="tech-table-wrap"><table class="tech-table"><thead><tr><th>Заказ / клиника</th>${orderSortHeading('createdAt','Создан')}${orderSortHeading('work','Работа / пациент')}${orderSortHeading('date','Срок')}${orderSortHeading('stage','Этап')}${orderSortHeading('assignee','Исполнитель')}<th></th></tr></thead><tbody>${orderRows(list)}</tbody></table></div></div>${orderEditModal()}${orderDeleteModal()}`;
   }
   function assignmentOptions(order){
     const active=activeTeam();
@@ -368,6 +394,15 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(conversation){state.activeConversation=conversation.dataset.techConversation;state.conversationMessages=[];render();return}
     const orderSort=event.target.closest('[data-tech-order-sort]');
     if(orderSort){const key=orderSort.dataset.techOrderSort;state.orderSortDirection=state.orderSortKey===key&&state.orderSortDirection==='asc'?'desc':'asc';state.orderSortKey=key;render();return}
+    const orderFilterButton=event.target.closest('[data-tech-filter-panel]');
+    if(orderFilterButton){
+      const action=orderFilterButton.dataset.techFilterPanel;
+      if(action==='toggle')state.orderFilterOpen=!state.orderFilterOpen;
+      else if(action==='close')state.orderFilterOpen=false;
+      else if(action==='reset'){state.orderClinicFilters=[];state.orderMonthFilter='';state.orderFilterOpen=false;}
+      render();
+      return;
+    }
     const profileAvatar=event.target.closest('[data-tech-profile-avatar]');
     if(profileAvatar?.dataset.techProfileAvatar==='remove'){
       saveChiefProfile({avatar:''},'Аватар удалён').catch(error=>toast(error.message));
@@ -471,6 +506,13 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       avatarFromFile(file).then(avatar=>saveChiefProfile({avatar},'Аватар сохранён')).catch(error=>toast(error.message));
       return;
     }
+    if(event.target.matches('[data-tech-order-clinic]')){
+      const clinic=event.target.dataset.techOrderClinic;
+      state.orderClinicFilters=event.target.checked?[...new Set([...state.orderClinicFilters,clinic])]:state.orderClinicFilters.filter(item=>item!==clinic);
+      render();
+      return;
+    }
+    if(event.target.matches('[data-tech-order-month-filter]')){state.orderMonthFilter=event.target.value;render();return}
     if(event.target.matches('[data-tech-month-select]')){state.month=Number(event.target.value);render()}
     if(event.target.matches('[data-tech-technician]')){state.technician=event.target.value;render()}
     if(event.target.matches('[data-tech-assign]')){

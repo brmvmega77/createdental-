@@ -191,7 +191,7 @@ function clinicPage(){
     'Безопасность':`${field('Email для входа',input('loginEmail',clinic.loginEmail||clinic.email||'','email'))}${field('Ответственный за доступ',input('accessManager',clinic.accessManager||clinic.contact||''))}${field('Телефон для подтверждений',input('securityPhone',clinic.securityPhone||clinic.phone||'','tel'))}${field('Заметка по доступу',area('securityNotes',clinic.securityNotes||''))}`
   };
   const active=fields[state.clinicTab]?state.clinicTab:'Основная информация';
-  shell(`${title('Моя клиника')}${tabs(tabsList,active,'clinic-tab')}<div class="clinic-content"><div class="clinic-photo"><img id="clinic-logo-preview" src="${clinic.logo||assets+'clinic.png'}" alt="Логотип клиники"><button type="button" data-action="change-logo">Изменить логотип</button><input id="clinic-logo-input" name="logoFile" type="file" accept="image/png,image/jpeg,image/webp" hidden></div><form id="clinic-form" class="clinic-form"><input type="hidden" name="logo" value="${escapeHtml(clinic.logo||'')}"><div class="form-grid">${fields[active]}<div class="save-field"><button class="btn primary" type="submit">Сохранить изменения</button></div></div></form></div>`);
+  shell(`${title('Моя клиника')}${tabs(tabsList,active,'clinic-tab')}<div class="clinic-content"><div class="clinic-photo"><strong>Логотип клиники</strong><img id="clinic-logo-preview" src="${clinic.logo||assets+'clinic.png'}" alt="Логотип клиники"><button type="button" data-action="change-logo">Изменить логотип</button><input id="clinic-logo-input" name="logoFile" type="file" accept="image/png,image/jpeg,image/webp" hidden></div><form id="clinic-form" class="clinic-form"><input type="hidden" name="logo" value="${escapeHtml(clinic.logo||'')}"><div class="form-grid">${fields[active]}<div class="save-field"><button class="btn primary" type="submit">Сохранить изменения</button></div></div></form></div>`);
 }
 function referencePage(){shell(`${title('Справочник','Информация о конструкциях, материалах и оформлении заказов.')}<div class="reference-grid">${[['Коронки E.max','Эстетичные цельнокерамические реставрации.'],['Виниры','Тонкие накладки для восстановления улыбки.'],['Мостовидные протезы','Конструкции для замещения отсутствующих зубов.'],['3D сканирование','Цифровые слепки для точной работы.']].map(([h,p])=>`<article class="reference-card">${icon('book',25)}<h3>${h}</h3><p>${p}</p></article>`).join('')}</div>`)}
 const technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,onUserUpdate:user=>{portalUser=user}});
@@ -281,7 +281,7 @@ document.addEventListener('change',event=>{
     reader.onerror=()=>notify('Не удалось прочитать изображение');
     reader.onload=()=>{
       const value=String(reader.result||'');
-      if(value.length>450000)return notify('Фото слишком большое. Выберите изображение меньше.');
+      if(value.length>430000)return notify('Фото слишком большое. Выберите изображение меньше.');
       const preview=$('#clinic-logo-preview'),hidden=document.querySelector('#clinic-form input[name="logo"]');
       if(preview)preview.src=value;
       if(hidden)hidden.value=value;
