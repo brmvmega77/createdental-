@@ -46,6 +46,12 @@
 .tooth.selected .tooth-outline{fill:#808080;stroke:#eeeeee;stroke-width:3}
 .tooth.selected .tooth-detail{fill:none;stroke:#eeeeee}
 .tooth.selected text{fill:#fff;stroke:#808080}
+.tooth-hitbox{fill:transparent;stroke:transparent;stroke-width:2}
+.tooth-image{pointer-events:none;transition:filter .16s ease,opacity .16s ease}
+.tooth[role="button"]{cursor:pointer;outline:none}
+.tooth[role="button"]:hover .tooth-image{filter:brightness(.9)}
+.tooth[role="button"]:focus-visible .tooth-hitbox{stroke:#fff;stroke-dasharray:4 3}
+.tooth.selected .tooth-image{filter:brightness(.58)}
 .confirmation .tooth-chart{max-width:300px}
 .detail-grid .tooth-chart{max-width:220px}
 @media(max-width:1100px){.teeth-layout{grid-template-columns:1fr;max-width:650px}}

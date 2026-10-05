@@ -129,18 +129,6 @@ function toothChart(interactive=true, selectedTeeth=state.selectedTeeth){
     [31,318,752,-4],[32,347,740,-15],[33,383,716,-29],[34,424,682,-45],
     [35,460,635,-61],[36,484,582,-75],[37,495,527,-83],[38,495,468,-87]
   ];
-  const outlines={
-    incisor:'M-29-29 Q-18-34 0-31 Q18-34 29-29 L25 20 Q13 30 0 29 Q-13 30-25 20 Z',
-    canine:'M-24-19 Q-12-27-4-28 L0-36 L5-28 Q17-27 24-19 L21 19 Q0 31-21 19 Z',
-    premolar:'M-26-22 Q-16-32-4-27 Q10-33 26-22 Q31-8 26 7 Q27 22 12 27 Q0 30-12 27 Q-27 22-26 7 Q-31-8-26-22 Z',
-    molar:'M-28-28 Q-17-36-4-29 Q9-37 26-29 Q36-19 29-4 Q36 10 27 27 Q13 33 0 27 Q-14 34-28 25 Q-37 11-29-4 Q-36-19-28-28 Z'
-  };
-  const grooves={
-    incisor:'M-19-17 Q-10-8-6 7 M18-17 Q9-9 6 7 M-12 20 Q0 12 12 20',
-    canine:'M-12-9 Q0-20 12-9 M0-20 Q-5 0 0 17 M-8 15 Q0 7 8 15',
-    premolar:'M-16-13 Q-5-2 0 0 Q5-2 16-13 M-16 14 Q-4 5 0 0 Q4 5 16 14 M0-9 L0 11',
-    molar:'M-19-17 Q-7-8 0 0 Q8-9 19-17 M-19 17 Q-8 8 0 0 Q8 9 19 17 M0-20 Q-5-8 0 0 Q5 9 0 20'
-  };
   return `<div class="tooth-chart"><svg viewBox="0 0 600 800" role="img" aria-label="Схема зубов верхней и нижней челюсти">
     ${teeth.map(([n,x,y,angle])=>{
       const last=n%10;
@@ -150,8 +138,8 @@ function toothChart(interactive=true, selectedTeeth=state.selectedTeeth){
       const selected=selectedTeeth.includes(n);
       return `<g class="tooth tooth-${kind} ${selected?'selected':''}" ${interactive?`data-tooth="${n}" role="button" tabindex="0" aria-label="Зуб ${n}" aria-pressed="${selected}"`:''} transform="translate(${x} ${y})">
         <g class="crown" transform="rotate(${rotation}) scale(${scale})">
-          <path class="tooth-outline" d="${outlines[kind]}"/>
-          <path class="tooth-detail" d="${grooves[kind]}"/>
+          <rect class="tooth-hitbox" x="-37" y="-37" width="74" height="74" rx="12"/>
+          <image class="tooth-image" href="${assets}teeth/${n}.png?v=1" x="-36" y="-36" width="72" height="72" preserveAspectRatio="xMidYMid meet"/>
         </g>
         <text text-anchor="middle" dominant-baseline="middle">${n}</text>
       </g>`;
