@@ -47,6 +47,7 @@
 .tooth.selected .tooth-detail{fill:none;stroke:#eeeeee}
 .tooth.selected text{fill:#fff;stroke:#808080}
 .tooth-hitbox{fill:transparent;stroke:transparent;stroke-width:2}
+.tooth-chart-base{pointer-events:none}
 .tooth-image{pointer-events:none;transition:filter .16s ease,opacity .16s ease}
 .tooth[role="button"]{cursor:pointer;outline:none}
 .tooth[role="button"]:hover .tooth-image{filter:brightness(.9)}

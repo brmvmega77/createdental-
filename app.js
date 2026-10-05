@@ -129,13 +129,13 @@ function toothChart(interactive=true, selectedTeeth=state.selectedTeeth){
     [31,291,739,49,49],[32,323,730,53,50],[33,353,700,61,60],[34,385,660,58,57],
     [35,417,620,66,62],[36,444,560,82,70],[37,446,497,77,68],[38,447,434,74,65]
   ];
-  return `<div class="tooth-chart"><svg viewBox="0 0 509 774" role="img" aria-label="Схема зубов верхней и нижней челюсти">
+  return `<div class="tooth-chart"><svg viewBox="0 0 509 772" role="img" aria-label="Схема зубов верхней и нижней челюсти">
+    <image class="tooth-chart-base" href="${assets}tooth-chart-reference.png?v=1" x="0" y="0" width="509" height="772" preserveAspectRatio="none"/>
     ${teeth.map(([n,x,y,width,height])=>{
       const selected=selectedTeeth.includes(n);
       return `<g class="tooth ${selected?'selected':''}" ${interactive?`data-tooth="${n}" role="button" tabindex="0" aria-label="Зуб ${n}" aria-pressed="${selected}"`:''} transform="translate(${x} ${y})">
         <rect class="tooth-hitbox" x="${-width/2}" y="${-height/2}" width="${width}" height="${height}" rx="10"/>
-        <image class="tooth-image" href="${assets}teeth/${n}.png?v=2" x="${-width/2}" y="${-height/2}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid meet"/>
-        <text text-anchor="middle" dominant-baseline="middle">${n}</text>
+        ${selected?`<image class="tooth-image" href="${assets}teeth/${n}.png?v=2" x="${-width/2}" y="${-height/2}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid meet"/><text text-anchor="middle" dominant-baseline="middle">${n}</text>`:''}
       </g>`;
     }).join('')}</svg></div>`;
 }
