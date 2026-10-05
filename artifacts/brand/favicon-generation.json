@@ -1,0 +1,7 @@
+{
+  "tool": "Built-in image_gen image editor",
+  "sourceLogo": "public/assets/create-dental-logo.png",
+  "master": "artifacts/brand/favicon-cd-master.png",
+  "outputs": ["public/assets/favicon.ico", "public/assets/favicon-32.png", "public/assets/favicon-192.png", "public/assets/apple-touch-icon.png"],
+  "finalPrompt": "Edit this exact square favicon. Preserve the tooth outline, white background, black monochrome style, square composition and margins. Replace ONLY the letters inside the tooth with the exact text 'CD' in uppercase, clearly readable geometric sans-serif bold black letters, C on the left and D on the right. Both letters must be fully visible INSIDE the tooth boundary with comfortable clearance; neither letter should be clipped or touch/cross the outline. Center CD horizontally and vertically in the available interior. No other letters, no text outside tooth, no new objects or effects. Optimize simple clear letterforms for a tiny website favicon."
+}
