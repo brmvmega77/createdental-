@@ -277,6 +277,71 @@
 .detail-actions,.clinic-accept-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.detail-actions .btn,.clinic-accept-actions .btn{width:auto}.clinic-accept-actions{margin-top:18px}.tech-status-note{margin:0;color:#808080;font-weight:650;line-height:1.5}.btn.danger{background:#fff;border-color:#f1d7d7;color:#b64141}.btn.danger:hover{background:#fff7f7}.tech-client-form textarea{width:100%;border:1px solid #eeeeee;background:#fff;border-radius:7px;padding:12px 13px;color:#333333;font-size:13px;resize:vertical}
 @media(max-width:760px){.detail-actions,.clinic-accept-actions{display:grid;grid-template-columns:1fr}.detail-actions .btn,.clinic-accept-actions .btn{width:100%}}
 
+/* Clinic order builder: tooth selection, work catalogue and live summary */
+.order-builder-wizard{padding:26px;overflow:hidden}
+.patient-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.order-builder{display:grid;grid-template-columns:minmax(255px,.82fr) minmax(390px,1.25fr) minmax(245px,.74fr);gap:28px;align-items:start}
+.order-builder section,.order-builder aside{min-width:0}
+.order-builder h2{margin:0;font-size:20px;line-height:1.25}
+.tooth-picker{display:grid;gap:17px}
+.tooth-picker .tooth-chart{width:100%;max-width:350px;padding:8px;margin:0 auto}
+.tooth-mode{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:4px;background:#f5f5f5;border-radius:10px}
+.tooth-mode button{min-height:38px;padding:7px 8px;border:0;border-radius:8px;background:transparent;color:#808080;font-size:12px;font-weight:650}
+.tooth-mode button.selected{background:#fff;color:#333333;box-shadow:0 2px 8px #33333312}
+.tooth-picker .selected-teeth{min-height:44px;padding:10px 12px;border:1px solid #eeeeee;border-radius:9px;background:#fff;font-size:12px;color:#333333}
+.tooth-picker .selected-teeth strong{line-height:1.45}
+.tooth-picker .selected-teeth .clear{margin-left:auto;color:#808080;white-space:nowrap}
+.work-picker{display:grid;gap:18px}
+.work-picker-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.work-picker-title p{margin:6px 0 0;color:#808080;font-size:12px}
+.work-picker-title>button{width:38px;height:38px;flex:0 0 auto;border:1px solid #eeeeee;border-radius:9px;background:#fff;color:#808080;font-size:18px}
+.order-work-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.order-work-grid button{min-height:52px;padding:10px 13px;border:1px solid #eeeeee;border-radius:9px;background:#f5f5f5;color:#333333;font-size:12px;font-weight:600;line-height:1.35;text-align:center}
+.order-work-grid button:hover{background:#eeeeee;border-color:#dddddd}
+.work-detail{display:grid;gap:12px}
+.work-back{justify-self:start;padding:0;border:0;background:transparent;color:#808080;font-size:12px;font-weight:650}
+.work-current{display:grid;gap:4px;padding:16px;border-radius:10px;background:#333333;color:#fff}
+.work-current strong{font-size:16px}
+.work-current small{color:#eeeeee;font-size:11px}
+.work-option-list{display:grid;gap:8px}
+.work-option-list button{width:100%;min-height:50px;padding:10px 14px;border:1px solid #eeeeee;border-radius:9px;background:#f5f5f5;color:#333333;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;font-size:12px;line-height:1.4}
+.work-option-list button b{font-size:16px;color:#808080}
+.work-option-list button:hover,.work-option-list button.selected{background:#fff;border-color:#808080;box-shadow:0 0 0 1px #808080 inset}
+.order-draft{position:sticky;top:20px;display:grid;gap:17px}
+.order-draft-empty,.order-draft-card{border:1px solid #eeeeee;border-radius:11px;background:#fff;padding:20px}
+.order-draft-empty{min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;text-align:center;color:#808080}
+.order-draft-empty svg{color:#808080}
+.order-draft-empty strong{font-size:13px;color:#333333}
+.order-draft-empty span{font-size:11px;line-height:1.45}
+.order-draft-card{display:grid;gap:12px}
+.order-draft-card>div:first-child{display:grid;gap:5px;padding-bottom:12px;border-bottom:1px solid #eeeeee}
+.order-draft-card span,.order-draft-card p,.order-draft-card small{color:#808080;font-size:11px;line-height:1.45}
+.order-draft-card h3{margin:0;font-size:16px}
+.order-draft-card p{margin:0;font-size:12px;color:#333333}
+.order-draft-card dl{display:grid;gap:8px;margin:3px 0}
+.order-draft-card dl div{display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.order-draft-card dt{color:#808080}.order-draft-card dd{margin:0;color:#333333;font-weight:700}
+.order-builder-wizard>.wizard-actions{border-top:1px solid #eeeeee}
+@media(max-width:1200px){
+  .order-builder{grid-template-columns:minmax(250px,.82fr) minmax(350px,1.18fr)}
+  .order-draft{position:static;grid-column:1/-1}
+  .order-draft-empty{min-height:125px}.order-draft-card{grid-template-columns:minmax(180px,.8fr) minmax(200px,1fr);align-items:center}.order-draft-card dl,.order-draft-card small{grid-column:1/-1}
+}
+@media(max-width:760px){
+  .order-builder-wizard{padding:14px}
+  .patient-fields,.order-builder{grid-template-columns:1fr}
+  .order-builder{gap:25px}
+  .tooth-picker .tooth-chart{max-width:350px}
+  .order-work-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .order-work-grid button{min-height:48px;padding:9px 7px;font-size:11px}
+  .order-draft{grid-column:auto}.order-draft-card{grid-template-columns:1fr}.order-draft-card dl,.order-draft-card small{grid-column:auto}
+  .order-builder-wizard>.wizard-actions{margin-top:22px}
+}
+@media(max-width:420px){
+  .order-work-grid{grid-template-columns:1fr}
+  .tooth-mode button{font-size:11px;padding:6px 4px}
+}
+
 .tech-order-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}.tech-icon-btn{width:30px;height:30px;border:1px solid #f5f5f5;border-radius:8px;background:#fff;color:#808080;font-size:16px;line-height:1;display:grid;place-items:center}.tech-icon-btn:hover{background:#f5f5f5;color:#333333}.tech-icon-btn.danger{color:#b64141;border-color:#f3dddd}.tech-icon-btn.danger:hover{background:#fff0f0;color:#9f2f2f}.tech-order-modal{width:min(100%,560px);position:relative}.tech-dialog-close{position:absolute;right:14px;top:12px;width:30px;height:30px;border:0;border-radius:50%;background:#f5f5f5;color:#808080;font-size:18px;line-height:1}.tech-dialog-close:hover{background:#eeeeee;color:#333333}
 @media(max-width:760px){.tech-order-actions{justify-content:stretch;display:grid;grid-template-columns:40px 40px 1fr}.tech-icon-btn{width:40px;height:38px}.tech-order-actions .tech-link{text-align:center}}
 /* Final alignment fixes for laboratory order controls */
