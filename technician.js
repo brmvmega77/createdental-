@@ -1,4 +1,4 @@
-import {savePortal,authRequest,portalToken,loadOrderFiles,uploadOrderFile,downloadOrderFile} from './portal-client.js?v=mobile-fast-4';
+import {savePortal,authRequest,portalToken,loadOrderFiles,uploadOrderFile,downloadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile} from './portal-client.js?v=chat-files-1';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=mobile-fast-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=mobile-fast-4';
 
@@ -33,7 +33,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(Array.isArray(saved))clients=saved.filter(client=>client&&typeof client.id==='string'&&typeof client.name==='string');
   } catch { /* Keep the demo directory if local data is damaged. */ }
   const initialRoute=routeFromPath(location.pathname);
-  const state={page:initialRoute.role==='technician'?initialRoute.page:'overview',filter:'Все',search:'',orderId:initialRoute.orderId||'',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',orderSortKey:'createdAt',orderSortDirection:'desc',orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',clientSearch:'',editClientId:null,confirmDeleteId:null,employeeSearch:'',employeeFilter:'all',editEmployeeId:null,confirmFireId:null,conversations:[],activeConversation:null,conversationMessages:[],messagesError:'',profile:null,editOrderId:null,confirmOrderDeleteId:null,toast:''};
+  const state={page:initialRoute.role==='technician'?initialRoute.page:'overview',filter:'Все',search:'',orderId:initialRoute.orderId||'',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',orderSortKey:'createdAt',orderSortDirection:'desc',orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',clientSearch:'',editClientId:null,confirmDeleteId:null,employeeSearch:'',employeeFilter:'all',editEmployeeId:null,confirmFireId:null,conversations:[],activeConversation:null,conversationMessages:[],messageAttachment:null,messagesError:'',deadlineMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),deadlineDay:new Date().getDate(),profile:null,editOrderId:null,confirmOrderDeleteId:null,toast:''};
   let messagesRequest=0;
   const chiefAvatarKey='create-dental-chief-avatar';
   function storedChiefAvatar(){try{return localStorage.getItem(chiefAvatarKey)||''}catch{return ''}}
@@ -205,11 +205,26 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const open=allOrders().filter(order=>!['Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(order.stage));
     return `<section class="tech-panel"><div class="tech-panel-heading"><div><h2>Загрузка команды</h2><p>Текущие работы</p></div><button class="tech-link" data-tech-page="team">Команда →</button></div><div class="tech-team-snapshot">${activeTeam().map(employee=>`<div><span class="tech-mini-avatar">${safe(employee.name.split(' ').map(part=>part[0]).join(''))}</span><span>${safe(employee.name)}</span><strong>${open.filter(order=>order.assigneeKey===employee.originalName).length}</strong></div>`).join('')||'<p class="tech-empty">Активных техников пока нет</p>'}</div></section>`;
   }
+  function chiefOrderDate(order){const [day,month,year]=String(order.date||'').split('.').map(Number);return new Date(year,month-1,day)}
+  function chiefDeadlineTone(stage){return ['Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(stage)?'green':stage==='Ожидает распределения'?'orange':'blue'}
+  function chiefDeadlineCalendar(){
+    const month=state.deadlineMonth,year=month.getFullYear(),monthNumber=month.getMonth(),daysInMonth=new Date(year,monthNumber+1,0).getDate(),leading=(new Date(year,monthNumber,1).getDay()+6)%7;
+    const monthName=new Intl.DateTimeFormat('ru-RU',{month:'long'}).format(month),label=monthName.charAt(0).toUpperCase()+monthName.slice(1)+' '+year;
+    const due=allOrders().filter(order=>{const date=chiefOrderDate(order);return date.getFullYear()===year&&date.getMonth()===monthNumber});
+    const cells=Array.from({length:leading},()=>'<span class="calendar-blank"></span>');
+    for(let day=1;day<=daysInMonth;day++){
+      const statuses=due.filter(order=>chiefOrderDate(order).getDate()===day).map(order=>chiefDeadlineTone(order.stage));
+      cells.push(`<button class="calendar-day ${state.deadlineDay===day?'selected':''}" data-tech-calendar-action="day" data-value="${day}" aria-label="${day} ${monthName}, заказов: ${statuses.length}"><span>${day}</span><i class="calendar-markers">${[...new Set(statuses)].slice(0,3).map(status=>`<b class="${status}"></b>`).join('')}</i></button>`);
+    }
+    const today=new Date();today.setHours(0,0,0,0);
+    const upcoming=allOrders().filter(order=>chiefOrderDate(order)>=today&&order.stage!=='Принято доктором').sort((a,b)=>chiefOrderDate(a)-chiefOrderDate(b)).slice(0,4);
+    return `<section class="tech-panel deadline-card"><h2>Календарь сроков</h2><div class="calendar-head"><strong>${label}</strong><div><button data-tech-calendar-action="prev" aria-label="Предыдущий месяц">‹</button><button data-tech-calendar-action="next" aria-label="Следующий месяц">›</button></div></div><div class="calendar-grid">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day=>`<span class="calendar-weekday">${day}</span>`).join('')}${cells.join('')}</div><div class="dashboard-card-heading"><h3>Ближайшие сдачи</h3><button data-tech-page="orders">Все →</button></div><div class="upcoming-list">${upcoming.length?upcoming.map(order=>`<button class="upcoming-order" data-tech-order="${safe(order.id)}"><img src="${assets+(order.image||'tooth.png')}" alt=""><i class="deadline-status ${chiefDeadlineTone(order.stage)}"></i><span><strong>${safe(order.id)}</strong><small>${safe(order.clinic)} · ${safe(order.patient)}</small></span><time>${safe(order.date.slice(0,5))}</time></button>`).join(''):'<p class="dashboard-empty">Ближайших сдач нет</p>'}</div></section>`;
+  }
   function overview(){
     const list=allOrders();
     const newCount=list.filter(order=>order.stage==='Ожидает распределения').length;
     const qaCount=list.filter(order=>order.stage==='Контроль качества').length;
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">ЛАБОРАТОРИЯ · ГЛАВНЫЙ ТЕХНИК</span><h1>Обзор лаборатории</h1></div><div class="tech-task-count"><strong>${newCount+qaCount}</strong><span>требуют решения</span></div></div>${filters()}${kpis()}<div class="tech-analytics-grid">${chart()}${breakdown('clinic',4)}</div><div class="tech-work-grid">${attentionOrders()}${teamSnapshot()}</div>`;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">ЛАБОРАТОРИЯ · ГЛАВНЫЙ ТЕХНИК</span><h1>Обзор лаборатории</h1></div><div class="tech-task-count"><strong>${newCount+qaCount}</strong><span>требуют решения</span></div></div>${filters()}${kpis()}<div class="tech-analytics-grid">${chart()}${breakdown('clinic',4)}</div><div class="tech-work-grid">${attentionOrders()}${chiefDeadlineCalendar()}</div><div class="tech-overview-team">${teamSnapshot()}</div>`;
   }
   function orderSortHeading(key,label){
     const active=state.orderSortKey===key,arrow=active?(state.orderSortDirection==='asc'?'↑':'↓'):'↕';
@@ -321,7 +336,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const employee=state.editEmployeeId==='new'?{name:'',specialty:'',phone:'',email:''}:team.find(item=>item.id===state.editEmployeeId);
     if(!employee)return '';
     const field=(label,name,type='text',required=false)=>`<label>${label}<input name="${name}" type="${type}" value="${safe(employee[name]||'')}" ${required?'required':''}></label>`;
-    return `<section class="tech-panel tech-client-editor"><div class="tech-panel-heading"><div><h2>${state.editEmployeeId==='new'?'Новый техник':'Редактировать техника'}</h2><p>Данные сотрудника лаборатории</p></div><button class="tech-client-close" data-tech-employee-action="cancel" aria-label="Закрыть">×</button></div><form id="tech-employee-form" class="tech-client-form">${field('Имя и фамилия','name','text',true)}${field('Специализация','specialty','text',true)}${field('Телефон','phone','tel')}${field('Электронная почта','email','email',true)}<label>${state.editEmployeeId==='new'?'Пароль для входа':'Новый пароль (если нужно сменить)'}<input name="password" type="password" minlength="10" ${state.editEmployeeId==='new'?'required':''}></label><div class="tech-client-form-actions"><button type="button" class="btn outline" data-tech-employee-action="cancel">Отмена</button><button type="submit" class="btn primary">Сохранить</button></div></form></section>`;
+    return `<section class="tech-panel tech-client-editor"><div class="tech-panel-heading"><div><h2>${state.editEmployeeId==='new'?'Новый техник':'Редактировать техника'}</h2><p>Данные сотрудника лаборатории</p></div><button class="tech-client-close" data-tech-employee-action="cancel" aria-label="Закрыть">×</button></div><form id="tech-employee-form" class="tech-client-form">${field('Имя и фамилия','name','text',true)}${field('Специализация','specialty','text',true)}${field('Телефон','phone','tel')}${field('Электронная почта','email','email',true)}<label>${state.editEmployeeId==='new'?'Пароль для входа':'Новый пароль (если нужно сменить)'}<input name="password" type="password" minlength="8" ${state.editEmployeeId==='new'?'required':''}></label><div class="tech-client-form-actions"><button type="button" class="btn outline" data-tech-employee-action="cancel">Отмена</button><button type="submit" class="btn primary">Сохранить</button></div></form></section>`;
   }
   function teamPage(){
     const open=allOrders().filter(order=>!['Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(order.stage));
@@ -346,19 +361,23 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(key(date)===key(yesterday))return 'Вчера';
     return date.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
   }
+  const messageFileSize=size=>size>=1024*1024?`${(size/1024/1024).toFixed(1)} МБ`:`${Math.max(1,Math.ceil(size/1024))} КБ`;
+  function messageAttachmentMarkup(attachment,pending=false){if(!attachment)return '';const preview=attachment.preview?`<img src="${safe(attachment.preview)}" alt="">`:'<span class="chat-file-icon">📄</span>';return `<${pending?'div':'button'} class="chat-attachment ${pending?'pending':''}" ${pending?'':`type="button" data-chief-chat-file="${safe(attachment.id)}"`}>${preview}<span><strong>${safe(attachment.name)}</strong><small>${messageFileSize(attachment.size)}</small></span>${pending?'<button type="button" data-tech-message-attachment="remove" aria-label="Убрать файл">×</button>':''}</${pending?'div':'button'}>`}
+  function messageImagePreview(file){return new Promise((resolve,reject)=>{if(!file.type.startsWith('image/'))return resolve('');const image=new Image(),url=URL.createObjectURL(file);image.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Не удалось открыть изображение'))};image.onload=()=>{const scale=Math.min(1,240/image.width,180/image.height),canvas=document.createElement('canvas'),context=canvas.getContext('2d');canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));context.drawImage(image,0,0,canvas.width,canvas.height);URL.revokeObjectURL(url);resolve(canvas.toDataURL('image/jpeg',.72))};image.src=url})}
+  async function selectMessageAttachment(file){if(!file)return;const allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|zip|doc|docx|xls|xlsx)$/i;if(!allowed.test(file.name))return toast('Выберите изображение, PDF, STL, PLY, ZIP, Word или Excel');if(file.size>20*1024*1024)return toast('Файл должен быть не больше 20 МБ');try{state.messageAttachment={file,name:file.name,size:file.size,type:file.type||'application/octet-stream',preview:await messageImagePreview(file)};render()}catch(error){toast(error.message)}}
   function chiefMessagesMarkup(messages){
     let previous='';
     return messages.map(message=>{
       const day=new Date(message.time).toDateString();
       const divider=day!==previous?`<div class="chat-date-divider">${messageDateLabel(message.time)}</div>`:'';
       previous=day;
-      return `${divider}<div class="bubble ${message.from==='support'?'me':'them'}"><p>${safe(message.text)}</p><time>${new Date(message.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</time></div>`;
+      return `${divider}<div class="bubble ${message.from==='support'?'me':'them'}">${message.text?`<p>${safe(message.text)}</p>`:''}${messageAttachmentMarkup(message.attachment)}<time>${new Date(message.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</time></div>`;
     }).join('');
   }
   function messagesPage(){
     const active=state.conversations.find(item=>item.id===state.activeConversation);
     const avatar=(item)=>`<span class="contact-avatar ${item.logo?'has-image':''}">${item.logo?`<img src="${safe(item.logo)}" alt="">`:safe(item.name.slice(0,2).toUpperCase())}</span>`;
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">КЛИНИКИ</span><h1>Сообщения</h1></div></div><div class="messages-layout chief-messages"><div class="contacts">${state.conversations.map(item=>`<button class="contact ${item.id===state.activeConversation?'active':''}" data-tech-conversation="${safe(item.id)}">${avatar(item)}<span><strong>${safe(item.name)}</strong><small>${safe(item.lastMessage)}</small></span></button>`).join('')||'<p class="chat-empty">Сообщений от клиник пока нет.</p>'}</div><div class="conversation">${active?`<div class="conversation-head">${avatar(active)}<span><strong>${safe(active.name)}</strong><small>Клиника</small></span></div><div class="chat-bubbles" id="chief-chat-bubbles">${state.conversationMessages.length?chiefMessagesMarkup(state.conversationMessages):'<p class="chat-empty">Сообщений пока нет.</p>'}</div><form class="chat-compose" id="chief-chat-form"><input name="text" maxlength="2000" placeholder="Напишите ответ..." autocomplete="off" required><button class="send-btn" aria-label="Отправить ответ">➤</button></form>`:'<p class="chat-empty">Выберите клинику слева.</p>'}${state.messagesError?`<p class="chat-error">${safe(state.messagesError)}</p>`:''}</div></div>`;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">КЛИНИКИ</span><h1>Сообщения</h1></div></div><div class="messages-layout chief-messages"><div class="contacts">${state.conversations.map(item=>`<button class="contact ${item.id===state.activeConversation?'active':''}" data-tech-conversation="${safe(item.id)}">${avatar(item)}<span><strong>${safe(item.name)}</strong><small>${safe(item.lastMessage)}</small></span></button>`).join('')||'<p class="chat-empty">Сообщений от клиник пока нет.</p>'}</div><div class="conversation">${active?`<div class="conversation-head">${avatar(active)}<span><strong>${safe(active.name)}</strong><small>Клиника</small></span></div><div class="chat-bubbles" id="chief-chat-bubbles">${state.conversationMessages.length?chiefMessagesMarkup(state.conversationMessages):'<p class="chat-empty">Сообщений пока нет.</p>'}</div><form class="chat-compose chat-compose-files" id="chief-chat-form">${state.messageAttachment?`<div class="chat-pending-file">${messageAttachmentMarkup(state.messageAttachment,true)}</div>`:''}<label class="chat-attach-button" title="Прикрепить файл">📎<input id="chief-chat-file" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.zip,.doc,.docx,.xls,.xlsx" hidden></label><input name="text" maxlength="2000" placeholder="Напишите ответ..." autocomplete="off"><button class="send-btn" aria-label="Отправить ответ">➤</button></form>`:'<p class="chat-empty">Выберите клинику слева.</p>'}${state.messagesError?`<p class="chat-error">${safe(state.messagesError)}</p>`:''}</div></div>`;
   }
   function scrollChiefChat(){const box=root().querySelector('#chief-chat-bubbles');if(box)box.scrollTop=box.scrollHeight}
   async function refreshMessages(){
@@ -403,6 +422,9 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(notification){const orderId=notification.dataset.notificationOrder;await markNotificationCenterRead().catch(()=>{});closeNotificationCenter();if(orderId&&orderById(orderId)){state.orderId=orderId;setPage('detail')}else setPage('messages');return}
     const fileDownload=event.target.closest('[data-tech-download-file]');
     if(fileDownload){try{await downloadOrderFile(fileDownload.dataset.techDownloadFile)}catch(error){toast(error.message)}return}
+    const messageFile=event.target.closest('[data-chief-chat-file]');
+    if(messageFile){try{await downloadClinicMessageFile(messageFile.dataset.chiefChatFile)}catch(error){toast(error.message)}return}
+    if(event.target.closest('[data-tech-message-attachment="remove"]')){state.messageAttachment=null;render();return}
     const conversation=event.target.closest('[data-tech-conversation]');
     if(conversation){state.activeConversation=conversation.dataset.techConversation;state.conversationMessages=[];render();return}
     const orderSort=event.target.closest('[data-tech-order-sort]');
@@ -498,6 +520,17 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(action.dataset.techAction==='rollback'){const previous=stages[stages.indexOf(order.stage)-1];if(previous)saveOrder(id,{stage:previous});}
       return;
     }
+    const calendar=event.target.closest('[data-tech-calendar-action]');
+    if(calendar){
+      const action=calendar.dataset.techCalendarAction;
+      if(action==='day')state.deadlineDay=Number(calendar.dataset.value);
+      else{
+        state.deadlineMonth=new Date(state.deadlineMonth.getFullYear(),state.deadlineMonth.getMonth()+(action==='next'?1:-1),1);
+        state.deadlineDay=null;
+      }
+      render();
+      return;
+    }
     const month=event.target.closest('[data-tech-month]');
     if(month){state.month=Number(month.dataset.techMonth);render();return}
     const metric=event.target.closest('[data-tech-metric]');
@@ -519,6 +552,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   });
   document.addEventListener('change',event=>{
     if(!isActive())return;
+    if(event.target.id==='chief-chat-file'){const file=event.target.files?.[0];event.target.value='';selectMessageAttachment(file);return}
     if(event.target.id==='tech-result-photo'){
       const order=orderById(state.orderId),selected=Array.from(event.target.files||[]),files=selected.filter(file=>/\.(jpg|jpeg|png)$/i.test(file.name)&&file.size<=50*1024*1024);
       if(selected.length!==files.length)toast('Выберите фото JPG или PNG до 50 МБ.');
@@ -557,10 +591,10 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   document.addEventListener('submit',async event=>{
     if(!isActive()||event.target.id!=='chief-chat-form')return;
     event.preventDefault();
-    const form=event.target,text=form.elements.namedItem('text').value.trim();
-    if(!text||!state.activeConversation)return;
-    const button=form.querySelector('button');button.disabled=true;
-    try{const response=await fetch('/api/chief/conversations/'+encodeURIComponent(state.activeConversation)+'/reply',{method:'POST',headers:{'Content-Type':'application/json','X-Portal-Token':portalToken()},body:JSON.stringify({text})});if(!response.ok)throw new Error('Не удалось отправить ответ');const data=await response.json();form.reset();state.conversationMessages=[...state.conversationMessages,data.message];state.conversations=state.conversations.map(item=>item.id===state.activeConversation?{...item,lastMessage:data.message.text,updatedAt:data.message.time}:item).sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));shell(messagesPage());queueMicrotask(scrollChiefChat);refreshMessages()}catch(error){state.messagesError=error.message;shell(messagesPage())}finally{button.disabled=false}
+    const form=event.target,text=form.elements.namedItem('text').value.trim(),pending=state.messageAttachment;
+    if(!text&&!pending||!state.activeConversation)return;
+    const button=form.querySelector('.send-btn');button.disabled=true;
+    try{const uploaded=pending?(pending.uploaded||await uploadClinicMessageFile(pending.file,state.activeConversation)):null;if(pending&&!pending.uploaded)state.messageAttachment={...pending,uploaded};const attachment=uploaded?{...uploaded,preview:pending.preview||''}:null;const response=await fetch('/api/chief/conversations/'+encodeURIComponent(state.activeConversation)+'/reply',{method:'POST',headers:{'Content-Type':'application/json','X-Portal-Token':portalToken()},body:JSON.stringify({text,attachment})});if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.error||'Не удалось отправить ответ')}const data=await response.json();form.reset();state.messageAttachment=null;state.conversationMessages=[...state.conversationMessages,data.message];state.conversations=state.conversations.map(item=>item.id===state.activeConversation?{...item,lastMessage:data.message.text||`📎 ${data.message.attachment?.name||'Файл'}`,updatedAt:data.message.time}:item).sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));shell(messagesPage());queueMicrotask(scrollChiefChat);refreshMessages()}catch(error){state.messagesError=error.message;shell(messagesPage())}finally{if(button.isConnected)button.disabled=false}
   });
   document.addEventListener('submit',async event=>{
     if(!isActive()||event.target.id!=='tech-profile-form')return;

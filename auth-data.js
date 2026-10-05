@@ -13,7 +13,7 @@ let queue=Promise.resolve();
 
 const normalize=email=>String(email||'').trim().toLowerCase();
 export const validEmail=email=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalize(email))&&normalize(email).length<=200;
-export const validPassword=password=>typeof password==='string'&&password.length>=10&&password.length<=200;
+export const validPassword=password=>typeof password==='string'&&password.length>=8&&password.length<=200;
 const hash=password=>{const salt=randomBytes(16).toString('hex');return `${salt}:${scryptSync(password,salt,64).toString('hex')}`};
 const verify=(password,stored)=>{const [salt,digest]=stored.split(':');const actual=scryptSync(password,salt,64),expected=Buffer.from(digest,'hex');return actual.length===expected.length&&timingSafeEqual(actual,expected)};
 async function save(){

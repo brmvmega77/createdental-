@@ -37,6 +37,18 @@ export const downloadOrderFile=async fileId=>{
   const blob=await response.blob(),url=URL.createObjectURL(blob),anchor=document.createElement('a'),header=response.headers.get('Content-Disposition')||'',encoded=header.match(/filename\*=UTF-8''([^;]+)/i)?.[1];anchor.href=url;anchor.download=encoded?decodeURIComponent(encoded):'order-file';document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
 };
 export const requestOrderRework=(orderId,reason)=>request(`/api/orders/${encodeURIComponent(orderId)}/rework`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason})});
+export const uploadClinicMessageFile=async(file,clinicId='')=>{
+  const response=await fetch('/api/clinic-message-files',{method:'POST',headers:{'X-Portal-Token':portalToken(),'Content-Type':'application/octet-stream','X-Upload-Name':encodeURIComponent(file.name),...(clinicId?{'X-Clinic-Id':clinicId}:{})},body:file});
+  let data;try{data=await response.json()}catch{throw new Error('Сервер вернул неверный ответ')}
+  if(!response.ok)throw new Error(data.error||'Не удалось загрузить файл');
+  return data.attachment;
+};
+export const downloadClinicMessageFile=async fileId=>{
+  const response=await fetch(`/api/clinic-message-files/${encodeURIComponent(fileId)}`,{headers:{'X-Portal-Token':portalToken()}});
+  if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.error||'Не удалось скачать файл')}
+  const blob=await response.blob(),url=URL.createObjectURL(blob),anchor=document.createElement('a'),header=response.headers.get('Content-Disposition')||'',encoded=header.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  anchor.href=url;anchor.download=encoded?decodeURIComponent(encoded):'message-file';document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+};
 export async function authRequest(action,value){
   const data=await request('/api/auth/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
   if(data.token)setPortalToken(data.token);

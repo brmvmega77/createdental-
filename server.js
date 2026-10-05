@@ -13,6 +13,8 @@ const host = process.env.HOST || '127.0.0.1';
 const supportToken = process.env.SUPPORT_TOKEN || (process.env.SUPPORT_TOKEN_FILE ? fs.readFileSync(process.env.SUPPORT_TOKEN_FILE, 'utf8').trim() : '');
 const chatFile = process.env.CHAT_DATA_FILE || path.join(root, '.data', 'chat.json');
 const clinicMessagesFile=process.env.CLINIC_MESSAGES_FILE||path.join(root,'.data','clinic-messages.json');
+const clinicMessageUploadDir=process.env.CLINIC_MESSAGE_UPLOAD_DIR||path.join(root,'.data','clinic-message-files');
+const clinicMessageUploadMetaFile=process.env.CLINIC_MESSAGE_UPLOAD_META_FILE||path.join(root,'.data','clinic-message-files.json');
 const uploadDir=process.env.ORDER_UPLOAD_DIR||path.join(root,'.data','order-files');
 const uploadMetaFile=process.env.ORDER_UPLOAD_META_FILE||path.join(root,'.data','order-files.json');
 const notificationReadFile=process.env.NOTIFICATION_READ_FILE||path.join(root,'.data','notification-read.json');
@@ -26,6 +28,8 @@ let chats = {};
 let saveQueue = Promise.resolve();
 let clinicChats={};
 let clinicSaveQueue=Promise.resolve();
+let clinicMessageFiles={};
+let clinicMessageFilesQueue=Promise.resolve();
 let orderFiles={};
 let orderFilesQueue=Promise.resolve();
 let notificationReads={};
@@ -34,6 +38,7 @@ try{orderFiles=JSON.parse(fs.readFileSync(uploadMetaFile,'utf8'))}catch(error){i
 try{notificationReads=JSON.parse(fs.readFileSync(notificationReadFile,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
 const locationCache=new Map();
 try{clinicChats=JSON.parse(fs.readFileSync(clinicMessagesFile,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
+try{clinicMessageFiles=JSON.parse(fs.readFileSync(clinicMessageUploadMetaFile,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
 
 try {
   chats = JSON.parse(fs.readFileSync(chatFile, 'utf8'));
@@ -298,7 +303,7 @@ async function handleAuth(req,res,url){
   if(req.method==='POST'&&url.pathname==='/api/auth/register'){
     const name=String(body.name||'').trim(),email=String(body.email||'').trim().toLowerCase();
     const phone=String(body.phone||'').trim(),city=String(body.city||'').trim(),address=String(body.address||'').trim();
-    if(name.length<2||name.length>120||/[<>]/.test(name)||!validEmail(email)||!validPassword(body.password)||hasAccount(email))return json(res,400,{error:'Проверьте название, email и пароль (от 10 символов)'});
+    if(name.length<2||name.length>120||/[<>]/.test(name)||!validEmail(email)||!validPassword(body.password)||hasAccount(email))return json(res,400,{error:'Проверьте название, email и пароль (от 8 символов)'});
     if(phone&&!/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/.test(phone)||city.length>120||address.length>250||/[<>]/.test(city+address))return json(res,400,{error:'Проверьте телефон, город и адрес'});
     const existing=portalSnapshot().clients.find(item=>item.email?.toLowerCase()===email&&!item.deleted);
     const id=existing?.id||'client-'+randomBytes(12).toString('hex');
@@ -318,7 +323,7 @@ async function handleAuth(req,res,url){
     const employee=portalEmployee(body.employeeId);
     if(!employee||employee.status==='fired'||employee.email?.toLowerCase()!==String(body.email||'').toLowerCase())return json(res,400,{error:'Сначала сохраните техника с email'});
     try{await upsertWorkerAccount({employeeId:employee.id,email:body.email,password:body.password||''});revokeSubjectSessions('worker',employee.id)}
-    catch(error){return json(res,400,{error:error.message==='password_required'?'Укажите пароль для нового техника':'Проверьте email и пароль (от 10 символов)'})}
+    catch(error){return json(res,400,{error:error.message==='password_required'?'Укажите пароль для нового техника':'Проверьте email и пароль (от 8 символов)'})}
     return json(res,200,{ok:true});
   }
   return json(res,404,{error:'Не найдено'});
@@ -333,6 +338,45 @@ async function saveClinicChats(){
   await clinicSaveQueue;
 }
 
+async function saveClinicMessageFiles(){
+  clinicMessageFilesQueue=clinicMessageFilesQueue.catch(()=>{}).then(async()=>{
+    await fs.promises.mkdir(path.dirname(clinicMessageUploadMetaFile),{recursive:true,mode:0o700});
+    await fs.promises.writeFile(clinicMessageUploadMetaFile+'.tmp',JSON.stringify(clinicMessageFiles),{mode:0o600});
+    await fs.promises.rename(clinicMessageUploadMetaFile+'.tmp',clinicMessageUploadMetaFile);
+  });
+  await clinicMessageFilesQueue;
+}
+
+async function handleClinicMessageFiles(req,res,url){
+  const user=session(req);if(!user)return json(res,401,{error:'Войдите в кабинет'});
+  if(url.pathname==='/api/clinic-message-files'&&req.method==='POST'){
+    const clinicId=user.role==='clinic'?user.subjectId:String(req.headers['x-clinic-id']||'');
+    if(user.role!=='clinic'&&user.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
+    if(!portalClient(clinicId))return json(res,404,{error:'Клиника не найдена'});
+    let name='';try{name=decodeURIComponent(String(req.headers['x-upload-name']||''))}catch{return json(res,400,{error:'Неверное имя файла'})}
+    name=name.replace(/[\\/\0-\x1f]/g,'_').trim().slice(0,180);
+    const ext=path.extname(name).toLowerCase();
+    const allowed={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream','.zip':'application/zip','.doc':'application/msword','.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','.xls':'application/vnd.ms-excel','.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
+    if(!name||!allowed[ext])return json(res,400,{error:'Поддерживаются изображения, PDF, STL, PLY, ZIP, Word и Excel'});
+    let data;try{data=await readRaw(req,20*1024*1024)}catch(error){return json(res,error.message==='too_large'?413:400,{error:error.message==='too_large'?'Файл больше 20 МБ':'Не удалось прочитать файл'})}
+    if(!data.length)return json(res,400,{error:'Файл пустой'});
+    const id=randomBytes(18).toString('hex'),record={id,clinicId,name,size:data.length,type:allowed[ext],uploadedAt:new Date().toISOString(),uploadedBy:actorName(user)};
+    try{
+      await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
+      await fs.promises.writeFile(path.join(clinicMessageUploadDir,id),data,{flag:'wx',mode:0o600});
+      clinicMessageFiles[id]=record;await saveClinicMessageFiles();
+      return json(res,201,{attachment:{id,name,size:record.size,type:record.type}});
+    }catch{return json(res,500,{error:'Не удалось сохранить файл'})}
+  }
+  const match=url.pathname.match(/^\/api\/clinic-message-files\/([a-f0-9]{36})$/);
+  if(match&&req.method==='GET'){
+    const record=clinicMessageFiles[match[1]];
+    if(!record||user.role==='clinic'&&record.clinicId!==user.subjectId||!['clinic','technician'].includes(user.role))return json(res,404,{error:'Файл не найден'});
+    try{const data=await fs.promises.readFile(path.join(clinicMessageUploadDir,record.id));res.writeHead(200,{'Content-Type':record.type,'Content-Length':data.length,'Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(record.name)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});return res.end(data)}catch{return json(res,404,{error:'Файл не найден'})}
+  }
+  return json(res,404,{error:'Не найдено'});
+}
+
 async function handleClinicMessages(req,res,url){
   const user=session(req);
   if(!user)return json(res,401,{error:'Войдите в кабинет'});
@@ -342,7 +386,7 @@ async function handleClinicMessages(req,res,url){
   }
   if(user.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
   if(req.method==='GET'&&url.pathname==='/api/chief/conversations'){
-    const conversations=Object.entries(clinicChats).filter(([id])=>portalClient(id)).map(([id,chat])=>{const clinic=portalClient(id);return {id,name:clinic.name,logo:clinic.logo||'',lastMessage:chat.messages.at(-1)?.text||'',updatedAt:chat.updatedAt}}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+    const conversations=Object.entries(clinicChats).filter(([id])=>portalClient(id)).map(([id,chat])=>{const clinic=portalClient(id),last=chat.messages.at(-1);return {id,name:clinic.name,logo:clinic.logo||'',lastMessage:last?.text||(last?.attachment?`📎 ${last.attachment.name}`:''),updatedAt:chat.updatedAt}}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
     return json(res,200,{conversations});
   }
   const match=url.pathname.match(/^\/api\/chief\/conversations\/([A-Za-z0-9_-]+)(?:\/reply)?$/);
@@ -353,10 +397,15 @@ async function handleClinicMessages(req,res,url){
 }
 
 async function addClinicMessage(req,res,id,from){
-  let body;try{body=await readBody(req,4096)}catch{return json(res,400,{error:'Неверное сообщение'})}
+  let body;try{body=await readBody(req,220000)}catch{return json(res,400,{error:'Неверное сообщение'})}
   const message=String(body.text||'').trim();
-  if(!message||message.length>2000)return json(res,400,{error:'Сообщение должно содержать от 1 до 2000 символов'});
-  const entry={id:randomBytes(12).toString('hex'),from,text:message,time:new Date().toISOString()};
+  const requested=body.attachment&&typeof body.attachment==='object'?body.attachment:null;
+  const stored=requested&&clinicMessageFiles[String(requested.id||'')];
+  if(requested&&(!stored||stored.clinicId!==id))return json(res,400,{error:'Не удалось найти прикреплённый файл'});
+  if(!message&&!stored||message.length>2000)return json(res,400,{error:'Добавьте текст или файл'});
+  const preview=stored&&typeof requested.preview==='string'&&requested.preview.length<=180000&&/^data:image\/(?:jpeg|png|webp);base64,/i.test(requested.preview)?requested.preview:'';
+  const attachment=stored?{id:stored.id,name:stored.name,size:stored.size,type:stored.type,preview}:null;
+  const entry={id:randomBytes(12).toString('hex'),from,text:message,time:new Date().toISOString(),...(attachment?{attachment}:{})};
   const chat=clinicChats[id]||={messages:[],updatedAt:''};
   chat.messages.push(entry);chat.updatedAt=entry.time;
   try{await saveClinicChats()}catch{return json(res,500,{error:'Не удалось сохранить сообщение'})}
@@ -468,6 +517,9 @@ const requestHandler=async (req,res) => {
   const isSecure=Boolean(req.socket.encrypted)||req.headers['x-forwarded-proto']==='https';
   if(httpsRedirect&&!isSecure){const requestHost=String(req.headers.host||'').replace(/[^A-Za-z0-9.:[\]-]/g,'');if(!requestHost)return json(res,400,{error:'Неверный адрес'});res.writeHead(308,{Location:`https://${requestHost}${req.url||'/'}`,'Cache-Control':'no-store'});return res.end()}
   if(url.pathname.startsWith('/api/auth/'))return handleAuth(req,res,url);
+  if(url.pathname==='/api/clinic-message-files'||url.pathname.startsWith('/api/clinic-message-files/')){
+    try{return await handleClinicMessageFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка файла сообщения'})}
+  }
   if(url.pathname.startsWith('/api/orders/')&&(url.pathname.endsWith('/files')||url.pathname.endsWith('/rework'))){
     try{return url.pathname.endsWith('/rework')?await handleOrderRework(req,res,url):await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка обработки заказа'})}
   }
@@ -490,6 +542,8 @@ await fs.promises.mkdir(path.join(root,'.data'),{recursive:true,mode:0o700});
 await fs.promises.chmod(path.join(root,'.data'),0o700);
 await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(uploadDir,0o700);
+await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
+await fs.promises.chmod(clinicMessageUploadDir,0o700);
 server.listen(port,host,()=>{
   console.log(`Create Dental: ${tlsKeyFile?'https':'http'}://${host}:${port}`);
   const backup=async()=>{try{const saved=await createDataBackup();console.log(`Data backup created: ${path.basename(saved)}`)}catch(error){console.error('Data backup failed:',error.message)}};
