@@ -1,7 +1,7 @@
-import {loadEmployees,seedDetails,stages} from './technician.js?v=mobile-fast-3';
-import {savePortal,authRequest,loadOrderFiles,uploadOrderFile,downloadOrderFile} from './portal-client.js?v=mobile-fast-3';
+import {loadEmployees,seedDetails,stages} from './technician.js?v=mobile-fast-4';
+import {savePortal,authRequest,loadOrderFiles,uploadOrderFile,downloadOrderFile} from './portal-client.js?v=mobile-fast-4';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=mobile-fast-1';
-import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=mobile-fast-3';
+import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=mobile-fast-4';
 
 const safe=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const tone=stage=>stage==='Контроль качества'?'review':['Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(stage)?'ready':'work';

@@ -1,14 +1,18 @@
 const key='create-dental-portal-token';
 
-export const portalToken=()=>sessionStorage.getItem(key)||'';
-export function setPortalToken(token){sessionStorage.setItem(key,token.trim())}
-export function clearPortalToken(){sessionStorage.removeItem(key)}
+export function portalToken(){
+  const token=localStorage.getItem(key)||sessionStorage.getItem(key)||'';
+  if(token&&!localStorage.getItem(key)){localStorage.setItem(key,token);sessionStorage.removeItem(key)}
+  return token;
+}
+export function setPortalToken(token){localStorage.setItem(key,token.trim());sessionStorage.removeItem(key)}
+export function clearPortalToken(){localStorage.removeItem(key);sessionStorage.removeItem(key)}
 
 async function request(path,options={}){
   const response=await fetch(path,{...options,headers:{'X-Portal-Token':portalToken(),...(options.headers||{})}});
   let data;
   try {data=await response.json()} catch {throw new Error('Сервер вернул неверный ответ')}
-  if(!response.ok)throw new Error(data.error||'Ошибка связи с сервером');
+  if(!response.ok){const error=new Error(data.error||'Ошибка связи с сервером');error.status=response.status;throw error}
   return data;
 }
 

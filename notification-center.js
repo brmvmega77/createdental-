@@ -1,4 +1,4 @@
-import {portalToken} from './portal-client.js?v=mobile-fast-3';
+import {portalToken} from './portal-client.js?v=mobile-fast-4';
 
 let state={items:[],unreadCount:0,open:false,loaded:false};
 const safe=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));

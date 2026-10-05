@@ -1,7 +1,7 @@
 import { seedOrders } from './seed-orders.js?v=mobile-fast-1';
-import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,downloadOrderFile,requestOrderRework} from './portal-client.js?v=mobile-fast-3';
+import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,downloadOrderFile,requestOrderRework} from './portal-client.js?v=mobile-fast-4';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=mobile-fast-1';
-import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=mobile-fast-3';
+import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=mobile-fast-4';
 
 const $ = (selector) => document.querySelector(selector);
 const icons = {
@@ -147,7 +147,7 @@ function detail(){
   if(!o){state.page='orders';ordersPage();return}
   if(state.filesFor!==o.id){Object.values(state.orderPhotoUrls).forEach(URL.revokeObjectURL);state.orderPhotoUrls={};state.filesFor=o.id;state.orderFiles=[];loadOrderFiles(o.id).then(async result=>{if(state.orderId!==o.id)return;state.orderFiles=result.files||[];await Promise.all(state.orderFiles.filter(file=>file.purpose==='result-photo').map(async file=>{try{state.orderPhotoUrls[file.id]=await loadOrderFilePreview(file.id)}catch{}}));if(state.page==='detail')render()}).catch(()=>{})}
   let overrides={};try{overrides=JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}}catch{}
-  const details={...seedDetails[o.id],...overrides[o.id]};
+  const details={...(overrides[o.id]||{})};
   const teeth=Array.isArray(o.teeth)?o.teeth:details.teeth||[];
   const facts=[['Пациент',o.patient],['Выбранные зубы',teeth.join(', ')||'—'],['Тип работы',o.work],...(o.material?[['Материал',o.material]]:[]),...(o.quantity?[['Количество',o.quantity]]:[]),['Желаемый срок',o.date],['Сумма заказа',o.sum],['Цвет',o.shade||'—'],['Комментарий',o.comment||'—'],['Исполнитель',details.assignee||'Не назначен']];
   const created=o.createdAt?new Date(o.createdAt).toLocaleDateString('ru-RU'):'—';
@@ -259,11 +259,11 @@ function syncRoute(){
 async function hydratePortal(){
   const data=await loadPortal();
   if(data.user.role==='technician'&&!technicianCabinet){
-    const {createTechnicianCabinet}=await import('./technician.js?v=mobile-fast-3');
+    const {createTechnicianCabinet}=await import('./technician.js?v=mobile-fast-4');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=mobile-fast-3');
+    const {createWorkerCabinet}=await import('./worker.js?v=mobile-fast-4');
     workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,onUserUpdate:user=>{portalUser=user}});
   }
   if(portalUser?.subjectId!==data.user.subjectId)state.messages=[];
@@ -414,7 +414,11 @@ window.addEventListener('popstate',syncRoute);
 setInterval(()=>{if(document.visibilityState!=='visible')return;loadMessages();technicianCabinet?.refreshMessages()},3000);
 setInterval(()=>{if(document.visibilityState!=='visible'||!portalReady)return;refreshNotificationCenter().then(()=>{const center=document.querySelector('.notification-center');if(center)center.outerHTML=notificationCenterMarkup()}).catch(()=>{})},20000);
 render();
-if(portalToken())hydratePortal().catch(error=>{clearPortalToken();portalError=error.message;render()});
+if(portalToken())hydratePortal().catch(error=>{
+  if(error.status===401){clearPortalToken();portalReady=false;navigate('/login',{replace:true})}
+  portalError=error.message;
+  render();
+});
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&portalReady&&!document.querySelector('input:focus,textarea:focus,select:focus')){
     hydratePortal().catch(error=>{portalError=error.message;notify('Не удалось обновить данные: '+error.message)});
