@@ -1,8 +1,10 @@
 import http from 'node:http';
+import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import { timingSafeEqual,randomBytes } from 'node:crypto';
-import {portalSnapshot,replacePortalCollection,portalClient,portalEmployee} from './portal-data.js';
+import {createDataBackup} from './backup-data.js';
+import {portalSnapshot,replacePortalCollection,recordPortalEvent,portalClient,portalEmployee} from './portal-data.js';
 import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
 
 const root = process.cwd();
@@ -11,13 +13,25 @@ const host = process.env.HOST || '127.0.0.1';
 const supportToken = process.env.SUPPORT_TOKEN || (process.env.SUPPORT_TOKEN_FILE ? fs.readFileSync(process.env.SUPPORT_TOKEN_FILE, 'utf8').trim() : '');
 const chatFile = process.env.CHAT_DATA_FILE || path.join(root, '.data', 'chat.json');
 const clinicMessagesFile=process.env.CLINIC_MESSAGES_FILE||path.join(root,'.data','clinic-messages.json');
-const publicFiles = new Set(['/','/index.html','/app.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/styles.css','/support.html','/support.js']);
-const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png'};
+const uploadDir=process.env.ORDER_UPLOAD_DIR||path.join(root,'.data','order-files');
+const uploadMetaFile=process.env.ORDER_UPLOAD_META_FILE||path.join(root,'.data','order-files.json');
+const notificationReadFile=process.env.NOTIFICATION_READ_FILE||path.join(root,'.data','notification-read.json');
+const tlsKeyFile=process.env.TLS_KEY_FILE||'';
+const tlsCertFile=process.env.TLS_CERT_FILE||'';
+const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
+const publicFiles = new Set(['/','/index.html','/app.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/styles.css','/support.html','/support.js']);
+const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.ico':'image/x-icon'};
 const conversationIdPattern = /^[a-f0-9]{32}$/;
 let chats = {};
 let saveQueue = Promise.resolve();
 let clinicChats={};
 let clinicSaveQueue=Promise.resolve();
+let orderFiles={};
+let orderFilesQueue=Promise.resolve();
+let notificationReads={};
+let notificationReadQueue=Promise.resolve();
+try{orderFiles=JSON.parse(fs.readFileSync(uploadMetaFile,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
+try{notificationReads=JSON.parse(fs.readFileSync(notificationReadFile,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
 const locationCache=new Map();
 try{clinicChats=JSON.parse(fs.readFileSync(clinicMessagesFile,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
 
@@ -30,6 +44,14 @@ try {
 function json(res, status, data) {
   res.writeHead(status, {'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
   res.end(JSON.stringify(data));
+}
+
+function secureHeaders(req,res){
+  res.setHeader('X-Content-Type-Options','nosniff');
+  res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
+  res.setHeader('X-Frame-Options','DENY');
+  res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');
+  if(req.socket.encrypted||req.headers['x-forwarded-proto']==='https')res.setHeader('Strict-Transport-Security','max-age=31536000; includeSubDomains');
 }
 
 function isOperator(req) {
@@ -46,6 +68,17 @@ function session(req){
   if(current.role==='clinic'&&!portalClient(current.subjectId))return null;
   if(current.role==='worker'&&portalEmployee(current.subjectId)?.status!=='active')return null;
   return current;
+}
+function canAccessOrder(user,order){
+  if(!user||!order)return false;
+  if(user.role==='technician')return true;
+  if(user.role==='clinic')return order.clinicId===user.subjectId;
+  return user.role==='worker'&&portalEmployee(user.subjectId)?.originalName===portalSnapshot().orderOverrides[order.id]?.assignee;
+}
+function actorName(user){
+  if(user?.role==='clinic')return portalClient(user.subjectId)?.name||user.displayName||'Клиника';
+  if(user?.role==='worker')return portalEmployee(user.subjectId)?.name||user.displayName||'Техник';
+  return user?.displayName||user?.email||'Главный техник';
 }
 function publicUser(user){
   if(user?.role==='technician'&&user.subjectId==='chief')return {...user,...chiefAccountProfile()};
@@ -75,12 +108,14 @@ async function handlePortal(req,res,url){
       snapshot.orders=snapshot.orders.filter(item=>item.clinicId===user.subjectId);
       snapshot.employees=[];
       snapshot.orderOverrides=Object.fromEntries(Object.entries(snapshot.orderOverrides).filter(([id])=>snapshot.orders.some(order=>order.id===id)));
+      snapshot.orderHistory=snapshot.orderHistory.filter(event=>event.clinicId===user.subjectId||snapshot.orders.some(order=>order.id===event.orderId));
     }else if(user.role==='worker'){
       const employee=portalEmployee(user.subjectId);
       snapshot.orders=snapshot.orders.filter(item=>snapshot.orderOverrides[item.id]?.assignee===employee.originalName);
       snapshot.clients=[];
       snapshot.employees=[employee];
       snapshot.orderOverrides=Object.fromEntries(Object.entries(snapshot.orderOverrides).filter(([id])=>snapshot.orders.some(order=>order.id===id)));
+      snapshot.orderHistory=snapshot.orderHistory.filter(event=>snapshot.orders.some(order=>order.id===event.orderId));
     }
     return json(res,200,{...snapshot,user:publicUser(user)});
   }
@@ -103,8 +138,8 @@ async function handlePortal(req,res,url){
         const changes=Object.entries(value).filter(([id,detail])=>JSON.stringify(detail)!==JSON.stringify(snapshot.orderOverrides[id]));
         if(changes.length!==1)return json(res,403,{error:'Можно изменить только один свой заказ'});
         const [id,next]=changes[0],order=snapshot.orders.find(item=>item.id===id&&item.clinicId===user.subjectId),old=snapshot.orderOverrides[id]||{};
-        if(!order||old.stage!=='В доставке'||next.stage!=='Принято доктором'||Object.keys(next).some(field=>field!=='stage'&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:'Неверный переход этапа'});
-        value={...snapshot.orderOverrides,[id]:next};
+        if(!order||old.stage!=='В доставке'||next.stage!=='Принято доктором'||Object.keys(next).some(field=>!['stage','doctorAcceptedAt'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:'Неверный переход этапа'});
+        value={...snapshot.orderOverrides,[id]:{...next,...(next.stage==='Принято доктором'?{doctorAcceptedAt:new Date().toISOString()}:{})}};
       }else return json(res,403,{error:'Доступ запрещён'});
     }else if(user.role==='worker'){
       if(key!=='orderOverrides'||!value||typeof value!=='object')return json(res,403,{error:'Доступ запрещён'});
@@ -114,17 +149,123 @@ async function handlePortal(req,res,url){
       if(changes.length!==1)return json(res,403,{error:'Можно изменить только один свой заказ'});
       const [id,next]=changes[0],old=snapshot.orderOverrides[id];
       const oldIndex=stages.indexOf(old?.stage),nextIndex=stages.indexOf(next?.stage);
-      if(!old||old.assignee!==employee.originalName||!next||next.assignee!==old.assignee||oldIndex<0||nextIndex<0||Math.abs(nextIndex-oldIndex)!==1||Object.keys(next).some(field=>field!=='stage'&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:'Неверный переход этапа'});
+      const reworkResume=old?.stage==='На доработке'&&next?.stage==='Изготовление';
+      if(!old||old.assignee!==employee.originalName||!next||next.assignee!==old.assignee||(!reworkResume&&(oldIndex<0||nextIndex<0||Math.abs(nextIndex-oldIndex)!==1))||Object.keys(next).some(field=>!['stage','reworkReason','reworkAt'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:'Неверный переход этапа'});
       value={...snapshot.orderOverrides,[id]:next};
     }
-    try {await replacePortalCollection(key,value);if(key==='employees')for(const employee of value)if(employee.status!=='active')revokeSubjectSessions('worker',employee.id);return json(res,200,{ok:true})}
+    try {await replacePortalCollection(key,value,{role:user.role,name:actorName(user)});if(key==='employees')for(const employee of value)if(employee.status!=='active')revokeSubjectSessions('worker',employee.id);return json(res,200,{ok:true})}
     catch(error){return json(res,error.message==='invalid_collection'?400:500,{error:error.message==='invalid_collection'?'Неверные данные':'Не удалось сохранить'})}
   }
   return json(res,404,{error:'Не найдено'});
 }
 
+async function persistOrderFiles(){
+  orderFilesQueue=orderFilesQueue.catch(()=>{}).then(async()=>{
+    await fs.promises.mkdir(path.dirname(uploadMetaFile),{recursive:true,mode:0o700});
+    await fs.promises.writeFile(uploadMetaFile+'.tmp',JSON.stringify(orderFiles),{mode:0o600});
+    await fs.promises.rename(uploadMetaFile+'.tmp',uploadMetaFile);
+  });
+  await orderFilesQueue;
+}
+async function readRaw(req,limit){
+  const chunks=[];let size=0;
+  for await(const chunk of req){size+=chunk.length;if(size>limit)throw new Error('too_large');chunks.push(chunk)}
+  return Buffer.concat(chunks,size);
+}
+function orderIdFromFileRoute(pathname){return pathname.match(/^\/api\/orders\/([A-Za-z0-9_-]{1,80})\/files$/)?.[1]||''}
+async function handleOrderFiles(req,res,url){
+  const user=session(req);if(!user)return json(res,401,{error:'Войдите в кабинет'});
+  const orderId=orderIdFromFileRoute(url.pathname);
+  if(orderId){
+    const order=portalSnapshot().orders.find(item=>item.id===orderId);
+    if(!canAccessOrder(user,order))return json(res,404,{error:'Заказ не найден'});
+    if(req.method==='GET')return json(res,200,{files:(orderFiles[orderId]||[]).map(({id,name,size,type,uploadedAt,uploadedBy,purpose})=>({id,name,size,type,uploadedAt,uploadedBy,purpose:purpose||'order-file'}))});
+    if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
+    const name=decodeURIComponent(String(req.headers['x-upload-name']||'')).replace(/[\\/\\0-\\x1f]/g,'_').trim().slice(0,180);
+    const ext=path.extname(name).toLowerCase();
+    const purpose=String(req.headers['x-file-purpose']||'order-file');
+    if(!['order-file','result-photo'].includes(purpose))return json(res,400,{error:'Неизвестный тип файла'});
+    if(purpose==='result-photo'&&(user.role==='clinic'||!['.jpg','.jpeg','.png'].includes(ext)))return json(res,403,{error:'Фото результата может добавить только лаборатория в формате JPG или PNG'});
+    if(purpose==='result-photo'&&user.role==='worker'&&portalSnapshot().orderOverrides[orderId]?.stage!=='Контроль качества')return json(res,409,{error:'Фото результата можно добавить на этапе контроля качества'});
+    const allowed={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream'};
+    if(!name||!allowed[ext])return json(res,400,{error:'Поддерживаются JPG, PNG, PDF, STL и PLY'});
+    const type=String(req.headers['content-type']||'').split(';')[0].toLowerCase();
+    if(type&&type!=='application/octet-stream'&&type!==allowed[ext])return json(res,400,{error:'Тип файла не совпадает с расширением'});
+    let data;try{data=await readRaw(req,50*1024*1024)}catch(error){return json(res,error.message==='too_large'?413:400,{error:error.message==='too_large'?'Файл больше 50 МБ':'Не удалось прочитать файл'})}
+    if(!data.length)return json(res,400,{error:'Файл пустой'});
+    const id=randomBytes(18).toString('hex');
+    try{
+      await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
+      await fs.promises.writeFile(path.join(uploadDir,id),data,{flag:'wx',mode:0o600});
+      const record={id,name,size:data.length,type:allowed[ext],uploadedAt:new Date().toISOString(),uploadedBy:actorName(user),purpose};
+      orderFiles[orderId]=[...(orderFiles[orderId]||[]),record];await persistOrderFiles();
+      await recordPortalEvent(orderId,{role:user.role,name:actorName(user)},'file_uploaded',{summary:purpose==='result-photo'?'Добавлено фото готовой работы':'Добавлен файл к заказу',fileName:name,purpose,clinicId:order.clinicId}).catch(()=>{});
+      return json(res,201,{file:record});
+    }catch{return json(res,500,{error:'Не удалось сохранить файл'})}
+  }
+  const match=url.pathname.match(/^\/api\/order-files\/([a-f0-9]{36})$/);
+  if(match&&req.method==='GET'){
+    const record=Object.entries(orderFiles).flatMap(([id,files])=>files.filter(file=>file.id===match[1]).map(file=>({orderId:id,file})))[0];
+    if(!record||!canAccessOrder(user,portalSnapshot().orders.find(item=>item.id===record.orderId)))return json(res,404,{error:'Файл не найден'});
+    try{const data=await fs.promises.readFile(path.join(uploadDir,record.file.id));res.writeHead(200,{'Content-Type':record.file.type,'Content-Length':data.length,'Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(record.file.name)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});return res.end(data)}catch{return json(res,404,{error:'Файл не найден'})}
+  }
+  return json(res,404,{error:'Не найдено'});
+}
+
+async function persistNotificationReads(){
+  notificationReadQueue=notificationReadQueue.catch(()=>{}).then(async()=>{
+    await fs.promises.mkdir(path.dirname(notificationReadFile),{recursive:true,mode:0o700});
+    await fs.promises.writeFile(notificationReadFile+'.tmp',JSON.stringify(notificationReads),{mode:0o600});
+    await fs.promises.rename(notificationReadFile+'.tmp',notificationReadFile);
+  });
+  await notificationReadQueue;
+}
+async function handleNotifications(req,res){
+  const user=session(req);if(!user)return json(res,401,{error:'Войдите в кабинет'});
+  const key=`${user.role}:${user.subjectId}`,snapshot=portalSnapshot();
+  if(req.method==='GET'){
+    const accessible=new Set(snapshot.orders.filter(order=>canAccessOrder(user,order)).map(order=>order.id));
+    const events=snapshot.orderHistory.filter(event=>(event.clinicId===user.subjectId||accessible.has(event.orderId))&&!(event.action==='stage_changed'&&event.to==='На доработке'));
+    const readAt=notificationReads[key]||'';
+    const describe=event=>{
+      if(event.action==='stage_changed')return `Заказ ${event.orderId}: ${event.to}`;
+      if(event.action==='assignee_changed')return `Заказ ${event.orderId}: исполнитель ${event.to}`;
+      if(event.action==='rework_requested')return `Заказ ${event.orderId}: запрошена доработка`;
+      if(event.action==='file_uploaded')return `Заказ ${event.orderId}: ${event.purpose==='result-photo'?'добавлено фото готовой работы':'добавлен файл'}`;
+      if(event.action==='order_created')return `Создан заказ ${event.orderId}`;
+      if(event.action==='message_received')return `Новое сообщение от клиники`;
+      if(event.action==='message_replied')return `Лаборатория ответила на сообщение`;
+      return `Заказ ${event.orderId}: ${event.summary||'есть обновление'}`;
+    };
+    const items=events.slice(-100).reverse().map(event=>({id:event.id,orderId:event.orderId||'',at:event.at,text:describe(event),read:Boolean(readAt&&event.at<=readAt),actorRole:event.actorRole}));
+    return json(res,200,{items:items.slice(0,40),unreadCount:items.filter(item=>!item.read&&item.actorRole!==user.role).length});
+  }
+  if(req.method==='POST'){
+    notificationReads[key]=new Date().toISOString();
+    try{await persistNotificationReads();return json(res,200,{ok:true})}catch{return json(res,500,{error:'Не удалось отметить уведомления прочитанными'})}
+  }
+  return json(res,405,{error:'Метод не поддерживается'});
+}
+
+async function handleOrderRework(req,res,url){
+  const user=session(req);if(!user)return json(res,401,{error:'Войдите в кабинет'});
+  if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
+  const id=url.pathname.match(/^\/api\/orders\/([A-Za-z0-9_-]{1,80})\/rework$/)?.[1];
+  if(!id)return json(res,404,{error:'Не найдено'});
+  const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===id);
+  if(user.role!=='clinic'||!order||order.clinicId!==user.subjectId)return json(res,404,{error:'Заказ не найден'});
+  const old=snapshot.orderOverrides[id]||{};
+  if(old.stage!=='В доставке')return json(res,409,{error:'Отправить заказ на доработку можно после доставки'});
+  let body;try{body=await readBody(req,6000)}catch{return json(res,400,{error:'Укажите причину доработки'})}
+  const reason=String(body.reason||'').trim();
+  if(reason.length<5||reason.length>2000)return json(res,400,{error:'Опишите причину доработки (от 5 до 2000 символов)'});
+  const next={...snapshot.orderOverrides,[id]:{...old,stage:'На доработке',reworkReason:reason,reworkAt:new Date().toISOString()}};
+  try{await replacePortalCollection('orderOverrides',next,{role:'clinic',name:actorName(user)});return json(res,200,{ok:true})}
+  catch{return json(res,500,{error:'Не удалось сохранить запрос на доработку'})}
+}
+
 async function handleAuth(req,res,url){
-  if(req.method==='POST'&&url.pathname==='/api/auth/logout'){revokeSession(req.headers['x-portal-token']);return json(res,200,{ok:true})}
+  if(req.method==='POST'&&url.pathname==='/api/auth/logout'){try{revokeSession(req.headers['x-portal-token']);return json(res,200,{ok:true})}catch{return json(res,500,{error:'Не удалось завершить сеанс. Закройте браузер и повторите попытку'})}}
   if(req.method==='POST'&&url.pathname==='/api/auth/chief-profile'){
     const user=session(req);
     if(user?.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
@@ -169,7 +310,8 @@ async function handleAuth(req,res,url){
     const account=login(body.email,body.password);
     if(!account||account.role==='worker'&&portalEmployee(account.subjectId)?.status!=='active'||account.role==='clinic'&&!portalClient(account.subjectId))return json(res,401,{error:'Неверный email или пароль'});
     if(account.role==='clinic'&&portalClient(account.subjectId).approved===false)return json(res,403,{error:'Кабинет ожидает подтверждения главным техником'});
-    return json(res,200,{token:issueSession(account.role,account.subjectId,account.displayName||account.email),user:publicUser({role:account.role,subjectId:account.subjectId})});
+    try{return json(res,200,{token:issueSession(account.role,account.subjectId,account.displayName||account.email),user:publicUser({role:account.role,subjectId:account.subjectId})})}
+    catch{return json(res,500,{error:'Не удалось безопасно сохранить сеанс'})}
   }
   if(req.method==='POST'&&url.pathname==='/api/auth/staff'){
     if(session(req)?.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
@@ -200,7 +342,7 @@ async function handleClinicMessages(req,res,url){
   }
   if(user.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
   if(req.method==='GET'&&url.pathname==='/api/chief/conversations'){
-    const conversations=Object.entries(clinicChats).filter(([id])=>portalClient(id)).map(([id,chat])=>({id,name:portalClient(id).name,lastMessage:chat.messages.at(-1)?.text||'',updatedAt:chat.updatedAt})).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+    const conversations=Object.entries(clinicChats).filter(([id])=>portalClient(id)).map(([id,chat])=>{const clinic=portalClient(id);return {id,name:clinic.name,logo:clinic.logo||'',lastMessage:chat.messages.at(-1)?.text||'',updatedAt:chat.updatedAt}}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
     return json(res,200,{conversations});
   }
   const match=url.pathname.match(/^\/api\/chief\/conversations\/([A-Za-z0-9_-]+)(?:\/reply)?$/);
@@ -218,6 +360,7 @@ async function addClinicMessage(req,res,id,from){
   const chat=clinicChats[id]||={messages:[],updatedAt:''};
   chat.messages.push(entry);chat.updatedAt=entry.time;
   try{await saveClinicChats()}catch{return json(res,500,{error:'Не удалось сохранить сообщение'})}
+  await recordPortalEvent('',{role:from==='client'?'clinic':'technician',name:from==='client'?(portalClient(id)?.name||'Клиника'):'Главный техник'},from==='client'?'message_received':'message_replied',{clinicId:id,summary:from==='client'?'Новое сообщение от клиники':'Лаборатория ответила на сообщение'}).catch(()=>{});
   return json(res,201,{message:entry});
 }
 
@@ -298,7 +441,9 @@ async function handleChat(req, res, url) {
 function serveFile(req, res, pathname) {
   let file;
   const appRoute=/^\/(?:login|register|forgot-password|(?:clinic|technician|worker)(?:\/[A-Za-z0-9_-]+){0,2})\/?$/.test(pathname);
-  if (publicFiles.has(pathname)||appRoute) {
+  if (pathname==='/favicon.ico') {
+    file = path.join(root, 'public', 'assets', 'favicon.ico');
+  } else if (publicFiles.has(pathname)||appRoute) {
     file = path.join(root, appRoute||pathname==='/' ? 'index.html' : pathname);
   } else if (pathname.startsWith('/assets/')) {
     file = path.resolve(root, 'public', '.' + pathname);
@@ -308,15 +453,26 @@ function serveFile(req, res, pathname) {
   }
   fs.readFile(file, (error, data) => {
     if (error) return json(res, 404, {error:'Не найдено'});
-    res.writeHead(200, {'Content-Type':types[path.extname(file)] || 'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+    const isAsset=pathname.startsWith('/assets/');
+    const isVersionedCode=/\.(?:js|css)$/.test(pathname)&&/[?&]v=[A-Za-z0-9._-]+/.test(req.url||'');
+    const cacheControl=isAsset?'public, max-age=2592000':isVersionedCode?'public, max-age=31536000, immutable':'no-store';
+    res.writeHead(200, {'Content-Type':types[path.extname(file)] || 'application/octet-stream','Cache-Control':cacheControl,'X-Content-Type-Options':'nosniff'});
     res.end(req.method === 'HEAD' ? undefined : data);
   });
 }
 
-http.createServer(async (req,res) => {
+const requestHandler=async (req,res) => {
+  secureHeaders(req,res);
   let url;
   try { url = new URL(req.url || '/', 'http://localhost'); } catch { return json(res, 400, {error:'Неверный адрес'}); }
+  const isSecure=Boolean(req.socket.encrypted)||req.headers['x-forwarded-proto']==='https';
+  if(httpsRedirect&&!isSecure){const requestHost=String(req.headers.host||'').replace(/[^A-Za-z0-9.:[\]-]/g,'');if(!requestHost)return json(res,400,{error:'Неверный адрес'});res.writeHead(308,{Location:`https://${requestHost}${req.url||'/'}`,'Cache-Control':'no-store'});return res.end()}
   if(url.pathname.startsWith('/api/auth/'))return handleAuth(req,res,url);
+  if(url.pathname.startsWith('/api/orders/')&&(url.pathname.endsWith('/files')||url.pathname.endsWith('/rework'))){
+    try{return url.pathname.endsWith('/rework')?await handleOrderRework(req,res,url):await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка обработки заказа'})}
+  }
+  if(url.pathname==='/api/notifications')return handleNotifications(req,res);
+  if(url.pathname.startsWith('/api/order-files/')){try{return await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка чтения файла'})}}
   if(url.pathname==='/api/locations')return handleLocations(req,res,url);
   if(url.pathname==='/api/clinic-messages'||url.pathname.startsWith('/api/chief/conversations')){
     try{return await handleClinicMessages(req,res,url)}catch{return json(res,500,{error:'Ошибка сообщений'})}
@@ -327,4 +483,16 @@ http.createServer(async (req,res) => {
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, {error:'Метод не поддерживается'});
   return serveFile(req,res,url.pathname);
-}).listen(port, host, () => console.log(`Create Dental: http://${host}:${port}`));
+};
+if(Boolean(tlsKeyFile)!==Boolean(tlsCertFile))throw new Error('Set both TLS_KEY_FILE and TLS_CERT_FILE to enable HTTPS');
+const server=tlsKeyFile&&tlsCertFile?https.createServer({key:fs.readFileSync(tlsKeyFile),cert:fs.readFileSync(tlsCertFile)},requestHandler):http.createServer(requestHandler);
+await fs.promises.mkdir(path.join(root,'.data'),{recursive:true,mode:0o700});
+await fs.promises.chmod(path.join(root,'.data'),0o700);
+await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
+await fs.promises.chmod(uploadDir,0o700);
+server.listen(port,host,()=>{
+  console.log(`Create Dental: ${tlsKeyFile?'https':'http'}://${host}:${port}`);
+  const backup=async()=>{try{const saved=await createDataBackup();console.log(`Data backup created: ${path.basename(saved)}`)}catch(error){console.error('Data backup failed:',error.message)}};
+  void backup();
+  const backupTimer=setInterval(backup,24*60*60*1000);backupTimer.unref();
+});

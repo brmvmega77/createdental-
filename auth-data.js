@@ -1,11 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {randomBytes,scryptSync,timingSafeEqual} from 'node:crypto';
+import {randomBytes,createHash,scryptSync,timingSafeEqual} from 'node:crypto';
 
 const file=process.env.AUTH_DATA_FILE||path.join(process.cwd(),'.data','accounts.json');
+const sessionFile=process.env.SESSION_DATA_FILE||path.join(process.cwd(),'.data','sessions.json');
 let accounts=[];
 try{accounts=JSON.parse(fs.readFileSync(file,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
-const sessions=new Map();
+let sessions=new Map();
+const sessionKey=token=>'sha256:'+createHash('sha256').update(String(token||'')).digest('hex');
+try{const stored=JSON.parse(fs.readFileSync(sessionFile,'utf8'));if(Array.isArray(stored))sessions=new Map(stored.filter(([key,item])=>String(key).startsWith('sha256:')&&item?.expires>Date.now()))}catch(error){if(error.code!=='ENOENT')throw error}
 let queue=Promise.resolve();
 
 const normalize=email=>String(email||'').trim().toLowerCase();
@@ -21,12 +24,18 @@ async function save(){
   });
   await queue;
 }
+function saveSessions(){
+  fs.mkdirSync(path.dirname(sessionFile),{recursive:true,mode:0o700});
+  fs.writeFileSync(sessionFile+'.tmp',JSON.stringify([...sessions]),{mode:0o600});
+  fs.renameSync(sessionFile+'.tmp',sessionFile);
+}
 export function hasAccount(email){return accounts.some(account=>account.email===normalize(email))}
 export async function resetAccountsToChief(username,password){
   const name=String(username||'').trim();
   if(!/^[A-Za-z0-9_-]{3,40}$/.test(name)||typeof password!=='string'||password.length<8)throw new Error('invalid_chief_credentials');
   accounts=[{id:randomBytes(16).toString('hex'),username:name.toLowerCase(),displayName:name,passwordHash:hash(password),role:'technician',subjectId:'chief'}];
   sessions.clear();
+  saveSessions();
   await save();
 }
 export async function createAccount({email,password,role,subjectId}){
@@ -106,14 +115,15 @@ export function login(email,password){
 }
 export function issueSession(role,subjectId,displayName=''){
   const token=randomBytes(32).toString('hex');
-  sessions.set(token,{role,subjectId,displayName,expires:Date.now()+7*86400000});
+  sessions.set(sessionKey(token),{role,subjectId,displayName,expires:Date.now()+7*86400000});
+  try{saveSessions()}catch(error){sessions.delete(token);throw error}
   return token;
 }
 export function sessionFor(token){
-  const session=sessions.get(String(token||''));
+  const key=sessionKey(token),session=sessions.get(key);
   if(!session)return null;
-  if(session.expires<Date.now()){sessions.delete(token);return null}
+  if(session.expires<Date.now()){sessions.delete(key);try{saveSessions()}catch(error){console.error('Unable to persist expired session cleanup:',error.message)}return null}
   return session;
 }
-export function revokeSession(token){sessions.delete(String(token||''))}
-export function revokeSubjectSessions(role,subjectId){for(const [token,current] of sessions)if(current.role===role&&current.subjectId===subjectId)sessions.delete(token)}
+export function revokeSession(token){sessions.delete(sessionKey(token));saveSessions()}
+export function revokeSubjectSessions(role,subjectId){let changed=false;for(const [token,current] of sessions)if(current.role===role&&current.subjectId===subjectId){sessions.delete(token);changed=true}if(changed)saveSessions()}

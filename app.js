@@ -1,9 +1,7 @@
-import { createTechnicianCabinet, seedDetails } from './technician.js?v=orders-worker-profile-1';
-import { createWorkerCabinet } from './worker.js?v=orders-worker-profile-1';
-import { seedOrders } from './seed-orders.js';
-import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal,authRequest} from './portal-client.js';
-import {routeFromPath,pathFor,navigate} from './routes.js';
-import './location-assist.js';
+import { seedOrders } from './seed-orders.js?v=mobile-fast-1';
+import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,downloadOrderFile,requestOrderRework} from './portal-client.js?v=mobile-fast-3';
+import {routeFromPath,pathFor,navigate} from './routes.js?v=mobile-fast-1';
+import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=mobile-fast-3';
 
 const $ = (selector) => document.querySelector(selector);
 const icons = {
@@ -40,7 +38,8 @@ if(oldLink.has('role')||oldLink.has('page')){
   navigate(pathFor(oldRole,oldLink.get('page')|| (oldRole==='clinic'?'home':'overview'),oldLink.get('order')),{replace:true});
 }
 const initialRoute=routeFromPath(location.pathname);
-const state = {role:initialRoute.role||'clinic',page:initialRoute.role==='clinic'?initialRoute.page:'home',step:0,filter:'Все',query:'',sortKey:'',sortDirection:'asc',orderId:initialRoute.orderId||'',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',selectedTeeth:[],dentition:'Постоянные зубы',work:'Коронка',messages:[],chatText:'',chatStatus:'Подключение к чату...',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),uploaded:[],form:{surname:'',initials:'',phone:'',birth:'',construction:'Коронка E.max',material:'Керамика E.max',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A2',comment:''},toast:''};
+const state = {role:initialRoute.role||'clinic',page:initialRoute.role==='clinic'?initialRoute.page:'home',step:0,filter:'Все',query:'',sortKey:'',sortDirection:'asc',orderId:initialRoute.orderId||'',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',selectedTeeth:[],dentition:'Постоянные зубы',work:'Коронка',messages:[],chatText:'',chatStatus:'Подключение к чату...',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),uploaded:[],orderFiles:[],orderPhotoUrls:{},filesFor:'',reworkOrderId:'',form:{surname:'',initials:'',phone:'',birth:'',construction:'Коронка E.max',material:'Керамика E.max',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A2',comment:''},toast:''};
+let portalHistory=[];
 const demoUnitPrices = {'Коронка E.max':12500,'Винир':14000,'Мост':9000,'Абатмент':7600,'Вкладка':8500};
 const orderEstimate = () => (demoUnitPrices[state.form.construction] || 12500) * Math.max(1, Number(state.form.quantity) || 1);
 const rubles = amount => new Intl.NumberFormat('ru-RU').format(amount) + ' ₽';
@@ -48,7 +47,7 @@ const statusClass = s => ['В работе','Работа принята','Пр�
 const badge = s => `<span class="badge ${statusClass(s)}">${s}</span>`;
 const button = (label,action,kind='primary',extra='') => `<button class="btn ${kind}" data-action="${action}" ${extra}>${label}</button>`;
 function sidebar(){return `<aside class="sidebar" id="sidebar"><div class="brand" aria-label="Create Dental"><img class="portal-logo" src="${logo}" alt="Create Dental"></div><nav class="sidebar-nav">${nav.map(([id,label,ico])=>`<button class="nav-link ${state.page===id||(state.page==='detail'&&id==='orders')?'active':''}" data-page="${id}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav><button class="help-box" data-page="messages">${icon('message',20)}<span><strong>Нужна помощь?</strong><small>Напишите нам</small></span></button></aside>`}
-function header(){return `<header class="topbar"><button class="mobile-menu" data-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><button class="role-toggle" data-auth-logout>Выйти</button><span class="topbar-label">Клиника</span><select class="clinic-select" aria-label="Клиника"><option>${escapeHtml(clinicRecord()?.name||'Клиника')}</option></select><button class="bell" aria-label="Уведомления" data-action="notifications">${icon('bell',19)}<i></i></button><button class="profile" data-page="clinic"><span class="avatar">К</span><span><strong>${escapeHtml(clinicRecord()?.contact||clinicRecord()?.name||'Клиника')}</strong><small>Стоматологическая клиника</small></span>${icon('chevron',13)}</button></header>`}
+function header(){const clinic=clinicRecord();return `<header class="topbar"><button class="mobile-menu" data-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><button class="role-toggle" data-auth-logout>Выйти</button><span class="topbar-label">Клиника</span><select class="clinic-select" aria-label="Клиника"><option>${escapeHtml(clinic?.name||'Клиника')}</option></select>${notificationCenterMarkup()}<button class="profile" data-page="clinic"><span class="avatar">${clinic?.logo?`<img src="${escapeHtml(clinic.logo)}" alt="Логотип ${escapeHtml(clinic.name||'клиники')}">`:'К'}</span><span><strong>${escapeHtml(clinic?.contact||clinic?.name||'Клиника')}</strong><small>Стоматологическая клиника</small></span>${icon('chevron',13)}</button></header>`}
 function shell(content){$('#app').innerHTML=`${sidebar()}<div class="shell">${header()}<main class="content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${escapeHtml(state.toast)}</div>`;}
 function title(text,sub='',right=''){return `<div class="page-title"><div><h1>${text}</h1>${sub?`<p>${sub}</p>`:''}</div>${right}</div>`}
 function tabs(items,selected,action='filter'){return `<div class="tabs">${items.map(([label,count])=>`<button class="tab ${selected===label?'active':''}" data-action="${action}" data-value="${label}">${label}${count!==undefined?` <span class="count">${count}</span>`:''}</button>`).join('')}</div>`}
@@ -79,19 +78,19 @@ function recentMessagesCard(){return `<section class="dashboard-card recent-card
 function currentOrders(){
   let overrides={};
   try {overrides=JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}} catch {overrides={}}
-  const status={"Ожидает распределения":"Новый","Подготовка":"В работе","Моделирование":"В работе","Изготовление":"В работе","Контроль качества":"На согласовании","Работа принята":"Работа принята","В доставке":"В доставке","Принято доктором":"Принято доктором","Готово к выдаче":"Работа принята"};
+  const status={"Ожидает распределения":"Новый","Подготовка":"В работе","Моделирование":"В работе","Изготовление":"В работе","Контроль качества":"На согласовании","Работа принята":"Работа принята","В доставке":"В доставке","На доработке":"На доработке","Принято доктором":"Принято доктором","Готово к выдаче":"Работа принята"};
   return orders.filter(order=>order.clinicId===portalUser?.subjectId).map(order=>({...order,status:status[overrides[order.id]?.stage]||order.status}));
 }
 function orderTabs(){
   const list=currentOrders();
-  return [['Все',list.length],['Новые',list.filter(o=>o.status==='Новый').length],['В работе',list.filter(o=>o.status==='В работе').length],['На согласовании',list.filter(o=>['На согласовании','Согласование'].includes(o.status)).length],['Приняты',list.filter(o=>o.status==='Работа принята').length],['В доставке',list.filter(o=>o.status==='В доставке').length],['Принято доктором',list.filter(o=>o.status==='Принято доктором').length]];
+  return [['Все',list.length],['Новые',list.filter(o=>o.status==='Новый').length],['В работе',list.filter(o=>o.status==='В работе').length],['На согласовании',list.filter(o=>['На согласовании','Согласование'].includes(o.status)).length],['Приняты',list.filter(o=>o.status==='Работа принята').length],['В доставке',list.filter(o=>o.status==='В доставке').length],['На доработке',list.filter(o=>o.status==='На доработке').length],['Принято доктором',list.filter(o=>o.status==='Принято доктором').length]];
 }
 function dashboard(){
   const list=currentOrders();
   const stats=[['orders',list.filter(o=>!['Принято доктором','Завершен'].includes(o.status)).length,'Активных заказов','blue'],['clock',list.filter(o=>['На согласовании','Согласование'].includes(o.status)).length,'На согласовании','orange'],['user',list.filter(o=>o.status==='В работе').length,'В работе','navy'],['heart',list.filter(o=>['Работа принята','В доставке','Принято доктором','Завершен'].includes(o.status)).length,'После приемки','green']];
   shell(`${title('Добро пожаловать, '+escapeHtml(clinicRecord()?.name||'клиника')+'!','Создавайте заказы, отслеживайте статус и получайте готовые работы в срок.',button(`${icon('plus',16)} Создать новый заказ`,'new'))}<div class="stats">${stats.map(([ico,n,label,color])=>`<div class="stat card"><span class="stat-icon ${color}">${icon(ico,25)}</span><div><strong>${n}</strong><span>${label}</span></div></div>`).join('')}</div><div class="dashboard-grid"><div class="dashboard-main"><section class="hero"><div><h2>Качество в каждой детали</h2><p>Современные технологии. Надежные сроки.<br>Индивидуальный подход.</p></div><img src="${assets}banner-teeth.png" alt="Керамические зубные конструкции"></section><div class="section-heading"><h2>Мои заказы</h2><button class="text-link" data-page="orders">Все заказы →</button></div>${tabs(orderTabs(),state.filter)}${orderTable(filteredOrders().slice(0,4))}</div><aside class="dashboard-aside">${deadlineCalendar()}${recentMessagesCard()}</aside></div>`);
 }
-function filteredOrders(){let list=currentOrders();if(state.filter==='Новые')list=list.filter(o=>o.status==='Новый');else if(state.filter==='В работе')list=list.filter(o=>o.status==='В работе');else if(state.filter==='На согласовании')list=list.filter(o=>['На согласовании','Согласование'].includes(o.status));else if(state.filter==='Приняты')list=list.filter(o=>o.status==='Работа принята');else if(state.filter==='В доставке')list=list.filter(o=>o.status==='В доставке');else if(state.filter==='Принято доктором')list=list.filter(o=>o.status==='Принято доктором');if(state.query)list=list.filter(o=>Object.values(o).some(v=>String(v).toLowerCase().includes(state.query.toLowerCase())));if(['work','createdAt','date','status','sum'].includes(state.sortKey)){const key=state.sortKey,sign=state.sortDirection==='asc'?1:-1;list.sort((a,b)=>{let x=a[key]??'',y=b[key]??'';if(key==='sum'){x=Number(String(x).replace(/\D/g,''));y=Number(String(y).replace(/\D/g,''));return (x-y)*sign}if(key==='date'){x=String(x).split('.').reverse().join('-');y=String(y).split('.').reverse().join('-')}return String(x).localeCompare(String(y),'ru',{numeric:true})*sign})}return list}
+function filteredOrders(){let list=currentOrders();if(state.filter==='Новые')list=list.filter(o=>o.status==='Новый');else if(state.filter==='В работе')list=list.filter(o=>o.status==='В работе');else if(state.filter==='На согласовании')list=list.filter(o=>['На согласовании','Согласование'].includes(o.status));else if(state.filter==='Приняты')list=list.filter(o=>o.status==='Работа принята');else if(state.filter==='В доставке')list=list.filter(o=>o.status==='В доставке');else if(state.filter==='На доработке')list=list.filter(o=>o.status==='На доработке');else if(state.filter==='Принято доктором')list=list.filter(o=>o.status==='Принято доктором');if(state.query)list=list.filter(o=>Object.values(o).some(v=>String(v).toLowerCase().includes(state.query.toLowerCase())));if(['work','createdAt','date','status','sum'].includes(state.sortKey)){const key=state.sortKey,sign=state.sortDirection==='asc'?1:-1;list.sort((a,b)=>{let x=a[key]??'',y=b[key]??'';if(key==='sum'){x=Number(String(x).replace(/\D/g,''));y=Number(String(y).replace(/\D/g,''));return (x-y)*sign}if(key==='date'){x=String(x).split('.').reverse().join('-');y=String(y).split('.').reverse().join('-')}return String(x).localeCompare(String(y),'ru',{numeric:true})*sign})}return list}
 function ordersPage(){shell(`${title('Мои заказы')}${tabs(orderTabs(),state.filter)}<div class="toolbar"><label class="search">${icon('search',17)}<input id="order-search" value="${escapeHtml(state.query)}" placeholder="Поиск по номеру заказа, пациенту или типу работы..."></label>${button(`${icon('filter',15)} Фильтры`,'filters','outline')}</div>${orderTable(filteredOrders())}`)}
 function toothChart(interactive=true, selectedTeeth=state.selectedTeeth){
   const teeth=[
@@ -135,23 +134,29 @@ function toothChart(interactive=true, selectedTeeth=state.selectedTeeth){
 function stepper(){return `<div class="stepper">${steps.map((s,i)=>`<button class="step ${state.step===i?'active':''} ${state.step>i?'done':''}" data-step="${i}"><b>${state.step>i?icon('check',13):i+1}</b>${s}</button>${i<4?'<span class="step-line">→</span>':''}`).join('')}</div>`}
 function field(label,control){return `<label class="field"><span>${label}</span>${control}</label>`}
 function textInput(value='',placeholder='',key=''){return `<input ${key?`data-field="${key}"`:''} value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}">`}
-function selectInput(options,key=''){return `<select ${key?`data-field="${key}"`:''}>${options.map(o=>`<option ${state.form[key]===o?'selected':''}>${o}</option>`).join('')}</select>`}
+function selectInput(options,key=''){const choices=key&&state.form[key]&&!options.includes(state.form[key])?[state.form[key],...options]:options;return `<select ${key?`data-field="${key}"`:''}>${choices.map(o=>`<option ${state.form[key]===o?'selected':''}>${o}</option>`).join('')}</select>`}
 function patientStep(){return `<h2>Данные пациента</h2><div class="form-grid">${field('Фамилия пациента',textInput(state.form.surname,'','surname'))}${field('Имя и отчество',textInput(state.form.initials,'','initials'))}${field('Номер телефона',`<input type="tel" data-field="phone" value="${escapeHtml(state.form.phone)}" placeholder="+7 (___) ___-__-__">`)}${field('Дата рождения',`<input type="date" data-field="birth" value="${state.form.birth}">`)}</div><div class="info-note">Укажите данные пациента для идентификации заказа. Они будут видны только вашей клинике.</div>`}
 function constructionStep(){return `<h2>Выберите конструкцию</h2><div class="form-grid">${field('Тип конструкции',selectInput(['Коронка E.max','Винир','Мост','Абатмент','Вкладка'],'construction'))}${field('Материал',selectInput(['Керамика E.max','Диоксид циркония','Металлокерамика'],'material'))}${field('Количество единиц', `<input type="number" min="1" data-field="quantity" value="${escapeHtml(state.form.quantity)}">`)}${field('Срок изготовления',`<input type="date" data-field="due" value="${state.form.due}">`)}</div><div class="info-note">После выбора конструкции отметьте нужные зубы на схеме.</div>`}
 function teethStep(){return `<div class="teeth-layout"><div>${toothChart()}<div class="chart-legend"><span><i class="dot blue"></i> Выбрано</span><span><i class="dot gray"></i> Не выбрано</span></div></div><div class="teeth-options"><h2>Выберите зубы на схеме</h2><div class="segmented">${['Постоянные зубы','Молочные зубы'].map(t=>`<button class="${state.dentition===t?'selected':''}" data-action="dentition" data-value="${t}">${t}</button>`).join('')}</div><h3>Выбранные зубы: ${state.selectedTeeth.join(', ')||'—'}</h3><div class="selected-teeth">${state.selectedTeeth.map(n=>`<button data-tooth="${n}">${n} ×</button>`).join('')}<button class="clear" data-action="clear-teeth">Очистить</button></div><h3>Тип работы</h3><div class="work-options">${['Коронка','Винир','Вкладка','Мост','Имплант. коронка','Абатмент','Съемный протез','Временная конструкция','Другое'].map(w=>`<button class="${state.work===w?'selected':''}" data-action="work" data-value="${w}">${w}</button>`).join('')}</div><div class="estimate-card"><span>Предварительная сумма заказа</span><strong>${rubles(orderEstimate())}</strong><small>${state.form.quantity} ед. · демонстрационный расчёт; итоговая цена уточняется при согласовании</small></div></div></div>`}
-function attachmentTiles(){return `<div class="attachment-grid">${[['xray.png','Рентгеновский снимок'],['tooth.png','Фото зуба'],['scan.png','3D модель'],...state.uploaded.map(n=>['file.png',n])].map(([src,name])=>`<div class="attachment"><img src="${assets+src}" alt="${escapeHtml(name)}"><button aria-label="Удалить файл" data-action="remove-file" data-value="${escapeHtml(name)}">×</button></div>`).join('')}<label class="attachment-add" title="Добавить файлы">${icon('plus',26)}<input type="file" id="upload-input" multiple hidden></label></div>`}
-function extraStep(){return `<h2>Дополнительная информация</h2><div class="form-grid">${field('Желаемый срок готовности',`<input type="date" data-field="due" value="${state.form.due}">`)}${field('Цвет/оттенок (например, Vita)',selectInput(['A2','A1','A3','B1','B2'],'shade'))}</div><div class="form-grid extra-fields"><div>${field('Прикрепить файлы','<label class="upload-zone">'+icon('upload',26)+'<span>Перетащите файлы сюда<br>или нажмите для выбора</span><input type="file" id="upload-input" multiple hidden></label>')}<small class="hint">Поддерживаются файлы: JPG, PNG, PDF, STL, PLY (до 50 МБ)</small></div>${field('Комментарий к заказу',`<textarea rows="5" data-field="comment" placeholder="Напишите пожелания, особенности, дополнительные инструкции...">${escapeHtml(state.form.comment)}</textarea>`)}</div><h3>Примеры прикрепленных файлов</h3>${attachmentTiles()}`}
-function confirmStep(){return `<h2>Проверьте данные заказа</h2><div class="confirmation"><div>${toothChart(false)}</div><div class="summary-list">${[['Пациент',`${state.form.surname} ${state.form.initials}`],['Выбранные зубы',state.selectedTeeth.join(', ')],['Тип работы',state.form.construction],['Желаемый срок',state.form.due.split('-').reverse().join('.')],['Предварительная сумма',rubles(orderEstimate())],['Цвет',state.form.shade],['Комментарий',state.form.comment||'—'],['Файлы',`${3+state.uploaded.length} файла`]].map(([k,v])=>`<div><span>${k}</span><strong>${escapeHtml(v)}</strong></div>`).join('')}${attachmentTiles()}</div></div>`}
+function attachmentTiles(){return `<div class="attachment-grid">${state.uploaded.map(file=>`<div class="attachment"><img src="${assets}file.png" alt="Файл"><span title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span><button aria-label="Удалить файл" data-action="remove-file" data-value="${escapeHtml(file.name)}">×</button></div>`).join('')}<label class="attachment-add" title="Добавить файлы">${icon('plus',26)}<input type="file" id="upload-input" accept=".jpg,.jpeg,.png,.pdf,.stl,.ply" multiple hidden></label></div>`}
+function extraStep(){return `<h2>Дополнительная информация</h2><div class="form-grid">${field('Желаемый срок готовности',`<input type="date" data-field="due" value="${state.form.due}">`)}${field('Цвет/оттенок (например, Vita)',selectInput(['A2','A1','A3','B1','B2'],'shade'))}</div><div class="form-grid extra-fields"><div class="field"><span>Файлы заказа — сканы, КТ и фото</span><label class="upload-zone">${icon('upload',26)}<span>Перетащите файлы сюда<br>или нажмите, чтобы выбрать</span><input type="file" id="upload-input" accept=".jpg,.jpeg,.png,.pdf,.stl,.ply" multiple hidden></label><small class="hint">JPG, PNG, PDF, STL, PLY — до 50 МБ на файл. Файлы прикрепятся к заказу.</small>${attachmentTiles()}</div>${field('Комментарий к заказу',`<textarea rows="5" data-field="comment" placeholder="Напишите пожелания, особенности, дополнительные инструкции...">${escapeHtml(state.form.comment)}</textarea>`)}</div>`}
+function confirmStep(){return `<h2>Проверьте данные заказа</h2><div class="confirmation"><div>${toothChart(false)}</div><div class="summary-list">${[['Пациент',`${state.form.surname} ${state.form.initials}`],['Выбранные зубы',state.selectedTeeth.join(', ')],['Тип работы',state.form.construction],['Желаемый срок',state.form.due.split('-').reverse().join('.')],['Предварительная сумма',rubles(orderEstimate())],['Цвет',state.form.shade],['Комментарий',state.form.comment||'—'],['Файлы',`${state.uploaded.length} файла`]].map(([k,v])=>`<div><span>${k}</span><strong>${escapeHtml(v)}</strong></div>`).join('')}${attachmentTiles()}</div></div>`}
 function newOrder(){const body=[patientStep,constructionStep,teethStep,extraStep,confirmStep][state.step]();shell(`${title(state.step===3?'Новый заказ — дополнительные параметры':state.step===4?'Новый заказ — подтверждение':'Новый заказ')}${stepper()}<section class="wizard">${body}<div class="wizard-actions">${state.step>0?button('Назад','previous','outline'):''}${button(state.step===4?'Создать заказ':'Далее →','next')}</div></section>`)}
 function detail(){
   const o=currentOrders().find(item=>item.id===state.orderId);
   if(!o){state.page='orders';ordersPage();return}
+  if(state.filesFor!==o.id){Object.values(state.orderPhotoUrls).forEach(URL.revokeObjectURL);state.orderPhotoUrls={};state.filesFor=o.id;state.orderFiles=[];loadOrderFiles(o.id).then(async result=>{if(state.orderId!==o.id)return;state.orderFiles=result.files||[];await Promise.all(state.orderFiles.filter(file=>file.purpose==='result-photo').map(async file=>{try{state.orderPhotoUrls[file.id]=await loadOrderFilePreview(file.id)}catch{}}));if(state.page==='detail')render()}).catch(()=>{})}
   let overrides={};try{overrides=JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}}catch{}
   const details={...seedDetails[o.id],...overrides[o.id]};
   const teeth=Array.isArray(o.teeth)?o.teeth:details.teeth||[];
-  const facts=[['Пациент',o.patient],['Выбранные зубы',teeth.join(', ')||'—'],['Тип работы',o.work],['Желаемый срок',o.date],['Сумма заказа',o.sum],['Цвет',o.shade||'—'],['Комментарий',o.comment||'—'],['Исполнитель',details.assignee||'Не назначен']];
+  const facts=[['Пациент',o.patient],['Выбранные зубы',teeth.join(', ')||'—'],['Тип работы',o.work],...(o.material?[['Материал',o.material]]:[]),...(o.quantity?[['Количество',o.quantity]]:[]),['Желаемый срок',o.date],['Сумма заказа',o.sum],['Цвет',o.shade||'—'],['Комментарий',o.comment||'—'],['Исполнитель',details.assignee||'Не назначен']];
   const created=o.createdAt?new Date(o.createdAt).toLocaleDateString('ru-RU'):'—';
-  shell(`<button class="back-link" data-page="orders">← &nbsp; Назад к заказам</button><div class="detail-heading">${title(`Заказ ${escapeHtml(o.id)}`,badge(escapeHtml(o.status))+` <span class="muted">Создан ${created}</span>`,`<div class="detail-actions">${button(`${icon('message',16)} Сообщение`,'open-messages','outline')}${button('Запросить правку','request-edit','outline')}${button('Запросить отмену','request-cancel','outline')}</div>`)}</div>${tabs([['Обзор'],['Файлы'],['Комментарии'],['История']],state.detailTab,'detail-tab')}${state.detailTab==='Обзор'?`<div class="detail-grid"><section><h3>Общая информация</h3><div class="facts">${facts.map(([k,v])=>`<div><span>${k}</span><strong>${escapeHtml(v)}</strong></div>`).join('')}</div></section><section><h3>Выбранные зубы</h3>${toothChart(false,teeth)}</section><section><h3>Статус заказа</h3><div class="timeline"><div class="complete"><i></i><strong>${escapeHtml(o.status)}</strong><small>${details.stage?escapeHtml(details.stage):''}</small></div></div>${o.status==='В доставке'?`<div class="clinic-accept-actions"><button class="btn primary" data-action="doctor-accept" data-value="${escapeHtml(o.id)}">Принять работу</button><button class="btn outline" data-action="doctor-rework" data-value="${escapeHtml(o.id)}">Отправить на доработку</button></div>`:''}</section></div>`:state.detailTab==='Файлы'?'<div class="info-note">Файлы заказа пока не загружены на сервер.</div>':state.detailTab==='Комментарии'?'<div class="info-note">Комментарии к заказу пока отсутствуют.</div>':`<div class="info-note">Текущий этап: ${escapeHtml(details.stage||o.status)}.</div>`}`)
+  const history=portalHistory.filter(event=>event.orderId===o.id).slice().reverse();
+  const fileMarkup=`<div class="order-file-toolbar"><h3>Файлы заказа</h3><button class="btn outline" data-action="add-order-file">Загрузить файлы</button><input type="file" id="order-file-upload" accept=".jpg,.jpeg,.png,.pdf,.stl,.ply" multiple hidden></div>${state.orderFiles.length?`<div class="order-file-list">${state.orderFiles.map(file=>`<button class="order-file" data-order-file="${escapeHtml(file.id)}"><strong>${escapeHtml(file.name)}</strong><small>${Math.ceil(file.size/1024)} КБ · ${new Date(file.uploadedAt).toLocaleString('ru-RU')}</small></button>`).join('')}</div>`:'<div class="info-note">Для этого заказа пока нет загруженных файлов.</div>'}`;
+  const resultPhotos=state.orderFiles.filter(file=>file.purpose==='result-photo');
+  const resultPhotoMarkup=`<section class="result-photos"><h3>Фото готовой работы</h3>${resultPhotos.length?`<div class="result-photo-grid">${resultPhotos.map(file=>`<a class="result-photo" href="${state.orderPhotoUrls[file.id]||'#'}" target="_blank" rel="noopener">${state.orderPhotoUrls[file.id]?`<img src="${state.orderPhotoUrls[file.id]}" alt="Фото готовой работы: ${escapeHtml(file.name)}">`:'<span class="result-photo-loading">Открываем фото…</span>'}<span>${escapeHtml(file.name)}</span></a>`).join('')}</div>`:'<p>Фотографии результата появятся здесь перед отправкой заказа.</p>'}</section>`;
+  const historyMarkup=history.length?`<ol class="order-history">${history.map(event=>`<li><time>${new Date(event.at).toLocaleString('ru-RU')}</time><strong>${escapeHtml(event.actor)}</strong><span>${event.action==='stage_changed'?`${escapeHtml(event.from)} → ${escapeHtml(event.to)}${event.reason?`: ${escapeHtml(event.reason)}`:''}`:event.action==='assignee_changed'?`Исполнитель: ${escapeHtml(event.from)} → ${escapeHtml(event.to)}`:event.action==='rework_requested'?`Запрошена доработка: ${escapeHtml(event.reason)}`:escapeHtml(event.summary||'Изменение заказа')}</span></li>`).join('')}</ol>`:'<div class="info-note">История появится после первого действия с заказом.</div>';
+  shell(`<button class="back-link" data-page="orders">← &nbsp; Назад к заказам</button><div class="detail-heading">${title(`Заказ ${escapeHtml(o.id)}`,badge(escapeHtml(o.status))+` <span class="muted">Создан ${created}</span>`,`<div class="detail-actions">${button('Повторить заказ','repeat-order','outline')}${button(`${icon('message',16)} Сообщение`,'open-messages','outline')}${button('Запросить правку','request-edit','outline')}${button('Запросить отмену','request-cancel','outline')}</div>`)}</div>${tabs([['Обзор'],['Файлы'],['Комментарии'],['История']],state.detailTab,'detail-tab')}${state.detailTab==='Обзор'?`<div class="detail-grid"><section><h3>Общая информация</h3><div class="facts">${facts.map(([k,v])=>`<div><span>${k}</span><strong>${escapeHtml(v)}</strong></div>`).join('')}</div></section><section><h3>Выбранные зубы</h3>${toothChart(false,teeth)}</section><section><h3>Статус заказа</h3><div class="timeline"><div class="complete"><i></i><strong>${escapeHtml(o.status)}</strong><small>${details.stage?escapeHtml(details.stage):''}</small></div></div>${o.status==='В доставке'?`<div class="clinic-accept-actions"><button class="btn primary" data-action="doctor-accept" data-value="${escapeHtml(o.id)}">Принять работу</button><button class="btn outline" data-action="doctor-rework" data-value="${escapeHtml(o.id)}">Отправить на доработку</button></div>`:''}</section></div>${resultPhotoMarkup}`:state.detailTab==='Файлы'?fileMarkup:state.detailTab==='Комментарии'?'<div class="info-note">Комментарии к заказу пока отсутствуют.</div>':historyMarkup}${state.reworkOrderId===o.id?`<div class="tech-dialog-backdrop" data-action="cancel-rework"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="rework-title"><h2 id="rework-title">Отправить заказ на доработку</h2><p>Опишите, что нужно исправить. Запрос появится в истории заказа и кабинете исполнителя.</p><form id="order-rework-form"><textarea name="reason" minlength="5" maxlength="2000" rows="5" required placeholder="Что нужно поправить в работе?" aria-label="Причина доработки"></textarea><div class="order-rework-actions"><button type="button" class="btn outline" data-action="cancel-rework">Отмена</button><button type="submit" class="btn primary">Отправить в лабораторию</button></div></form></section></div>`:''}`)
 }
 function filesPage(){const files=[['xray.png','КТ_верхняя.jpg','12.03.2024','КТ/Рентген'],['tooth.png','Фото_16.jpg','12.03.2024','Фото'],['scan.png','Скан_верхняя.stl','10.03.2024','3D модели'],['smile.png','Прикус.jpg','10.03.2024','Фото'],['tooth.png','Фото_26.jpg','06.03.2024','Фото'],['file.png','План_лечения.pdf','08.03.2024','Документы'],['scan.png','Скан_нижняя.stl','05.03.2024','3D модели'],['xray.png','КТ_панорама.jpg','05.03.2024','КТ/Рентген'],['smile.png','Фото_улыбка.jpg','04.03.2024','Фото'],['tooth.png','Другое.jpg','04.03.2024','Фото']];shell(`${title('Файлы','',button(`${icon('plus',16)} Загрузить файл`,'upload'))}${tabs([['Все файлы'],['КТ/Рентген'],['Фото'],['3D модели'],['Документы']],state.fileTab,'file-tab')}<div class="file-grid">${files.filter(f=>state.fileTab==='Все файлы'||f[3]===state.fileTab).map(([src,name,date])=>`<button class="file-card" data-action="file-preview" data-value="${name}"><img src="${assets+src}" alt=""><strong>${name}</strong><small>${date}</small></button>`).join('')}</div><input type="file" id="page-upload" multiple hidden>`)}
 function chatMessageMarkup(message){return `<div class="bubble ${message.from==='client'?'me':'them'}"><p>${escapeHtml(message.text)}</p><time>${new Date(message.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</time></div>`}
@@ -179,6 +184,35 @@ async function loadMessages(){
   }catch(error){state.chatStatus=error.message; if($('#chat-status'))$('#chat-status').textContent=state.chatStatus}
 }
 function clinicRecord(){try{return JSON.parse(localStorage.getItem('create-dental-tech-clients')||'[]').find(client=>client.id===portalUser?.subjectId)}catch{return null}}
+function prepareClinicLogo(file){
+  return new Promise((resolve,reject)=>{
+    const source=URL.createObjectURL(file),image=new Image();
+    const finish=(error,value)=>{URL.revokeObjectURL(source);error?reject(error):resolve(value)};
+    image.onerror=()=>finish(new Error('Не удалось открыть изображение'));
+    image.onload=()=>{
+      try{
+        const canvas=document.createElement('canvas'),context=canvas.getContext('2d');
+        if(!context)throw new Error('Не удалось обработать изображение');
+        let scale=Math.min(1,1000/Math.max(image.naturalWidth,image.naturalHeight));
+        const format=canvas.toDataURL('image/webp').startsWith('data:image/webp')?'image/webp':'image/jpeg';
+        for(let sizePass=0;sizePass<8;sizePass++){
+          canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+          canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+          context.clearRect(0,0,canvas.width,canvas.height);
+          if(format==='image/jpeg'){context.fillStyle='#fff';context.fillRect(0,0,canvas.width,canvas.height)}
+          context.drawImage(image,0,0,canvas.width,canvas.height);
+          for(let quality=.88;quality>=.48;quality-=.1){
+            const result=canvas.toDataURL(format,quality);
+            if(result.length<350000)return finish(null,result);
+          }
+          scale*=.78;
+        }
+        finish(new Error('Не удалось уменьшить файл логотипа'));
+      }catch(error){finish(error)}
+    };
+    image.src=source;
+  });
+}
 function clinicPage(){
   const clinic=clinicRecord()||{name:'Клиника',inn:'',city:'',address:'',phone:'',email:''};
   const input=(name,value,type='text',placeholder='')=>`<input name="${name}" type="${type}" value="${escapeHtml(value||'')}" ${placeholder?`placeholder="${escapeHtml(placeholder)}"`:''}>`;
@@ -194,8 +228,8 @@ function clinicPage(){
   shell(`${title('Моя клиника')}${tabs(tabsList,active,'clinic-tab')}<div class="clinic-content"><div class="clinic-photo"><strong>Логотип клиники</strong><img id="clinic-logo-preview" src="${clinic.logo||assets+'clinic.png'}" alt="Логотип клиники"><button type="button" data-action="change-logo">Изменить логотип</button><input id="clinic-logo-input" name="logoFile" type="file" accept="image/png,image/jpeg,image/webp" hidden></div><form id="clinic-form" class="clinic-form"><input type="hidden" name="logo" value="${escapeHtml(clinic.logo||'')}"><div class="form-grid">${fields[active]}<div class="save-field"><button class="btn primary" type="submit">Сохранить изменения</button></div></div></form></div>`);
 }
 function referencePage(){shell(`${title('Справочник','Информация о конструкциях, материалах и оформлении заказов.')}<div class="reference-grid">${[['Коронки E.max','Эстетичные цельнокерамические реставрации.'],['Виниры','Тонкие накладки для восстановления улыбки.'],['Мостовидные протезы','Конструкции для замещения отсутствующих зубов.'],['3D сканирование','Цифровые слепки для точной работы.']].map(([h,p])=>`<article class="reference-card">${icon('book',25)}<h3>${h}</h3><p>${p}</p></article>`).join('')}</div>`)}
-const technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,onUserUpdate:user=>{portalUser=user}});
-const workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,onUserUpdate:user=>{portalUser=user}});
+let technicianCabinet=null;
+let workerCabinet=null;
 let portalReady=false;
 let portalUser=null;
 let authMode=initialRoute.mode||'login';
@@ -224,26 +258,50 @@ function syncRoute(){
 }
 async function hydratePortal(){
   const data=await loadPortal();
+  if(data.user.role==='technician'&&!technicianCabinet){
+    const {createTechnicianCabinet}=await import('./technician.js?v=mobile-fast-3');
+    technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,onUserUpdate:user=>{portalUser=user}});
+  }
+  if(data.user.role==='worker'&&!workerCabinet){
+    const {createWorkerCabinet}=await import('./worker.js?v=mobile-fast-3');
+    workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,onUserUpdate:user=>{portalUser=user}});
+  }
   if(portalUser?.subjectId!==data.user.subjectId)state.messages=[];
   portalUser=data.user;
   orders.splice(0,orders.length,...data.orders);
+  portalHistory=data.orderHistory||[];
   localStorage.setItem('create-dental-tech-orders',JSON.stringify(data.orderOverrides));
   localStorage.setItem('create-dental-tech-clients',JSON.stringify(data.clients));
   localStorage.setItem('create-dental-employees',JSON.stringify(data.employees));
   portalReady=true;
   portalError='';
+  refreshNotificationCenter().then(()=>{const center=document.querySelector('.notification-center');if(center)center.outerHTML=notificationCenterMarkup()}).catch(()=>{});
   syncRoute();
 }
 async function createOrder(){
   const id=`CD-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0,4).toUpperCase()}`;
-  const order={id,patient:`${state.form.surname} ${state.form.initials}`.trim(),work:state.form.construction,date:state.form.due.split('-').reverse().join('.'),status:'Новый',sum:rubles(orderEstimate()),image:'tooth.png',clinicId:portalUser.subjectId,clinic:clinicRecord()?.name||'Клиника',teeth:[...state.selectedTeeth],shade:state.form.shade,comment:state.form.comment,createdAt:new Date().toISOString()};
+  const order={id,patient:`${state.form.surname} ${state.form.initials}`.trim(),work:state.form.construction,material:state.form.material,quantity:Math.max(1,Number(state.form.quantity)||1),date:state.form.due.split('-').reverse().join('.'),status:'Новый',sum:rubles(orderEstimate()),image:'tooth.png',clinicId:portalUser.subjectId,clinic:clinicRecord()?.name||'Клиника',teeth:[...state.selectedTeeth],shade:state.form.shade,comment:state.form.comment,createdAt:new Date().toISOString()};
   try {
     await savePortal('orders',[order,...orders]);
     orders.unshift(order);
+    const pendingFiles=[...state.uploaded];state.uploaded=[];
+    const failed=[];
+    for(const file of pendingFiles){try{await uploadOrderFile(id,file)}catch(error){failed.push(`${file.name}: ${error.message}`)}}
     state.page='detail';state.orderId=id;
+    state.filesFor='';state.orderFiles=[];
     navigate(pathFor('clinic','detail',id));
-    notify('Заказ создан и доступен лаборатории');
+    notify(failed.length?`Заказ создан, но не загружены файлы: ${failed.join('; ')}`:'Заказ создан и доступен лаборатории');
   } catch(error){notify('Не удалось создать заказ: '+error.message)}
+}
+
+function repeatOrder(orderId){
+  const order=currentOrders().find(item=>item.id===orderId);
+  if(!order)return;
+  const due=new Date();due.setDate(due.getDate()+14);
+  state.form={...state.form,surname:'',initials:'',phone:'',birth:'',construction:order.work||'Коронка E.max',material:order.material||'Керамика E.max',quantity:String(order.quantity||Math.max(1,order.teeth?.length||1)),due:due.toISOString().slice(0,10),shade:order.shade||'A2',comment:order.comment||''};
+  state.selectedTeeth=Array.isArray(order.teeth)?[...order.teeth]:[];
+  state.uploaded=[];state.step=0;state.page='new';state.detailTab='Обзор';navigate(pathFor('clinic','new'));render();
+  notify('Данные заказа перенесены. Укажите нового пациента и прикрепите актуальные файлы.');
 }
 
 async function updateClinicStage(orderId,stage){
@@ -254,10 +312,19 @@ async function updateClinicStage(orderId,stage){
   try{await savePortal('orderOverrides',overrides);notify(stage==='Принято доктором'?'Заказ принят':'Статус обновлён');await hydratePortal()}catch(error){notify('Не удалось сохранить статус: '+error.message)}
 }
 function notify(message){state.toast=message;render();clearTimeout(notify.timer);notify.timer=setTimeout(()=>{state.toast='';$('.toast')?.classList.remove('visible')},3000)}
-document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';authNotice='';navigate(pathFor(null,authMode));loginView()});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';authNotice='';navigate(pathFor(null,authMode));loginView();if(authMode==='register')import('./location-assist.js?v=mobile-fast-1').catch(()=>{})});
 document.addEventListener('click',async event=>{if(!event.target.closest('[data-auth-logout]'))return;try{await authRequest('logout',{})}catch{}clearPortalToken();portalReady=false;portalUser=null;state.messages=[];state.chatText='';state.role='clinic';authMode='login';navigate('/login',{replace:true});render()});
 document.addEventListener('click',event=>{const sort=event.target.closest('[data-order-sort]');if(!sort||state.role!=='clinic')return;const key=sort.dataset.orderSort;state.sortDirection=state.sortKey===key&&state.sortDirection==='asc'?'desc':'asc';state.sortKey=key;const table=$('.table-wrap');if(table)table.outerHTML=orderTable(filteredOrders().slice(0,state.page==='home'?4:Infinity))});
-document.addEventListener('click',event=>{const el=event.target.closest('[data-page],[data-order],[data-tooth],[data-step],[data-action]');if(!el)return;if(el.dataset.page){state.page=el.dataset.page;if(state.page==='new')state.step=0;document.querySelector('#sidebar')?.classList.remove('open');navigate(pathFor('clinic',state.page));render();return}if(el.dataset.order){state.orderId=el.dataset.order;state.page='detail';navigate(pathFor('clinic','detail',state.orderId));render();return}if(el.dataset.tooth){const n=Number(el.dataset.tooth);state.selectedTeeth=state.selectedTeeth.includes(n)?state.selectedTeeth.filter(x=>x!==n):[...state.selectedTeeth,n].sort((a,b)=>a-b);render();return}if(el.dataset.step!==undefined){state.step=Number(el.dataset.step);render();return}const a=el.dataset.action,v=el.dataset.value;if(a==='new'){state.page='new';state.step=0}else if(a==='next'){if(state.step<4)state.step++;else{createOrder();return}}else if(a==='previous')state.step--;else if(a==='filter')state.filter=v;else if(a==='file-tab')state.fileTab=v;else if(a==='detail-tab')state.detailTab=v;else if(a==='clinic-tab')state.clinicTab=v;else if(a==='dentition')state.dentition=v;else if(a==='work')state.work=v;else if(a==='clear-teeth')state.selectedTeeth=[];else if(a==='open-messages')state.page='messages';else if(a==='request-edit'){state.chatText=`Отредактируйте данные заказа ${state.orderId}: `;state.page='messages'}else if(a==='request-cancel'){state.chatText=`Отмените заказ ${state.orderId}.`;state.page='messages'}else if(a==='doctor-accept'){updateClinicStage(v,'Принято доктором');return}else if(a==='doctor-rework'){state.chatText=`Заказ ${v} нужно отправить на доработку. Комментарий: `;state.page='messages'}else if(a==='upload'){$('#page-upload')?.click();return}else if(a==='remove-file'){state.uploaded=state.uploaded.filter(n=>n!==v)}else if(a==='menu'){$('#sidebar').classList.toggle('open');return}else if(a==='save-clinic'){notify('Изменения сохранены локально');return}else if(a==='file-preview'){notify(v);return}else if(a==='notifications'){notify('Новых уведомлений нет');return}else if(a==='filters'){notify('Используйте вкладки для фильтрации заказов');return}else if(a==='more'){notify('Дополнительные действия появятся после подключения сервера');return}else if(a==='change-logo'){$('#clinic-logo-input')?.click();return}else if(a==='attach'){notify('Прикрепление файлов доступно в разделе «Файлы»');return}else if(a==='contact'){notify('Демонстрационный диалог');return}else return;if(['new','open-messages','request-edit','request-cancel','doctor-rework'].includes(a))navigate(pathFor('clinic',state.page));render()});
+document.addEventListener('click',async event=>{
+  const notificationToggle=event.target.closest('[data-notification-toggle]');
+  if(notificationToggle){await toggleNotificationCenter();render();return}
+  const notificationClose=event.target.closest('[data-notification-close]');
+  if(notificationClose){closeNotificationCenter();render();return}
+  const notification=event.target.closest('[data-notification-id]');
+  if(notification){const orderId=notification.dataset.notificationOrder;await markNotificationCenterRead().catch(()=>{});closeNotificationCenter();if(orderId&&currentOrders().some(order=>order.id===orderId)){state.orderId=orderId;state.page='detail';state.filesFor='';navigate(pathFor('clinic','detail',orderId))}else{state.page='messages';navigate(pathFor('clinic','messages'))}render();return}
+  const fileButton=event.target.closest('[data-order-file]');
+  if(fileButton){try{await downloadOrderFile(fileButton.dataset.orderFile)}catch(error){notify(error.message)}return}
+  const el=event.target.closest('[data-page],[data-order],[data-tooth],[data-step],[data-action]');if(!el)return;if(el.dataset.page){state.page=el.dataset.page;if(state.page==='new')state.step=0;document.querySelector('#sidebar')?.classList.remove('open');navigate(pathFor('clinic',state.page));render();return}if(el.dataset.order){state.orderId=el.dataset.order;state.page='detail';state.filesFor='';navigate(pathFor('clinic','detail',state.orderId));render();return}if(el.dataset.tooth){const n=Number(el.dataset.tooth);state.selectedTeeth=state.selectedTeeth.includes(n)?state.selectedTeeth.filter(x=>x!==n):[...state.selectedTeeth,n].sort((a,b)=>a-b);render();return}if(el.dataset.step!==undefined){state.step=Number(el.dataset.step);render();return}const a=el.dataset.action,v=el.dataset.value;if(a==='new'){state.page='new';state.step=0}else if(a==='next'){if(state.step<4)state.step++;else{createOrder();return}}else if(a==='previous')state.step--;else if(a==='filter')state.filter=v;else if(a==='file-tab')state.fileTab=v;else if(a==='detail-tab')state.detailTab=v;else if(a==='clinic-tab')state.clinicTab=v;else if(a==='dentition')state.dentition=v;else if(a==='work')state.work=v;else if(a==='clear-teeth')state.selectedTeeth=[];else if(a==='open-messages')state.page='messages';else if(a==='repeat-order'){repeatOrder(state.orderId);return}else if(a==='request-edit'){state.chatText=`Отредактируйте данные заказа ${state.orderId}: `;state.page='messages'}else if(a==='request-cancel'){state.chatText=`Отмените заказ ${state.orderId}.`;state.page='messages'}else if(a==='doctor-accept'){updateClinicStage(v,'Принято доктором');return}else if(a==='doctor-rework'){state.reworkOrderId=v;render();return}else if(a==='cancel-rework'){state.reworkOrderId='';render();return}else if(a==='add-order-file'){$('#order-file-upload')?.click();return}else if(a==='upload'){$('#page-upload')?.click();return}else if(a==='remove-file'){state.uploaded=state.uploaded.filter(file=>file.name!==v)}else if(a==='menu'){$('#sidebar').classList.toggle('open');return}else if(a==='save-clinic'){notify('Изменения сохранены локально');return}else if(a==='file-preview'){notify(v);return}else if(a==='filters'){notify('Используйте вкладки для фильтрации заказов');return}else if(a==='more'){notify('Дополнительные действия появятся после подключения сервера');return}else if(a==='change-logo'){$('#clinic-logo-input')?.click();return}else if(a==='attach'){notify('Прикрепление файлов доступно в разделе «Файлы»');return}else if(a==='contact'){notify('Демонстрационный диалог');return}else return;if(['new','open-messages','request-edit','request-cancel'].includes(a))navigate(pathFor('clinic',state.page));render()});
 document.addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-tooth][role="button"]')){event.preventDefault();event.target.click()}});
 document.addEventListener('click',event=>{
   const button=event.target.closest('[data-action^="calendar-"]');
@@ -271,28 +338,68 @@ document.addEventListener('click',event=>{
   render();
 });
 document.addEventListener('input',event=>{if(event.target.dataset.field)state.form[event.target.dataset.field]=event.target.value;if(event.target.id==='order-search'){state.query=event.target.value;const table=$('.table-wrap');if(table)table.outerHTML=orderTable(filteredOrders());}if(event.target.id==='chat-input')state.chatText=event.target.value});
-document.addEventListener('change',event=>{
+document.addEventListener('change',async event=>{
   if(event.target.dataset.field)state.form[event.target.dataset.field]=event.target.value;
+  if(event.target.id==='order-file-upload'){
+    const files=Array.from(event.target.files||[]),allowed=/\.(jpg|jpeg|png|pdf|stl|ply)$/i,invalid=files.filter(file=>!allowed.test(file.name)||file.size>50*1024*1024);
+    if(invalid.length)notify(`Не добавлено: ${invalid.map(file=>file.name).join(', ')}. Выберите JPG, PNG, PDF, STL или PLY до 50 МБ.`);
+    try{for(const file of files.filter(file=>allowed.test(file.name)&&file.size<=50*1024*1024))await uploadOrderFile(state.orderId,file);const result=await loadOrderFiles(state.orderId);state.orderFiles=result.files||[];notify('Файлы сохранены в заказе');render()}catch(error){notify(error.message)}
+    event.target.value='';return;
+  }
+  if(event.target.id==='result-photo-upload'){
+    const files=Array.from(event.target.files||[]),allowed=/\.(jpg|jpeg|png)$/i,invalid=files.filter(file=>!allowed.test(file.name)||file.size>50*1024*1024);
+    if(invalid.length)notify(`Не добавлено: ${invalid.map(file=>file.name).join(', ')}. Выберите фото JPG или PNG до 50 МБ.`);
+    if(!files.some(file=>allowed.test(file.name)&&file.size<=50*1024*1024)){event.target.value='';return}
+    try{for(const file of files.filter(file=>allowed.test(file.name)&&file.size<=50*1024*1024))await uploadOrderFile(state.orderId,file,{purpose:'result-photo'});state.filesFor='';await loadOrderFiles(state.orderId).then(result=>{state.orderFiles=result.files||[]});for(const file of state.orderFiles.filter(item=>item.purpose==='result-photo'&&!state.orderPhotoUrls[item.id]))state.orderPhotoUrls[file.id]=await loadOrderFilePreview(file.id);notify('Фото результата прикреплено к заказу');render()}catch(error){notify(error.message)}
+    event.target.value='';return;
+  }
   if(event.target.id==='clinic-logo-input'){
     const file=event.target.files?.[0];
     if(!file)return;
     if(!file.type.startsWith('image/'))return notify('Загрузите изображение');
-    const reader=new FileReader();
-    reader.onerror=()=>notify('Не удалось прочитать изображение');
-    reader.onload=()=>{
-      const value=String(reader.result||'');
-      if(value.length>430000)return notify('Фото слишком большое. Выберите изображение меньше.');
+    let clients=[];try{clients=JSON.parse(localStorage.getItem('create-dental-tech-clients')||'[]')}catch{}
+    const clinic=clients.find(item=>item.id===portalUser?.subjectId);
+    if(!clinic)return notify('Клиника не найдена');
+    const previous=clinic.logo||'';
+    try{
+      const value=await prepareClinicLogo(file);
+      clinic.logo=value;
+      localStorage.setItem('create-dental-tech-clients',JSON.stringify(clients));
       const preview=$('#clinic-logo-preview'),hidden=document.querySelector('#clinic-form input[name="logo"]');
       if(preview)preview.src=value;
       if(hidden)hidden.value=value;
-      notify('Логотип выбран. Нажмите «Сохранить изменения».');
-    };
-    reader.readAsDataURL(file);
+      try{await savePortal('clients',[clinic]);notify('Логотип сохранён')}
+      catch(error){clinic.logo=previous;localStorage.setItem('create-dental-tech-clients',JSON.stringify(clients));if(preview)preview.src=previous||assets+'clinic.png';if(hidden)hidden.value=previous;notify('Не удалось сохранить логотип: '+error.message)}
+    }catch(error){notify(error.message||'Не удалось загрузить логотип')}
     return;
   }
-  if(event.target.type==='file'){state.uploaded.push(...Array.from(event.target.files).map(f=>f.name));notify(`${event.target.files.length} файл(ов) добавлено локально`)}
+  if(event.target.id==='upload-input'){
+    const files=Array.from(event.target.files||[]),allowed=/\.(jpg|jpeg|png|pdf|stl|ply)$/i;
+    const invalid=files.filter(file=>!allowed.test(file.name)||file.size>50*1024*1024);
+    if(invalid.length)notify(`Не добавлено: ${invalid.map(file=>file.name).join(', ')}. Выберите JPG, PNG, PDF, STL или PLY до 50 МБ.`);
+    state.uploaded.push(...files.filter(file=>allowed.test(file.name)&&file.size<=50*1024*1024));
+    render();
+  }
+});
+document.addEventListener('dragover',event=>{if(event.target.closest('.upload-zone')){event.preventDefault();event.target.closest('.upload-zone').classList.add('dragging')}});
+document.addEventListener('dragleave',event=>{event.target.closest('.upload-zone')?.classList.remove('dragging')});
+document.addEventListener('drop',event=>{
+  const zone=event.target.closest('.upload-zone');if(!zone)return;
+  event.preventDefault();zone.classList.remove('dragging');
+  const files=Array.from(event.dataTransfer?.files||[]),allowed=/\.(jpg|jpeg|png|pdf|stl|ply)$/i,valid=files.filter(file=>allowed.test(file.name)&&file.size<=50*1024*1024),invalid=files.filter(file=>!allowed.test(file.name)||file.size>50*1024*1024);
+  if(invalid.length)notify(`Не добавлено: ${invalid.map(file=>file.name).join(', ')}. Проверьте формат и размер до 50 МБ.`);
+  state.uploaded.push(...valid);render();
 });
 document.addEventListener('submit',event=>{if(event.target.id!=='clinic-form')return;event.preventDefault();let clients=[];try{clients=JSON.parse(localStorage.getItem('create-dental-tech-clients')||'[]')}catch{}const clinic=clients.find(client=>client.id===portalUser?.subjectId);if(!clinic)return notify('Клиника не найдена');for(const element of Array.from(event.target.elements)){if(!element.name||element.name==='logoFile')continue;clinic[element.name]=element.value.trim()}if(!clinic.name)return notify('Укажите название клиники');localStorage.setItem('create-dental-tech-clients',JSON.stringify(clients));savePortal('clients',clients).then(()=>notify('Данные клиники сохранены')).catch(error=>notify('Не удалось сохранить клинику на сервере: '+error.message))});
+document.addEventListener('submit',async event=>{
+  if(event.target.id!=='order-rework-form')return;
+  event.preventDefault();
+  const reason=new FormData(event.target).get('reason')?.toString().trim()||'';
+  if(reason.length<5)return notify('Опишите причину доработки (не менее 5 символов)');
+  const submit=event.target.querySelector('[type="submit"]');submit.disabled=true;
+  try{await requestOrderRework(state.reworkOrderId,reason);state.reworkOrderId='';await hydratePortal();notify('Заказ отправлен на доработку')}
+  catch(error){notify(error.message);if(submit.isConnected)submit.disabled=false}
+});
 document.addEventListener('submit',async event=>{if(event.target.id==='chat-form'){event.preventDefault();const msg=state.chatText.trim();if(!msg)return;const send=event.target.querySelector('.send-btn');send.disabled=true;try{const response=await fetch('/api/clinic-messages',{method:'POST',headers:{'Content-Type':'application/json','X-Portal-Token':portalToken()},body:JSON.stringify({text:msg})});if(!response.ok)throw new Error('Не удалось отправить сообщение');state.chatText='';$('#chat-input').value='';await loadMessages()}catch(error){state.chatStatus=error.message;$('#chat-status').textContent=state.chatStatus}finally{send.disabled=false}}});
 document.addEventListener('submit',async event=>{
   if(event.target.id!=='portal-login-form')return;
@@ -304,7 +411,8 @@ document.addEventListener('submit',async event=>{
   catch(error){clearPortalToken();portalError=error.message;render()}
 });
 window.addEventListener('popstate',syncRoute);
-setInterval(()=>{loadMessages();technicianCabinet.refreshMessages()},3000);
+setInterval(()=>{if(document.visibilityState!=='visible')return;loadMessages();technicianCabinet?.refreshMessages()},3000);
+setInterval(()=>{if(document.visibilityState!=='visible'||!portalReady)return;refreshNotificationCenter().then(()=>{const center=document.querySelector('.notification-center');if(center)center.outerHTML=notificationCenterMarkup()}).catch(()=>{})},20000);
 render();
 if(portalToken())hydratePortal().catch(error=>{clearPortalToken();portalError=error.message;render()});
 document.addEventListener('visibilitychange',()=>{

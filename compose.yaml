@@ -5,6 +5,11 @@ services:
     container_name: create-dental
     restart: unless-stopped
     ports:
-      - "4173:4173"
+      - "127.0.0.1:4173:4173"
     volumes:
       - ./.data:/app/.data
+      - ./.backups:/app/.backups
+    environment:
+      BACKUP_DIR: /app/.backups
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      HTTPS_REDIRECT: ${HTTPS_REDIRECT:-0}

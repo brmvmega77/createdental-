@@ -1,6 +1,7 @@
-import {loadEmployees,seedDetails,stages} from './technician.js';
-import {savePortal,authRequest} from './portal-client.js';
-import {routeFromPath,pathFor,navigate} from './routes.js';
+import {loadEmployees,seedDetails,stages} from './technician.js?v=mobile-fast-3';
+import {savePortal,authRequest,loadOrderFiles,uploadOrderFile,downloadOrderFile} from './portal-client.js?v=mobile-fast-3';
+import {routeFromPath,pathFor,navigate} from './routes.js?v=mobile-fast-1';
+import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=mobile-fast-3';
 
 const safe=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const tone=stage=>stage==='Контроль качества'?'review':['Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(stage)?'ready':'work';
@@ -11,7 +12,7 @@ const dateKey=value=>String(value||'').includes('.')?String(value).split('.').re
 
 export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isActive,currentUser,onUserUpdate=()=>{}}){
   const initialRoute=routeFromPath(location.pathname);
-  const state={page:initialRoute.role==='worker'?initialRoute.page:'overview',employeeId:'',orderId:initialRoute.orderId||'',sortKey:'createdAt',sortDirection:'desc',profile:null,toast:''};
+  const state={page:initialRoute.role==='worker'?initialRoute.page:'overview',employeeId:'',orderId:initialRoute.orderId||'',sortKey:'createdAt',sortDirection:'desc',profile:null,toast:'',filesFor:'',orderFiles:[]};
   function employees(){return loadEmployees()}
   function current(){
     state.employeeId=currentUser()?.subjectId||'';
@@ -109,11 +110,13 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   function detailPage(){
     const order=myOrders().find(item=>item.id===state.orderId);
     if(!order)return ordersPage();
+    if(state.filesFor!==order.id){state.filesFor=order.id;state.orderFiles=[];loadOrderFiles(order.id).then(result=>{if(state.orderId===order.id&&isActive()){state.orderFiles=result.files||[];render()}}).catch(()=>{})}
     const index=stages.indexOf(order.stage);
     const canAdvance=index>=1&&index<4;
     const canRollback=index>1&&index<=4;
     const next=canAdvance?stages[index+1]:'';
-    return `<button class="tech-back" data-worker-page="orders">← Мои заказы</button><div class="tech-heading"><div><span class="tech-eyebrow">${safe(order.clinic)} · срок ${safe(order.date)}</span><h1>Заказ ${safe(order.id)}</h1><p>${safe(order.work)} · ${safe(order.patient)}</p></div><span class="tech-stage ${tone(order.stage)}">${safe(order.stage)}</span></div><div class="tech-detail-grid"><section class="tech-panel"><h2>Данные работы</h2><div class="tech-facts"><div><span>Клиника</span><strong>${safe(order.clinic)}</strong></div><div><span>Пациент</span><strong>${safe(order.patient)}</strong></div><div><span>Конструкция</span><strong>${safe(order.work)}</strong></div><div><span>Создан</span><strong>${shortDate(order.createdAt)}</strong></div><div><span>Срок сдачи</span><strong>${safe(order.date)}</strong></div><div><span>Приоритет</span><strong>${safe(order.priority)}</strong></div><div><span>Номера зубов</span><strong>${order.teeth.join(', ')||'Не указаны'}</strong></div></div><div class="tech-detail-teeth">${toothChart(false,order.teeth)}</div></section><section class="tech-panel"><h2>Ход выполнения</h2><ol class="tech-timeline">${stages.map((stage,position)=>`<li class="${position<index?'done':position===index?'current':''}"><i></i><span>${stage}</span></li>`).join('')}</ol><div class="tech-detail-actions">${canRollback?`<button class="btn outline" data-worker-action="rollback" data-order-id="${safe(order.id)}">Вернуть на предыдущий статус</button>`:''}${canAdvance?`<button class="btn primary" data-worker-action="advance" data-order-id="${safe(order.id)}">${next==='Контроль качества'?'Передать на проверку':'Перейти к этапу «'+next+'»'}</button>`:order.stage==='Контроль качества'?'<p>Работа передана главному технику на проверку.</p>':['Работа принята','Готово к выдаче'].includes(order.stage)?'<p>Работа принята главным техником.</p>':order.stage==='В доставке'?'<p>Заказ в доставке.</p>':order.stage==='Принято доктором'?'<p class="tech-status-note">Работа принята доктором.</p>':'<p>Дождитесь назначения работы.</p>'}</div></section></div>`;
+    const resultPhotos=state.orderFiles.filter(file=>file.purpose==='result-photo');
+    return `<button class="tech-back" data-worker-page="orders">← Мои заказы</button><div class="tech-heading"><div><span class="tech-eyebrow">${safe(order.clinic)} · срок ${safe(order.date)}</span><h1>Заказ ${safe(order.id)}</h1><p>${safe(order.work)} · ${safe(order.patient)}</p></div><span class="tech-stage ${tone(order.stage)}">${safe(order.stage)}</span></div><div class="tech-detail-grid"><section class="tech-panel"><h2>Данные работы</h2><div class="tech-facts"><div><span>Клиника</span><strong>${safe(order.clinic)}</strong></div><div><span>Пациент</span><strong>${safe(order.patient)}</strong></div><div><span>Конструкция</span><strong>${safe(order.work)}</strong></div><div><span>Создан</span><strong>${shortDate(order.createdAt)}</strong></div><div><span>Срок сдачи</span><strong>${safe(order.date)}</strong></div><div><span>Приоритет</span><strong>${safe(order.priority)}</strong></div><div><span>Номера зубов</span><strong>${order.teeth.join(', ')||'Не указаны'}</strong></div></div><div class="tech-detail-teeth">${toothChart(false,order.teeth)}</div><h3>Файлы заказа</h3><div class="order-file-list">${state.orderFiles.map(file=>`<button class="order-file" data-worker-download-file="${safe(file.id)}"><strong>${safe(file.name)}</strong><small>${file.purpose==='result-photo'?'Фото результата · ':''}${Math.ceil(file.size/1024)} КБ</small></button>`).join('')||'<p class="tech-empty">Файлов пока нет</p>'}</div>${order.stage==='Контроль качества'?`<div class="result-photo-upload"><h3>Фото готовой работы</h3><p>Фото будет видно врачу после отправки заказа.</p><label class="btn outline">${resultPhotos.length?'Добавить ещё фото':'Загрузить фото результата'}<input type="file" id="worker-result-photo" accept="image/jpeg,image/png" multiple hidden></label></div>`:''}</section><section class="tech-panel"><h2>Ход выполнения</h2><ol class="tech-timeline">${stages.map((stage,position)=>`<li class="${position<index?'done':position===index?'current':''}"><i></i><span>${stage}</span></li>`).join('')}</ol><div class="tech-detail-actions">${canRollback?`<button class="btn outline" data-worker-action="rollback" data-order-id="${safe(order.id)}">Вернуть на предыдущий статус</button>`:''}${order.stage==='На доработке'?`<p>${safe(order.reworkReason||'Клиника запросила доработку')}</p><button class="btn primary" data-worker-action="resume-rework" data-order-id="${safe(order.id)}">Принять в работу</button>`:canAdvance?`<button class="btn primary" data-worker-action="advance" data-order-id="${safe(order.id)}">${next==='Контроль качества'?'Передать на проверку':'Перейти к этапу «'+next+'»'}</button>`:order.stage==='Контроль качества'?'<p>Работа передана главному технику на проверку.</p>':['Работа принята','Готово к выдаче'].includes(order.stage)?'<p>Работа принята главным техником.</p>':order.stage==='В доставке'?'<p>Заказ в доставке.</p>':order.stage==='Принято доктором'?'<p class="tech-status-note">Работа принята доктором.</p>':'<p>Дождитесь назначения работы.</p>'}</div></section></div>`;
   }
   function profile(){
     const profile=workerProfile();
@@ -125,7 +128,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     const profile=workerProfile();
     const avatar=profile.avatar?`<span class="avatar"><img src="${safe(profile.avatar)}" alt=""></span>`:`<span class="avatar">${safe(initials(employee?.name||'Техник'))}</span>`;
     const nav=[['overview','Главная','home'],['orders','Мои заказы','orders'],['profile','Мой профиль','user']];
-    root().innerHTML=`<aside class="sidebar tech-sidebar" id="worker-sidebar"><div class="brand"><img class="portal-logo" src="${logo}" alt="Create Dental"></div><div class="tech-side-label">Кабинет техника</div><nav class="sidebar-nav">${nav.map(([page,label,ico])=>`<button class="nav-link ${state.page===page||state.page==='detail'&&page==='orders'?'active':''}" data-worker-page="${page}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav></aside><div class="shell tech-shell"><header class="topbar"><button class="mobile-menu" data-worker-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div><button class="role-toggle" data-auth-logout>Выйти</button><button class="profile" data-worker-page="profile">${avatar}<span><strong>${safe(employee?.name||profile.displayName||'Техник')}</strong><small>${safe(employee?.specialty||'Зубной техник')}</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>`;
+    root().innerHTML=`<aside class="sidebar tech-sidebar" id="worker-sidebar"><div class="brand"><img class="portal-logo" src="${logo}" alt="Create Dental"></div><div class="tech-side-label">Кабинет техника</div><nav class="sidebar-nav">${nav.map(([page,label,ico])=>`<button class="nav-link ${state.page===page||state.page==='detail'&&page==='orders'?'active':''}" data-worker-page="${page}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav></aside><div class="shell tech-shell"><header class="topbar"><button class="mobile-menu" data-worker-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div>${notificationCenterMarkup()}<button class="role-toggle" data-auth-logout>Выйти</button><button class="profile" data-worker-page="profile">${avatar}<span><strong>${safe(employee?.name||profile.displayName||'Техник')}</strong><small>${safe(employee?.specialty||'Зубной техник')}</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>`;
   }
   function render(){
     const route=routeFromPath(location.pathname);
@@ -134,8 +137,14 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     if(!employee){shell(`<div class="tech-heading"><div><span class="tech-eyebrow">КАБИНЕТ ТЕХНИКА</span><h1>Доступ недоступен</h1><p>Выбранный сотрудник отключён, уволен или отсутствует.</p></div></div>`);return}
     shell(({overview,orders:ordersPage,detail:detailPage,profile}[state.page]||overview)());
   }
-  document.addEventListener('click',event=>{
+  document.addEventListener('click',async event=>{
     if(!isActive())return;
+    if(event.target.closest('[data-notification-toggle]')){await toggleNotificationCenter();render();return}
+    if(event.target.closest('[data-notification-close]')){closeNotificationCenter();render();return}
+    const notification=event.target.closest('[data-notification-id]');
+    if(notification){const orderId=notification.dataset.notificationOrder;await markNotificationCenterRead().catch(()=>{});closeNotificationCenter();if(orderId&&myOrders().some(order=>order.id===orderId)){state.orderId=orderId;setPage('detail')}else setPage('overview');return}
+    const fileDownload=event.target.closest('[data-worker-download-file]');
+    if(fileDownload){try{await downloadOrderFile(fileDownload.dataset.workerDownloadFile)}catch(error){toast(error.message)}return}
     const sort=event.target.closest('[data-worker-sort]');
     if(sort){const key=sort.dataset.workerSort;state.sortDirection=state.sortKey===key&&state.sortDirection==='asc'?'desc':'asc';state.sortKey=key;render();return}
     const avatar=event.target.closest('[data-worker-avatar]');
@@ -143,7 +152,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     const action=event.target.closest('[data-worker-action]');
     if(action){
       if(action.dataset.workerAction==='menu'){root().querySelector('#worker-sidebar')?.classList.toggle('open');return}
-      if(['advance','rollback'].includes(action.dataset.workerAction)){
+      if(['advance','rollback','resume-rework'].includes(action.dataset.workerAction)){
         const employee=current();
         const order=myOrders().find(item=>item.id===action.dataset.orderId);
         const index=order&&stages.indexOf(order.stage);
@@ -151,7 +160,9 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
         if(action.dataset.workerAction==='advance'&&(index<1||index>=4))return;
         if(action.dataset.workerAction==='rollback'&&(index<=1||index>4))return;
         const overrides=readOrders();
-        overrides[order.id]={...(overrides[order.id]||{}),stage:stages[index+(action.dataset.workerAction==='advance'?1:-1)]};
+        if(action.dataset.workerAction==='resume-rework'&&order.stage!=='На доработке')return;
+        const stage=action.dataset.workerAction==='resume-rework'?'Изготовление':stages[index+(action.dataset.workerAction==='advance'?1:-1)];
+        overrides[order.id]={...(overrides[order.id]||{}),stage};
         localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
         savePortal('orderOverrides',overrides).catch(error=>toast('Не удалось сохранить этап на сервере: '+error.message));
         render();
@@ -165,6 +176,12 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   });
   document.addEventListener('change',event=>{
     if(!isActive())return;
+    if(event.target.id==='worker-result-photo'){
+      const order=myOrders().find(item=>item.id===state.orderId),selected=Array.from(event.target.files||[]),files=selected.filter(file=>/\.(jpg|jpeg|png)$/i.test(file.name)&&file.size<=50*1024*1024);
+      if(selected.length!==files.length)toast('Выберите фото JPG или PNG до 50 МБ.');
+      if(!order||!files.length){event.target.value='';return}
+      (async()=>{try{for(const file of files)await uploadOrderFile(order.id,file,{purpose:'result-photo'});const result=await loadOrderFiles(order.id);state.orderFiles=result.files||[];toast('Фото результата прикреплено к заказу');render()}catch(error){toast(error.message)}})();event.target.value='';return;
+    }
     if(event.target.id==='worker-profile-avatar'){
       const file=event.target.files?.[0];
       if(!file)return;
