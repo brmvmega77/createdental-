@@ -138,12 +138,12 @@ function toothChart(interactive=true, selectedTeeth=state.selectedTeeth){
     [41,228,707,38,45,223.922,702.858,45.971,53.096],[31,268,708,38,44,263.922,703.950,45.971,51.916]
   ];
   return `<div class="tooth-chart"><svg viewBox="0 0 509 772" role="img" aria-label="Схема зубов верхней и нижней челюсти">
-    <image class="tooth-chart-base" href="${assets}tooth-chart-reference.png?v=1" x="0" y="0" width="509" height="772" preserveAspectRatio="none"/>
     ${teeth.map(([n,x,y,width,height,imageX,imageY,imageWidth,imageHeight])=>{
       const selected=selectedTeeth.includes(n);
       return `<g class="tooth ${selected?'selected':''}" ${interactive?`data-tooth="${n}" role="button" tabindex="0" aria-label="Зуб ${n}" aria-pressed="${selected}"`:''}>
         <rect class="tooth-hitbox" x="${x}" y="${y}" width="${width}" height="${height}" rx="10"/>
-        ${selected?`<image class="tooth-image" href="${assets}teeth/${n}.png?v=3" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="none"/><text x="${x+width/2}" y="${y+height/2}" text-anchor="middle" dominant-baseline="middle">${n}</text>`:''}
+        <image class="tooth-image" href="${assets}teeth/${n}.png?v=3" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="none"/>
+        <text x="${x+width/2}" y="${y+height/2}" text-anchor="middle" dominant-baseline="middle">${n}</text>
       </g>`;
     }).join('')}</svg></div>`;
 }
