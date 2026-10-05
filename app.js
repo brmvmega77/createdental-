@@ -120,27 +120,21 @@ function filteredOrders(){let list=currentOrders();if(state.filter==='Новые
 function ordersPage(){shell(`${title('Мои заказы')}${tabs(orderTabs(),state.filter)}<div class="toolbar"><label class="search">${icon('search',17)}<input id="order-search" value="${escapeHtml(state.query)}" placeholder="Поиск по номеру заказа, пациенту или типу работы..."></label>${button(`${icon('filter',15)} Фильтры`,'filters','outline')}</div>${orderTable(filteredOrders())}`)}
 function toothChart(interactive=true, selectedTeeth=state.selectedTeeth){
   const teeth=[
-    [18,105,383,-87],[17,105,325,-83],[16,107,267,-75],[15,120,213,-65],
-    [14,143,163,-48],[13,175,120,-33],[12,216,87,-18],[11,265,70,-5],
-    [21,335,70,5],[22,384,87,18],[23,425,120,33],[24,457,163,48],
-    [25,480,213,65],[26,493,267,75],[27,495,325,83],[28,495,383,87],
-    [48,105,468,87],[47,105,527,83],[46,116,582,75],[45,140,635,61],
-    [44,176,682,45],[43,217,716,29],[42,253,740,15],[41,282,752,4],
-    [31,318,752,-4],[32,347,740,-15],[33,383,716,-29],[34,424,682,-45],
-    [35,460,635,-61],[36,484,582,-75],[37,495,527,-83],[38,495,468,-87]
+    [18,109,357,76,68],[17,109,296,76,72],[16,109,235,76,72],[15,114,181,61,58],
+    [14,130,145,58,57],[13,158,108,57,61],[12,192,78,53,64],[11,239,64,59,63],
+    [21,296,64,59,63],[22,344,78,53,64],[23,381,108,57,61],[24,410,145,58,57],
+    [25,428,181,61,58],[26,446,235,76,72],[27,446,296,76,72],[28,447,357,76,68],
+    [48,110,434,74,65],[47,111,497,77,68],[46,115,560,82,70],[45,132,620,66,62],
+    [44,151,660,58,57],[43,174,700,61,60],[42,210,730,53,50],[41,251,739,49,49],
+    [31,291,739,49,49],[32,323,730,53,50],[33,353,700,61,60],[34,385,660,58,57],
+    [35,417,620,66,62],[36,444,560,82,70],[37,446,497,77,68],[38,447,434,74,65]
   ];
-  return `<div class="tooth-chart"><svg viewBox="0 0 600 800" role="img" aria-label="Схема зубов верхней и нижней челюсти">
-    ${teeth.map(([n,x,y,angle])=>{
-      const last=n%10;
-      const kind=last<=2?'incisor':last===3?'canine':last<=5?'premolar':'molar';
-      const scale=last<=2?(n>=40||n>=30&&n<40?0.68:0.9):last===3?0.78:last<=5?0.87:last===8?0.93:1.02;
-      const rotation=(n>=30?180:0)+angle;
+  return `<div class="tooth-chart"><svg viewBox="0 0 509 774" role="img" aria-label="Схема зубов верхней и нижней челюсти">
+    ${teeth.map(([n,x,y,width,height])=>{
       const selected=selectedTeeth.includes(n);
-      return `<g class="tooth tooth-${kind} ${selected?'selected':''}" ${interactive?`data-tooth="${n}" role="button" tabindex="0" aria-label="Зуб ${n}" aria-pressed="${selected}"`:''} transform="translate(${x} ${y})">
-        <g class="crown" transform="rotate(${rotation}) scale(${scale})">
-          <rect class="tooth-hitbox" x="-37" y="-37" width="74" height="74" rx="12"/>
-          <image class="tooth-image" href="${assets}teeth/${n}.png?v=1" x="-36" y="-36" width="72" height="72" preserveAspectRatio="xMidYMid meet"/>
-        </g>
+      return `<g class="tooth ${selected?'selected':''}" ${interactive?`data-tooth="${n}" role="button" tabindex="0" aria-label="Зуб ${n}" aria-pressed="${selected}"`:''} transform="translate(${x} ${y})">
+        <rect class="tooth-hitbox" x="${-width/2}" y="${-height/2}" width="${width}" height="${height}" rx="10"/>
+        <image class="tooth-image" href="${assets}teeth/${n}.png?v=2" x="${-width/2}" y="${-height/2}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid meet"/>
         <text text-anchor="middle" dominant-baseline="middle">${n}</text>
       </g>`;
     }).join('')}</svg></div>`;
