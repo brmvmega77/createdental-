@@ -139,8 +139,7 @@ function toothChart(interactive=true, selectedTeeth=state.selectedTeeth, bridgeR
   ];
   const centers=new Map(teeth.map(([number,x,y,width,height])=>[number,[x+width/2,y+height/2]]));
   const bridgeMarkup=bridgeRanges.map(range=>{const points=range.map(number=>centers.get(number)).filter(Boolean);if(points.length<2)return '';return `<polyline class="tooth-bridge-line" points="${points.map(point=>point.join(',')).join(' ')}"/>${points.map(point=>`<circle class="tooth-bridge-point" cx="${point[0]}" cy="${point[1]}" r="5"/>`).join('')}`}).join('');
-  const bridgeView=bridgeRanges.length>0||(interactive&&state.toothMode==='Мост');
-  return `<div class="tooth-chart ${bridgeView?'bridge-chart':''}"><svg viewBox="0 0 509 772" role="img" aria-label="Схема зубов верхней и нижней челюсти">
+  return `<div class="tooth-chart"><svg viewBox="0 0 509 772" role="img" aria-label="Схема зубов верхней и нижней челюсти">
     ${teeth.map(([n,x,y,width,height,imageX,imageY,imageWidth,imageHeight])=>{
       const selected=selectedTeeth.includes(n);
       return `<g class="tooth ${selected?'selected':''}" ${interactive?`data-tooth="${n}" role="button" tabindex="0" aria-label="Зуб ${n}" aria-pressed="${selected}"`:''}>
