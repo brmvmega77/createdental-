@@ -120,22 +120,30 @@ function filteredOrders(){let list=currentOrders();if(state.filter==='Новые
 function ordersPage(){shell(`${title('Мои заказы')}${tabs(orderTabs(),state.filter)}<div class="toolbar"><label class="search">${icon('search',17)}<input id="order-search" value="${escapeHtml(state.query)}" placeholder="Поиск по номеру заказа, пациенту или типу работы..."></label>${button(`${icon('filter',15)} Фильтры`,'filters','outline')}</div>${orderTable(filteredOrders())}`)}
 function toothChart(interactive=true, selectedTeeth=state.selectedTeeth){
   const teeth=[
-    [18,109,357,76,68],[17,109,296,76,72],[16,109,235,76,72],[15,114,181,61,58],
-    [14,130,145,58,57],[13,158,108,57,61],[12,192,78,53,64],[11,239,64,59,63],
-    [21,296,64,59,63],[22,344,78,53,64],[23,381,108,57,61],[24,410,145,58,57],
-    [25,428,181,61,58],[26,446,235,76,72],[27,446,296,76,72],[28,447,357,76,68],
-    [48,110,434,74,65],[47,111,497,77,68],[46,115,560,82,70],[45,132,620,66,62],
-    [44,151,660,58,57],[43,174,700,61,60],[42,210,730,53,50],[41,251,739,49,49],
-    [31,291,739,49,49],[32,323,730,53,50],[33,353,700,61,60],[34,385,660,58,57],
-    [35,417,620,66,62],[36,444,560,82,70],[37,446,497,77,68],[38,447,434,74,65]
+    [11,211,29,55,59,206.856,24.813,63.288,67.184],[21,268,29,55,59,263.870,24.813,63.072,67.184],
+    [12,170,41,43,53,165.922,36.865,50.970,61.082],[22,321,41,44,53,316.828,36.865,52.155,61.082],
+    [13,130,63,54,59,125.875,58.840,62.063,67.131],[23,350,63,54,59,345.875,59.029,62.063,67.131],
+    [14,106,105,50,49,101.911,100.885,57.993,57.042],[24,378,105,50,49,373.911,101.073,57.993,56.855],
+    [15,89,149,56,45,84.852,144.926,64.296,52.963],[25,389,149,56,45,384.852,144.926,64.108,52.963],
+    [16,73,192,70,69,68.815,187.841,78.179,77.129],[26,391,192,70,69,386.815,187.841,78.179,77.129],
+    [17,69,260,65,64,64.879,255.859,73.055,72.094],[27,400,260,66,64,395.816,255.859,74.179,72.094],
+    [18,70,324,60,59,65.849,319.799,68.113,67.210],[28,405,324,60,59,400.849,319.799,68.113,67.210],
+    [48,74,402,60,62,70.025,398.030,67.950,70.128],[38,400,402,60,62,395.823,397.829,68.354,70.153],
+    [47,74,464,71,66,69.801,459.863,79.207,74.085],[37,389,464,71,66,384.801,460.063,79.207,73.875],
+    [46,84,529,72,74,79.989,524.793,80.021,82.222],[36,378,529,72,74,373.787,524.793,80.234,82.222],
+    [45,106,599,57,51,101.834,594.890,65.143,59.033],[35,371,599,56,51,366.907,594.875,64.000,59.063],
+    [44,127,645,51,50,122.860,640.849,59.280,58.113],[34,356,645,51,50,351.860,640.849,59.092,58.113],
+    [43,156,681,46,51,151.869,676.813,54.073,59.183],[33,332,681,46,51,327.869,676.813,54.073,59.183],
+    [42,188,703,40,43,183.907,698.974,48.186,50.868],[32,306,703,40,43,301.926,699.157,47.963,50.868],
+    [41,228,707,38,45,223.922,702.858,45.971,53.096],[31,268,708,38,44,263.922,703.950,45.971,51.916]
   ];
   return `<div class="tooth-chart"><svg viewBox="0 0 509 772" role="img" aria-label="Схема зубов верхней и нижней челюсти">
     <image class="tooth-chart-base" href="${assets}tooth-chart-reference.png?v=1" x="0" y="0" width="509" height="772" preserveAspectRatio="none"/>
-    ${teeth.map(([n,x,y,width,height])=>{
+    ${teeth.map(([n,x,y,width,height,imageX,imageY,imageWidth,imageHeight])=>{
       const selected=selectedTeeth.includes(n);
-      return `<g class="tooth ${selected?'selected':''}" ${interactive?`data-tooth="${n}" role="button" tabindex="0" aria-label="Зуб ${n}" aria-pressed="${selected}"`:''} transform="translate(${x} ${y})">
-        <rect class="tooth-hitbox" x="${-width/2}" y="${-height/2}" width="${width}" height="${height}" rx="10"/>
-        ${selected?`<image class="tooth-image" href="${assets}teeth/${n}.png?v=2" x="${-width/2}" y="${-height/2}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid meet"/><text text-anchor="middle" dominant-baseline="middle">${n}</text>`:''}
+      return `<g class="tooth ${selected?'selected':''}" ${interactive?`data-tooth="${n}" role="button" tabindex="0" aria-label="Зуб ${n}" aria-pressed="${selected}"`:''}>
+        <rect class="tooth-hitbox" x="${x}" y="${y}" width="${width}" height="${height}" rx="10"/>
+        ${selected?`<image class="tooth-image" href="${assets}teeth/${n}.png?v=3" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="none"/><text x="${x+width/2}" y="${y+height/2}" text-anchor="middle" dominant-baseline="middle">${n}</text>`:''}
       </g>`;
     }).join('')}</svg></div>`;
 }
