@@ -230,19 +230,32 @@ async function handleNotifications(req,res){
   const key=`${user.role}:${user.subjectId}`,snapshot=portalSnapshot();
   if(req.method==='GET'){
     const accessible=new Set(snapshot.orders.filter(order=>canAccessOrder(user,order)).map(order=>order.id));
-    const events=snapshot.orderHistory.filter(event=>(event.clinicId===user.subjectId||accessible.has(event.orderId))&&!(event.action==='stage_changed'&&event.to==='На доработке'));
+    const events=snapshot.orderHistory.filter(event=>{
+      if(user.role==='technician')return event.action==='message_received'||event.action==='clinic_registered'||event.action==='order_created'||event.action==='stage_changed'&&event.to==='Контроль качества';
+      return (event.clinicId===user.subjectId||accessible.has(event.orderId))&&!(event.action==='stage_changed'&&event.to==='На доработке');
+    });
     const readAt=notificationReads[key]||'';
     const describe=event=>{
+      const order=snapshot.orders.find(item=>item.id===event.orderId),clinic=portalClient(event.clinicId||order?.clinicId);
+      if(event.action==='clinic_registered')return `Новая регистрация: ${event.summary||event.actor||'клиника'}`;
+      if(event.action==='message_received')return `Новое сообщение от ${event.actor||clinic?.name||'клиники'}`;
+      if(event.action==='order_created')return `Новый заказ ${event.orderId}${order?.clinic||clinic?.name?` от ${order?.clinic||clinic?.name}`:''}`;
+      if(event.action==='stage_changed'&&event.to==='Контроль качества')return `Заказ ${event.orderId} требует проверки качества`;
       if(event.action==='stage_changed')return `Заказ ${event.orderId}: ${event.to}`;
       if(event.action==='assignee_changed')return `Заказ ${event.orderId}: исполнитель ${event.to}`;
       if(event.action==='rework_requested')return `Заказ ${event.orderId}: запрошена доработка`;
       if(event.action==='file_uploaded')return `Заказ ${event.orderId}: ${event.purpose==='result-photo'?'добавлено фото готовой работы':'добавлен файл'}`;
-      if(event.action==='order_created')return `Создан заказ ${event.orderId}`;
-      if(event.action==='message_received')return `Новое сообщение от клиники`;
       if(event.action==='message_replied')return `Лаборатория ответила на сообщение`;
       return `Заказ ${event.orderId}: ${event.summary||'есть обновление'}`;
     };
-    const items=events.slice(-100).reverse().map(event=>({id:event.id,orderId:event.orderId||'',at:event.at,text:describe(event),read:Boolean(readAt&&event.at<=readAt),actorRole:event.actorRole}));
+    const notificationMeta=event=>{
+      if(event.action==='clinic_registered')return {type:'registration',target:'clients',clinicId:event.clinicId||''};
+      if(event.action==='message_received')return {type:'message',target:'messages',clinicId:event.clinicId||''};
+      if(event.action==='order_created')return {type:'order',target:'detail',clinicId:event.clinicId||''};
+      if(event.action==='stage_changed'&&event.to==='Контроль качества')return {type:'quality',target:'detail',clinicId:event.clinicId||''};
+      return {type:'update',target:event.orderId?'detail':'messages',clinicId:event.clinicId||''};
+    };
+    const items=events.slice(-100).reverse().map(event=>({id:event.id,orderId:event.orderId||'',at:event.at,text:describe(event),read:Boolean(readAt&&event.at<=readAt),actorRole:event.actorRole,...notificationMeta(event)}));
     return json(res,200,{items:items.slice(0,40),unreadCount:items.filter(item=>!item.read&&item.actorRole!==user.role).length});
   }
   if(req.method==='POST'){
@@ -308,7 +321,7 @@ async function handleAuth(req,res,url){
     const existing=portalSnapshot().clients.find(item=>item.email?.toLowerCase()===email&&!item.deleted);
     const id=existing?.id||'client-'+randomBytes(12).toString('hex');
     const client={id,originalName:id,name,email,contact:'',phone,city,address,approved:false};
-    try{if(!existing)await replacePortalCollection('clients',[...portalSnapshot().clients,client]);await createAccount({email,password:body.password,role:'clinic',subjectId:id});return json(res,201,{pendingApproval:true,email});}
+    try{if(!existing)await replacePortalCollection('clients',[...portalSnapshot().clients,client]);await createAccount({email,password:body.password,role:'clinic',subjectId:id});await recordPortalEvent('',{role:'clinic',name},'clinic_registered',{clinicId:id,summary:name}).catch(()=>{});return json(res,201,{pendingApproval:true,email});}
     catch{return json(res,500,{error:'Не удалось создать кабинет'})}
   }
   if(req.method==='POST'&&url.pathname==='/api/auth/login'){

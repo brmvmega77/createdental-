@@ -207,7 +207,7 @@
 .portal-login .portal-logo{width:190px;height:76px;margin:0 auto 25px}
 .portal-login h1{font-size:23px;color:#333333;margin:0 0 9px}.portal-login p{color:#808080;font-size:13px;line-height:1.55;margin:0 0 22px}
 .portal-login form{display:grid;gap:13px}.portal-login label{display:grid;gap:7px;color:#808080;font-size:12px;font-weight:650}.portal-login input{height:42px;border:1px solid #eeeeee;border-radius:8px;padding:0 12px}
-.portal-login .btn{width:100%}.portal-login .btn.primary:hover{background:#333333;border-color:#333333}.portal-login small{display:block;margin-top:20px;color:#c8c8c8;font-size:11px;line-height:1.5}.portal-login .portal-login-error{color:#c74b53;margin:14px 0 0}
+.portal-login .btn{width:100%;appearance:none;-webkit-appearance:none}.portal-login .btn.primary,.portal-login .btn.primary:visited{background-color:#909090;border-color:#909090;color:#fff;-webkit-text-fill-color:#fff;opacity:1}.portal-login .btn.primary:hover,.portal-login .btn.primary:focus-visible,.portal-login .btn.primary:active{background-color:#333333;border-color:#333333;color:#fff;-webkit-text-fill-color:#fff;opacity:1}.portal-login small{display:block;margin-top:20px;color:#c8c8c8;font-size:11px;line-height:1.5}.portal-login .portal-login-error{color:#c74b53;margin:14px 0 0}
 .portal-login section{width:min(100%,480px)}
 .auth-links{display:flex;justify-content:space-between;gap:12px;margin-top:18px}
 .auth-links button{border:0;background:none;padding:0;color:#808080;font:inherit;font-size:13px;cursor:pointer;text-align:left}
@@ -427,6 +427,19 @@ html{zoom:.9}
 .bubble.me .chat-attachment{background:#fff}
 .tech-overview-team{margin-top:17px}
 
+/* Chief overview follows the same wide content + compact sidebar grid as the clinic dashboard. */
+.tech-dashboard-main{display:grid;gap:17px;min-width:0}
+.tech-dashboard-main>.tech-panel{margin:0;min-width:0}
+.tech-dashboard-aside{min-width:0}
+.tech-dashboard-aside>.tech-panel{width:100%;margin:0}
+.active-date-filter{display:flex;align-items:center;justify-content:space-between;gap:12px;width:max-content;max-width:100%;margin:0 0 14px;padding:9px 12px;border:1px solid #e7e7e7;border-radius:9px;background:#fff;color:#808080;font-size:12px}
+.active-date-filter strong{color:#333}
+.active-date-filter button{display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:50%;background:#f5f5f5;color:#808080;font-size:17px;line-height:1;cursor:pointer}
+.active-date-filter button:hover{background:#333;color:#fff}
+.upcoming-order{padding-left:2px;padding-right:2px}
+.upcoming-order .deadline-status{flex:0 0 auto}
+@media(max-width:1200px){.tech-dashboard-aside{grid-template-columns:minmax(0,1fr)}}
+
 /* The client directory fits inside the page without its own scrollbar. */
 .tech-client-layout>.tech-panel>.tech-table-wrap{overflow:visible}
 .tech-client-table{min-width:0;table-layout:fixed}
@@ -460,6 +473,7 @@ html{zoom:.9}
 @media(max-width:760px){.order-history li{grid-template-columns:1fr;gap:4px}.order-file-toolbar{align-items:flex-start;flex-direction:column}.order-rework-actions{display:grid;grid-template-columns:1fr}.order-rework-actions .btn{width:100%}}
 
 .notification-center{position:relative;display:flex;align-items:center;z-index:20}.notification-center .bell{width:38px;height:38px;display:grid;place-items:center;border:0;background:transparent;position:relative;padding:8px;color:#333}.notification-center .bell i{position:absolute;right:0;top:0;min-width:17px;height:17px;padding:0 4px;display:grid;place-items:center;border:2px solid #fff;border-radius:12px;background:#e04b43;color:#fff;font-size:9px;font-style:normal;font-weight:700}.notification-panel{position:absolute;right:0;top:calc(100% + 8px);width:min(360px,calc(100vw - 24px));max-height:min(450px,70vh);display:flex;flex-direction:column;overflow:hidden;background:#fff;border:1px solid #eee;border-radius:10px;box-shadow:0 14px 40px #33333320}.notification-heading{height:48px;flex:0 0 auto;padding:0 15px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f5f5f5;font-size:13px}.notification-heading button{border:0;background:none;font-size:21px;color:#808080}.notification-list{overflow:auto;padding:4px 8px}.notification-item{width:100%;padding:11px 9px;display:flex;align-items:center;gap:9px;text-align:left;border:0;border-bottom:1px solid #f5f5f5;background:#fff}.notification-item:hover,.notification-item.unread{background:#fbfbfb}.notification-copy{flex:1;min-width:0;display:grid;gap:4px}.notification-copy strong{font-size:12px;line-height:1.4;font-weight:600}.notification-copy small{font-size:10px;color:#999}.notification-item>i{width:7px;height:7px;flex:0 0 auto;border-radius:50%;background:#808080}.notification-empty{padding:22px 12px;text-align:center;color:#888;font-size:12px}.result-photos,.result-photo-upload{margin-top:20px;padding-top:17px;border-top:1px solid #f3f3f3}.result-photos h3,.result-photo-upload h3{margin:0 0 9px;font-size:14px}.result-photos>p,.result-photo-upload>p{margin:0 0 12px;color:#888;font-size:12px}.result-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}.result-photo{min-width:0;display:grid;gap:6px;text-decoration:none;color:#333;font-size:11px}.result-photo img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:7px;background:#f5f5f5}.result-photo-loading{width:100%;aspect-ratio:4/3;display:grid;place-items:center;border-radius:7px;background:#f5f5f5;color:#888}.result-photo span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.upload-zone.dragging{border-color:#808080;background:#f7f7f7}
+.notification-kind{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;border-radius:50%;background:#f2f2f2;color:#555;font-size:13px;font-weight:750}.notification-kind.message{font-size:12px}.notification-kind.registration{font-size:18px}.notification-kind.quality{background:#e7f7ef;color:#188a55}.notification-kind.order{background:#f4f4f4;color:#333}
 @media(max-width:760px){.notification-panel{position:fixed;top:60px;right:10px;width:min(360px,calc(100vw - 20px));max-height:70vh}.notification-center .bell{width:34px;height:36px}.result-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .tooth-bridge-line{fill:none;stroke:#ffffff;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 1px #333333) drop-shadow(0 0 2px #333333);pointer-events:none}
 .tooth-bridge-point{fill:#ffffff;stroke:#333333;stroke-width:2;pointer-events:none}
