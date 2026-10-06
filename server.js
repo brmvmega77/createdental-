@@ -93,6 +93,15 @@ function publicUser(user){
   }
   return user;
 }
+function publicClinicOverride(detail={}){
+  const {assignee,...visible}=detail||{};
+  return {...visible,assigned:Boolean(assignee&&assignee!=='Не назначен')};
+}
+function publicClinicHistoryEvent(event){
+  if(event?.action!=='assignee_changed')return event;
+  const {from,to,...visible}=event;
+  return {...visible,assigned:Boolean(to&&to!=='Не назначен')};
+}
 
 async function readBody(req,limit=8192) {
   let body = '';
@@ -112,8 +121,8 @@ async function handlePortal(req,res,url){
       snapshot.clients=snapshot.clients.filter(item=>item.id===user.subjectId);
       snapshot.orders=snapshot.orders.filter(item=>item.clinicId===user.subjectId);
       snapshot.employees=[];
-      snapshot.orderOverrides=Object.fromEntries(Object.entries(snapshot.orderOverrides).filter(([id])=>snapshot.orders.some(order=>order.id===id)));
-      snapshot.orderHistory=snapshot.orderHistory.filter(event=>event.clinicId===user.subjectId||snapshot.orders.some(order=>order.id===event.orderId));
+      snapshot.orderOverrides=Object.fromEntries(Object.entries(snapshot.orderOverrides).filter(([id])=>snapshot.orders.some(order=>order.id===id)).map(([id,detail])=>[id,publicClinicOverride(detail)]));
+      snapshot.orderHistory=snapshot.orderHistory.filter(event=>event.clinicId===user.subjectId||snapshot.orders.some(order=>order.id===event.orderId)).map(publicClinicHistoryEvent);
     }else if(user.role==='worker'){
       const employee=portalEmployee(user.subjectId);
       snapshot.orders=snapshot.orders.filter(item=>snapshot.orderOverrides[item.id]?.assignee===employee.originalName);
@@ -140,11 +149,12 @@ async function handlePortal(req,res,url){
         value=[...additions,...snapshot.orders];
       }else if(key==='orderOverrides'){
         if(!value||typeof value!=='object'||Array.isArray(value))return json(res,400,{error:'Неверные данные'});
-        const changes=Object.entries(value).filter(([id,detail])=>JSON.stringify(detail)!==JSON.stringify(snapshot.orderOverrides[id]));
+        const changes=Object.entries(value).filter(([id,detail])=>JSON.stringify(detail)!==JSON.stringify(publicClinicOverride(snapshot.orderOverrides[id]||{})));
         if(changes.length!==1)return json(res,403,{error:'Можно изменить только один свой заказ'});
         const [id,next]=changes[0],order=snapshot.orders.find(item=>item.id===id&&item.clinicId===user.subjectId),old=snapshot.orderOverrides[id]||{};
-        if(!order||old.stage!=='В доставке'||next.stage!=='Принято доктором'||Object.keys(next).some(field=>!['stage','doctorAcceptedAt'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:'Неверный переход этапа'});
-        value={...snapshot.orderOverrides,[id]:{...next,...(next.stage==='Принято доктором'?{doctorAcceptedAt:new Date().toISOString()}:{})}};
+        const visibleOld=publicClinicOverride(old);
+        if(!order||old.stage!=='В доставке'||next.stage!=='Принято доктором'||Object.keys({...visibleOld,...next}).some(field=>!['stage','doctorAcceptedAt'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(visibleOld[field])))return json(res,403,{error:'Неверный переход этапа'});
+        value={...snapshot.orderOverrides,[id]:{...old,stage:'Принято доктором',doctorAcceptedAt:new Date().toISOString()}};
       }else return json(res,403,{error:'Доступ запрещён'});
     }else if(user.role==='worker'){
       if(key!=='orderOverrides'||!value||typeof value!=='object')return json(res,403,{error:'Доступ запрещён'});
@@ -242,7 +252,7 @@ async function handleNotifications(req,res){
       if(event.action==='order_created')return `Новый заказ ${event.orderId}${order?.clinic||clinic?.name?` от ${order?.clinic||clinic?.name}`:''}`;
       if(event.action==='stage_changed'&&event.to==='Контроль качества')return `Заказ ${event.orderId} требует проверки качества`;
       if(event.action==='stage_changed')return `Заказ ${event.orderId}: ${event.to}`;
-      if(event.action==='assignee_changed')return `Заказ ${event.orderId}: исполнитель ${event.to}`;
+      if(event.action==='assignee_changed')return user.role==='clinic'?`Заказ ${event.orderId}: исполнитель назначен`:`Заказ ${event.orderId}: исполнитель ${event.to}`;
       if(event.action==='rework_requested')return `Заказ ${event.orderId}: запрошена доработка`;
       if(event.action==='file_uploaded')return `Заказ ${event.orderId}: ${event.purpose==='result-photo'?'добавлено фото готовой работы':'добавлен файл'}`;
       if(event.action==='message_replied')return `Лаборатория ответила на сообщение`;
