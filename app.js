@@ -91,7 +91,7 @@ function deadlineCalendar(){
   for(let day=1;day<=daysInMonth;day++){
     const statuses=due.filter(order=>orderDate(order).getDate()===day).map(order=>statusClass(order.status));
     const dayLabel=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long'}).format(new Date(year,monthNumber,day));
-    cells.push(`<button class="calendar-day ${state.calendarDay===day?'selected':''}" data-action="calendar-day" data-value="${day}" aria-label="${dayLabel}, заказов: ${statuses.length}"><span>${day}</span><i class="calendar-markers">${[...new Set(statuses)].slice(0,3).map(status=>`<b class="${status}"></b>`).join('')}</i></button>`);
+    cells.push(`<button class="calendar-day ${state.calendarDay===day?'selected':''}" data-action="calendar-day" data-value="${day}" aria-label="${dayLabel}, заказов: ${statuses.length}"><span>${day}</span><i class="calendar-markers">${statuses.length?'<b></b>':''}</i></button>`);
   }
   const selected=Number.isInteger(state.calendarDay)?due.filter(order=>orderDate(order).getDate()===state.calendarDay):[];
   const selectedDate=Number.isInteger(state.calendarDay)?`${String(state.calendarDay).padStart(2,'0')}.${String(monthNumber+1).padStart(2,'0')}.${year}`:'';
@@ -302,7 +302,7 @@ function syncRoute(){
 async function hydratePortal(){
   const data=await loadPortal();
   if(data.user.role==='technician'&&!technicianCabinet){
-    const {createTechnicianCabinet}=await import('./technician.js?v=dashboard-layout-4');
+    const {createTechnicianCabinet}=await import('./technician.js?v=calendar-single-dot-9');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){

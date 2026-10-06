@@ -72,14 +72,14 @@
 .calendar-weekday{color:#c8c8c8;font-size:11px;padding:4px 0 8px}
 .calendar-blank{min-height:39px}
 .calendar-day{position:relative;width:39px;height:39px;justify-self:center;padding:0;border:0;background:transparent;border-radius:50%;display:grid;place-items:center;color:#333333;font-size:12px}
-.calendar-day:hover{background:#f5f5f5}
+.calendar-day:hover{background:#808080;color:#fff}
 .calendar-day.selected{background:#808080;color:#fff;box-shadow:0 5px 12px #80808035}
-.calendar-markers{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);height:5px;display:flex;justify-content:center;gap:2px}
-.calendar-markers b{width:5px;height:5px;border-radius:50%;display:block}
-.calendar-markers b.green,.deadline-status.green{background:#18a65a}
-.calendar-markers b.blue,.deadline-status.blue{background:#808080}
-.calendar-markers b.orange,.deadline-status.orange{background:#f59b18}
-.calendar-day.selected .calendar-markers b{background:#fff}
+.calendar-markers{position:absolute;left:50%;bottom:3px;transform:translateX(-50%);height:5px;display:flex;justify-content:center}
+.calendar-markers b{width:5px;height:5px;border-radius:50%;display:block;background:#555555}
+.deadline-status.green{background:#18a65a}
+.deadline-status.blue{background:#808080}
+.deadline-status.orange{background:#f59b18}
+.calendar-day:hover .calendar-markers b,.calendar-day:focus-visible .calendar-markers b,.calendar-day.selected .calendar-markers b{background:#fff}
 .dashboard-card-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .deadline-card .dashboard-card-heading{margin:26px 0 11px}
 .dashboard-card-heading h3{font-size:14px;margin:0;color:#333333}
@@ -439,7 +439,7 @@ html{zoom:.9}
 .tech-dashboard-aside .calendar-head{margin:18px 0 12px}
 .tech-dashboard-aside .calendar-weekday{padding:2px 0 4px}
 .tech-dashboard-aside .calendar-blank{min-height:32px}
-.tech-dashboard-aside .calendar-day{width:32px;height:32px}
+.tech-dashboard-aside .calendar-day{width:38px;height:38px}
 .tech-dashboard-aside .deadline-card .dashboard-card-heading{margin:18px 0 4px}
 .tech-dashboard-aside .deadline-card .dashboard-empty{margin:0;padding:6px 0 0}
 .active-date-filter{display:flex;align-items:center;justify-content:space-between;gap:12px;width:max-content;max-width:100%;margin:0 0 14px;padding:9px 12px;border:1px solid #e7e7e7;border-radius:9px;background:#fff;color:#808080;font-size:12px}
