@@ -1,6 +1,6 @@
 import {savePortal,authRequest,portalToken,loadOrderFiles,uploadOrderFile,downloadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile} from './portal-client.js?v=chat-files-1';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=mobile-fast-1';
-import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=dashboard-calendar-3';
+import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=dashboard-layout-4';
 
 export const seedEmployees = [];
 export function loadEmployees(){
@@ -226,7 +226,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const list=allOrders();
     const newCount=list.filter(order=>order.stage==='Ожидает распределения').length;
     const qaCount=list.filter(order=>order.stage==='Контроль качества').length;
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">ЛАБОРАТОРИЯ · ГЛАВНЫЙ ТЕХНИК</span><h1>Обзор лаборатории</h1></div><div class="tech-task-count"><strong>${newCount+qaCount}</strong><span>требуют решения</span></div></div>${filters()}${kpis()}<div class="dashboard-grid tech-dashboard-grid"><div class="dashboard-main tech-dashboard-main">${chart()}${breakdown('clinic',4)}${attentionOrders()}${teamSnapshot()}</div><aside class="dashboard-aside tech-dashboard-aside">${chiefDeadlineCalendar()}</aside></div>`;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">ЛАБОРАТОРИЯ · ГЛАВНЫЙ ТЕХНИК</span><h1>Обзор лаборатории</h1></div><div class="tech-task-count"><strong>${newCount+qaCount}</strong><span>требуют решения</span></div></div>${filters()}${kpis()}<div class="dashboard-grid tech-dashboard-grid"><div class="dashboard-main tech-dashboard-main">${chart()}${attentionOrders()}${teamSnapshot()}</div><aside class="dashboard-aside tech-dashboard-aside">${chiefDeadlineCalendar()}${breakdown('clinic',4)}</aside></div>`;
   }
   function orderSortHeading(key,label){
     const active=state.orderSortKey===key,arrow=active?(state.orderSortDirection==='asc'?'↑':'↓'):'↕';

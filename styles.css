@@ -430,8 +430,15 @@ html{zoom:.9}
 /* Chief overview follows the same wide content + compact sidebar grid as the clinic dashboard. */
 .tech-dashboard-main{display:grid;gap:17px;min-width:0}
 .tech-dashboard-main>.tech-panel{margin:0;min-width:0}
-.tech-dashboard-aside{min-width:0}
+.tech-dashboard-aside{min-width:0;align-self:start}
 .tech-dashboard-aside>.tech-panel{width:100%;margin:0}
+.tech-dashboard-aside .deadline-card{height:auto;align-self:start;padding:18px}
+.tech-dashboard-aside .calendar-head{margin:18px 0 12px}
+.tech-dashboard-aside .calendar-weekday{padding:2px 0 4px}
+.tech-dashboard-aside .calendar-blank{min-height:32px}
+.tech-dashboard-aside .calendar-day{height:32px}
+.tech-dashboard-aside .deadline-card .dashboard-card-heading{margin:18px 0 4px}
+.tech-dashboard-aside .deadline-card .dashboard-empty{margin:0;padding:6px 0 0}
 .active-date-filter{display:flex;align-items:center;justify-content:space-between;gap:12px;width:max-content;max-width:100%;margin:0 0 14px;padding:9px 12px;border:1px solid #e7e7e7;border-radius:9px;background:#fff;color:#808080;font-size:12px}
 .active-date-filter strong{color:#333}
 .active-date-filter button{display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:50%;background:#f5f5f5;color:#808080;font-size:17px;line-height:1;cursor:pointer}
@@ -439,6 +446,20 @@ html{zoom:.9}
 .upcoming-order{padding-left:2px;padding-right:2px}
 .upcoming-order .deadline-status{flex:0 0 auto}
 @media(max-width:1200px){.tech-dashboard-aside{grid-template-columns:minmax(0,1fr)}}
+
+/* Keep every team column and action inside the card at desktop widths. */
+.tech-employee-table{min-width:0;table-layout:fixed}
+.tech-employee-table th:nth-child(1){width:18%}
+.tech-employee-table th:nth-child(2){width:16%}
+.tech-employee-table th:nth-child(3){width:22%}
+.tech-employee-table th:nth-child(4){width:9%}
+.tech-employee-table th:nth-child(5){width:10%}
+.tech-employee-table th:nth-child(6),.tech-employee-table td:nth-child(6),.tech-employee-table th:last-child,.tech-employee-table td:last-child{width:25%;max-width:none}
+.tech-employee-table td{white-space:normal;overflow-wrap:anywhere}
+.tech-employee-table .tech-client-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;width:100%}
+.tech-employee-table .tech-client-actions button{min-width:0;padding:8px 6px;font-size:10px}
+@media(max-width:1050px){.tech-employee-table .tech-client-actions{grid-template-columns:1fr}.tech-employee-table th:nth-child(6),.tech-employee-table td:nth-child(6){width:18%}}
+@media(max-width:760px){.tech-employee-table th,.tech-employee-table td,.tech-employee-table th:nth-child(6),.tech-employee-table td:nth-child(6),.tech-employee-table th:last-child,.tech-employee-table td:last-child{width:auto;max-width:none}.tech-employee-table .tech-client-actions{grid-template-columns:1fr}}
 
 /* The client directory fits inside the page without its own scrollbar. */
 .tech-client-layout>.tech-panel>.tech-table-wrap{overflow:visible}
