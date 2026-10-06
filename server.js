@@ -22,7 +22,7 @@ const tlsKeyFile=process.env.TLS_KEY_FILE||'';
 const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
 const publicFiles = new Set(['/','/index.html','/app.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/styles.css','/support.html','/support.js']);
-const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.ico':'image/x-icon'};
+const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon'};
 const conversationIdPattern = /^[a-f0-9]{32}$/;
 let chats = {};
 let saveQueue = Promise.resolve();
