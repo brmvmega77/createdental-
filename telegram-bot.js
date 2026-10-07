@@ -27,6 +27,11 @@ function normalize(value){return String(value||'').toLocaleLowerCase('ru-RU').re
 function patientSurname(value){return normalize(value).split(' ')[0]||''}
 function orderId(){return `CD-${Date.now().toString(36).toUpperCase()}-${randomBytes(2).toString('hex').toUpperCase()}`}
 function actorName(message){const user=message?.from||{};return cleanText([user.first_name,user.last_name].filter(Boolean).join(' ')||user.username||'Клиент Telegram',120)}
+function normalizedUsername(value){return String(value||'').trim().replace(/^@/,'').toLowerCase()}
+function isSupportUsername(value){
+  const configured=String(process.env.TELEGRAM_SUPPORT_USERNAMES||'createdental').split(',').map(normalizedUsername).filter(Boolean);
+  return configured.includes(normalizedUsername(value));
+}
 function orderStage(snapshot,order){return snapshot.orderOverrides[order.id]?.stage||order.status||'Новый'}
 function activeOrdersForClinic(snapshot,clinicId){return snapshot.orders.filter(order=>order.clinicId===clinicId&&order.status!=='Отменён')}
 
@@ -113,7 +118,7 @@ async function readSecret(name){
   try{return (await fs.promises.readFile(file,'utf8')).trim()}catch(error){if(error.code==='ENOENT')return '';throw error}
 }
 
-export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAttachment=async()=>null}={}){
+export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=async()=>{},loadClinicAttachment=async()=>null}={}){
   let token='',speechKey='',gptKey='',folderId='';
   let stopped=false,polling=false,state={offset:0,bindings:{},pending:{}};
   const stateFile=process.env.TELEGRAM_STATE_FILE||path.join(process.cwd(),'.data','telegram-bot.json');
@@ -139,7 +144,14 @@ export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAtta
     if(!response.ok||!data.ok)throw new Error(`Telegram ${method}: ${data.description||response.status}`);
     return data.result;
   }
-  async function send(chatId,text,extra={}){return api('sendMessage',{chat_id:chatId,text,disable_web_page_preview:true,...extra})}
+  async function send(chatId,text,extra={},mirror=true){
+    const result=await api('sendMessage',{chat_id:chatId,text,disable_web_page_preview:true,...extra});
+    if(mirror){
+      const clinicId=Object.entries(state.bindings).find(([,boundChatId])=>String(boundChatId)===String(chatId))?.[0];
+      if(clinicId)await onBotMessage(clinicId,{text,sender:'Ответ бота',telegramMessageId:result?.message_id,telegramChatId:String(chatId),messageRole:'bot'}).catch(()=>{});
+    }
+    return result;
+  }
   async function answerCallback(id,text){return api('answerCallbackQuery',{callback_query_id:id,text,show_alert:false})}
 
   async function transcribeVoice(message){
@@ -280,6 +292,10 @@ export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAtta
       return;
     }
     await bindChat(message,clinic);
+    if(isSupportUsername(message.from?.username)){
+      if(text)await onClinicMessage(clinic.id,{text,sender:actorName(message),senderUsername:message.from.username,telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'support'}).catch(()=>{});
+      return;
+    }
     if(['/start','/connect','/help'].includes(command))return send(message.chat.id,'Подключение работает. Отправьте текст или голосовое сообщение. Перед созданием, изменением, отменой, приемкой или доработкой заказа бот обязательно попросит подтверждение.');
     let sourceText=text;
     if(message.voice||message.audio){
@@ -287,7 +303,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAtta
       try{sourceText=await transcribeVoice(message)}catch(error){return send(message.chat.id,`Не удалось расшифровать аудио: ${cleanText(error.message,500)}`)}
     }
     if(!sourceText)return;
-    await onClinicMessage(clinic.id,{text:message.voice||message.audio?`Голосовое сообщение. Расшифровка: ${sourceText}`:sourceText,sender:actorName(message),telegramMessageId:message.message_id,telegramChatId:String(message.chat.id)}).catch(()=>{});
+    await onClinicMessage(clinic.id,{text:message.voice||message.audio?`Голосовое сообщение: ${sourceText}`:sourceText,sender:actorName(message),senderUsername:message.from?.username||'',telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'client'}).catch(()=>{});
     try{const analysis=await analyze(sourceText,clinic);await propose(message,clinic,analysis)}
     catch(error){console.error('Telegram analysis failed:',error.message);await send(message.chat.id,'Сообщение передано в CRM, но автоматический разбор сейчас не сработал. Главный техник увидит его в сообщениях.');}
   }
@@ -334,9 +350,9 @@ export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAtta
         if(!response.ok)throw new Error('Telegram не принял файл');return true;
       }
     }
-    if(text)await send(chatId,text);return true;
+    if(text)await send(chatId,text,{},false);return true;
   }
   return {start,stop,status,reloadSecrets,sendClinicMessage};
 }
 
-export const telegramInternals={codeFromText,normalizeAnalysis,findOrder,missingCreateFields:(analysis)=>{const missing=[];if(!(analysis.fields.patient||analysis.patientSurname))missing.push('фамилия пациента');if(!analysis.fields.work)missing.push('вид работы');if(!analysis.fields.teeth.length&&!(analysis.fields.toothMode==='Челюсть'&&analysis.fields.jaw))missing.push('номер зуба или верхнюю/нижнюю челюсть');return missing},displayDate,isoDateFromDisplay};
+export const telegramInternals={codeFromText,normalizeAnalysis,findOrder,isSupportUsername,missingCreateFields:(analysis)=>{const missing=[];if(!(analysis.fields.patient||analysis.patientSurname))missing.push('фамилия пациента');if(!analysis.fields.work)missing.push('вид работы');if(!analysis.fields.teeth.length&&!(analysis.fields.toothMode==='Челюсть'&&analysis.fields.jaw))missing.push('номер зуба или верхнюю/нижнюю челюсть');return missing},displayDate,isoDateFromDisplay};

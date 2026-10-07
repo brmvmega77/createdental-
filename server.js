@@ -403,22 +403,21 @@ async function saveClinicChats(){
   await clinicSaveQueue;
 }
 
-async function appendTelegramClinicMessage(clinicId,{text,sender,telegramMessageId,telegramChatId}){
+async function appendTelegramClinicMessage(clinicId,{text,sender,senderUsername='',telegramMessageId,telegramChatId,messageRole='client'}){
   if(!portalClient(clinicId))throw new Error('clinic_not_found');
   const chat=clinicChats[clinicId]||={messages:[],updatedAt:''};
   const externalId=`telegram:${telegramChatId}:${telegramMessageId}`;
   if(chat.messages.some(message=>message.externalId===externalId))return;
-  const entry={id:randomBytes(12).toString('hex'),from:'client',text:cleanTelegramMessage(text,sender),time:new Date().toISOString(),source:'telegram',externalId,sender:String(sender||'Клиент Telegram').slice(0,120)};
+  const from=['support','bot'].includes(messageRole)?messageRole:'client';
+  const entry={id:randomBytes(12).toString('hex'),from,text:cleanTelegramMessage(text),time:new Date().toISOString(),source:'telegram',externalId,sender:String(sender||'Клиент Telegram').slice(0,120),senderUsername:String(senderUsername||'').replace(/^@/,'').slice(0,64)};
   chat.messages.push(entry);chat.updatedAt=entry.time;
   await saveClinicChats();
-  await recordPortalEvent('',{role:'clinic',name:portalClient(clinicId)?.name||'Клиника'},'message_received',{clinicId,summary:'Новое сообщение из Telegram'}).catch(()=>{});
+  const eventRole=from==='client'?'clinic':from==='support'?'technician':'telegram';
+  const eventName=from==='client'?(portalClient(clinicId)?.name||'Клиника'):from==='support'?'Поддержка Create Dental':'Бот Create Dental';
+  await recordPortalEvent('',{role:eventRole,name:eventName},from==='client'?'message_received':'message_replied',{clinicId,summary:from==='client'?'Новое сообщение из Telegram':from==='support'?'Ответ поддержки из Telegram':'Автоматический ответ бота'}).catch(()=>{});
 }
 
-function cleanTelegramMessage(text,sender){
-  const message=String(text||'').replace(/[<>]/g,'').trim().slice(0,6000);
-  const name=String(sender||'').replace(/[<>]/g,'').trim().slice(0,120);
-  return name?`${name}: ${message}`:message;
-}
+function cleanTelegramMessage(text){return String(text||'').replace(/[<>]/g,'').trim().slice(0,6000)}
 
 async function loadTelegramAttachment(id){
   const record=clinicMessageFiles[id];
@@ -634,7 +633,7 @@ await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(uploadDir,0o700);
 await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(clinicMessageUploadDir,0o700);
-telegramBridge=createTelegramBridge({onClinicMessage:appendTelegramClinicMessage,loadClinicAttachment:loadTelegramAttachment});
+telegramBridge=createTelegramBridge({onClinicMessage:appendTelegramClinicMessage,onBotMessage:appendTelegramClinicMessage,loadClinicAttachment:loadTelegramAttachment});
 await telegramBridge.start();
 server.listen(port,host,()=>{
   console.log(`Create Dental: ${tlsKeyFile?'https':'http'}://${host}:${port}`);

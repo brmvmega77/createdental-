@@ -7,6 +7,11 @@ test('extracts a clinic code from a Telegram group title',()=>{
   assert.equal(telegramInternals.codeFromText('Армянская клиника'),'');
 });
 
+test('recognizes the CreateDental support account case-insensitively',()=>{
+  assert.equal(telegramInternals.isSupportUsername('@CreateDental'),true);
+  assert.equal(telegramInternals.isSupportUsername('doctor_account'),false);
+});
+
 test('normalizes model output and rejects invalid tooth numbers',()=>{
   const result=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Иванов',work:'E.max',teeth:[11,11,99],toothMode:'Одиночка',jaw:'upper',dueDate:'2026-10-20'}});
   assert.deepEqual(result.fields.teeth,[11]);
