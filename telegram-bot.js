@@ -187,7 +187,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAtta
 
   async function propose(message,clinic,analysis){
     const snapshot=portalSnapshot();
-    if(analysis.intent==='general_message')return send(message.chat.id,'Сообщение передано в CRM лаборатории.');
+    if(analysis.intent==='general_message')return;
     if(analysis.intent==='clarify')return send(message.chat.id,analysis.question||'Уточните, пожалуйста, что нужно сделать с заказом.');
     if(analysis.intent==='create_order'){
       const missing=missingCreateFields(analysis);
