@@ -413,7 +413,7 @@ async function appendTelegramClinicMessage(clinicId,{text,sender,senderUsername=
   chat.messages.push(entry);chat.updatedAt=entry.time;
   await saveClinicChats();
   const eventRole=from==='client'?'clinic':from==='support'?'technician':'telegram';
-  const eventName=from==='client'?(portalClient(clinicId)?.name||'Клиника'):from==='support'?'Поддержка Create Dental':'Бот Create Dental';
+  const eventName=from==='client'?(portalClient(clinicId)?.name||'Клиника'):from==='support'?'Главный техник':'Бот Create Dental';
   await recordPortalEvent('',{role:eventRole,name:eventName},from==='client'?'message_received':'message_replied',{clinicId,summary:from==='client'?'Новое сообщение из Telegram':from==='support'?'Ответ поддержки из Telegram':'Автоматический ответ бота'}).catch(()=>{});
 }
 
