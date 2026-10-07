@@ -33,6 +33,20 @@ function isSupportUsername(value){
   return configured.includes(normalizedUsername(value));
 }
 function supportLabel(value){return normalizedUsername(value)==='createdental_admin'?'Техническая команда Create Dental':'Главный техник'}
+function telegramMedia(message){
+  const photos=Array.isArray(message?.photo)?message.photo:[];
+  if(photos.length){
+    const file=photos.at(-1),preview=photos[0];
+    return {fileId:file.file_id,previewFileId:preview?.file_id||'',fileSize:Number(file.file_size)||0,name:`telegram-photo-${message.message_id}.jpg`,type:'image/jpeg',kind:'photo',orderEligible:false};
+  }
+  const document=message?.document;
+  if(!document)return null;
+  const fallbackExtension=({
+    'application/pdf':'.pdf','application/zip':'.zip','application/x-rar-compressed':'.rar','application/vnd.rar':'.rar','application/x-7z-compressed':'.7z',
+    'image/jpeg':'.jpg','image/png':'.png','image/webp':'.webp','model/stl':'.stl'
+  })[document.mime_type]||'.bin';
+  return {fileId:document.file_id,previewFileId:document.thumbnail?.file_id||document.thumb?.file_id||'',fileSize:Number(document.file_size)||0,name:cleanText(document.file_name||`telegram-document-${message.message_id}${fallbackExtension}`,180),type:cleanText(document.mime_type||'application/octet-stream',120),kind:'document',orderEligible:true};
+}
 function orderStage(snapshot,order){return snapshot.orderOverrides[order.id]?.stage||order.status||'Новый'}
 function activeOrdersForClinic(snapshot,clinicId){return snapshot.orders.filter(order=>order.clinicId===clinicId&&order.status!=='Отменён')}
 
@@ -119,7 +133,7 @@ async function readSecret(name){
   try{return (await fs.promises.readFile(file,'utf8')).trim()}catch(error){if(error.code==='ENOENT')return '';throw error}
 }
 
-export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=async()=>{},loadClinicAttachment=async()=>null}={}){
+export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=async()=>{},saveTelegramAttachment=async()=>null,attachOrderFile=async()=>null,loadClinicAttachment=async()=>null}={}){
   let token='',speechKey='',gptKey='',folderId='';
   let stopped=false,polling=false,state={offset:0,bindings:{},pending:{}};
   const stateFile=process.env.TELEGRAM_STATE_FILE||path.join(process.cwd(),'.data','telegram-bot.json');
@@ -169,6 +183,29 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     return cleanText(data.result,6000);
   }
 
+  async function downloadTelegramFile(fileId,maxBytes=20*1024*1024){
+    const file=await api('getFile',{file_id:fileId});
+    const response=await telegramFetch(`https://api.telegram.org/file/bot${token}/${file.file_path}`,{signal:AbortSignal.timeout(40000)});
+    if(!response.ok)throw new Error('Не удалось скачать вложение из Telegram');
+    const declared=Number(response.headers.get('content-length'))||0;
+    if(declared>maxBytes)throw new Error('Файл больше 20 МБ');
+    const data=Buffer.from(await response.arrayBuffer());
+    if(data.length>maxBytes)throw new Error('Файл больше 20 МБ');
+    return data;
+  }
+
+  async function storeMessageAttachment(message,clinic){
+    const media=telegramMedia(message);
+    if(!media)return null;
+    if(media.fileSize>20*1024*1024)throw new Error('Файл больше 20 МБ');
+    const data=await downloadTelegramFile(media.fileId);
+    let previewData=null;
+    if(media.previewFileId){
+      try{previewData=media.previewFileId===media.fileId?data:await downloadTelegramFile(media.previewFileId,350*1024)}catch{previewData=null}
+    }else if(media.kind==='photo'&&data.length<=350*1024)previewData=data;
+    return saveTelegramAttachment(clinic.id,{...media,data,previewData,sender:actorName(message)});
+  }
+
   async function analyze(text,clinic){
     const snapshot=portalSnapshot(),orders=activeOrdersForClinic(snapshot,clinic.id);
     const response=await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion',{method:'POST',headers:{Authorization:`Api-Key ${gptKey}`,'Content-Type':'application/json'},body:JSON.stringify({modelUri:`gpt://${folderId}/yandexgpt-lite/latest`,completionOptions:{stream:false,temperature:0.1,maxTokens:1800},messages:[{role:'system',text:'Ты аккуратно преобразуешь сообщения стоматологов в команды для CRM зуботехнической лаборатории. Строго соблюдай схему и не выдумывай данные.'},{role:'user',text:buildPrompt(text,clinic,orders,snapshot)}]}),signal:AbortSignal.timeout(45000)});
@@ -198,7 +235,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     return missing;
   }
 
-  async function propose(message,clinic,analysis){
+  async function propose(message,clinic,analysis,attachment=null){
     const snapshot=portalSnapshot();
     if(analysis.intent==='general_message')return;
     if(analysis.intent==='clarify')return send(message.chat.id,analysis.question||'Уточните, пожалуйста, что нужно сделать с заказом.');
@@ -218,15 +255,16 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       if(!order)return send(message.chat.id,'Не удалось однозначно найти заказ этой клиники. Укажите фамилию пациента и, если возможно, ID заказа или вид работы.');
     }
     if(analysis.intent==='status_request')return send(message.chat.id,`Заказ ${order.id}\nПациент: ${order.patient}\nРабота: ${order.work}\nСрок: ${order.date}\nСтатус: ${orderStage(snapshot,order)}`);
-    if(analysis.intent==='update_order'&&!Object.keys(changedFields(order,analysis.fields)).length)return send(message.chat.id,analysis.question||'Укажите, какие данные заказа нужно изменить.');
+    if(analysis.intent==='update_order'&&!Object.keys(changedFields(order,analysis.fields)).length&&!attachment?.orderEligible)return send(message.chat.id,analysis.question||'Укажите, какие данные заказа нужно изменить.');
     if(analysis.intent==='rework_order'&&!analysis.fields.reason)return send(message.chat.id,'Опишите, пожалуйста, что именно нужно исправить.');
     if(analysis.intent==='accept_order'&&orderStage(snapshot,order)!=='В доставке')return send(message.chat.id,`Сейчас заказ ${order.id} находится на этапе «${orderStage(snapshot,order)}». Принять работу можно после перевода в доставку.`);
     if(analysis.intent==='rework_order'&&orderStage(snapshot,order)!=='В доставке')return send(message.chat.id,`Сейчас заказ ${order.id} находится на этапе «${orderStage(snapshot,order)}». Запрос доработки доступен после доставки.`);
     const id=randomBytes(10).toString('hex');
-    state.pending[id]={id,chatId:String(message.chat.id),clinicId:clinic.id,userId:String(message.from?.id||''),actor:actorName(message),analysis,orderId:order?.id||'',createdAt:new Date().toISOString(),expiresAt:Date.now()+24*60*60*1000};
+    state.pending[id]={id,chatId:String(message.chat.id),clinicId:clinic.id,userId:String(message.from?.id||''),actor:actorName(message),analysis,orderId:order?.id||'',attachment:attachment?.orderEligible?attachment:null,createdAt:new Date().toISOString(),expiresAt:Date.now()+24*60*60*1000};
     for(const [key,item] of Object.entries(state.pending))if(item.expiresAt<Date.now())delete state.pending[key];
     await saveState();
     const lines=summaryLines(analysis,order,clinic);
+    if(attachment?.orderEligible)lines.push(`Файл к карточке: ${attachment.name}`);
     lines.push('','Выполнить это действие в CRM?');
     return send(message.chat.id,lines.join('\n'),{reply_markup:{inline_keyboard:[[{text:'✅ Подтвердить',callback_data:`tgconfirm:${id}`},{text:'❌ Отменить',callback_data:`tgreject:${id}`}]]}});
   }
@@ -236,26 +274,31 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     if(!clinic)throw new Error('Клиника больше не найдена');
     const callbackUser=cleanText([callback.from?.first_name,callback.from?.last_name].filter(Boolean).join(' ')||callback.from?.username||'',120);
     const actor={role:'telegram',name:`Telegram · ${callbackUser||item.actor}`};
+    const attach=async(orderId)=>{
+      if(!item.attachment?.orderEligible)return '';
+      try{await attachOrderFile(orderId,item.clinicId,item.attachment);return ` Файл «${item.attachment.name}» прикреплён к карточке.`}
+      catch(error){console.error('Telegram order attachment failed:',error.message);return ` Действие выполнено, но файл «${item.attachment.name}» не удалось прикрепить.`}
+    };
     if(analysis.intent==='create_order'){
       const fields=analysis.fields,teeth=safeTeeth(fields.teeth),id=orderId();
       const selectedTeeth=fields.toothMode==='Челюсть'&&!teeth.length?(fields.jaw==='lower'?lowerTeeth:upperTeeth):teeth;
       const order={id,patient:fields.patient||analysis.patientSurname,work:fields.work,material:fields.material||'',toothMode:fields.toothMode||'Одиночка',bridgeRanges:[],quantity:fields.toothMode==='Челюсть'?1:Math.max(1,selectedTeeth.length),date:displayDate(fields.dueDate||addDays(moscowDate(),14)),status:'Новый',sum:'По согласованию',image:'tooth.png',clinicId:clinic.id,clinic:clinic.name,teeth:selectedTeeth,shade:fields.shade||'',comment:fields.comment||'',createdAt:new Date().toISOString(),source:'telegram'};
       await replacePortalCollection('orders',[order,...snapshot.orders],actor);
-      return `Заказ ${id} создан и появился в CRM.`;
+      return `Заказ ${id} создан и появился в CRM.${await attach(id)}`;
     }
     const order=snapshot.orders.find(candidate=>candidate.id===item.orderId&&candidate.clinicId===clinic.id);
     if(!order)throw new Error('Заказ больше не найден');
     if(analysis.intent==='update_order'){
       const next={...order,...changedFields(order,analysis.fields),updatedAt:new Date().toISOString()};
       await replacePortalCollection('orders',snapshot.orders.map(candidate=>candidate.id===order.id?next:candidate),actor);
-      return `Заказ ${order.id} изменён.`;
+      return `Заказ ${order.id} изменён.${await attach(order.id)}`;
     }
     if(analysis.intent==='cancel_order'){
       const reason=analysis.fields.reason||analysis.summary||'Отмена по сообщению клиники';
       await replacePortalCollection('orders',snapshot.orders.map(candidate=>candidate.id===order.id?{...candidate,status:'Отменён',cancelledAt:new Date().toISOString(),cancelReason:reason}:candidate),actor);
       const fresh=portalSnapshot();
       await replacePortalCollection('orderOverrides',{...fresh.orderOverrides,[order.id]:{...(fresh.orderOverrides[order.id]||{}),stage:'Отменён',cancelledAt:new Date().toISOString(),cancelReason:reason}},actor);
-      return `Заказ ${order.id} отменён.`;
+      return `Заказ ${order.id} отменён.${await attach(order.id)}`;
     }
     if(analysis.intent==='accept_order'){
       await replacePortalCollection('orderOverrides',{...snapshot.orderOverrides,[order.id]:{...(snapshot.orderOverrides[order.id]||{}),stage:'Принято доктором',doctorAcceptedAt:new Date().toISOString()}},actor);
@@ -293,8 +336,10 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       return;
     }
     await bindChat(message,clinic);
+    let attachment=null;
+    try{attachment=await storeMessageAttachment(message,clinic)}catch(error){return send(message.chat.id,`Не удалось сохранить вложение: ${cleanText(error.message,300)}.`)}
     if(isSupportUsername(message.from?.username)){
-      if(text)await onClinicMessage(clinic.id,{text,sender:actorName(message),senderUsername:message.from.username,senderLabel:supportLabel(message.from.username),telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'support'}).catch(()=>{});
+      if(text||attachment)await onClinicMessage(clinic.id,{text:text||(attachment?.kind==='photo'?'Фото':`Документ: ${attachment?.name||''}`),attachment,sender:actorName(message),senderUsername:message.from.username,senderLabel:supportLabel(message.from.username),telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'support'}).catch(()=>{});
       return;
     }
     if(['/start','/connect','/help'].includes(command))return send(message.chat.id,'Подключение работает. Отправьте текст или голосовое сообщение. Перед созданием, изменением, отменой, приемкой или доработкой заказа бот обязательно попросит подтверждение.');
@@ -303,9 +348,16 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       await api('sendChatAction',{chat_id:message.chat.id,action:'typing'}).catch(()=>{});
       try{sourceText=await transcribeVoice(message)}catch(error){return send(message.chat.id,`Не удалось расшифровать аудио: ${cleanText(error.message,500)}`)}
     }
+    if(!sourceText&&!attachment)return;
+    const chatText=sourceText||(attachment?.kind==='photo'?'Фото':`Документ: ${attachment?.name||''}`);
+    await onClinicMessage(clinic.id,{text:message.voice||message.audio?`Голосовое сообщение: ${sourceText}`:chatText,attachment,sender:actorName(message),senderUsername:message.from?.username||'',telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'client'}).catch(()=>{});
+    if(!sourceText&&attachment?.orderEligible){
+      const pending=Object.values(state.pending).filter(item=>item.chatId===String(message.chat.id)&&item.userId===String(message.from?.id||'')&&item.expiresAt>Date.now()&&['create_order','update_order','cancel_order'].includes(item.analysis?.intent)).sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt))).at(-1);
+      if(pending){pending.attachment=attachment;await saveState();await send(message.chat.id,`Файл «${attachment.name}» добавлен к подготовленному действию. После подтверждения он появится в карточке заказа.`)}
+      return;
+    }
     if(!sourceText)return;
-    await onClinicMessage(clinic.id,{text:message.voice||message.audio?`Голосовое сообщение: ${sourceText}`:sourceText,sender:actorName(message),senderUsername:message.from?.username||'',telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'client'}).catch(()=>{});
-    try{const analysis=await analyze(sourceText,clinic);await propose(message,clinic,analysis)}
+    try{const analysis=await analyze(sourceText,clinic);await propose(message,clinic,analysis,attachment)}
     catch(error){console.error('Telegram analysis failed:',error.message);await send(message.chat.id,'Сообщение передано в CRM, но автоматический разбор сейчас не сработал. Главный техник увидит его в сообщениях.');}
   }
 
@@ -356,4 +408,4 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   return {start,stop,status,reloadSecrets,sendClinicMessage};
 }
 
-export const telegramInternals={codeFromText,normalizeAnalysis,findOrder,isSupportUsername,supportLabel,missingCreateFields:(analysis)=>{const missing=[];if(!(analysis.fields.patient||analysis.patientSurname))missing.push('фамилия пациента');if(!analysis.fields.work)missing.push('вид работы');if(!analysis.fields.teeth.length&&!(analysis.fields.toothMode==='Челюсть'&&analysis.fields.jaw))missing.push('номер зуба или верхнюю/нижнюю челюсть');return missing},displayDate,isoDateFromDisplay};
+export const telegramInternals={codeFromText,normalizeAnalysis,findOrder,isSupportUsername,supportLabel,telegramMedia,missingCreateFields:(analysis)=>{const missing=[];if(!(analysis.fields.patient||analysis.patientSurname))missing.push('фамилия пациента');if(!analysis.fields.work)missing.push('вид работы');if(!analysis.fields.teeth.length&&!(analysis.fields.toothMode==='Челюсть'&&analysis.fields.jaw))missing.push('номер зуба или верхнюю/нижнюю челюсть');return missing},displayDate,isoDateFromDisplay};

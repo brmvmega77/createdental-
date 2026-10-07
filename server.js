@@ -30,6 +30,11 @@ const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
 const publicFiles = new Set(['/','/index.html','/app.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/styles.css','/support.html','/support.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon'};
+const sharedAttachmentTypes={
+  '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream',
+  '.zip':'application/zip','.rar':'application/vnd.rar','.7z':'application/x-7z-compressed','.doc':'application/msword','.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xls':'application/vnd.ms-excel','.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','.txt':'text/plain','.rtf':'application/rtf'
+};
 const conversationIdPattern = /^[a-f0-9]{32}$/;
 let chats = {};
 let saveQueue = Promise.resolve();
@@ -210,8 +215,8 @@ async function handleOrderFiles(req,res,url){
     if(!['order-file','result-photo'].includes(purpose))return json(res,400,{error:'Неизвестный тип файла'});
     if(purpose==='result-photo'&&(user.role==='clinic'||!['.jpg','.jpeg','.png'].includes(ext)))return json(res,403,{error:'Фото результата может добавить только лаборатория в формате JPG или PNG'});
     if(purpose==='result-photo'&&user.role==='worker'&&portalSnapshot().orderOverrides[orderId]?.stage!=='Контроль качества')return json(res,409,{error:'Фото результата можно добавить на этапе контроля качества'});
-    const allowed={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream'};
-    if(!name||!allowed[ext])return json(res,400,{error:'Поддерживаются JPG, PNG, PDF, STL и PLY'});
+    const allowed=sharedAttachmentTypes;
+    if(!name||!allowed[ext])return json(res,400,{error:'Формат файла не поддерживается'});
     const type=String(req.headers['content-type']||'').split(';')[0].toLowerCase();
     if(type&&type!=='application/octet-stream'&&type!==allowed[ext])return json(res,400,{error:'Тип файла не совпадает с расширением'});
     let data;try{data=await readRaw(req,50*1024*1024)}catch(error){return json(res,error.message==='too_large'?413:400,{error:error.message==='too_large'?'Файл больше 50 МБ':'Не удалось прочитать файл'})}
@@ -403,13 +408,44 @@ async function saveClinicChats(){
   await clinicSaveQueue;
 }
 
-async function appendTelegramClinicMessage(clinicId,{text,sender,senderUsername='',senderLabel='',telegramMessageId,telegramChatId,messageRole='client'}){
+async function saveTelegramAttachment(clinicId,{name,type,data,previewData,kind='document',orderEligible=false,sender=''}){
+  if(!portalClient(clinicId))throw new Error('clinic_not_found');
+  if(!Buffer.isBuffer(data)||!data.length)throw new Error('Файл пустой');
+  if(data.length>20*1024*1024)throw new Error('Файл больше 20 МБ');
+  const safeName=String(name||'telegram-file').replace(/[\\/\0-\x1f]/g,'_').trim().slice(0,180);
+  const ext=path.extname(safeName).toLowerCase(),storedType=sharedAttachmentTypes[ext];
+  if(!safeName||!storedType)throw new Error('Формат файла не поддерживается');
+  const id=randomBytes(18).toString('hex');
+  await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
+  await fs.promises.writeFile(path.join(clinicMessageUploadDir,id),data,{flag:'wx',mode:0o600});
+  const record={id,clinicId,name:safeName,size:data.length,type:storedType,uploadedAt:new Date().toISOString(),uploadedBy:`Telegram · ${String(sender||'Клиент').slice(0,120)}`,kind:kind==='photo'?'photo':'document',orderEligible:Boolean(orderEligible)};
+  clinicMessageFiles[id]=record;await saveClinicMessageFiles();
+  const preview=Buffer.isBuffer(previewData)&&previewData.length&&previewData.length<=350*1024?`data:image/jpeg;base64,${previewData.toString('base64')}`:'';
+  return {id,name:record.name,size:record.size,type:record.type,preview,kind:record.kind,orderEligible:record.orderEligible};
+}
+
+async function attachTelegramFileToOrder(orderId,clinicId,attachment){
+  const order=portalSnapshot().orders.find(item=>item.id===orderId&&item.clinicId===clinicId);
+  const source=clinicMessageFiles[String(attachment?.id||'')];
+  if(!order||!source||source.clinicId!==clinicId||!source.orderEligible)throw new Error('Файл или заказ не найден');
+  const data=await fs.promises.readFile(path.join(clinicMessageUploadDir,source.id));
+  const id=randomBytes(18).toString('hex');
+  await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
+  await fs.promises.writeFile(path.join(uploadDir,id),data,{flag:'wx',mode:0o600});
+  const record={id,name:source.name,size:data.length,type:source.type,uploadedAt:new Date().toISOString(),uploadedBy:source.uploadedBy||'Telegram',purpose:'order-file',source:'telegram'};
+  orderFiles[orderId]=[...(orderFiles[orderId]||[]),record];await persistOrderFiles();
+  await recordPortalEvent(orderId,{role:'clinic',name:portalClient(clinicId)?.name||'Клиника'},'file_uploaded',{summary:'Файл из Telegram добавлен к заказу',fileName:record.name,purpose:'order-file',clinicId}).catch(()=>{});
+  return record;
+}
+
+async function appendTelegramClinicMessage(clinicId,{text,attachment=null,sender,senderUsername='',senderLabel='',telegramMessageId,telegramChatId,messageRole='client'}){
   if(!portalClient(clinicId))throw new Error('clinic_not_found');
   const chat=clinicChats[clinicId]||={messages:[],updatedAt:''};
   const externalId=`telegram:${telegramChatId}:${telegramMessageId}`;
   if(chat.messages.some(message=>message.externalId===externalId))return;
   const from=['support','bot'].includes(messageRole)?messageRole:'client';
-  const entry={id:randomBytes(12).toString('hex'),from,text:cleanTelegramMessage(text),time:new Date().toISOString(),source:'telegram',externalId,sender:String(sender||'Клиент Telegram').slice(0,120),senderUsername:String(senderUsername||'').replace(/^@/,'').slice(0,64),senderLabel:String(senderLabel||'').slice(0,120)};
+  const storedAttachment=attachment&&clinicMessageFiles[String(attachment.id||'')]?.clinicId===clinicId?attachment:null;
+  const entry={id:randomBytes(12).toString('hex'),from,text:cleanTelegramMessage(text),time:new Date().toISOString(),source:'telegram',externalId,sender:String(sender||'Клиент Telegram').slice(0,120),senderUsername:String(senderUsername||'').replace(/^@/,'').slice(0,64),senderLabel:String(senderLabel||'').slice(0,120),...(storedAttachment?{attachment:storedAttachment}:{})};
   chat.messages.push(entry);chat.updatedAt=entry.time;
   await saveClinicChats();
   const eventRole=from==='client'?'clinic':from==='support'?'technician':'telegram';
@@ -443,7 +479,7 @@ async function handleClinicMessageFiles(req,res,url){
     let name='';try{name=decodeURIComponent(String(req.headers['x-upload-name']||''))}catch{return json(res,400,{error:'Неверное имя файла'})}
     name=name.replace(/[\\/\0-\x1f]/g,'_').trim().slice(0,180);
     const ext=path.extname(name).toLowerCase();
-    const allowed={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream','.zip':'application/zip','.doc':'application/msword','.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','.xls':'application/vnd.ms-excel','.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
+    const allowed=sharedAttachmentTypes;
     if(!name||!allowed[ext])return json(res,400,{error:'Поддерживаются изображения, PDF, STL, PLY, ZIP, Word и Excel'});
     let data;try{data=await readRaw(req,20*1024*1024)}catch(error){return json(res,error.message==='too_large'?413:400,{error:error.message==='too_large'?'Файл больше 20 МБ':'Не удалось прочитать файл'})}
     if(!data.length)return json(res,400,{error:'Файл пустой'});
@@ -633,7 +669,7 @@ await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(uploadDir,0o700);
 await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(clinicMessageUploadDir,0o700);
-telegramBridge=createTelegramBridge({onClinicMessage:appendTelegramClinicMessage,onBotMessage:appendTelegramClinicMessage,loadClinicAttachment:loadTelegramAttachment});
+telegramBridge=createTelegramBridge({onClinicMessage:appendTelegramClinicMessage,onBotMessage:appendTelegramClinicMessage,saveTelegramAttachment,attachOrderFile:attachTelegramFileToOrder,loadClinicAttachment:loadTelegramAttachment});
 await telegramBridge.start();
 server.listen(port,host,()=>{
   console.log(`Create Dental: ${tlsKeyFile?'https':'http'}://${host}:${port}`);

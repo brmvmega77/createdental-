@@ -15,6 +15,13 @@ test('recognizes the CreateDental support account case-insensitively',()=>{
   assert.equal(telegramInternals.supportLabel('@createdental_admin'),'Техническая команда Create Dental');
 });
 
+test('describes Telegram photos and documents for storage',()=>{
+  assert.deepEqual(telegramInternals.telegramMedia({message_id:15,photo:[{file_id:'small'},{file_id:'large',file_size:2048}]}),{fileId:'large',previewFileId:'small',fileSize:2048,name:'telegram-photo-15.jpg',type:'image/jpeg',kind:'photo',orderEligible:false});
+  const document=telegramInternals.telegramMedia({message_id:16,document:{file_id:'doc',file_name:'scan.zip',mime_type:'application/zip',file_size:4096}});
+  assert.equal(document.name,'scan.zip');
+  assert.equal(document.orderEligible,true);
+});
+
 test('normalizes model output and rejects invalid tooth numbers',()=>{
   const result=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Иванов',work:'E.max',teeth:[11,11,99],toothMode:'Одиночка',jaw:'upper',dueDate:'2026-10-20'}});
   assert.deepEqual(result.fields.teeth,[11]);
