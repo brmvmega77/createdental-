@@ -231,7 +231,8 @@
 .tech-person-avatar.large{width:96px;height:96px;font-size:28px}
 .tech-person-avatar img,.profile .avatar img{width:100%;height:100%;display:block;object-fit:cover;border-radius:inherit}
 .profile .avatar{overflow:hidden}
-@media(max-width:760px){.tech-profile-editor{grid-template-columns:1fr;padding-right:16px}.chief-messages .chat-bubbles{height:330px;max-height:330px}.tech-client-editor{padding-right:16px}}
+.tech-profile-stack{display:grid;gap:18px;max-width:900px}.tech-integration-panel{padding:24px 30px}.tech-integration-panel .tech-panel-heading{margin-bottom:18px}.tech-integration-overall{border-radius:999px;background:#f5f5f5;color:#808080;font-size:11px;padding:7px 11px;white-space:nowrap}.tech-integration-overall.ready{background:#e8faef;color:#168b49}.tech-integration-statuses{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}.tech-integration-status{display:inline-flex;align-items:center;gap:7px;border:1px solid #eeeeee;border-radius:999px;color:#808080;font-size:11px;padding:7px 10px}.tech-integration-status i{width:7px;height:7px;border-radius:50%;background:#c8c8c8}.tech-integration-status.ready i{background:#19a45b}.tech-integration-note{grid-column:1/-1;margin:0;color:#808080;font-size:11px;line-height:1.5}.tech-integration-form input{font-family:inherit}
+@media(max-width:760px){.tech-profile-editor{grid-template-columns:1fr;padding-right:16px}.tech-integration-panel{padding:20px 16px}.tech-integration-panel .tech-panel-heading{align-items:flex-start;gap:12px}.chief-messages .chat-bubbles{height:330px;max-height:330px}.tech-client-editor{padding-right:16px}}
 
 /* Message contrast and sortable staff tables */
 .bubble.me{background:#333333;color:#fff}

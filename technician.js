@@ -33,7 +33,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(Array.isArray(saved))clients=saved.filter(client=>client&&typeof client.id==='string'&&typeof client.name==='string');
   } catch { /* Keep the demo directory if local data is damaged. */ }
   const initialRoute=routeFromPath(location.pathname);
-  const state={page:initialRoute.role==='technician'?initialRoute.page:'overview',filter:'Все',search:'',orderDueFilter:'',orderId:initialRoute.orderId||'',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',orderSortKey:'createdAt',orderSortDirection:'desc',orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',clientSearch:'',editClientId:null,confirmDeleteId:null,employeeSearch:'',employeeFilter:'all',editEmployeeId:null,confirmFireId:null,conversations:[],activeConversation:null,conversationMessages:[],messageAttachment:null,messagesError:'',deadlineMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),deadlineDay:new Date().getDate(),profile:null,editOrderId:null,confirmOrderDeleteId:null,toast:''};
+  const state={page:initialRoute.role==='technician'?initialRoute.page:'overview',filter:'Все',search:'',orderDueFilter:'',orderId:initialRoute.orderId||'',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',orderSortKey:'createdAt',orderSortDirection:'desc',orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',clientSearch:'',editClientId:null,confirmDeleteId:null,employeeSearch:'',employeeFilter:'all',editEmployeeId:null,confirmFireId:null,conversations:[],activeConversation:null,conversationMessages:[],messageAttachment:null,messagesError:'',deadlineMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),deadlineDay:new Date().getDate(),profile:null,integration:null,integrationLoading:false,editOrderId:null,confirmOrderDeleteId:null,toast:''};
   let messagesRequest=0;
   const chiefAvatarKey='create-dental-chief-avatar';
   function storedChiefAvatar(){try{return localStorage.getItem(chiefAvatarKey)||''}catch{return ''}}
@@ -364,9 +364,22 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   }
   function profilePage(){
     const profile=chiefProfile();
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОФИЛЬ</span><h1>Главный техник</h1></div></div><section class="tech-panel tech-profile-editor"><div class="tech-profile-avatar">${avatarMarkup(profile,'large')}<label class="btn outline">Загрузить аватар<input id="tech-profile-avatar" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>${profile.avatar?'<button class="tech-link" data-tech-profile-avatar="remove">Убрать аватар</button>':''}</div><form id="tech-profile-form" class="tech-client-form">${profileField('Имя в кабинете','displayName',profile.displayName||'Главный техник','text',true)}${profileField('Электронная почта','email',profile.email||'','email')}${profileField('Новый пароль','password','','password',false,'Оставьте пустым, если менять не нужно')}${profileField('Повторите пароль','passwordConfirm','','password',false,'')}<div class="tech-client-form-actions"><button type="submit" class="btn primary">Сохранить профиль</button></div></form></section>`;
+    const integration=state.integration||{};
+    const status=(ready,label)=>`<span class="tech-integration-status ${ready?'ready':''}"><i></i>${label}: ${ready?'сохранено':'не заполнено'}</span>`;
+    const placeholder=(ready,label)=>ready?`${label} сохранён · введите только для замены`:label;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОФИЛЬ</span><h1>Главный техник</h1></div></div><div class="tech-profile-stack"><section class="tech-panel tech-profile-editor"><div class="tech-profile-avatar">${avatarMarkup(profile,'large')}<label class="btn outline">Загрузить аватар<input id="tech-profile-avatar" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>${profile.avatar?'<button class="tech-link" data-tech-profile-avatar="remove">Убрать аватар</button>':''}</div><form id="tech-profile-form" class="tech-client-form">${profileField('Имя в кабинете','displayName',profile.displayName||'Главный техник','text',true)}${profileField('Электронная почта','email',profile.email||'','email')}${profileField('Новый пароль','password','','password',false,'Оставьте пустым, если менять не нужно')}${profileField('Повторите пароль','passwordConfirm','','password',false,'')}<div class="tech-client-form-actions"><button type="submit" class="btn primary">Сохранить профиль</button></div></form></section><section class="tech-panel tech-integration-panel"><div class="tech-panel-heading"><div><h2>Telegram и Yandex</h2><p>Голосовые сообщения, саммари и управление заказами после подтверждения</p></div><strong class="tech-integration-overall ${integration.enabled?'ready':''}">${state.integrationLoading?'Проверка…':integration.enabled?'Подключено':'Требуется настройка'}</strong></div><div class="tech-integration-statuses">${status(integration.telegramBot,'Telegram')}${status(integration.speechKit,'SpeechKit')}${status(integration.yandexGpt,'YandexGPT')}${status(integration.folderId,'Каталог')}</div><form id="tech-integration-form" class="tech-client-form tech-integration-form" autocomplete="off"><label>Токен Telegram-бота<input name="telegramBotToken" type="password" placeholder="${safe(placeholder(integration.telegramBot,'Токен Telegram'))}" autocomplete="new-password"></label><label>API-ключ SpeechKit<input name="speechKitKey" type="password" placeholder="${safe(placeholder(integration.speechKit,'Ключ SpeechKit'))}" autocomplete="new-password"></label><label>API-ключ YandexGPT<input name="yandexGptKey" type="password" placeholder="${safe(placeholder(integration.yandexGpt,'Ключ YandexGPT'))}" autocomplete="new-password"></label><label>ID каталога Yandex Cloud<input name="folderId" type="password" placeholder="${safe(placeholder(integration.folderId,'ID каталога'))}" autocomplete="new-password"></label><p class="tech-integration-note">Сохранённые значения скрыты и не загружаются обратно в браузер. Пустые поля не изменяют уже сохранённые настройки.</p><div class="tech-client-form-actions"><button type="submit" class="btn primary">Сохранить и подключить</button></div></form></section></div>`;
   }
   function profileField(label,name,value='',type='text',required=false,placeholder=''){return `<label>${label}<input name="${name}" type="${type}" value="${safe(value)}" ${placeholder?`placeholder="${safe(placeholder)}"`:''} ${required?'required':''}></label>`}
+  async function loadIntegrationStatus(){
+    if(state.integrationLoading||state.integration)return;
+    state.integrationLoading=true;
+    try{
+      const response=await fetch('/api/integrations/telegram',{headers:{'X-Portal-Token':portalToken()},cache:'no-store'});
+      if(!response.ok)throw new Error('Не удалось проверить интеграцию');
+      state.integration=(await response.json()).status||{};
+    }catch(error){toast(error.message)}
+    finally{state.integrationLoading=false;if(isActive()&&state.page==='profile')shell(profilePage())}
+  }
   function messageDateLabel(value){
     const date=new Date(value),today=new Date(),yesterday=new Date();yesterday.setDate(today.getDate()-1);
     const key=d=>d.toLocaleDateString('ru-RU');
@@ -426,6 +439,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const pages={overview,orders:ordersPage,detail:orderDetail,clients:clientsPage,messages:messagesPage,analytics:analyticsPage,team:teamPage,intake:qualityPage,quality:qualityPage,profile:profilePage};
     shell((pages[state.page]||overview)());
     if(state.page==='messages')queueMicrotask(()=>{refreshMessages();scrollChiefChat()});
+    if(state.page==='profile'&&!state.integration)queueMicrotask(loadIntegrationStatus);
   }
   document.addEventListener('click',async event=>{
     if(currentUser()?.role!=='technician')return;
@@ -626,6 +640,24 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(!text&&!pending||!state.activeConversation)return;
     const button=form.querySelector('.send-btn');button.disabled=true;
     try{const uploaded=pending?(pending.uploaded||await uploadClinicMessageFile(pending.file,state.activeConversation)):null;if(pending&&!pending.uploaded)state.messageAttachment={...pending,uploaded};const attachment=uploaded?{...uploaded,preview:pending.preview||''}:null;const response=await fetch('/api/chief/conversations/'+encodeURIComponent(state.activeConversation)+'/reply',{method:'POST',headers:{'Content-Type':'application/json','X-Portal-Token':portalToken()},body:JSON.stringify({text,attachment})});if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.error||'Не удалось отправить ответ')}const data=await response.json();form.reset();state.messageAttachment=null;state.conversationMessages=[...state.conversationMessages,data.message];state.conversations=state.conversations.map(item=>item.id===state.activeConversation?{...item,lastMessage:data.message.text||`📎 ${data.message.attachment?.name||'Файл'}`,updatedAt:data.message.time}:item).sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));shell(messagesPage());queueMicrotask(scrollChiefChat);refreshMessages()}catch(error){state.messagesError=error.message;shell(messagesPage())}finally{if(button.isConnected)button.disabled=false}
+  });
+  document.addEventListener('submit',async event=>{
+    if(!isActive()||event.target.id!=='tech-integration-form')return;
+    event.preventDefault();
+    const form=event.target,body={};
+    for(const name of ['telegramBotToken','speechKitKey','yandexGptKey','folderId']){
+      const value=form.elements.namedItem(name).value.trim();
+      if(value)body[name]=value;
+    }
+    if(!Object.keys(body).length)return toast('Введите хотя бы одно новое значение');
+    const button=form.querySelector('button[type="submit"]');button.disabled=true;
+    try{
+      const response=await fetch('/api/integrations/telegram',{method:'POST',headers:{'Content-Type':'application/json','X-Portal-Token':portalToken()},body:JSON.stringify(body)});
+      let data={};try{data=await response.json()}catch{}
+      if(!response.ok)throw new Error(data.error||'Не удалось сохранить настройки');
+      form.reset();state.integration=data.status||{};toast(state.integration.enabled?'Telegram и Yandex подключены':'Настройки сохранены. Заполните оставшиеся поля');
+    }catch(error){toast(error.message)}
+    finally{if(button.isConnected)button.disabled=false}
   });
   document.addEventListener('submit',async event=>{
     if(!isActive()||event.target.id!=='tech-profile-form')return;

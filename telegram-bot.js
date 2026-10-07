@@ -291,13 +291,26 @@ export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAtta
     polling=false;
   }
 
-  async function start(){
+  async function reloadSecrets(){
     [token,speechKey,gptKey,folderId]=await Promise.all([readSecret('TELEGRAM_BOT_TOKEN'),readSecret('YANDEX_SPEECHKIT_API_KEY'),readSecret('YANDEX_GPT_API_KEY'),readSecret('YANDEX_FOLDER_ID')]);
-    if(!token||!speechKey||!gptKey||!folderId){console.log('Telegram bridge disabled: secret files are not configured');return false}
+    const configured={telegramBot:Boolean(token),speechKit:Boolean(speechKey),yandexGpt:Boolean(gptKey),folderId:Boolean(folderId)};
+    const ready=Object.values(configured).every(Boolean);
+    if(ready&&!polling&&!stopped)void poll();
+    return {...configured,ready,enabled:ready&&!stopped};
+  }
+  async function start(){
     try{state={offset:0,bindings:{},pending:{},...JSON.parse(await fs.promises.readFile(stateFile,'utf8'))}}catch(error){if(error.code!=='ENOENT')throw error}
-    stopped=false;void poll();console.log('Telegram bridge enabled');return true;
+    stopped=false;
+    const status=await reloadSecrets();
+    if(!status.ready){console.log('Telegram bridge disabled: secret files are not configured');return false}
+    console.log('Telegram bridge enabled');return true;
   }
   function stop(){stopped=true}
+  function status(){
+    const configured={telegramBot:Boolean(token),speechKit:Boolean(speechKey),yandexGpt:Boolean(gptKey),folderId:Boolean(folderId)};
+    const ready=Object.values(configured).every(Boolean);
+    return {...configured,ready,enabled:ready&&!stopped};
+  }
   async function sendClinicMessage(clinicId,text,attachment){
     const chatId=state.bindings[clinicId];if(!chatId||!token)return false;
     if(attachment){
@@ -310,7 +323,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAtta
     }
     if(text)await send(chatId,text);return true;
   }
-  return {start,stop,sendClinicMessage};
+  return {start,stop,status,reloadSecrets,sendClinicMessage};
 }
 
 export const telegramInternals={codeFromText,normalizeAnalysis,findOrder,missingCreateFields:(analysis)=>{const missing=[];if(!(analysis.fields.patient||analysis.patientSurname))missing.push('фамилия пациента');if(!analysis.fields.work)missing.push('вид работы');if(!analysis.fields.teeth.length&&!(analysis.fields.toothMode==='Челюсть'&&analysis.fields.jaw))missing.push('номер зуба или верхнюю/нижнюю челюсть');return missing},displayDate,isoDateFromDisplay};

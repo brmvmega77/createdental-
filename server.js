@@ -19,6 +19,12 @@ const clinicMessageUploadMetaFile=process.env.CLINIC_MESSAGE_UPLOAD_META_FILE||p
 const uploadDir=process.env.ORDER_UPLOAD_DIR||path.join(root,'.data','order-files');
 const uploadMetaFile=process.env.ORDER_UPLOAD_META_FILE||path.join(root,'.data','order-files.json');
 const notificationReadFile=process.env.NOTIFICATION_READ_FILE||path.join(root,'.data','notification-read.json');
+const integrationSecretFiles={
+  telegramBotToken:process.env.TELEGRAM_BOT_TOKEN_FILE||path.join(root,'.data','telegram-bot-token'),
+  speechKitKey:process.env.YANDEX_SPEECHKIT_API_KEY_FILE||path.join(root,'.data','yandex-speechkit-api-key'),
+  yandexGptKey:process.env.YANDEX_GPT_API_KEY_FILE||path.join(root,'.data','yandex-gpt-api-key'),
+  folderId:process.env.YANDEX_FOLDER_ID_FILE||path.join(root,'.data','yandex-folder-id')
+};
 const tlsKeyFile=process.env.TLS_KEY_FILE||'';
 const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
@@ -275,6 +281,40 @@ async function handleNotifications(req,res){
     try{await persistNotificationReads();return json(res,200,{ok:true})}catch{return json(res,500,{error:'Не удалось отметить уведомления прочитанными'})}
   }
   return json(res,405,{error:'Метод не поддерживается'});
+}
+
+async function writeIntegrationSecret(file,value){
+  await fs.promises.mkdir(path.dirname(file),{recursive:true,mode:0o700});
+  const temporary=file+'.tmp-'+randomBytes(5).toString('hex');
+  await fs.promises.writeFile(temporary,value,{mode:0o600});
+  await fs.promises.rename(temporary,file);
+  await fs.promises.chmod(file,0o600);
+}
+
+function validIntegrationSecret(name,value){
+  if(typeof value!=='string'||!value||value.length>500||/\s/.test(value))return false;
+  if(name==='telegramBotToken')return /^\d{6,15}:[A-Za-z0-9_-]{20,}$/.test(value);
+  if(name==='folderId')return /^[a-z0-9]{10,50}$/.test(value);
+  return value.length>=20;
+}
+
+async function handleTelegramIntegration(req,res){
+  const user=session(req);
+  if(user?.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
+  if(req.method==='GET')return json(res,200,{status:telegramBridge?.status()||{telegramBot:false,speechKit:false,yandexGpt:false,folderId:false,ready:false,enabled:false}});
+  if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
+  const secure=Boolean(req.socket.encrypted)||req.headers['x-forwarded-proto']==='https';
+  const local=/^(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(String(req.headers.host||''));
+  if(!secure&&!local)return json(res,400,{error:'Откройте кабинет по HTTPS, чтобы сохранить ключи безопасно'});
+  let body;try{body=await readBody(req,12000)}catch{return json(res,400,{error:'Не удалось прочитать настройки'})}
+  const supplied=Object.entries(integrationSecretFiles).filter(([name])=>typeof body[name]==='string'&&body[name].trim());
+  if(!supplied.length)return json(res,400,{error:'Введите хотя бы одно новое значение'});
+  for(const [name] of supplied)if(!validIntegrationSecret(name,body[name].trim()))return json(res,400,{error:name==='telegramBotToken'?'Проверьте токен Telegram-бота':name==='folderId'?'Проверьте ID каталога Yandex Cloud':'Проверьте API-ключ Yandex Cloud'});
+  try{
+    for(const [name,file] of supplied)await writeIntegrationSecret(file,body[name].trim());
+    const status=await telegramBridge.reloadSecrets();
+    return json(res,200,{ok:true,status});
+  }catch(error){console.error('Integration settings failed:',error.message);return json(res,500,{error:'Не удалось сохранить настройки интеграции'})}
 }
 
 async function handleOrderRework(req,res,url){
@@ -573,6 +613,7 @@ const requestHandler=async (req,res) => {
     try{return url.pathname.endsWith('/rework')?await handleOrderRework(req,res,url):await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка обработки заказа'})}
   }
   if(url.pathname==='/api/notifications')return handleNotifications(req,res);
+  if(url.pathname==='/api/integrations/telegram')return handleTelegramIntegration(req,res);
   if(url.pathname.startsWith('/api/order-files/')){try{return await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка чтения файла'})}}
   if(url.pathname==='/api/locations')return handleLocations(req,res,url);
   if(url.pathname==='/api/clinic-messages'||url.pathname.startsWith('/api/chief/conversations')){
