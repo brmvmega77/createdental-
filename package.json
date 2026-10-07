@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check app.js && node --check technician.js && node --check worker.js && node --check seed-orders.js && node --check portal-client.js && node --check notification-center.js && node --check portal-data.js && node --check auth-data.js && node --check routes.js && node --check reset-users.mjs && node --check backup-data.js && node --check server.js"
+    "check": "node --check app.js && node --check technician.js && node --check worker.js && node --check seed-orders.js && node --check portal-client.js && node --check notification-center.js && node --check portal-data.js && node --check auth-data.js && node --check routes.js && node --check reset-users.mjs && node --check backup-data.js && node --check telegram-bot.js && node --check server.js",
+    "test": "node --test telegram-bot.test.js"
   },
   "engines": {"node": ">=20"}
 }

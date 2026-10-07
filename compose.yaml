@@ -13,3 +13,7 @@ services:
       BACKUP_DIR: /app/.backups
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
       HTTPS_REDIRECT: ${HTTPS_REDIRECT:-0}
+      TELEGRAM_BOT_TOKEN_FILE: /app/.data/telegram-bot-token
+      YANDEX_SPEECHKIT_API_KEY_FILE: /app/.data/yandex-speechkit-api-key
+      YANDEX_GPT_API_KEY_FILE: /app/.data/yandex-gpt-api-key
+      YANDEX_FOLDER_ID_FILE: /app/.data/yandex-folder-id

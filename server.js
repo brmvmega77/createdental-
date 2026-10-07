@@ -6,6 +6,7 @@ import { timingSafeEqual,randomBytes } from 'node:crypto';
 import {createDataBackup} from './backup-data.js';
 import {portalSnapshot,replacePortalCollection,recordPortalEvent,portalClient,portalEmployee} from './portal-data.js';
 import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
+import {createTelegramBridge} from './telegram-bot.js';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
@@ -34,6 +35,7 @@ let orderFiles={};
 let orderFilesQueue=Promise.resolve();
 let notificationReads={};
 let notificationReadQueue=Promise.resolve();
+let telegramBridge=null;
 try{orderFiles=JSON.parse(fs.readFileSync(uploadMetaFile,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
 try{notificationReads=JSON.parse(fs.readFileSync(notificationReadFile,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
 const locationCache=new Map();
@@ -361,6 +363,29 @@ async function saveClinicChats(){
   await clinicSaveQueue;
 }
 
+async function appendTelegramClinicMessage(clinicId,{text,sender,telegramMessageId,telegramChatId}){
+  if(!portalClient(clinicId))throw new Error('clinic_not_found');
+  const chat=clinicChats[clinicId]||={messages:[],updatedAt:''};
+  const externalId=`telegram:${telegramChatId}:${telegramMessageId}`;
+  if(chat.messages.some(message=>message.externalId===externalId))return;
+  const entry={id:randomBytes(12).toString('hex'),from:'client',text:cleanTelegramMessage(text,sender),time:new Date().toISOString(),source:'telegram',externalId,sender:String(sender||'Клиент Telegram').slice(0,120)};
+  chat.messages.push(entry);chat.updatedAt=entry.time;
+  await saveClinicChats();
+  await recordPortalEvent('',{role:'clinic',name:portalClient(clinicId)?.name||'Клиника'},'message_received',{clinicId,summary:'Новое сообщение из Telegram'}).catch(()=>{});
+}
+
+function cleanTelegramMessage(text,sender){
+  const message=String(text||'').replace(/[<>]/g,'').trim().slice(0,6000);
+  const name=String(sender||'').replace(/[<>]/g,'').trim().slice(0,120);
+  return name?`${name}: ${message}`:message;
+}
+
+async function loadTelegramAttachment(id){
+  const record=clinicMessageFiles[id];
+  if(!record)return null;
+  try{return {record,data:await fs.promises.readFile(path.join(clinicMessageUploadDir,record.id))}}catch{return null}
+}
+
 async function saveClinicMessageFiles(){
   clinicMessageFilesQueue=clinicMessageFilesQueue.catch(()=>{}).then(async()=>{
     await fs.promises.mkdir(path.dirname(clinicMessageUploadMetaFile),{recursive:true,mode:0o700});
@@ -433,6 +458,7 @@ async function addClinicMessage(req,res,id,from){
   chat.messages.push(entry);chat.updatedAt=entry.time;
   try{await saveClinicChats()}catch{return json(res,500,{error:'Не удалось сохранить сообщение'})}
   await recordPortalEvent('',{role:from==='client'?'clinic':'technician',name:from==='client'?(portalClient(id)?.name||'Клиника'):'Главный техник'},from==='client'?'message_received':'message_replied',{clinicId:id,summary:from==='client'?'Новое сообщение от клиники':'Лаборатория ответила на сообщение'}).catch(()=>{});
+  if(from==='support')void telegramBridge?.sendClinicMessage(id,message,attachment).catch(error=>console.error('Telegram reply failed:',error.message));
   return json(res,201,{message:entry});
 }
 
@@ -567,6 +593,8 @@ await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(uploadDir,0o700);
 await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(clinicMessageUploadDir,0o700);
+telegramBridge=createTelegramBridge({onClinicMessage:appendTelegramClinicMessage,loadClinicAttachment:loadTelegramAttachment});
+await telegramBridge.start();
 server.listen(port,host,()=>{
   console.log(`Create Dental: ${tlsKeyFile?'https':'http'}://${host}:${port}`);
   const backup=async()=>{try{const saved=await createDataBackup();console.log(`Data backup created: ${path.basename(saved)}`)}catch(error){console.error('Data backup failed:',error.message)}};
