@@ -16,7 +16,7 @@ test('recognizes the CreateDental support account case-insensitively',()=>{
 });
 
 test('describes Telegram photos and documents for storage',()=>{
-  assert.deepEqual(telegramInternals.telegramMedia({message_id:15,photo:[{file_id:'small'},{file_id:'large',file_size:2048}]}),{fileId:'large',previewFileId:'small',fileSize:2048,name:'telegram-photo-15.jpg',type:'image/jpeg',kind:'photo',orderEligible:false});
+  assert.deepEqual(telegramInternals.telegramMedia({message_id:15,photo:[{file_id:'small'},{file_id:'large',file_size:2048}]}),{fileId:'large',previewFileId:'small',fileSize:2048,name:'telegram-photo-15.jpg',type:'image/jpeg',kind:'photo',orderEligible:true});
   const document=telegramInternals.telegramMedia({message_id:16,document:{file_id:'doc',file_name:'scan.zip',mime_type:'application/zip',file_size:4096}});
   assert.equal(document.name,'scan.zip');
   assert.equal(document.orderEligible,true);
@@ -53,4 +53,24 @@ test('refuses an ambiguous surname match',()=>{
   const found=telegramInternals.findOrder(snapshot,'clinic-1',{orderId:'',patientSurname:'Иванов',fields:{}});
   assert.equal(found.order,null);
   assert.equal(found.matches.length,2);
+});
+
+test('matches a Russian surname used in a declined form',()=>{
+  const snapshot={orders:[
+    {id:'CD-1',clinicId:'clinic-1',patient:'Абрамов Мамед',status:'Новый'},
+    {id:'CD-2',clinicId:'clinic-2',patient:'Мамедов Роман',status:'Новый'}
+  ],orderOverrides:{}};
+  const found=telegramInternals.findOrder(snapshot,'clinic-1',{orderId:'',patientSurname:'Мамедову',fields:{}});
+  assert.equal(found.order?.id,'CD-1');
+});
+
+test('turns an attachment upload phrase into an order update',()=>{
+  const snapshot={orders:[
+    {id:'CD-1',clinicId:'clinic-1',patient:'Абрамов Мамед',status:'Новый'},
+    {id:'CD-2',clinicId:'clinic-1',patient:'Иванов Илья',status:'Новый'}
+  ],orderOverrides:{}};
+  const analysis=telegramInternals.normalizeAnalysis({intent:'general_message',fields:{}});
+  const result=telegramInternals.attachmentCommandAnalysis('загрузи Мамедову снимок',{name:'111.jpg',orderEligible:true},'clinic-1',snapshot,analysis);
+  assert.equal(result.intent,'update_order');
+  assert.equal(result.orderId,'CD-1');
 });

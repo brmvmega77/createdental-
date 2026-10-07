@@ -25,6 +25,35 @@ function displayDate(value){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value||'')))re
 function isoDateFromDisplay(value){const match=String(value||'').match(/^(\d{2})\.(\d{2})\.(\d{4})$/);return match?`${match[3]}-${match[2]}-${match[1]}`:''}
 function normalize(value){return String(value||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/[^а-яa-z0-9]+/gi,' ').trim()}
 function patientSurname(value){return normalize(value).split(' ')[0]||''}
+function surnameStem(value){
+  const surname=patientSurname(value);
+  if(surname.length<4)return surname;
+  const declined=[
+    [/(скому|ского|ским|ском|ская|ской|скую|ские|ских|скими|ский)$/,''],
+    [/(цкому|цкого|цким|цком|цкая|цкой|цкую|цкие|цких|цкими|цкий)$/,''],
+    [/(овой|овую|овым|овому|ова|ову|ове|овы|ов)$/,''],
+    [/(евой|евую|евым|евому|ева|еву|еве|евы|ев)$/,''],
+    [/(иной|иную|иным|иному|ина|ину|ине|ины|ин)$/,''],
+    [/(ыной|ыную|ыным|ыному|ына|ыну|ыне|ыны|ын)$/,'']
+  ];
+  for(const [pattern,replacement] of declined){
+    if(pattern.test(surname)){
+      const stem=surname.replace(pattern,replacement);
+      return stem.length>=3?stem:surname;
+    }
+  }
+  return surname;
+}
+function surnameMatches(left,right){
+  const a=patientSurname(left),b=patientSurname(right);
+  return Boolean(a&&b&&(a===b||(surnameStem(a).length>=3&&surnameStem(a)===surnameStem(b))));
+}
+function patientMatchesReference(patient,reference){
+  const target=patientSurname(reference);
+  if(!target)return false;
+  const tokens=normalize(patient).split(' ').filter(token=>token.length>=3);
+  return tokens.some(token=>surnameMatches(token,target));
+}
 function orderId(){return `CD-${Date.now().toString(36).toUpperCase()}-${randomBytes(2).toString('hex').toUpperCase()}`}
 function actorName(message){const user=message?.from||{};return cleanText([user.first_name,user.last_name].filter(Boolean).join(' ')||user.username||'Клиент Telegram',120)}
 function normalizedUsername(value){return String(value||'').trim().replace(/^@/,'').toLowerCase()}
@@ -37,7 +66,7 @@ function telegramMedia(message){
   const photos=Array.isArray(message?.photo)?message.photo:[];
   if(photos.length){
     const file=photos.at(-1),preview=photos[0];
-    return {fileId:file.file_id,previewFileId:preview?.file_id||'',fileSize:Number(file.file_size)||0,name:`telegram-photo-${message.message_id}.jpg`,type:'image/jpeg',kind:'photo',orderEligible:false};
+    return {fileId:file.file_id,previewFileId:preview?.file_id||'',fileSize:Number(file.file_size)||0,name:`telegram-photo-${message.message_id}.jpg`,type:'image/jpeg',kind:'photo',orderEligible:true};
   }
   const document=message?.document;
   if(!document)return null;
@@ -59,8 +88,30 @@ function findOrder(snapshot,clinicId,analysis){
   }
   const surname=patientSurname(analysis.patientSurname||analysis.fields?.patient||'');
   if(!surname)return {order:null,matches:[]};
-  const matches=orders.filter(order=>patientSurname(order.patient)===surname);
+  const exactMatches=orders.filter(order=>normalize(order.patient).split(' ').includes(surname));
+  const matches=exactMatches.length?exactMatches:orders.filter(order=>patientMatchesReference(order.patient,surname));
   return {order:matches.length===1?matches[0]:null,matches};
+}
+
+function attachmentCommandAnalysis(text,attachment,clinicId,snapshot,analysis){
+  if(!attachment?.orderEligible||!['general_message','clarify'].includes(analysis.intent))return analysis;
+  const normalized=normalize(text);
+  const isAttachCommand=/(^| )(загрузи|загрузите|добавь|добавьте|прикрепи|прикрепите|закинь|закиньте|приложи|приложите|файл|документ|архив|снимок|фото)( |$)/.test(normalized);
+  if(!isAttachCommand)return analysis;
+  const words=normalized.split(' ').filter(word=>word.length>=3);
+  const orders=activeOrdersForClinic(snapshot,clinicId);
+  const matches=orders.filter(order=>words.some(word=>patientMatchesReference(order.patient,word)));
+  if(matches.length!==1)return analysis;
+  const order=matches[0];
+  return {
+    ...analysis,
+    intent:'update_order',
+    confidence:Math.max(analysis.confidence,.95),
+    orderId:order.id,
+    patientSurname:patientSurname(order.patient),
+    summary:`Прикрепить файл «${attachment.name}» к заказу ${order.id}`,
+    question:''
+  };
 }
 
 function parseJson(text){
@@ -89,9 +140,10 @@ function normalizeAnalysis(value){
   };
 }
 
-function buildPrompt(text,clinic,orders,snapshot){
+function buildPrompt(text,clinic,orders,snapshot,attachment=null){
   const orderList=orders.slice(0,60).map(order=>({id:order.id,patient:order.patient,work:order.work,material:order.material||'',teeth:order.teeth||[],due:order.date,status:orderStage(snapshot,order)}));
-  return `Сегодня ${moscowDate()}, часовой пояс Europe/Moscow.\nКлиника: ${clinic.name}; постоянный код: ${clinic.telegramCode}.\nДействующие заказы клиники: ${JSON.stringify(orderList)}\n\nСообщение клиента: ${JSON.stringify(text)}\n\nОпредели намерение и извлеки только прямо сообщенные данные. Верни только JSON без Markdown:\n{"intent":"create_order|update_order|cancel_order|status_request|accept_order|rework_order|general_message|clarify","confidence":0.0,"orderId":"","patientSurname":"","fields":{"patient":"","work":"","material":"","teeth":[],"toothMode":"Одиночка|Мост|Челюсть|","jaw":"upper|lower|","dueDate":"YYYY-MM-DD или пусто","shade":"","comment":"","reason":""},"summary":"краткое содержание","question":"вопрос при нехватке данных"}\n\nПравила:\n- Никогда не придумывай пациента, зубы, работу, материал, причину или номер заказа.\n- Если доктор называет только фамилию, запиши ее в patientSurname и fields.patient.\n- Для изменения, отмены, статуса, приемки и доработки используй orderId, если он назван. Иначе используй фамилию.\n- Если речь о новом заказе, intent=create_order. Для создания обязательны пациент, работа и номера зубов либо явно указанная верхняя или нижняя челюсть.\n- Для всей верхней челюсти укажи toothMode=Челюсть и jaw=upper; для нижней jaw=lower.\n- Вопрос «что с заказом», «когда будет готов» означает status_request.\n- «Работу принимаю», «всё подходит» означает accept_order.\n- Просьба переделать или исправить означает rework_order, причину помести в fields.reason.\n- Обычное сообщение лаборатории без команды означает general_message.\n- Неопределенное намерение означает clarify.\n- Относительные даты преобразуй относительно сегодняшней даты.`;
+  const attachmentNote=attachment?.orderEligible?`\nК сообщению приложен файл: ${JSON.stringify(attachment.name)} (${attachment.kind==='photo'?'фото':'документ'}).`:'';
+  return `Сегодня ${moscowDate()}, часовой пояс Europe/Moscow.\nКлиника: ${clinic.name}; постоянный код: ${clinic.telegramCode}.\nДействующие заказы клиники: ${JSON.stringify(orderList)}\n\nСообщение клиента: ${JSON.stringify(text)}${attachmentNote}\n\nОпредели намерение и извлеки только прямо сообщенные данные. Верни только JSON без Markdown:\n{"intent":"create_order|update_order|cancel_order|status_request|accept_order|rework_order|general_message|clarify","confidence":0.0,"orderId":"","patientSurname":"","fields":{"patient":"","work":"","material":"","teeth":[],"toothMode":"Одиночка|Мост|Челюсть|","jaw":"upper|lower|","dueDate":"YYYY-MM-DD или пусто","shade":"","comment":"","reason":""},"summary":"краткое содержание","question":"вопрос при нехватке данных"}\n\nПравила:\n- Никогда не придумывай пациента, зубы, работу, материал, причину или номер заказа.\n- Если доктор называет только фамилию, запиши ее в patientSurname и fields.patient. Приводи фамилию к именительному падежу, например «Мамедову» — «Мамедов».\n- Для изменения, отмены, статуса, приемки и доработки используй orderId, если он назван. Иначе используй фамилию.\n- Команда «загрузи», «добавь», «прикрепи» или «закинь» приложенный файл к пациенту/заказу означает update_order. Другие поля при этом оставь пустыми.\n- Если речь о новом заказе, intent=create_order. Для создания обязательны пациент, работа и номера зубов либо явно указанная верхняя или нижняя челюсть.\n- Для всей верхней челюсти укажи toothMode=Челюсть и jaw=upper; для нижней jaw=lower.\n- Вопрос «что с заказом», «когда будет готов» означает status_request.\n- «Работу принимаю», «всё подходит» означает accept_order.\n- Просьба переделать или исправить означает rework_order, причину помести в fields.reason.\n- Обычное сообщение лаборатории без команды означает general_message.\n- Неопределенное намерение означает clarify.\n- Относительные даты преобразуй относительно сегодняшней даты.`;
 }
 
 function actionLabel(intent){return ({create_order:'Создать заказ',update_order:'Изменить заказ',cancel_order:'Отменить заказ',accept_order:'Принять работу',rework_order:'Отправить на доработку'})[intent]||'Выполнить действие'}
@@ -206,13 +258,13 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     return saveTelegramAttachment(clinic.id,{...media,data,previewData,sender:actorName(message)});
   }
 
-  async function analyze(text,clinic){
+  async function analyze(text,clinic,attachment=null){
     const snapshot=portalSnapshot(),orders=activeOrdersForClinic(snapshot,clinic.id);
-    const response=await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion',{method:'POST',headers:{Authorization:`Api-Key ${gptKey}`,'Content-Type':'application/json'},body:JSON.stringify({modelUri:`gpt://${folderId}/yandexgpt-lite/latest`,completionOptions:{stream:false,temperature:0.1,maxTokens:1800},messages:[{role:'system',text:'Ты аккуратно преобразуешь сообщения стоматологов в команды для CRM зуботехнической лаборатории. Строго соблюдай схему и не выдумывай данные.'},{role:'user',text:buildPrompt(text,clinic,orders,snapshot)}]}),signal:AbortSignal.timeout(45000)});
+    const response=await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion',{method:'POST',headers:{Authorization:`Api-Key ${gptKey}`,'Content-Type':'application/json'},body:JSON.stringify({modelUri:`gpt://${folderId}/yandexgpt-lite/latest`,completionOptions:{stream:false,temperature:0.1,maxTokens:1800},messages:[{role:'system',text:'Ты аккуратно преобразуешь сообщения стоматологов в команды для CRM зуботехнической лаборатории. Строго соблюдай схему и не выдумывай данные.'},{role:'user',text:buildPrompt(text,clinic,orders,snapshot,attachment)}]}),signal:AbortSignal.timeout(45000)});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.message||'YandexGPT не смог разобрать сообщение');
     const result=data.result?.alternatives?.[0]?.message?.text;
-    return normalizeAnalysis(parseJson(result));
+    return attachmentCommandAnalysis(text,attachment,clinic.id,snapshot,normalizeAnalysis(parseJson(result)));
   }
 
   function clinicForMessage(message){
@@ -357,7 +409,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       return;
     }
     if(!sourceText)return;
-    try{const analysis=await analyze(sourceText,clinic);await propose(message,clinic,analysis,attachment)}
+    try{const analysis=await analyze(sourceText,clinic,attachment);await propose(message,clinic,analysis,attachment)}
     catch(error){console.error('Telegram analysis failed:',error.message);await send(message.chat.id,'Сообщение передано в CRM, но автоматический разбор сейчас не сработал. Главный техник увидит его в сообщениях.');}
   }
 
@@ -408,4 +460,4 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   return {start,stop,status,reloadSecrets,sendClinicMessage};
 }
 
-export const telegramInternals={codeFromText,normalizeAnalysis,findOrder,isSupportUsername,supportLabel,telegramMedia,missingCreateFields:(analysis)=>{const missing=[];if(!(analysis.fields.patient||analysis.patientSurname))missing.push('фамилия пациента');if(!analysis.fields.work)missing.push('вид работы');if(!analysis.fields.teeth.length&&!(analysis.fields.toothMode==='Челюсть'&&analysis.fields.jaw))missing.push('номер зуба или верхнюю/нижнюю челюсть');return missing},displayDate,isoDateFromDisplay};
+export const telegramInternals={codeFromText,normalizeAnalysis,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,missingCreateFields:(analysis)=>{const missing=[];if(!(analysis.fields.patient||analysis.patientSurname))missing.push('фамилия пациента');if(!analysis.fields.work)missing.push('вид работы');if(!analysis.fields.teeth.length&&!(analysis.fields.toothMode==='Челюсть'&&analysis.fields.jaw))missing.push('номер зуба или верхнюю/нижнюю челюсть');return missing},displayDate,isoDateFromDisplay};
