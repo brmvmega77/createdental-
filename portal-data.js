@@ -1,20 +1,23 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {randomInt} from 'node:crypto';
 import {seedOrders} from './seed-orders.js';
 import {seedClients,seedEmployees} from './technician.js';
 
 const file=process.env.PORTAL_DATA_FILE||path.join(process.cwd(),'.data','portal.json');
-const telegramCodePattern=/^CD-CL-(\d{4,})$/;
+const telegramCodePattern=/^CD-CL-(\d{8})$/;
+
+function randomTelegramCode(used){
+  let code='';
+  do {code=`CD-CL-${String(randomInt(0,100000000)).padStart(8,'0')}`} while(used.has(code));
+  return code;
+}
 
 function assignTelegramCodes(clients){
-  const validCodes=clients.map(client=>String(client?.telegramCode||'').trim().toUpperCase()).filter(code=>telegramCodePattern.test(code));
-  let sequence=validCodes.reduce((highest,code)=>Math.max(highest,Number(code.match(telegramCodePattern)[1])),0);
   const used=new Set();
   return clients.map(client=>{
     let telegramCode=String(client?.telegramCode||'').trim().toUpperCase();
-    if(!telegramCodePattern.test(telegramCode)||used.has(telegramCode)){
-      do {sequence+=1;telegramCode=`CD-CL-${String(sequence).padStart(4,'0')}`} while(used.has(telegramCode));
-    }
+    if(!telegramCodePattern.test(telegramCode)||used.has(telegramCode))telegramCode=randomTelegramCode(used);
     used.add(telegramCode);
     return {...client,telegramCode};
   });

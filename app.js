@@ -302,7 +302,7 @@ function syncRoute(){
 async function hydratePortal(){
   const data=await loadPortal();
   if(data.user.role==='technician'&&!technicianCabinet){
-    const {createTechnicianCabinet}=await import('./technician.js?v=telegram-message-roles-17');
+    const {createTechnicianCabinet}=await import('./technician.js?v=telegram-bot-secure-19');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){

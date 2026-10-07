@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {telegramInternals} from './telegram-bot.js';
 
 test('extracts a clinic code from a Telegram group title',()=>{
-  assert.equal(telegramInternals.codeFromText('Армянская клиника · cd-cl-0003'),'CD-CL-0003');
+  assert.equal(telegramInternals.codeFromText('Армянская клиника · cd-cl-83017426'),'CD-CL-83017426');
   assert.equal(telegramInternals.codeFromText('Армянская клиника'),'');
 });
 
@@ -73,4 +73,16 @@ test('turns an attachment upload phrase into an order update',()=>{
   const result=telegramInternals.attachmentCommandAnalysis('загрузи Мамедову снимок',{name:'111.jpg',orderEligible:true},'clinic-1',snapshot,analysis);
   assert.equal(result.intent,'update_order');
   assert.equal(result.orderId,'CD-1');
+});
+
+test('uses the recent order context for another attachment',()=>{
+  const snapshot={orders:[{id:'CD-1',clinicId:'clinic-1',patient:'Абрамов Мамед',status:'Новый'}],orderOverrides:{}};
+  const analysis=telegramInternals.normalizeAnalysis({intent:'general_message',fields:{}});
+  const result=telegramInternals.attachmentCommandAnalysis('прикрепи еще это',{name:'scan.pdf',orderEligible:true},'clinic-1',snapshot,analysis,'CD-1');
+  assert.equal(result.intent,'update_order');
+  assert.equal(result.orderId,'CD-1');
+});
+
+test('repairs a harmless trailing comma in the model JSON',()=>{
+  assert.deepEqual(telegramInternals.parseJson('```json\n{"intent":"status_request",}\n```'),{intent:'status_request'});
 });

@@ -35,6 +35,30 @@ const sharedAttachmentTypes={
   '.zip':'application/zip','.rar':'application/vnd.rar','.7z':'application/x-7z-compressed','.doc':'application/msword','.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   '.xls':'application/vnd.ms-excel','.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','.txt':'text/plain','.rtf':'application/rtf'
 };
+function validAttachmentSignature(ext,data){
+  if(!Buffer.isBuffer(data)||!data.length)return false;
+  const ascii=data.subarray(0,16).toString('ascii'),hex=data.subarray(0,12).toString('hex');
+  if(['.jpg','.jpeg'].includes(ext))return hex.startsWith('ffd8ff');
+  if(ext==='.png')return hex.startsWith('89504e470d0a1a0a');
+  if(ext==='.webp')return ascii.startsWith('RIFF')&&data.subarray(8,12).toString('ascii')==='WEBP';
+  if(ext==='.pdf')return ascii.startsWith('%PDF-');
+  if(ext==='.zip')return ascii.startsWith('PK');
+  if(ext==='.docx')return ascii.startsWith('PK')&&data.includes(Buffer.from('[Content_Types].xml'))&&data.includes(Buffer.from('word/'));
+  if(ext==='.xlsx')return ascii.startsWith('PK')&&data.includes(Buffer.from('[Content_Types].xml'))&&data.includes(Buffer.from('xl/'));
+  if(ext==='.rar')return ascii.startsWith('Rar!');
+  if(ext==='.7z')return hex.startsWith('377abcaf271c');
+  if(['.doc','.xls'].includes(ext))return hex.startsWith('d0cf11e0a1b11ae1');
+  if(ext==='.rtf')return ascii.startsWith('{\\rtf');
+  if(ext==='.ply')return ascii.toLowerCase().startsWith('ply');
+  if(ext==='.txt')return !data.subarray(0,4096).includes(0);
+  if(ext==='.stl'){
+    if(ascii.trimStart().toLowerCase().startsWith('solid'))return data.subarray(0,4096).toString('ascii').toLowerCase().includes('facet');
+    if(data.length<84)return false;
+    const triangles=data.readUInt32LE(80);
+    return triangles<=10000000&&84+triangles*50===data.length;
+  }
+  return false;
+}
 const conversationIdPattern = /^[a-f0-9]{32}$/;
 let chats = {};
 let saveQueue = Promise.resolve();
@@ -181,7 +205,19 @@ async function handlePortal(req,res,url){
       if(!old||old.assignee!==employee.originalName||!next||next.assignee!==old.assignee||(!reworkResume&&(oldIndex<0||nextIndex<0||Math.abs(nextIndex-oldIndex)!==1))||Object.keys(next).some(field=>!['stage','reworkReason','reworkAt'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:'Неверный переход этапа'});
       value={...snapshot.orderOverrides,[id]:next};
     }
-    try {await replacePortalCollection(key,value,{role:user.role,name:actorName(user)});if(key==='employees')for(const employee of value)if(employee.status!=='active')revokeSubjectSessions('worker',employee.id);return json(res,200,{ok:true})}
+    try {
+      await replacePortalCollection(key,value,{role:user.role,name:actorName(user)});
+      if(key==='employees')for(const employee of value)if(employee.status!=='active')revokeSubjectSessions('worker',employee.id);
+      if(key==='orders'){
+        const beforeById=new Map(snapshot.orders.map(order=>[order.id,order]));
+        for(const order of value){const before=beforeById.get(order.id);if(before&&before.date!==order.date)void telegramBridge?.sendAutomatedMessage(order.clinicId,`Заказ ${order.id}\nНовый срок сдачи: ${order.date}`).catch(error=>console.error('Telegram deadline notification failed:',error.message))}
+      }
+      if(key==='orderOverrides')for(const [id,detail] of Object.entries(value)){
+        const before=snapshot.orderOverrides[id]||{};
+        if(detail?.stage&&detail.stage!==before.stage){const order=snapshot.orders.find(item=>item.id===id);if(order)void telegramBridge?.notifyOrderStage(order,detail.stage).catch(error=>console.error('Telegram status notification failed:',error.message))}
+      }
+      return json(res,200,{ok:true})
+    }
     catch(error){return json(res,error.message==='invalid_collection'?400:500,{error:error.message==='invalid_collection'?'Неверные данные':'Не удалось сохранить'})}
   }
   return json(res,404,{error:'Не найдено'});
@@ -221,6 +257,7 @@ async function handleOrderFiles(req,res,url){
     if(type&&type!=='application/octet-stream'&&type!==allowed[ext])return json(res,400,{error:'Тип файла не совпадает с расширением'});
     let data;try{data=await readRaw(req,50*1024*1024)}catch(error){return json(res,error.message==='too_large'?413:400,{error:error.message==='too_large'?'Файл больше 50 МБ':'Не удалось прочитать файл'})}
     if(!data.length)return json(res,400,{error:'Файл пустой'});
+    if(!validAttachmentSignature(ext,data))return json(res,400,{error:'Содержимое файла не соответствует его формату'});
     const id=randomBytes(18).toString('hex');
     try{
       await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
@@ -228,6 +265,7 @@ async function handleOrderFiles(req,res,url){
       const record={id,name,size:data.length,type:allowed[ext],uploadedAt:new Date().toISOString(),uploadedBy:actorName(user),purpose};
       orderFiles[orderId]=[...(orderFiles[orderId]||[]),record];await persistOrderFiles();
       await recordPortalEvent(orderId,{role:user.role,name:actorName(user)},'file_uploaded',{summary:purpose==='result-photo'?'Добавлено фото готовой работы':'Добавлен файл к заказу',fileName:name,purpose,clinicId:order.clinicId}).catch(()=>{});
+      if(purpose==='result-photo')void telegramBridge?.sendAutomatedMessage(order.clinicId,`К заказу ${order.id} добавлено фото готовой работы.`).catch(error=>console.error('Telegram file notification failed:',error.message));
       return json(res,201,{file:record});
     }catch{return json(res,500,{error:'Не удалось сохранить файл'})}
   }
@@ -254,7 +292,7 @@ async function handleNotifications(req,res){
   if(req.method==='GET'){
     const accessible=new Set(snapshot.orders.filter(order=>canAccessOrder(user,order)).map(order=>order.id));
     const events=snapshot.orderHistory.filter(event=>{
-      if(user.role==='technician')return event.action==='message_received'||event.action==='clinic_registered'||event.action==='order_created'||event.action==='stage_changed'&&event.to==='Контроль качества';
+      if(user.role==='technician')return event.action==='message_received'||event.action==='clinic_registered'||event.action==='telegram_binding_requested'||event.action==='order_created'||event.action==='stage_changed'&&event.to==='Контроль качества';
       return (event.clinicId===user.subjectId||accessible.has(event.orderId))&&!(event.action==='stage_changed'&&event.to==='На доработке');
     });
     const readAt=notificationReads[key]||'';
@@ -262,6 +300,7 @@ async function handleNotifications(req,res){
       const order=snapshot.orders.find(item=>item.id===event.orderId),clinic=portalClient(event.clinicId||order?.clinicId);
       if(event.action==='clinic_registered')return `Новая регистрация: ${event.summary||event.actor||'клиника'}`;
       if(event.action==='message_received')return `Новое сообщение от ${event.actor||clinic?.name||'клиники'}`;
+      if(event.action==='telegram_binding_requested')return `Запрос на подключение Telegram: ${event.summary||clinic?.name||'клиника'}`;
       if(event.action==='order_created')return `Новый заказ ${event.orderId}${order?.clinic||clinic?.name?` от ${order?.clinic||clinic?.name}`:''}`;
       if(event.action==='stage_changed'&&event.to==='Контроль качества')return `Заказ ${event.orderId} требует проверки качества`;
       if(event.action==='stage_changed')return `Заказ ${event.orderId}: ${event.to}`;
@@ -274,6 +313,7 @@ async function handleNotifications(req,res){
     const notificationMeta=event=>{
       if(event.action==='clinic_registered')return {type:'registration',target:'clients',clinicId:event.clinicId||''};
       if(event.action==='message_received')return {type:'message',target:'messages',clinicId:event.clinicId||''};
+      if(event.action==='telegram_binding_requested')return {type:'registration',target:'profile',clinicId:event.clinicId||''};
       if(event.action==='order_created')return {type:'order',target:'detail',clinicId:event.clinicId||''};
       if(event.action==='stage_changed'&&event.to==='Контроль качества')return {type:'quality',target:'detail',clinicId:event.clinicId||''};
       return {type:'update',target:event.orderId?'detail':'messages',clinicId:event.clinicId||''};
@@ -312,6 +352,15 @@ async function handleTelegramIntegration(req,res){
   const local=/^(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(String(req.headers.host||''));
   if(!secure&&!local)return json(res,400,{error:'Откройте кабинет по HTTPS, чтобы сохранить ключи безопасно'});
   let body;try{body=await readBody(req,12000)}catch{return json(res,400,{error:'Не удалось прочитать настройки'})}
+  if(body.action){
+    try{
+      if(body.action==='approve-binding')await telegramBridge.approveBinding(String(body.requestId||''),actorName(user));
+      else if(body.action==='reject-binding')await telegramBridge.rejectBinding(String(body.requestId||''));
+      else if(body.action==='unbind')await telegramBridge.unbindClinic(String(body.clinicId||''));
+      else return json(res,400,{error:'Неизвестное действие'});
+      return json(res,200,{ok:true,status:telegramBridge.status()});
+    }catch(error){return json(res,400,{error:String(error.message||'Не удалось выполнить действие')})}
+  }
   const supplied=Object.entries(integrationSecretFiles).filter(([name])=>typeof body[name]==='string'&&body[name].trim());
   if(!supplied.length)return json(res,400,{error:'Введите хотя бы одно новое значение'});
   for(const [name] of supplied)if(!validIntegrationSecret(name,body[name].trim()))return json(res,400,{error:name==='telegramBotToken'?'Проверьте токен Telegram-бота':name==='folderId'?'Проверьте ID каталога Yandex Cloud':'Проверьте API-ключ Yandex Cloud'});
@@ -415,6 +464,10 @@ async function saveTelegramAttachment(clinicId,{name,type,data,previewData,kind=
   const safeName=String(name||'telegram-file').replace(/[\\/\0-\x1f]/g,'_').trim().slice(0,180);
   const ext=path.extname(safeName).toLowerCase(),storedType=sharedAttachmentTypes[ext];
   if(!safeName||!storedType)throw new Error('Формат файла не поддерживается');
+  if(!validAttachmentSignature(ext,data))throw new Error('Содержимое файла не соответствует его формату');
+  const clinicFiles=Object.values(clinicMessageFiles).filter(file=>file.clinicId===clinicId);
+  const usedBytes=clinicFiles.reduce((total,file)=>total+(Number(file.size)||0),0);
+  if(clinicFiles.length>=1000||usedBytes+data.length>2*1024*1024*1024)throw new Error('Достигнут лимит файлов клиники');
   const id=randomBytes(18).toString('hex');
   await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
   await fs.promises.writeFile(path.join(clinicMessageUploadDir,id),data,{flag:'wx',mode:0o600});
@@ -424,15 +477,17 @@ async function saveTelegramAttachment(clinicId,{name,type,data,previewData,kind=
   return {id,name:record.name,size:record.size,type:record.type,preview,kind:record.kind,orderEligible:record.orderEligible};
 }
 
-async function attachTelegramFileToOrder(orderId,clinicId,attachment){
+async function attachTelegramFileToOrder(orderId,clinicId,attachment,telegramActionId=''){
   const order=portalSnapshot().orders.find(item=>item.id===orderId&&item.clinicId===clinicId);
   const source=clinicMessageFiles[String(attachment?.id||'')];
   if(!order||!source||source.clinicId!==clinicId||!source.orderEligible)throw new Error('Файл или заказ не найден');
+  const existing=(orderFiles[orderId]||[]).find(file=>telegramActionId&&file.telegramActionId===telegramActionId&&file.sourceAttachmentId===source.id);
+  if(existing)return existing;
   const data=await fs.promises.readFile(path.join(clinicMessageUploadDir,source.id));
   const id=randomBytes(18).toString('hex');
   await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
   await fs.promises.writeFile(path.join(uploadDir,id),data,{flag:'wx',mode:0o600});
-  const record={id,name:source.name,size:data.length,type:source.type,uploadedAt:new Date().toISOString(),uploadedBy:source.uploadedBy||'Telegram',purpose:'order-file',source:'telegram'};
+  const record={id,name:source.name,size:data.length,type:source.type,uploadedAt:new Date().toISOString(),uploadedBy:source.uploadedBy||'Telegram',purpose:'order-file',source:'telegram',sourceAttachmentId:source.id,telegramActionId};
   orderFiles[orderId]=[...(orderFiles[orderId]||[]),record];await persistOrderFiles();
   await recordPortalEvent(orderId,{role:'clinic',name:portalClient(clinicId)?.name||'Клиника'},'file_uploaded',{summary:'Файл из Telegram добавлен к заказу',fileName:record.name,purpose:'order-file',clinicId}).catch(()=>{});
   return record;
@@ -442,7 +497,8 @@ async function appendTelegramClinicMessage(clinicId,{text,attachment=null,sender
   if(!portalClient(clinicId))throw new Error('clinic_not_found');
   const chat=clinicChats[clinicId]||={messages:[],updatedAt:''};
   const externalId=`telegram:${telegramChatId}:${telegramMessageId}`;
-  if(chat.messages.some(message=>message.externalId===externalId))return;
+  const existing=chat.messages.find(message=>message.externalId===externalId);
+  if(existing){existing.text=cleanTelegramMessage(text);if(attachment&&clinicMessageFiles[String(attachment.id||'')]?.clinicId===clinicId)existing.attachment=attachment;existing.editedAt=new Date().toISOString();chat.updatedAt=existing.editedAt;await saveClinicChats();return existing}
   const from=['support','bot'].includes(messageRole)?messageRole:'client';
   const storedAttachment=attachment&&clinicMessageFiles[String(attachment.id||'')]?.clinicId===clinicId?attachment:null;
   const entry={id:randomBytes(12).toString('hex'),from,text:cleanTelegramMessage(text),time:new Date().toISOString(),source:'telegram',externalId,sender:String(sender||'Клиент Telegram').slice(0,120),senderUsername:String(senderUsername||'').replace(/^@/,'').slice(0,64),senderLabel:String(senderLabel||'').slice(0,120),...(storedAttachment?{attachment:storedAttachment}:{})};
@@ -461,6 +517,17 @@ async function loadTelegramAttachment(id){
   try{return {record,data:await fs.promises.readFile(path.join(clinicMessageUploadDir,record.id))}}catch{return null}
 }
 
+async function deliverSupportMessage(clinicId,message){
+  if(!message||message.from!=='support')return message;
+  message.deliveryStatus='sending';message.deliveryError='';message.deliveryAttempts=(Number(message.deliveryAttempts)||0)+1;await saveClinicChats();
+  try{
+    const delivered=await telegramBridge?.sendClinicMessage(clinicId,message.text,message.attachment);
+    if(!delivered)throw new Error('Чат Telegram не подключён');
+    message.deliveryStatus='delivered';message.deliveredAt=new Date().toISOString();message.deliveryError='';
+  }catch(error){message.deliveryStatus='error';message.deliveryError=String(error.message||'Ошибка Telegram').slice(0,300)}
+  await saveClinicChats();return message;
+}
+
 async function saveClinicMessageFiles(){
   clinicMessageFilesQueue=clinicMessageFilesQueue.catch(()=>{}).then(async()=>{
     await fs.promises.mkdir(path.dirname(clinicMessageUploadMetaFile),{recursive:true,mode:0o700});
@@ -468,6 +535,17 @@ async function saveClinicMessageFiles(){
     await fs.promises.rename(clinicMessageUploadMetaFile+'.tmp',clinicMessageUploadMetaFile);
   });
   await clinicMessageFilesQueue;
+}
+async function cleanupOrphanMessageFiles(){
+  const referenced=new Set();
+  for(const chat of Object.values(clinicChats))for(const message of chat.messages||[])if(message.attachment?.id)referenced.add(message.attachment.id);
+  for(const files of Object.values(orderFiles))for(const file of files||[])if(file.sourceAttachmentId)referenced.add(file.sourceAttachmentId);
+  let changed=false;
+  for(const [id,file] of Object.entries(clinicMessageFiles)){
+    if(referenced.has(id)||Date.parse(file.uploadedAt||0)>Date.now()-24*60*60*1000)continue;
+    await fs.promises.unlink(path.join(clinicMessageUploadDir,id)).catch(()=>{});delete clinicMessageFiles[id];changed=true;
+  }
+  if(changed)await saveClinicMessageFiles();
 }
 
 async function handleClinicMessageFiles(req,res,url){
@@ -483,6 +561,9 @@ async function handleClinicMessageFiles(req,res,url){
     if(!name||!allowed[ext])return json(res,400,{error:'Поддерживаются изображения, PDF, STL, PLY, ZIP, Word и Excel'});
     let data;try{data=await readRaw(req,20*1024*1024)}catch(error){return json(res,error.message==='too_large'?413:400,{error:error.message==='too_large'?'Файл больше 20 МБ':'Не удалось прочитать файл'})}
     if(!data.length)return json(res,400,{error:'Файл пустой'});
+    if(!validAttachmentSignature(ext,data))return json(res,400,{error:'Содержимое файла не соответствует его формату'});
+    const clinicFiles=Object.values(clinicMessageFiles).filter(file=>file.clinicId===clinicId),usedBytes=clinicFiles.reduce((total,file)=>total+(Number(file.size)||0),0);
+    if(clinicFiles.length>=1000||usedBytes+data.length>2*1024*1024*1024)return json(res,413,{error:'Достигнут лимит файлов клиники'});
     const id=randomBytes(18).toString('hex'),record={id,clinicId,name,size:data.length,type:allowed[ext],uploadedAt:new Date().toISOString(),uploadedBy:actorName(user)};
     try{
       await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
@@ -512,10 +593,15 @@ async function handleClinicMessages(req,res,url){
     const conversations=Object.entries(clinicChats).filter(([id])=>portalClient(id)).map(([id,chat])=>{const clinic=portalClient(id),last=chat.messages.at(-1);return {id,name:clinic.name,logo:clinic.logo||'',lastMessage:last?.text||(last?.attachment?`📎 ${last.attachment.name}`:''),updatedAt:chat.updatedAt}}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
     return json(res,200,{conversations});
   }
-  const match=url.pathname.match(/^\/api\/chief\/conversations\/([A-Za-z0-9_-]+)(?:\/reply)?$/);
+  const match=url.pathname.match(/^\/api\/chief\/conversations\/([A-Za-z0-9_-]+)(?:\/(reply|retry)\/?)?(?:\/([a-f0-9]{24}))?$/);
   if(!match||!portalClient(match[1]))return json(res,404,{error:'Диалог не найден'});
-  if(req.method==='GET'&&!url.pathname.endsWith('/reply'))return json(res,200,{messages:clinicChats[match[1]]?.messages||[]});
-  if(req.method==='POST'&&url.pathname.endsWith('/reply')&&clinicChats[match[1]])return addClinicMessage(req,res,match[1],'support');
+  if(req.method==='GET'&&!match[2])return json(res,200,{messages:clinicChats[match[1]]?.messages||[]});
+  if(req.method==='POST'&&match[2]==='reply'&&clinicChats[match[1]])return addClinicMessage(req,res,match[1],'support');
+  if(req.method==='POST'&&match[2]==='retry'&&match[3]){
+    const message=clinicChats[match[1]]?.messages?.find(item=>item.id===match[3]&&item.from==='support');
+    if(!message)return json(res,404,{error:'Сообщение не найдено'});
+    await deliverSupportMessage(match[1],message);return json(res,message.deliveryStatus==='delivered'?200:502,{message,error:message.deliveryError||''});
+  }
   return json(res,404,{error:'Не найдено'});
 }
 
@@ -528,13 +614,13 @@ async function addClinicMessage(req,res,id,from){
   if(!message&&!stored||message.length>2000)return json(res,400,{error:'Добавьте текст или файл'});
   const preview=stored&&typeof requested.preview==='string'&&requested.preview.length<=180000&&/^data:image\/(?:jpeg|png|webp);base64,/i.test(requested.preview)?requested.preview:'';
   const attachment=stored?{id:stored.id,name:stored.name,size:stored.size,type:stored.type,preview}:null;
-  const entry={id:randomBytes(12).toString('hex'),from,text:message,time:new Date().toISOString(),...(attachment?{attachment}:{})};
+  const entry={id:randomBytes(12).toString('hex'),from,text:message,time:new Date().toISOString(),...(attachment?{attachment}:{}),...(from==='support'?{deliveryStatus:'sending',deliveryError:''}:{})};
   const chat=clinicChats[id]||={messages:[],updatedAt:''};
   chat.messages.push(entry);chat.updatedAt=entry.time;
   try{await saveClinicChats()}catch{return json(res,500,{error:'Не удалось сохранить сообщение'})}
   await recordPortalEvent('',{role:from==='client'?'clinic':'technician',name:from==='client'?(portalClient(id)?.name||'Клиника'):'Главный техник'},from==='client'?'message_received':'message_replied',{clinicId:id,summary:from==='client'?'Новое сообщение от клиники':'Лаборатория ответила на сообщение'}).catch(()=>{});
-  if(from==='support')void telegramBridge?.sendClinicMessage(id,message,attachment).catch(error=>console.error('Telegram reply failed:',error.message));
-  return json(res,201,{message:entry});
+  if(from==='support')await deliverSupportMessage(id,entry);
+  return json(res,from==='support'&&entry.deliveryStatus!=='delivered'?202:201,{message:entry});
 }
 
 async function handleLocations(req,res,url){
@@ -676,4 +762,6 @@ server.listen(port,host,()=>{
   const backup=async()=>{try{const saved=await createDataBackup();console.log(`Data backup created: ${path.basename(saved)}`)}catch(error){console.error('Data backup failed:',error.message)}};
   void backup();
   const backupTimer=setInterval(backup,24*60*60*1000);backupTimer.unref();
+  const deliveryTimer=setInterval(()=>{for(const [clinicId,chat] of Object.entries(clinicChats))for(const message of chat.messages||[])if(message.from==='support'&&message.deliveryStatus==='error'&&(Number(message.deliveryAttempts)||0)<5)void deliverSupportMessage(clinicId,message)},60*1000);deliveryTimer.unref();
+  void cleanupOrphanMessageFiles();const cleanupTimer=setInterval(()=>void cleanupOrphanMessageFiles(),6*60*60*1000);cleanupTimer.unref();
 });
