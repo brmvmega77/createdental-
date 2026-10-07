@@ -140,7 +140,7 @@ async function handlePortal(req,res,url){
     if(user.role==='clinic'){
       if(key==='clients'){
         if(!Array.isArray(value)||value.length!==1||value[0].id!==user.subjectId)return json(res,403,{error:'Доступ запрещён'});
-        value=snapshot.clients.map(item=>item.id===user.subjectId?{...item,...value[0],id:item.id,originalName:item.originalName}:item);
+        value=snapshot.clients.map(item=>item.id===user.subjectId?{...item,...value[0],id:item.id,originalName:item.originalName,telegramCode:item.telegramCode}:item);
       }else if(key==='orders'){
         if(!Array.isArray(value))return json(res,400,{error:'Неверные данные'});
         const existing=new Set(snapshot.orders.map(item=>item.id));

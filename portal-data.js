@@ -4,11 +4,27 @@ import {seedOrders} from './seed-orders.js';
 import {seedClients,seedEmployees} from './technician.js';
 
 const file=process.env.PORTAL_DATA_FILE||path.join(process.cwd(),'.data','portal.json');
+const telegramCodePattern=/^CD-CL-(\d{4,})$/;
+
+function assignTelegramCodes(clients){
+  const validCodes=clients.map(client=>String(client?.telegramCode||'').trim().toUpperCase()).filter(code=>telegramCodePattern.test(code));
+  let sequence=validCodes.reduce((highest,code)=>Math.max(highest,Number(code.match(telegramCodePattern)[1])),0);
+  const used=new Set();
+  return clients.map(client=>{
+    let telegramCode=String(client?.telegramCode||'').trim().toUpperCase();
+    if(!telegramCodePattern.test(telegramCode)||used.has(telegramCode)){
+      do {sequence+=1;telegramCode=`CD-CL-${String(sequence).padStart(4,'0')}`} while(used.has(telegramCode));
+    }
+    used.add(telegramCode);
+    return {...client,telegramCode};
+  });
+}
+
 const defaults=()=>({
   orders:seedOrders.map(order=>({...order})),
   orderOverrides:{},
   orderHistory:[],
-  clients:seedClients.map(client=>({...client})),
+  clients:assignTelegramCodes(seedClients.map(client=>({...client}))),
   employees:seedEmployees.map(employee=>({...employee}))
 });
 let state=defaults();
@@ -25,6 +41,7 @@ try {
     const demoOrders=new Map([['CD-1042','Иванов А.В.'],['CD-1041','Петрова М.С.'],['CD-1040','Смирнов К.О.'],['CD-1039','Кузнецова Е.А.'],['CD-1038','Лебедев Р.И.'],['CD-1037','Соколов Д.В.'],['CD-1036','Орлова Н.С.'],['CD-1035','Морозов К.А.']]);
     const before=JSON.stringify(state);
     state.clients=state.clients.filter(item=>demoClients.get(item.id)!==item.name);
+    state.clients=assignTelegramCodes(state.clients);
     state.employees=state.employees.filter(item=>demoEmployees.get(item.id)!==item.name);
     state.orders=state.orders.filter(item=>demoOrders.get(item.id)!==item.patient);
     const remaining=new Set(state.orders.map(item=>item.id));
@@ -44,7 +61,7 @@ function validCollection(key,value){
   const validId=input=>typeof input==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(input);
   const unique=items=>new Set(items.map(item=>item.id)).size===items.length;
   if(key==='orders')return Array.isArray(value)&&value.length<=5000&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.patient)&&text(item.work)&&/^\d{2}\.\d{2}\.\d{4}$/.test(item.date)&&text(item.sum,40)&&text(item.status,40)&&(!item.image||['tooth.png','smile.png','scan.png'].includes(item.image))&&(!item.clinicId||validId(item.clinicId))&&(!item.teeth||Array.isArray(item.teeth)&&item.teeth.every(tooth=>Number.isInteger(tooth)&&tooth>0&&tooth<100)));
-  if(key==='clients')return Array.isArray(value)&&value.length<=2000&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&(item.approved===undefined||typeof item.approved==='boolean'));
+  if(key==='clients')return Array.isArray(value)&&value.length<=2000&&unique(value)&&new Set(value.map(item=>item.telegramCode)).size===value.length&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&telegramCodePattern.test(item.telegramCode)&&(item.approved===undefined||typeof item.approved==='boolean'));
   if(key==='employees')return Array.isArray(value)&&value.length<=500&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&['active','disabled','fired'].includes(item.status));
   if(key==='orderOverrides')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=5000&&Object.entries(value).every(([id,detail])=>validId(id)&&detail&&typeof detail==='object'&&!Array.isArray(detail)&&(!detail.stage||text(detail.stage,80))&&(!detail.assignee||text(detail.assignee,200))&&(!detail.reworkReason||text(detail.reworkReason,2000))&&(!detail.completedAt||typeof detail.completedAt==='string'&&detail.completedAt.length<=40));
   return false;
@@ -54,8 +71,9 @@ function eventFor(orderId,actor,action,details={}){
   return {id:`evt-${Date.now()}-${Math.random().toString(36).slice(2,9)}`,orderId,at:new Date().toISOString(),actor:actor?.name||actor?.role||'Система',actorRole:actor?.role||'system',action,...details};
 }
 export async function replacePortalCollection(key,value,actor={}){
-  if(!validCollection(key,value))throw new Error('invalid_collection');
-  const next=structuredClone(value);
+  const prepared=key==='clients'&&Array.isArray(value)?assignTelegramCodes(value):value;
+  if(!validCollection(key,prepared))throw new Error('invalid_collection');
+  const next=structuredClone(prepared);
   saveQueue=saveQueue.catch(()=>{}).then(async()=>{
     const previous=state[key];
     const previousHistory=state.orderHistory;
