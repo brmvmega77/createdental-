@@ -439,6 +439,10 @@ html{zoom:.9}
 @media(max-width:760px){.tech-bot-health{grid-template-columns:1fr 1fr}.tech-bot-row{align-items:flex-start;flex-direction:column}.tech-bot-row>div{width:100%;flex-wrap:wrap}}
 .tech-overview-team{margin-top:17px}
 
+/* Keep destructive dialog actions readable in Chromium and Yandex Browser. */
+.tech-dialog .btn.danger,.tech-dialog .btn.danger:visited{appearance:none;-webkit-appearance:none;background-color:#df4b52;border-color:#df4b52;color:#fff;-webkit-text-fill-color:#fff;opacity:1}
+.tech-dialog .btn.danger:hover,.tech-dialog .btn.danger:focus-visible,.tech-dialog .btn.danger:active{background-color:#c83e46;border-color:#c83e46;color:#fff;-webkit-text-fill-color:#fff;opacity:1}
+
 /* Chief overview follows the same wide content + compact sidebar grid as the clinic dashboard. */
 .tech-dashboard-main{display:grid;gap:17px;min-width:0}
 .tech-dashboard-main>.tech-panel{margin:0;min-width:0}
