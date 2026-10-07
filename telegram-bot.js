@@ -1,7 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {randomBytes} from 'node:crypto';
+import {createRequire} from 'node:module';
 import {portalSnapshot,portalClient,replacePortalCollection,recordPortalEvent} from './portal-data.js';
+
+const require=createRequire(import.meta.url);
 
 const telegramCodePattern=/\bCD-CL-\d{4,}\b/i;
 const upperTeeth=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
@@ -114,6 +117,16 @@ export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAtta
   let token='',speechKey='',gptKey='',folderId='';
   let stopped=false,polling=false,state={offset:0,bindings:{},pending:{}};
   const stateFile=process.env.TELEGRAM_STATE_FILE||path.join(process.cwd(),'.data','telegram-bot.json');
+  const telegramProxyUrl=String(process.env.TELEGRAM_HTTP_PROXY_URL||'').trim();
+  let telegramDispatcher=null;
+  if(telegramProxyUrl){
+    const {ProxyAgent}=require('undici');
+    telegramDispatcher=new ProxyAgent(telegramProxyUrl);
+  }
+
+  function telegramFetch(url,options={}){
+    return fetch(url,{...options,...(telegramDispatcher?{dispatcher:telegramDispatcher}:{})});
+  }
 
   async function saveState(){
     await fs.promises.mkdir(path.dirname(stateFile),{recursive:true,mode:0o700});
@@ -121,7 +134,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAtta
     await fs.promises.rename(stateFile+'.tmp',stateFile);
   }
   async function api(method,body={}){
-    const response=await fetch(`https://api.telegram.org/bot${token}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(method==='getUpdates'?35000:15000)});
+    const response=await telegramFetch(`https://api.telegram.org/bot${token}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(method==='getUpdates'?35000:15000)});
     const data=await response.json().catch(()=>({}));
     if(!response.ok||!data.ok)throw new Error(`Telegram ${method}: ${data.description||response.status}`);
     return data.result;
@@ -134,7 +147,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAtta
     if(!voice)throw new Error('В сообщении нет аудио');
     if(Number(voice.duration)>30||Number(voice.file_size)>1024*1024)throw new Error('Для первого запуска голосовое сообщение должно быть не длиннее 30 секунд и не больше 1 МБ');
     const file=await api('getFile',{file_id:voice.file_id});
-    const download=await fetch(`https://api.telegram.org/file/bot${token}/${file.file_path}`,{signal:AbortSignal.timeout(20000)});
+    const download=await telegramFetch(`https://api.telegram.org/file/bot${token}/${file.file_path}`,{signal:AbortSignal.timeout(20000)});
     if(!download.ok)throw new Error('Не удалось скачать голосовое сообщение');
     const audio=Buffer.from(await download.arrayBuffer());
     const response=await fetch('https://stt.api.cloud.yandex.net/speech/v1/stt:recognize?lang=ru-RU&format=oggopus',{method:'POST',headers:{Authorization:`Api-Key ${speechKey}`,'Content-Type':'application/ogg'},body:audio,signal:AbortSignal.timeout(35000)});
@@ -317,7 +330,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAtta
       const loaded=await loadClinicAttachment(attachment.id);
       if(loaded?.data){
         const form=new FormData();form.set('chat_id',chatId);if(text)form.set('caption',cleanText(text,900));form.set('document',new Blob([loaded.data],{type:attachment.type||'application/octet-stream'}),attachment.name||'file');
-        const response=await fetch(`https://api.telegram.org/bot${token}/sendDocument`,{method:'POST',body:form,signal:AbortSignal.timeout(30000)});
+        const response=await telegramFetch(`https://api.telegram.org/bot${token}/sendDocument`,{method:'POST',body:form,signal:AbortSignal.timeout(30000)});
         if(!response.ok)throw new Error('Telegram не принял файл');return true;
       }
     }
