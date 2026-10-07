@@ -29,9 +29,10 @@ function orderId(){return `CD-${Date.now().toString(36).toUpperCase()}-${randomB
 function actorName(message){const user=message?.from||{};return cleanText([user.first_name,user.last_name].filter(Boolean).join(' ')||user.username||'Клиент Telegram',120)}
 function normalizedUsername(value){return String(value||'').trim().replace(/^@/,'').toLowerCase()}
 function isSupportUsername(value){
-  const configured=String(process.env.TELEGRAM_SUPPORT_USERNAMES||'createdental').split(',').map(normalizedUsername).filter(Boolean);
+  const configured=String(process.env.TELEGRAM_SUPPORT_USERNAMES||'createdental,createdental_admin').split(',').map(normalizedUsername).filter(Boolean);
   return configured.includes(normalizedUsername(value));
 }
+function supportLabel(value){return normalizedUsername(value)==='createdental_admin'?'Техническая команда Create Dental':'Главный техник'}
 function orderStage(snapshot,order){return snapshot.orderOverrides[order.id]?.stage||order.status||'Новый'}
 function activeOrdersForClinic(snapshot,clinicId){return snapshot.orders.filter(order=>order.clinicId===clinicId&&order.status!=='Отменён')}
 
@@ -293,7 +294,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     }
     await bindChat(message,clinic);
     if(isSupportUsername(message.from?.username)){
-      if(text)await onClinicMessage(clinic.id,{text,sender:actorName(message),senderUsername:message.from.username,telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'support'}).catch(()=>{});
+      if(text)await onClinicMessage(clinic.id,{text,sender:actorName(message),senderUsername:message.from.username,senderLabel:supportLabel(message.from.username),telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'support'}).catch(()=>{});
       return;
     }
     if(['/start','/connect','/help'].includes(command))return send(message.chat.id,'Подключение работает. Отправьте текст или голосовое сообщение. Перед созданием, изменением, отменой, приемкой или доработкой заказа бот обязательно попросит подтверждение.');
@@ -355,4 +356,4 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   return {start,stop,status,reloadSecrets,sendClinicMessage};
 }
 
-export const telegramInternals={codeFromText,normalizeAnalysis,findOrder,isSupportUsername,missingCreateFields:(analysis)=>{const missing=[];if(!(analysis.fields.patient||analysis.patientSurname))missing.push('фамилия пациента');if(!analysis.fields.work)missing.push('вид работы');if(!analysis.fields.teeth.length&&!(analysis.fields.toothMode==='Челюсть'&&analysis.fields.jaw))missing.push('номер зуба или верхнюю/нижнюю челюсть');return missing},displayDate,isoDateFromDisplay};
+export const telegramInternals={codeFromText,normalizeAnalysis,findOrder,isSupportUsername,supportLabel,missingCreateFields:(analysis)=>{const missing=[];if(!(analysis.fields.patient||analysis.patientSurname))missing.push('фамилия пациента');if(!analysis.fields.work)missing.push('вид работы');if(!analysis.fields.teeth.length&&!(analysis.fields.toothMode==='Челюсть'&&analysis.fields.jaw))missing.push('номер зуба или верхнюю/нижнюю челюсть');return missing},displayDate,isoDateFromDisplay};

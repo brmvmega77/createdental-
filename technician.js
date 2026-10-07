@@ -398,7 +398,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       const divider=day!==previous?`<div class="chat-date-divider">${messageDateLabel(message.time)}</div>`:'';
       previous=day;
       const side=['support','bot'].includes(message.from)?'me':'them';
-      const author=message.from==='bot'?'Ответ бота':message.source==='telegram'&&message.from==='support'?'Главный техник':message.source==='telegram'&&message.sender?safe(message.sender):'';
+      const author=message.from==='bot'?'Ответ бота':message.source==='telegram'&&message.from==='support'?safe(message.senderLabel||'Главный техник'):message.source==='telegram'&&message.sender?safe(message.sender):'';
       return `${divider}<div class="bubble ${side} ${message.from==='bot'?'bot':''} message-${['support','bot'].includes(message.from)?message.from:'client'}">${author?`<small class="message-author">${author}</small>`:''}${message.text?`<p>${safe(message.text)}</p>`:''}${messageAttachmentMarkup(message.attachment)}<time>${new Date(message.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</time></div>`;
     }).join('');
   }

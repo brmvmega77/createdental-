@@ -403,17 +403,17 @@ async function saveClinicChats(){
   await clinicSaveQueue;
 }
 
-async function appendTelegramClinicMessage(clinicId,{text,sender,senderUsername='',telegramMessageId,telegramChatId,messageRole='client'}){
+async function appendTelegramClinicMessage(clinicId,{text,sender,senderUsername='',senderLabel='',telegramMessageId,telegramChatId,messageRole='client'}){
   if(!portalClient(clinicId))throw new Error('clinic_not_found');
   const chat=clinicChats[clinicId]||={messages:[],updatedAt:''};
   const externalId=`telegram:${telegramChatId}:${telegramMessageId}`;
   if(chat.messages.some(message=>message.externalId===externalId))return;
   const from=['support','bot'].includes(messageRole)?messageRole:'client';
-  const entry={id:randomBytes(12).toString('hex'),from,text:cleanTelegramMessage(text),time:new Date().toISOString(),source:'telegram',externalId,sender:String(sender||'Клиент Telegram').slice(0,120),senderUsername:String(senderUsername||'').replace(/^@/,'').slice(0,64)};
+  const entry={id:randomBytes(12).toString('hex'),from,text:cleanTelegramMessage(text),time:new Date().toISOString(),source:'telegram',externalId,sender:String(sender||'Клиент Telegram').slice(0,120),senderUsername:String(senderUsername||'').replace(/^@/,'').slice(0,64),senderLabel:String(senderLabel||'').slice(0,120)};
   chat.messages.push(entry);chat.updatedAt=entry.time;
   await saveClinicChats();
   const eventRole=from==='client'?'clinic':from==='support'?'technician':'telegram';
-  const eventName=from==='client'?(portalClient(clinicId)?.name||'Клиника'):from==='support'?'Главный техник':'Бот Create Dental';
+  const eventName=from==='client'?(portalClient(clinicId)?.name||'Клиника'):from==='support'?(entry.senderLabel||'Главный техник'):'Бот Create Dental';
   await recordPortalEvent('',{role:eventRole,name:eventName},from==='client'?'message_received':'message_replied',{clinicId,summary:from==='client'?'Новое сообщение из Telegram':from==='support'?'Ответ поддержки из Telegram':'Автоматический ответ бота'}).catch(()=>{});
 }
 

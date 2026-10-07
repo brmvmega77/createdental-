@@ -9,7 +9,10 @@ test('extracts a clinic code from a Telegram group title',()=>{
 
 test('recognizes the CreateDental support account case-insensitively',()=>{
   assert.equal(telegramInternals.isSupportUsername('@CreateDental'),true);
+  assert.equal(telegramInternals.isSupportUsername('@createdental_admin'),true);
   assert.equal(telegramInternals.isSupportUsername('doctor_account'),false);
+  assert.equal(telegramInternals.supportLabel('@CreateDental'),'Главный техник');
+  assert.equal(telegramInternals.supportLabel('@createdental_admin'),'Техническая команда Create Dental');
 });
 
 test('normalizes model output and rejects invalid tooth numbers',()=>{
