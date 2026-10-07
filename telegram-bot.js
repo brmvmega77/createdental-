@@ -283,8 +283,8 @@ export function createTelegramBridge({onClinicMessage=async()=>{},loadClinicAtta
     if(['/start','/connect','/help'].includes(command))return send(message.chat.id,'Подключение работает. Отправьте текст или голосовое сообщение. Перед созданием, изменением, отменой, приемкой или доработкой заказа бот обязательно попросит подтверждение.');
     let sourceText=text;
     if(message.voice||message.audio){
-      await send(message.chat.id,'Расшифровываю голосовое сообщение…');
-      try{sourceText=await transcribeVoice(message);await send(message.chat.id,`Расшифровка:\n${sourceText}`)}catch(error){return send(message.chat.id,`Не удалось расшифровать аудио: ${cleanText(error.message,500)}`)}
+      await api('sendChatAction',{chat_id:message.chat.id,action:'typing'}).catch(()=>{});
+      try{sourceText=await transcribeVoice(message)}catch(error){return send(message.chat.id,`Не удалось расшифровать аудио: ${cleanText(error.message,500)}`)}
     }
     if(!sourceText)return;
     await onClinicMessage(clinic.id,{text:message.voice||message.audio?`Голосовое сообщение. Расшифровка: ${sourceText}`:sourceText,sender:actorName(message),telegramMessageId:message.message_id,telegramChatId:String(message.chat.id)}).catch(()=>{});
