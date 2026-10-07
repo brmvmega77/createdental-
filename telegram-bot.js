@@ -260,6 +260,8 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
 
   async function analyze(text,clinic,attachment=null){
     const snapshot=portalSnapshot(),orders=activeOrdersForClinic(snapshot,clinic.id);
+    const directAttachmentAction=attachmentCommandAnalysis(text,attachment,clinic.id,snapshot,normalizeAnalysis({intent:'general_message',fields:{}}));
+    if(directAttachmentAction.intent==='update_order')return directAttachmentAction;
     const response=await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion',{method:'POST',headers:{Authorization:`Api-Key ${gptKey}`,'Content-Type':'application/json'},body:JSON.stringify({modelUri:`gpt://${folderId}/yandexgpt-lite/latest`,completionOptions:{stream:false,temperature:0.1,maxTokens:1800},messages:[{role:'system',text:'Ты аккуратно преобразуешь сообщения стоматологов в команды для CRM зуботехнической лаборатории. Строго соблюдай схему и не выдумывай данные.'},{role:'user',text:buildPrompt(text,clinic,orders,snapshot,attachment)}]}),signal:AbortSignal.timeout(45000)});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.message||'YandexGPT не смог разобрать сообщение');
