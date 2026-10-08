@@ -335,16 +335,23 @@ function createOrderChoiceMarkup(analysis,wizardStep=''){
 }
 
 function createOrderWizardPrompt(analysis,wizardStep=''){
+  const missing=missingCreateFields(analysis),fields=analysis.fields,selection=resolveWorkSelection(fields.work,fields.material);
   if(wizardStep==='teeth'){
     const selected=analysis.fields.teeth;
     return [
-      `Выберите зубы. Можно отметить любое количество${analysis.fields.toothMode==='Мост'?', для моста — минимум два':''}.`,
+      `Выберите зубы${analysis.fields.toothMode==='Мост'?' — для моста минимум два':''}.`,
       selected.length?`Выбрано: ${selected.join(', ')}.`:'Пока ни один зуб не выбран.',
-      '',
-      'Каждая выбранная кнопка исчезает. Когда отметите все нужные зубы, нажмите «Готово».'
+      'После выбора нажмите «Готово».'
     ].join('\n');
   }
-  return createOrderMissingPrompt(analysis);
+  if(missing.includes('имя и фамилию пациента'))return 'Укажите фамилию, имя и отчество пациента, если оно есть.';
+  if(missing.includes('режим: одиночка, мост или челюсть'))return 'Выберите режим работы:';
+  if(missing.includes('верхнюю или нижнюю челюсть'))return 'Выберите челюсть:';
+  if(missing.includes('вид работы из прайса'))return 'Выберите раздел работы:';
+  if(missing.includes('точное название услуги из прайса'))return `Выберите услугу из раздела «${selection.category?.name||fields.work}»:`;
+  if(missing.includes('желаемый срок готовности'))return 'Выберите срок готовности:';
+  if(missing.includes('цвет/оттенок или «не требуется»'))return 'Выберите цвет:';
+  return 'Проверьте данные заказа.';
 }
 
 function buildPrompt(text,clinic,orders,snapshot,attachment=null){

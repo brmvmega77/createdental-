@@ -79,7 +79,7 @@ test('keeps the tooth buttons open until done and hides every selected tooth',()
   assert.ok(buttons.some(button=>/выбрано 5/i.test(button.text)));
   assert.ok(buttons.some(button=>button.callback_data==='tgnew:tooth:23'));
   assert.ok(!buttons.some(button=>button.callback_data==='tgnew:tooth:11'));
-  assert.match(telegramInternals.createOrderWizardPrompt(analysis,'teeth'),/любое количество/);
+  assert.match(telegramInternals.createOrderWizardPrompt(analysis,'teeth'),/После выбора нажмите «Готово»/);
 });
 
 test('shows catalog categories first and services as the next button level',()=>{
@@ -89,6 +89,8 @@ test('shows catalog categories first and services as the next button level',()=>
   const serviceStep=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',toothMode:'Одиночка',teeth:[11],work:'Реставрации'}});
   const serviceButtons=telegramInternals.createOrderChoiceMarkup(serviceStep).inline_keyboard.flat();
   assert.ok(serviceButtons.some(button=>/Коронка E\.max, ZrO2/.test(button.text)));
+  assert.equal(telegramInternals.createOrderWizardPrompt(serviceStep),'Выберите услугу из раздела «Реставрации»:');
+  assert.equal(telegramInternals.createOrderWizardPrompt(serviceStep).split('\n').length,1);
 });
 
 test('explains missing stages and provides valid choices',()=>{
