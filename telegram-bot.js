@@ -16,6 +16,15 @@ const upperTeeth=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
 const lowerTeeth=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
 const validTeeth=new Set([...upperTeeth,...lowerTeeth]);
 const allowedIntents=new Set(['create_order','update_order','cancel_order','status_request','accept_order','rework_order','general_message','clarify']);
+const botCommands=[
+  {command:'menu',description:'Открыть меню действий'},
+  {command:'new',description:'Создать новый заказ'},
+  {command:'status',description:'Узнать статус заказа'},
+  {command:'file',description:'Загрузить файлы'},
+  {command:'due',description:'Изменить срок заказа'},
+  {command:'cancel',description:'Отменить заказ'},
+  {command:'human',description:'Позвать сотрудника Create Dental'}
+];
 const welcomeText=`👋 Добро пожаловать в чат Create Dental!
 
 Здесь можно общаться с лабораторией и управлять заказами. Упоминать бота не нужно: просто напишите или отправьте голосовое сообщение.
@@ -652,7 +661,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     if(messageAddsBot(message,botIdentity))await sendPinnedWelcome(message.chat.id);
     if(message.from?.is_bot)return;
     const text=cleanText(message.text||message.caption,6000);
-    const command=text.split(/\s+/)[0]?.toLowerCase();
+    const command=(text.split(/\s+/)[0]||'').toLowerCase().split('@')[0];
     let clinic=boundClinicForMessage(message);
     if(!clinic){
       const requested=requestedClinicForMessage(message);
@@ -672,7 +681,16 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       if(text||attachment)await onClinicMessage(clinic.id,{text:text||(attachment?.kind==='photo'?'Фото':`Документ: ${attachment?.name||''}`),attachment,sender:actorName(message),senderUsername:message.from.username,senderLabel:supportLabel(message.from.username),telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'support'}).catch(()=>{});
       return;
     }
-    if(['/start','/connect','/help','/menu'].includes(command))return sendMenu(message.chat.id);
+    const mentionedBot=normalizedUsername(text)===normalizedUsername(botIdentity.username);
+    if(['/start','/connect','/help','/menu'].includes(command)||mentionedBot||normalize(text)==='бот')return sendMenu(message.chat.id);
+    const quickCommand=({
+      '/new':'new','/status':'status','/file':'file','/due':'due','/cancel':'cancel','/human':'human'
+    })[command];
+    if(quickCommand){
+      if(quickCommand==='new')return send(message.chat.id,'Опишите заказ: имя и фамилия пациента (отчество, если есть), работа, зубы, материал и желаемый срок.');
+      if(quickCommand==='human')return send(message.chat.id,'@CreateDental_io, вас зовут в этот чат.');
+      return sendOrderPicker(message.chat.id,clinic,quickCommand);
+    }
     let sourceText=text;
     if(message.voice||message.audio){
       await api('sendChatAction',{chat_id:message.chat.id,action:'typing'}).catch(()=>{});
@@ -754,6 +772,8 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     const ready=Object.values(configured).every(Boolean);
     if(ready){
       botIdentity=await api('getMe');
+      await api('setMyCommands',{commands:botCommands}).catch(error=>console.error('Telegram commands setup failed:',error.message));
+      await api('setChatMenuButton',{menu_button:{type:'commands'}}).catch(error=>console.error('Telegram menu button setup failed:',error.message));
       if(!polling&&!stopped)void poll();
     }
     return {...configured,ready,enabled:ready&&!stopped};
