@@ -361,9 +361,14 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   function rememberGuidedAction(chatId,userId,clinicId,orderId,mode){
     state.guided[contextKey(chatId,userId)]={clinicId,orderId,mode,expiresAt:Date.now()+30*60*1000};
   }
-  function takeGuidedAction(chatId,userId,clinicId){
+  function currentGuidedAction(chatId,userId,clinicId){
     const key=contextKey(chatId,userId),item=state.guided[key];
     if(!item||item.clinicId!==clinicId||item.expiresAt<Date.now()){if(item)delete state.guided[key];return null}
+    return item;
+  }
+  function takeGuidedAction(chatId,userId,clinicId){
+    const key=contextKey(chatId,userId),item=currentGuidedAction(chatId,userId,clinicId);
+    if(!item)return null;
     delete state.guided[key];return item;
   }
   function canConfirm(item,callback){return String(callback.from?.id||'')===String(item.userId||'')||isSupportUsername(callback.from?.username)}
@@ -594,6 +599,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       }
       if(id==='human'){await answerCallback(callback.id,'Позвал человека');return send(callback.message.chat.id,'@CreateDental_io, вас зовут в этот чат.')}
       const prompts={new:'Опишите заказ: имя и фамилия пациента (отчество, если есть), работа, зубы, материал и желаемый срок.'};
+      if(id==='new'){rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,'','new');await saveState()}
       await answerCallback(callback.id,'Готово');
       return send(callback.message.chat.id,prompts[id]||'Опишите, что нужно сделать с заказом.');
     }
@@ -640,6 +646,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     }
     if(action==='tgedit'){
       if(item.orderId)rememberContext(item.chatId,item.userId,item.clinicId,item.orderId);
+      rememberGuidedAction(item.chatId,item.userId,item.clinicId,item.orderId||'','edit');
       delete state.pending[id];await saveState();await answerCallback(callback.id,'Жду исправленный запрос');
       return send(item.chatId,'Отправьте исправленный запрос полностью одним текстовым или голосовым сообщением. Предыдущий вариант отменён и в CRM не передан.');
     }
@@ -687,12 +694,16 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       '/new':'new','/status':'status','/file':'file','/due':'due','/cancel':'cancel','/human':'human'
     })[command];
     if(quickCommand){
-      if(quickCommand==='new')return send(message.chat.id,'Опишите заказ: имя и фамилия пациента (отчество, если есть), работа, зубы, материал и желаемый срок.');
+      if(quickCommand==='new'){rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new');await saveState();return send(message.chat.id,'Опишите заказ: имя и фамилия пациента (отчество, если есть), работа, зубы, материал и желаемый срок.')}
       if(quickCommand==='human')return send(message.chat.id,'@CreateDental_io, вас зовут в этот чат.');
       return sendOrderPicker(message.chat.id,clinic,quickCommand);
     }
     let sourceText=text;
     if(message.voice||message.audio){
+      if(!currentGuidedAction(message.chat.id,message.from?.id,clinic.id)){
+        await onClinicMessage(clinic.id,{text:'Голосовое сообщение',attachment:null,sender:actorName(message),senderUsername:message.from?.username||'',telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'client'}).catch(()=>{});
+        return send(message.chat.id,'Чтобы бот обработал голосовое сообщение, сначала выберите действие через /menu.');
+      }
       await api('sendChatAction',{chat_id:message.chat.id,action:'typing'}).catch(()=>{});
       try{sourceText=await transcribeVoice(message)}catch(error){return send(message.chat.id,`Не удалось расшифровать аудио: ${cleanText(error.message,500)}`)}
     }
@@ -716,7 +727,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         const reason=cleanText(sourceText,1800);
         guidedAnalysis=normalizeAnalysis({intent:'cancel_order',orderId:guided.orderId,fields:{reason},summary:`Отмена заказа ${guided.orderId}: ${reason}`});
         doneByLabel='Отменил';
-      }else{
+      }else if(guided.mode==='due'){
         try{
           const parsed=await analyze(`Измени срок заказа ${guided.orderId}. Новый срок: ${sourceText}`,clinic,null,guided.orderId);
           if(!parsed.fields.dueDate){rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,guided.orderId,'due');await saveState();return send(message.chat.id,'Не удалось распознать дату. Напишите её, например: «20 октября 2026».')}
@@ -727,15 +738,19 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
           return send(message.chat.id,'Не удалось распознать дату. Напишите её, например: «20 октября 2026».');
         }
       }
-      const id=randomBytes(10).toString('hex');
-      const item={id,chatId:String(message.chat.id),clinicId:clinic.id,userId:String(message.from?.id||''),actor:actorName(message),analysis:guidedAnalysis,orderId:guided.orderId,attachments:[],createdAt:new Date().toISOString(),expiresAt:Date.now()+24*60*60*1000};
-      try{
-        const result=await executePending(item,{from:message.from});
-        state.completed[id]={at:new Date().toISOString(),result};
-        await saveState();
-        return send(message.chat.id,`${result}\n${doneByLabel}: ${actorName(message)}`);
-      }catch(error){
-        return send(message.chat.id,`Не удалось выполнить действие: ${cleanText(error.message,500)}. Попробуйте ещё раз через меню.`);
+      if(!guidedAnalysis){
+        if(guided.mode==='new')sourceText=`Создай новый заказ. ${sourceText}`;
+      }else{
+        const id=randomBytes(10).toString('hex');
+        const item={id,chatId:String(message.chat.id),clinicId:clinic.id,userId:String(message.from?.id||''),actor:actorName(message),analysis:guidedAnalysis,orderId:guided.orderId,attachments:[],createdAt:new Date().toISOString(),expiresAt:Date.now()+24*60*60*1000};
+        try{
+          const result=await executePending(item,{from:message.from});
+          state.completed[id]={at:new Date().toISOString(),result};
+          await saveState();
+          return send(message.chat.id,`${result}\n${doneByLabel}: ${actorName(message)}`);
+        }catch(error){
+          return send(message.chat.id,`Не удалось выполнить действие: ${cleanText(error.message,500)}. Попробуйте ещё раз через меню.`);
+        }
       }
     }
     const context=currentContext(message.chat.id,message.from?.id,clinic.id);
