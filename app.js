@@ -41,7 +41,11 @@ const initialRoute=routeFromPath(location.pathname);
 const state = {role:initialRoute.role||'clinic',page:initialRoute.role==='clinic'?initialRoute.page:'home',step:0,filter:'Все',query:'',dueDateFilter:'',sortKey:'',sortDirection:'asc',orderId:initialRoute.orderId||'',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',selectedTeeth:[],bridgeRanges:[],bridgeStart:null,dentition:'Постоянные зубы',toothMode:'Одиночка',work:'',workOption:'',messages:[],chatText:'',chatAttachment:null,chatStatus:'Подключение к чату...',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),uploaded:[],orderFiles:[],orderPhotoUrls:{},filesFor:'',reworkOrderId:'',form:{surname:'',initials:'',birth:'',construction:'',material:'',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A2',comment:''},toast:''};
 let portalHistory=[];
 const workCatalog=[
-  {name:'Планирование и диагностика',price:null,options:[]},
+  {name:'Планирование и диагностика',price:null,options:[
+    {name:'Wax up цифровой',price:2000},
+    {name:'Wax up аналоговый',price:3000},
+    {name:'Wax up по Славичеку',price:5000}
+  ]},
   {name:'Вкладки',price:null,options:[]},
   {name:'Реставрации.протетика',price:null,options:[]},
   {name:'Балочные конструкции',price:null,options:[]},
@@ -52,8 +56,13 @@ const workCatalog=[
   {name:'Дополнительные работы',price:null,options:[]}
 ];
 const selectedWork=()=>workCatalog.find(item=>item.name===state.work);
+const workOptionName=option=>typeof option==='string'?option:option.name;
+const selectedWorkOption=()=>selectedWork()?.options.find(option=>workOptionName(option)===state.workOption);
 const orderUnits=()=>state.toothMode==='Челюсть'?1:Math.max(1,state.selectedTeeth.length);
-const orderEstimate = () => Number.isFinite(selectedWork()?.price)?selectedWork().price*orderUnits():null;
+const orderEstimate = () => {
+  const option=selectedWorkOption(),price=typeof option==='object'&&Number.isFinite(option.price)?option.price:selectedWork()?.price;
+  return Number.isFinite(price)?price*orderUnits():null;
+};
 const orderEstimateText = () => orderEstimate()===null?'Стоимость уточняется':rubles(orderEstimate());
 const upperTeeth=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
 const lowerTeeth=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
@@ -149,7 +158,7 @@ function workChooser(){
   const work=selectedWork();
   if(!work)return `<div class="order-work-grid">${workCatalog.map(item=>`<button data-action="work" data-value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</button>`).join('')}</div>`;
   if(!work.options.length)return `<div class="work-detail"><button class="work-back" data-action="work-back">← Все виды работ</button><div class="work-current"><strong>${escapeHtml(work.name)}</strong><small>Категория выбрана</small></div></div>`;
-  return `<div class="work-detail"><button class="work-back" data-action="work-back">← Все виды работ</button><div class="work-current"><strong>${escapeHtml(work.name)}</strong><small>Выберите вариант исполнения</small></div><div class="work-option-list">${work.options.map(option=>`<button class="${state.workOption===option?'selected':''}" data-action="work-option" data-value="${escapeHtml(option)}"><span>${escapeHtml(option)}</span><b>→</b></button>`).join('')}</div></div>`;
+  return `<div class="work-detail"><button class="work-back" data-action="work-back">← Все виды работ</button><div class="work-current"><strong>${escapeHtml(work.name)}</strong><small>Выберите вариант исполнения</small></div><div class="work-option-list">${work.options.map(option=>{const name=workOptionName(option),price=typeof option==='object'&&Number.isFinite(option.price)?rubles(option.price):'→';return `<button class="${state.workOption===name?'selected':''}" data-action="work-option" data-value="${escapeHtml(name)}"><span>${escapeHtml(name)}</span><b>${price}</b></button>`}).join('')}</div></div>`;
 }
 function orderDraft(){
   const work=selectedWork(),complete=state.selectedTeeth.length&&work&&(!work.options.length||state.workOption);
