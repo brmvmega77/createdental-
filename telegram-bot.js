@@ -31,8 +31,7 @@ const welcomeText=`👋 Добро пожаловать в чат Create Dental!
 Пример: «Перенеси срок заказа Иванова на 25 октября».
 
 📎 Добавить файл
-Файл до 20 МБ отправьте в чат с подписью: «Прикрепи к заказу Иванова».
-Для файла до 200 МБ нажмите кнопку «📦 Файл до 200 МБ», выберите заказ и откройте безопасную ссылку.
+Нажмите «📎 Загрузить файл», выберите заказ и откройте безопасную ссылку. Все файлы до 200 МБ загружаются только через эту страницу.
 
 ❌ Отменить заказ
 Пример: «Отмени заказ Иванова. Пациент перенёс лечение».
@@ -324,7 +323,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   }
   async function answerCallback(id,text){return api('answerCallbackQuery',{callback_query_id:id,text,show_alert:false})}
   function quickMenuMarkup(){
-    return {inline_keyboard:[[{text:'➕ Новый заказ',callback_data:'tgquick:new'},{text:'🔎 Статус заказа',callback_data:'tgquick:status'}],[{text:'📎 Файл до 20 МБ',callback_data:'tgquick:file'},{text:'📦 Файл до 200 МБ',callback_data:'tgquick:large'}],[{text:'📅 Изменить срок',callback_data:'tgquick:due'},{text:'❌ Отменить заказ',callback_data:'tgquick:cancel'}],[{text:'👤 Главный техник',callback_data:'tgquick:human'}]]};
+    return {inline_keyboard:[[{text:'➕ Новый заказ',callback_data:'tgquick:new'},{text:'🔎 Статус заказа',callback_data:'tgquick:status'}],[{text:'📎 Загрузить файл',callback_data:'tgquick:file'},{text:'📅 Изменить срок',callback_data:'tgquick:due'}],[{text:'❌ Отменить заказ',callback_data:'tgquick:cancel'},{text:'👤 Главный техник',callback_data:'tgquick:human'}]]};
   }
   async function sendPinnedWelcome(chatId){
     const message=await send(chatId,welcomeText,{reply_markup:quickMenuMarkup()},false);
@@ -367,29 +366,6 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       const parts=(await fs.promises.readdir(directory)).filter(name=>/^part-\d+\.ogg$/.test(name)).sort();if(!parts.length)throw new Error('Не удалось разделить аудио');
       const transcript=[];for(const part of parts)transcript.push(await recognize(await fs.promises.readFile(path.join(directory,part))));return cleanText(transcript.join(' '),6000);
     }finally{await fs.promises.rm(directory,{recursive:true,force:true}).catch(()=>{})}
-  }
-
-  async function downloadTelegramFile(fileId,maxBytes=20*1024*1024){
-    const file=await api('getFile',{file_id:fileId});
-    const response=await telegramFetch(`https://api.telegram.org/file/bot${token}/${file.file_path}`,{signal:AbortSignal.timeout(40000)});
-    if(!response.ok)throw new Error('Не удалось скачать вложение из Telegram');
-    const declared=Number(response.headers.get('content-length'))||0;
-    if(declared>maxBytes)throw new Error('Файл больше 20 МБ');
-    const data=Buffer.from(await response.arrayBuffer());
-    if(data.length>maxBytes)throw new Error('Файл больше 20 МБ');
-    return data;
-  }
-
-  async function storeMessageAttachment(message,clinic){
-    const media=telegramMedia(message);
-    if(!media)return null;
-    if(media.fileSize>20*1024*1024)throw new Error('Файл больше 20 МБ');
-    const data=await downloadTelegramFile(media.fileId);
-    let previewData=null;
-    if(media.previewFileId){
-      try{previewData=media.previewFileId===media.fileId?data:await downloadTelegramFile(media.previewFileId,350*1024)}catch{previewData=null}
-    }else if(media.kind==='photo'&&data.length<=350*1024)previewData=data;
-    return saveTelegramAttachment(clinic.id,{...media,data,previewData,sender:actorName(message)});
   }
 
   async function analyze(text,clinic,attachment=null,contextOrderId=''){
@@ -567,17 +543,22 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     throw new Error('Неподдерживаемое действие');
   }
 
+  async function sendUploadOrderPicker(chatId,clinic,intro='Выберите заказ, к которому нужно добавить файл:'){
+    const orders=activeOrdersForClinic(portalSnapshot(),clinic.id).slice(0,12);
+    if(!orders.length)return send(chatId,'Сначала создайте и подтвердите заказ, затем загрузите к нему файл через безопасную ссылку.');
+    return send(chatId,intro,{reply_markup:{inline_keyboard:orders.map(order=>[{text:`${order.patient} · ${order.work} · ${order.date}`,callback_data:`tglarge:${order.id}`}])}});
+  }
+
   async function handleCallback(callback){
     const [action,id,value]=String(callback.data||'').split(':');
     if(action==='tgquick'){
       const clinic=boundClinicForMessage(callback.message||{});if(!clinic)return answerCallback(callback.id,'Чат не подключён');
-      if(id==='large'){
-        const orders=activeOrdersForClinic(portalSnapshot(),clinic.id).slice(0,12);
-        await answerCallback(callback.id,orders.length?'Выберите заказ':'Нет активных заказов');
-        if(!orders.length)return send(callback.message.chat.id,'Сначала создайте заказ, затем прикрепите к нему крупный файл.');
-        return send(callback.message.chat.id,'К какому заказу добавить файл до 200 МБ?',{reply_markup:{inline_keyboard:orders.map(order=>[{text:`${order.patient} · ${order.work} · ${order.date}`,callback_data:`tglarge:${order.id}`}])}});
+      if(id==='large'||id==='file'){
+        const hasOrders=activeOrdersForClinic(portalSnapshot(),clinic.id).length>0;
+        await answerCallback(callback.id,hasOrders?'Выберите заказ':'Нет активных заказов');
+        return sendUploadOrderPicker(callback.message.chat.id,clinic);
       }
-      const prompts={new:'Опишите заказ: имя и фамилия пациента (отчество, если есть), работа, зубы, материал и желаемый срок.',status:'Напишите фамилию пациента или выберите ранее найденный заказ.',file:'Пришлите файл или фото до 20 МБ с подписью «прикрепи к [фамилия]».',due:'Напишите: «перенеси срок [фамилия] на [дата]».',cancel:'Напишите: «отмени заказ [фамилия]» и укажите причину.',human:'Главный техник получил запрос и увидит его в CRM.'};
+      const prompts={new:'Опишите заказ: имя и фамилия пациента (отчество, если есть), работа, зубы, материал и желаемый срок.',status:'Напишите фамилию пациента или выберите ранее найденный заказ.',due:'Напишите: «перенеси срок [фамилия] на [дата]».',cancel:'Напишите: «отмени заказ [фамилия]» и укажите причину.',human:'Главный техник получил запрос и увидит его в CRM.'};
       await answerCallback(callback.id,'Готово');
       if(id==='human')await onClinicMessage(clinic.id,{text:'Клиент просит подключить главного техника',sender:actorName({from:callback.from}),senderUsername:callback.from?.username||'',telegramMessageId:`callback-${callback.id}`,telegramChatId:String(callback.message?.chat?.id||''),messageRole:'client'}).catch(()=>{});
       return send(callback.message.chat.id,prompts[id]||'Опишите, что нужно сделать с заказом.');
@@ -589,7 +570,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       try{
         const href=await createLargeUploadLink(clinic.id,order.id,actorName({from:callback.from}));
         await answerCallback(callback.id,'Ссылка готова');
-        return send(callback.message.chat.id,`Загрузите файл к заказу ${order.id}. Ссылка действует 2 часа и используется один раз.`,{reply_markup:{inline_keyboard:[[{text:'📦 Открыть загрузку до 200 МБ',url:href}]]}});
+        return send(callback.message.chat.id,`Загрузите файл к заказу ${order.id}. Ссылка действует 2 часа и используется один раз.\n\nЕсли страница не открывается внутри Telegram при включённом VPN, скопируйте ссылку и откройте её во внешнем браузере. Если VPN блокирует createdental.io, временно отключите его для загрузки.\n\n${href}`,{reply_markup:{inline_keyboard:[[{text:'📎 Открыть страницу загрузки',url:href}]]}});
       }catch(error){await answerCallback(callback.id,'Загрузка пока недоступна');return send(callback.message.chat.id,cleanText(error.message,400))}
     }
     if(!['tgconfirm','tgreject','tgpick','tgreselect'].includes(action)||!id)return;
@@ -636,11 +617,14 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       else if(['/start','/connect','/help'].includes(command))await send(message.chat.id,'Добавьте временный код клиники вида CD-CL-12345678 в название группового чата и отправьте /connect. Главный техник подтвердит подключение в CRM.',{},false);
       return;
     }
-    let attachment=null;
-    try{attachment=await storeMessageAttachment(message,clinic)}catch(error){
-      if(String(error.message).includes('20 МБ'))return send(message.chat.id,'Telegram не позволяет боту скачать этот файл напрямую. Нажмите «Файл до 200 МБ» и выберите заказ.',{reply_markup:quickMenuMarkup()});
-      return send(message.chat.id,`Не удалось сохранить вложение: ${cleanText(error.message,300)}.`)
+    const directMedia=telegramMedia(message);
+    if(directMedia){
+      const messageRole=isSupportUsername(message.from?.username)?'support':'client';
+      const senderLabel=messageRole==='support'?supportLabel(message.from.username):'';
+      if(text)await onClinicMessage(clinic.id,{text,attachment:null,sender:actorName(message),senderUsername:message.from?.username||'',senderLabel,telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole}).catch(()=>{});
+      return sendUploadOrderPicker(message.chat.id,clinic,'Файлы в CRM загружаются только через безопасную ссылку. Выберите заказ:');
     }
+    const attachment=null;
     if(isSupportUsername(message.from?.username)){
       if(text||attachment)await onClinicMessage(clinic.id,{text:text||(attachment?.kind==='photo'?'Фото':`Документ: ${attachment?.name||''}`),attachment,sender:actorName(message),senderUsername:message.from.username,senderLabel:supportLabel(message.from.username),telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'support'}).catch(()=>{});
       return;
