@@ -326,13 +326,13 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   async function requestBinding(message,clinic){
     const chatId=String(message.chat.id);
     const existing=Object.values(state.bindingRequests).find(item=>item.chatId===chatId&&item.clinicId===clinic.id&&item.expiresAt>Date.now());
-    if(existing)return send(chatId,'Запрос на подключение уже отправлен главному технику. После подтверждения бот сообщит об этом.',{},false);
+    if(existing)return send(chatId,'Код принят. Подключение к CRM ожидает подтверждения главного техника. Бот сообщит, когда чат будет подключён.',{},false);
     const id=randomBytes(10).toString('hex');
     state.bindingRequests[id]={id,clinicId:clinic.id,chatId,chatTitle:cleanText(message.chat?.title||'Чат Telegram',180),requestedBy:actorName(message),requestedByUserId:String(message.from?.id||''),requestedAt:new Date().toISOString(),expiresAt:Date.now()+30*60*1000};
     for(const [key,item] of Object.entries(state.bindingRequests))if(item.expiresAt<Date.now())delete state.bindingRequests[key];
     await saveState();
     await recordPortalEvent('',{role:'telegram',name:actorName(message)},'telegram_binding_requested',{clinicId:clinic.id,summary:`${clinic.name} · ${message.chat?.title||'чат Telegram'}`}).catch(()=>{});
-    await send(chatId,`Запрос на подключение к клинике «${clinic.name}» отправлен главному технику. Код в названии чата можно убрать после подтверждения.`,{},false);
+    await send(chatId,`Код принят. Запрос на подключение к клинике «${clinic.name}» отправлен главному технику. Бот сообщит, когда чат будет подключён к CRM.`,{},false);
   }
   async function approveBinding(requestId,approvedBy='Главный техник'){
     const request=state.bindingRequests[requestId];
@@ -342,7 +342,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     state.bindings[clinic.id]={chatId:request.chatId,chatTitle:request.chatTitle,approvedBy,approvedAt:new Date().toISOString()};
     delete state.bindingRequests[requestId];await saveState();
     const snapshot=portalSnapshot();await replacePortalCollection('clients',snapshot.clients.map(client=>client.id===clinic.id?{...client,telegramCode:''}:client),{role:'technician',name:approvedBy});
-    await send(request.chatId,`Чат безопасно подключён к клинике «${clinic.name}». Теперь код можно удалить из названия чата.`,{},false).catch(()=>{});
+    await send(request.chatId,`✅ Чат успешно подключён к CRM клиники «${clinic.name}». Код подключения больше не нужен.`,{},false).catch(()=>{});
     if(previousChatId&&String(previousChatId)!==String(request.chatId))await send(previousChatId,'Этот чат отключён от CRM, потому что главный техник подключил новый чат клиники.',{},false).catch(()=>{});
     await sendMenu(request.chatId).catch(()=>{});
     return true;
