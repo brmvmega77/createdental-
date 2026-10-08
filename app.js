@@ -46,19 +46,43 @@ const workCatalog=[
     {name:'Wax up аналоговый',price:3000},
     {name:'Wax up по Славичеку',price:5000}
   ]},
-  {name:'Вкладки',price:null,options:[]},
-  {name:'Реставрации.протетика',price:null,options:[]},
-  {name:'Балочные конструкции',price:null,options:[]},
+  {name:'Вкладки',price:null,options:[
+    {name:'Вкладка культевая',price:4000},
+    {name:'Вкладка культевая ZrO2/Дисиликат лития',price:7000}
+  ]},
+  {name:'Реставрации',price:null,options:[
+    {name:'PMMA коронка CAD/CAM',price:4000},
+    {name:'Композитная коронка CAD/CAM',price:10000},
+    {name:'Коронка E.max, ZrO2',price:12000},
+    {name:'Коронка E.max, ZrO2 по Славичеку',price:16000},
+    {name:'Коронка, винир на рефракторе',price:18000},
+    {name:'Одиночная реставрация OPTISHADE/MATISSE',price:25000}
+  ]},
+  {name:'Протетика',price:null,options:[
+    {name:'Индивидуальный Ti абатмент (Ti-включая вине)',price:8000},
+    {name:'Индивидуальный ZrO2 абатмент (Без Ti-Base)',price:9000},
+    {name:'Титановое основание Geo Medi',price:4500},
+    {name:'Титановое основание Аналог',price:2500}
+  ]},
+  {name:'Балочные конструкции',price:null,options:[
+    {name:'Цельнофрезерованная балка CoCr за единицу',price:3500},
+    {name:'Цельнофрезерованная балка Ti за единицу',price:6000}
+  ]},
   {name:'Каппы',price:null,options:[]},
   {name:'Сплинты',price:null,options:[]},
   {name:'Ложки/прикуса',price:null,options:[]},
-  {name:'Хирургические шаблоны',price:null,options:[]},
+  {name:'Хирургические шаблоны',price:null,options:[
+    {name:'Хирургический навигационный шаблон на 1 имплантант',price:7000},
+    {name:'Дополнительное гнездо под имплантант в хирургическом шаблоне',price:1500},
+    {name:'Маркировочный шаблон',price:3500},
+    {name:'Шаблон под КТ рентгеноконтрастный',price:7000}
+  ]},
   {name:'Дополнительные работы',price:null,options:[]}
 ];
 const selectedWork=()=>workCatalog.find(item=>item.name===state.work);
 const workOptionName=option=>typeof option==='string'?option:option.name;
 const selectedWorkOption=()=>selectedWork()?.options.find(option=>workOptionName(option)===state.workOption);
-const orderUnits=()=>state.toothMode==='Челюсть'?1:Math.max(1,state.selectedTeeth.length);
+const orderUnits=()=>Math.max(1,state.selectedTeeth.length);
 const orderEstimate = () => {
   const option=selectedWorkOption(),price=typeof option==='object'&&Number.isFinite(option.price)?option.price:selectedWork()?.price;
   return Number.isFinite(price)?price*orderUnits():null;
