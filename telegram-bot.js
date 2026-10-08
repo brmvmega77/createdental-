@@ -48,7 +48,7 @@ const welcomeText=`👋 Добро пожаловать в чат Create Dental!
 🎤 Голосовые сообщения
 Назовите имя и фамилию пациента, действие, зубы, материал, цвет и срок. Если называете отчество, бот тоже сохранит его. Длительность — до 5 минут.
 
-Перед любым изменением CRM бот покажет краткое содержание. Его можно подтвердить, отменить или отправить заново после нажатия «✏️ Редактировать».
+Для запроса свободным текстом бот покажет краткое содержание. Его можно подтвердить, отменить или отправить заново после нажатия «✏️ Редактировать». Если действие выбрано кнопками меню, бот выполнит его после ввода запрошенных данных.
 
 Команда /menu в любой момент покажет кнопки функций.`;
 
@@ -692,8 +692,33 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     if(!sourceText)return;
     const guided=takeGuidedAction(message.chat.id,message.from?.id,clinic.id);
     if(guided){
-      sourceText=guided.mode==='due'?`Измени срок заказа ${guided.orderId}. Новый срок: ${sourceText}`:`Отмени заказ ${guided.orderId}. Причина: ${sourceText}`;
       await saveState();
+      let guidedAnalysis,doneByLabel;
+      if(guided.mode==='cancel'){
+        const reason=cleanText(sourceText,1800);
+        guidedAnalysis=normalizeAnalysis({intent:'cancel_order',orderId:guided.orderId,fields:{reason},summary:`Отмена заказа ${guided.orderId}: ${reason}`});
+        doneByLabel='Отменил';
+      }else{
+        try{
+          const parsed=await analyze(`Измени срок заказа ${guided.orderId}. Новый срок: ${sourceText}`,clinic,null,guided.orderId);
+          if(!parsed.fields.dueDate){rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,guided.orderId,'due');await saveState();return send(message.chat.id,'Не удалось распознать дату. Напишите её, например: «20 октября 2026».')}
+          guidedAnalysis=normalizeAnalysis({intent:'update_order',orderId:guided.orderId,fields:{dueDate:parsed.fields.dueDate},summary:`Новый срок заказа ${guided.orderId}: ${parsed.fields.dueDate}`});
+          doneByLabel='Изменил';
+        }catch(error){
+          rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,guided.orderId,'due');await saveState();
+          return send(message.chat.id,'Не удалось распознать дату. Напишите её, например: «20 октября 2026».');
+        }
+      }
+      const id=randomBytes(10).toString('hex');
+      const item={id,chatId:String(message.chat.id),clinicId:clinic.id,userId:String(message.from?.id||''),actor:actorName(message),analysis:guidedAnalysis,orderId:guided.orderId,attachments:[],createdAt:new Date().toISOString(),expiresAt:Date.now()+24*60*60*1000};
+      try{
+        const result=await executePending(item,{from:message.from});
+        state.completed[id]={at:new Date().toISOString(),result};
+        await saveState();
+        return send(message.chat.id,`${result}\n${doneByLabel}: ${actorName(message)}`);
+      }catch(error){
+        return send(message.chat.id,`Не удалось выполнить действие: ${cleanText(error.message,500)}. Попробуйте ещё раз через меню.`);
+      }
     }
     const context=currentContext(message.chat.id,message.from?.id,clinic.id);
     try{const analysis=await analyze(sourceText,clinic,attachment,guided?.orderId||context?.orderId||'');await propose(message,clinic,analysis,attachment)}
