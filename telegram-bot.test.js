@@ -192,3 +192,11 @@ test('allows file links only after a Telegram draft is accepted',()=>{
 test('shows the current deadline in Telegram order choices',()=>{
   assert.equal(telegramInternals.orderPickerLabel({patient:'Иванов Иван',work:'Коронка',date:'20.10.2026'}),'Иванов Иван · до 20.10.2026');
 });
+
+test('requires a month when a client enters a new deadline',()=>{
+  assert.equal(telegramInternals.hasExplicitDueMonth('10'),false);
+  assert.equal(telegramInternals.hasExplicitDueMonth('10 число'),false);
+  assert.equal(telegramInternals.hasExplicitDueMonth('10 ноября'),true);
+  assert.equal(telegramInternals.hasExplicitDueMonth('10.11.2026'),true);
+  assert.equal(telegramInternals.hasExplicitDueMonth('завтра'),true);
+});
