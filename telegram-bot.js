@@ -684,15 +684,20 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       return sendOrderPicker(message.chat.id,clinic,'file','Файлы в CRM загружаются только через безопасную ссылку. Выберите принятый заказ:');
     }
     const attachment=null;
-    if(isSupportUsername(message.from?.username)){
-      if(text||attachment)await onClinicMessage(clinic.id,{text:text||(attachment?.kind==='photo'?'Фото':`Документ: ${attachment?.name||''}`),attachment,sender:actorName(message),senderUsername:message.from.username,senderLabel:supportLabel(message.from.username),telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'support'}).catch(()=>{});
-      return;
-    }
+    const supportMessage=isSupportUsername(message.from?.username);
     const mentionedBot=normalizedUsername(text)===normalizedUsername(botIdentity.username);
-    if(['/start','/connect','/help','/menu'].includes(command)||mentionedBot||normalize(text)==='бот')return sendMenu(message.chat.id);
+    const menuInvocation=['/start','/connect','/help','/menu'].includes(command)||mentionedBot||normalize(text)==='бот';
     const quickCommand=({
       '/new':'new','/status':'status','/file':'file','/due':'due','/cancel':'cancel','/human':'human'
     })[command];
+    const activeGuided=currentGuidedAction(message.chat.id,message.from?.id,clinic.id);
+    if(supportMessage&&!menuInvocation&&!quickCommand&&!activeGuided){
+      const supportText=text||(message.voice||message.audio?'Голосовое сообщение':'');
+      if(supportText||attachment)await onClinicMessage(clinic.id,{text:supportText||(attachment?.kind==='photo'?'Фото':`Документ: ${attachment?.name||''}`),attachment,sender:actorName(message),senderUsername:message.from.username,senderLabel:supportLabel(message.from.username),telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'support'}).catch(()=>{});
+      if(message.voice||message.audio)return send(message.chat.id,'Чтобы бот обработал голосовое сообщение, сначала выберите действие через /menu.');
+      return;
+    }
+    if(menuInvocation)return sendMenu(message.chat.id);
     if(quickCommand){
       if(quickCommand==='new'){rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new');await saveState();return send(message.chat.id,'Опишите заказ: имя и фамилия пациента (отчество, если есть), работа, зубы, материал и желаемый срок.')}
       if(quickCommand==='human')return send(message.chat.id,'@CreateDental_io, вас зовут в этот чат.');
@@ -709,7 +714,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     }
     if(!sourceText&&!attachment)return;
     const chatText=sourceText||(attachment?.kind==='photo'?'Фото':`Документ: ${attachment?.name||''}`);
-    await onClinicMessage(clinic.id,{text:message.voice||message.audio?`Голосовое сообщение: ${sourceText}`:chatText,attachment,sender:actorName(message),senderUsername:message.from?.username||'',telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'client'}).catch(()=>{});
+    await onClinicMessage(clinic.id,{text:message.voice||message.audio?`Голосовое сообщение: ${sourceText}`:chatText,attachment,sender:actorName(message),senderUsername:message.from?.username||'',senderLabel:supportMessage?supportLabel(message.from?.username):'',telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:supportMessage?'support':'client'}).catch(()=>{});
     if(message._edited)return;
     if(!sourceText&&attachment?.orderEligible){
       const pending=Object.values(state.pending).filter(item=>item.chatId===String(message.chat.id)&&item.userId===String(message.from?.id||'')&&item.expiresAt>Date.now()&&['create_order','update_order','cancel_order'].includes(item.analysis?.intent)).sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt))).at(-1);
