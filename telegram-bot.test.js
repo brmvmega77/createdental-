@@ -190,5 +190,5 @@ test('allows file links only after a Telegram draft is accepted',()=>{
 });
 
 test('shows the current deadline in Telegram order choices',()=>{
-  assert.equal(telegramInternals.orderPickerLabel({patient:'Иванов Иван',work:'Коронка',date:'20.10.2026'}),'Иванов Иван · Коронка · до 20.10.2026');
+  assert.equal(telegramInternals.orderPickerLabel({patient:'Иванов Иван',work:'Коронка',date:'20.10.2026'}),'Иванов Иван · до 20.10.2026');
 });

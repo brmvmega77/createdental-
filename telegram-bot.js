@@ -135,7 +135,7 @@ function telegramMedia(message){
 function orderStage(snapshot,order){return snapshot.orderOverrides[order.id]?.stage||order.status||'Новый'}
 function activeOrdersForClinic(snapshot,clinicId){return snapshot.orders.filter(order=>order.clinicId===clinicId&&order.status!=='Отменён')}
 function orderCanReceiveFiles(snapshot,order){return Boolean(order&&!order.telegramDraft&&orderStage(snapshot,order)!=='Черновик из Telegram'&&order.status!=='Отменён')}
-function orderPickerLabel(order){return `${order.patient} · ${order.work} · до ${order.date}`}
+function orderPickerLabel(order){return `${order.patient} · до ${order.date}`}
 
 function findOrder(snapshot,clinicId,analysis){
   const orders=activeOrdersForClinic(snapshot,clinicId);
@@ -644,7 +644,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         state.pending[id]={id,chatId:String(message.chat.id),clinicId:clinic.id,userId:String(message.from?.id||''),actor:actorName(message),analysis,orderId:'',allowedOrderIds:found.matches.slice(0,8).map(item=>item.id),attachments:attachment?.orderEligible?[attachment]:[],createdAt:new Date().toISOString(),expiresAt:Date.now()+24*60*60*1000};
         state.messageActions[sourceKey]={id,at:new Date().toISOString()};
         await saveState();
-        const buttons=found.matches.slice(0,8).map(item=>[{text:`${item.patient} · ${item.work} · ${item.date}`,callback_data:`tgpick:${id}:${item.id}`}]);
+        const buttons=found.matches.slice(0,8).map(item=>[{text:orderPickerLabel(item),callback_data:`tgpick:${id}:${item.id}`}]);
         buttons.push([{text:'❌ Отменить',callback_data:`tgreject:${id}`}]);
         return send(message.chat.id,'Нашлось несколько подходящих заказов. Выберите нужный:',{reply_markup:{inline_keyboard:buttons}});
       }
