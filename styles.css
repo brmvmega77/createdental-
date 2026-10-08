@@ -499,6 +499,21 @@ html{zoom:.9}
 .tech-client-table .tech-client-actions{flex-wrap:wrap;justify-content:flex-start}
 @media(max-width:760px){.chat-compose-files{grid-template-columns:auto minmax(0,1fr) auto;padding:9px}.chat-compose-files>input{min-height:40px}.chat-attachment{width:100%}.tech-client-table{table-layout:auto}}
 
+/* Keep the laboratory order list inside its card without a horizontal scrollbar. */
+.tech-orders-table-wrap{overflow:visible}
+.tech-orders-table{min-width:0;table-layout:fixed}
+.tech-orders-table th:nth-child(1){width:15%}
+.tech-orders-table th:nth-child(2){width:8%}
+.tech-orders-table th:nth-child(3){width:18%}
+.tech-orders-table th:nth-child(4){width:9%}
+.tech-orders-table th:nth-child(5){width:13%}
+.tech-orders-table th:nth-child(6){width:13%}
+.tech-orders-table th:nth-child(7){width:24%}
+.tech-orders-table td{overflow-wrap:anywhere}
+.tech-orders-table .tech-order-actions{gap:6px;flex-wrap:nowrap}
+.tech-orders-table .tech-order-actions .tech-link{min-width:72px;padding:0 7px}
+@media(max-width:760px){.tech-orders-table{table-layout:auto}.tech-orders-table .tech-order-actions{display:grid;grid-template-columns:1fr 40px 40px 40px}.tech-orders-table .tech-order-actions .tech-link{min-width:0}}
+
 /* File previews in the new order form */
 .attachment-grid{align-items:flex-start;margin-top:10px}
 .attachment{width:160px;height:148px;display:grid;grid-template-rows:78px auto auto;align-content:start;gap:4px;padding:8px;border:1px solid #eeeeee;border-radius:8px;overflow:hidden;background:#fff}
