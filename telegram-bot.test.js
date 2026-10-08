@@ -126,7 +126,7 @@ test('detects when this bot is added to a group',()=>{
 
 test('keeps the welcome guide within the Telegram message limit',()=>{
   assert.ok(telegramInternals.welcomeText.includes('/menu'));
-  assert.ok(telegramInternals.welcomeText.includes('только через эту страницу'));
+  assert.ok(telegramInternals.welcomeText.includes('до 10 файлов'));
   assert.ok(!telegramInternals.welcomeText.includes('Файл до 20 МБ'));
   assert.ok(telegramInternals.welcomeText.length<4096);
 });

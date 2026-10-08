@@ -31,7 +31,7 @@ const welcomeText=`👋 Добро пожаловать в чат Create Dental!
 Пример: «Перенеси срок заказа Иванова на 25 октября».
 
 📎 Добавить файл
-Нажмите «📎 Загрузить файл», выберите заказ и откройте безопасную ссылку. Все файлы до 200 МБ загружаются только через эту страницу.
+Нажмите «📎 Загрузить файл», выберите заказ и откройте безопасную ссылку. За один раз можно загрузить до 10 файлов, каждый — до 200 МБ.
 
 ❌ Отменить заказ
 Пример: «Отмени заказ Иванова. Пациент перенёс лечение».
@@ -570,7 +570,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       try{
         const href=await createLargeUploadLink(clinic.id,order.id,actorName({from:callback.from}));
         await answerCallback(callback.id,'Ссылка готова');
-        return send(callback.message.chat.id,`Загрузите файл к заказу ${order.id}. Ссылка действует 2 часа и используется один раз.\n\nЕсли страница не открывается внутри Telegram при включённом VPN, скопируйте ссылку и откройте её во внешнем браузере. Если VPN блокирует createdental.io, временно отключите его для загрузки.\n\n${href}`,{reply_markup:{inline_keyboard:[[{text:'📎 Открыть страницу загрузки',url:href}]]}});
+        return send(callback.message.chat.id,`Загрузите до 10 файлов к заказу ${order.id}. Каждый файл — до 200 МБ. Ссылка действует 2 часа и используется один раз.\n\nЕсли страница не открывается внутри Telegram при включённом VPN, скопируйте ссылку и откройте её во внешнем браузере. Если VPN блокирует createdental.io, временно отключите его для загрузки.\n\n${href}`,{reply_markup:{inline_keyboard:[[{text:'📎 Открыть страницу загрузки',url:href}]]}});
       }catch(error){await answerCallback(callback.id,'Загрузка пока недоступна');return send(callback.message.chat.id,cleanText(error.message,400))}
     }
     if(!['tgconfirm','tgreject','tgpick','tgreselect'].includes(action)||!id)return;

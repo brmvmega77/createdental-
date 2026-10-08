@@ -38,6 +38,7 @@ const sharedAttachmentTypes={
   '.xls':'application/vnd.ms-excel','.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','.txt':'text/plain','.rtf':'application/rtf'
 };
 const maximumAttachmentSize=200*1024*1024;
+const maximumLargeUploadFiles=10;
 const uploadSessionLifetime=2*60*60*1000;
 const diskUploadSessions=new Map();
 const largeUploadLinks=new Map();
@@ -336,23 +337,25 @@ function createLargeUploadLink(clinicId,orderId,requestedBy='Клиент Telegr
   const order=portalSnapshot().orders.find(item=>item.id===orderId&&item.clinicId===clinicId);
   if(!order)throw new Error('Заказ не найден');
   const token=randomBytes(32).toString('base64url'),key=largeLinkKey(token);
-  largeUploadLinks.set(key,{key,clinicId,orderId,requestedBy:String(requestedBy).slice(0,120),createdAt:Date.now(),expiresAt:Date.now()+uploadSessionLifetime,usedAt:0});
+  largeUploadLinks.set(key,{key,clinicId,orderId,requestedBy:String(requestedBy).slice(0,120),createdAt:Date.now(),expiresAt:Date.now()+uploadSessionLifetime,usedAt:0,startedCount:0,completedCount:0});
   const base=String(process.env.PUBLIC_BASE_URL||'https://createdental.io').replace(/\/$/,'');
   return `${base}/large-upload.html?token=${encodeURIComponent(token)}`;
 }
 async function handleLargeUpload(req,res,url){
-  const match=url.pathname.match(/^\/api\/large-upload\/([A-Za-z0-9_-]{30,80})(?:\/(init|complete)(?:\/([a-f0-9]{36}))?)?$/);
+  const match=url.pathname.match(/^\/api\/large-upload\/([A-Za-z0-9_-]{30,80})(?:\/(init|complete|finish)(?:\/([a-f0-9]{36}))?)?$/);
   if(!match)return json(res,404,{error:'Ссылка не найдена'});
   const token=match[1],action=match[2]||'',uploadId=match[3]||'',link=largeUploadLinks.get(largeLinkKey(token));
   if(!link||link.expiresAt<Date.now()||link.usedAt)return json(res,410,{error:'Ссылка истекла или уже использована'});
   const order=portalSnapshot().orders.find(item=>item.id===link.orderId&&item.clinicId===link.clinicId),clinic=portalClient(link.clinicId);
   if(!order||!clinic)return json(res,404,{error:'Заказ не найден'});
-  if(req.method==='GET'&&!action)return json(res,200,{clinic:clinic.name,orderId:order.id,patient:order.patient,work:order.work,date:order.date,maxSize:maximumAttachmentSize,expiresAt:new Date(link.expiresAt).toISOString()});
+  if(req.method==='GET'&&!action)return json(res,200,{clinic:clinic.name,orderId:order.id,patient:order.patient,work:order.work,date:order.date,maxSize:maximumAttachmentSize,maxFiles:maximumLargeUploadFiles,uploadedFiles:link.completedCount||0,expiresAt:new Date(link.expiresAt).toISOString()});
   if(req.method==='POST'&&action==='init'){
+    if((link.startedCount||0)>=maximumLargeUploadFiles)return json(res,409,{error:`По одной ссылке можно загрузить не больше ${maximumLargeUploadFiles} файлов`});
     let body;try{body=await readBody(req,12000)}catch{return json(res,400,{error:'Неверные данные файла'})}
     let description;try{description=validateUploadDescription({name:body.name,size:body.size,type:body.type,purpose:'order-file'})}catch(error){return json(res,error.message.includes('200 МБ')?413:400,{error:error.message})}
+    link.startedCount=(link.startedCount||0)+1;
     try{return json(res,200,await beginDiskUpload({...description,target:'order',orderId:order.id,clinicId:clinic.id,owner:`large:${link.key}`,actorRole:'clinic',largeLinkKey:link.key}))}
-    catch(error){console.error('Large upload init failed:',error.message);return json(res,502,{error:'Не удалось подготовить загрузку на Яндекс Диск'})}
+    catch(error){link.startedCount=Math.max(0,(link.startedCount||1)-1);console.error('Large upload init failed:',error.message);return json(res,502,{error:'Не удалось подготовить загрузку на Яндекс Диск'})}
   }
   if(req.method==='POST'&&action==='complete'&&uploadId){
     const item=diskUploadSessions.get(uploadId);
@@ -360,10 +363,16 @@ async function handleLargeUpload(req,res,url){
     if(item.completing)return json(res,409,{error:'Загрузка уже обрабатывается'});item.completing=true;
     try{
       const result=await completeDiskUpload(item,`Telegram · ${link.requestedBy}`);
-      diskUploadSessions.delete(item.id);link.usedAt=Date.now();
-      void telegramBridge?.sendAutomatedMessage(clinic.id,`Файл «${item.name}» добавлен к заказу ${order.id}.`).catch(error=>console.error('Telegram upload confirmation failed:',error.message));
+      diskUploadSessions.delete(item.id);link.completedCount=(link.completedCount||0)+1;
       return json(res,201,{ok:true,file:result.file,orderId:order.id});
     }catch(error){item.completing=false;console.error('Large upload completion failed:',error.message);return json(res,400,{error:error.message||'Не удалось подтвердить загрузку'})}
+  }
+  if(req.method==='POST'&&action==='finish'){
+    const completed=Math.min(maximumLargeUploadFiles,Number(link.completedCount)||0);
+    if(!completed)return json(res,409,{error:'Сначала загрузите хотя бы один файл'});
+    link.usedAt=Date.now();
+    void telegramBridge?.sendAutomatedMessage(clinic.id,`К заказу ${order.id} добавлено файлов: ${completed}.`).catch(error=>console.error('Telegram upload confirmation failed:',error.message));
+    return json(res,201,{ok:true,files:completed,orderId:order.id});
   }
   return json(res,405,{error:'Метод не поддерживается'});
 }
