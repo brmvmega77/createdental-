@@ -62,6 +62,35 @@ test('keeps recognized order data while collecting a follow-up message',()=>{
   assert.deepEqual(telegramInternals.missingCreateFields(merged),[]);
 });
 
+test('allows any number of separately selected teeth',()=>{
+  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{
+    patient:'Петров Пётр',toothMode:'Одиночка',teeth:[11,12,13,14,15,16],
+    work:'Реставрации',material:'Коронка E.max, ZrO2',dueDate:'2026-10-20',shade:'A2'
+  }});
+  assert.deepEqual(telegramInternals.missingCreateFields(analysis),[]);
+  assert.equal(telegramInternals.priceEstimate(analysis).units,6);
+});
+
+test('keeps the tooth buttons open until done and hides every selected tooth',()=>{
+  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',toothMode:'Одиночка',teeth:[11,12,13,21,22]}});
+  const markup=telegramInternals.createOrderChoiceMarkup(analysis,'teeth');
+  const buttons=markup.inline_keyboard.flat();
+  assert.ok(buttons.some(button=>button.callback_data==='tgnew:teeth:done'));
+  assert.ok(buttons.some(button=>/выбрано 5/i.test(button.text)));
+  assert.ok(buttons.some(button=>button.callback_data==='tgnew:tooth:23'));
+  assert.ok(!buttons.some(button=>button.callback_data==='tgnew:tooth:11'));
+  assert.match(telegramInternals.createOrderWizardPrompt(analysis,'teeth'),/любое количество/);
+});
+
+test('shows catalog categories first and services as the next button level',()=>{
+  const categoryStep=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',toothMode:'Одиночка',teeth:[11]}});
+  const categoryButtons=telegramInternals.createOrderChoiceMarkup(categoryStep).inline_keyboard.flat();
+  assert.ok(categoryButtons.some(button=>button.text==='Реставрации'));
+  const serviceStep=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',toothMode:'Одиночка',teeth:[11],work:'Реставрации'}});
+  const serviceButtons=telegramInternals.createOrderChoiceMarkup(serviceStep).inline_keyboard.flat();
+  assert.ok(serviceButtons.some(button=>/Коронка E\.max, ZrO2/.test(button.text)));
+});
+
 test('explains missing stages and provides valid choices',()=>{
   const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'Реставрации'}});
   const prompt=telegramInternals.createOrderMissingPrompt(analysis);
