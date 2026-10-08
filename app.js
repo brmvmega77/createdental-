@@ -76,7 +76,10 @@ const workCatalog=[
     {name:'Релаксационная шина',price:4500},
     {name:'Депрограмматор Койса',price:5000}
   ]},
-  {name:'Сплинты',price:null,options:[]},
+  {name:'Сплинты',price:null,options:[
+    {name:'Каппа-сплинт для завышения прикуса (ORTHOTIC)',price:10000},
+    {name:'Сплинт с функциональными буграми',price:12000}
+  ]},
   {name:'Ложки прикуса',price:null,options:[
     {name:'Индивидуальная ложка',price:2000},
     {name:'Прикусной шаблон',price:2000},
