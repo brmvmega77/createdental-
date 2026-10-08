@@ -1016,5 +1016,10 @@ server.listen(port,host,()=>{
   const deliveryTimer=setInterval(()=>{for(const [clinicId,chat] of Object.entries(clinicChats))for(const message of chat.messages||[])if(message.from==='support'&&message.deliveryStatus==='error'&&(Number(message.deliveryAttempts)||0)<5)void deliverSupportMessage(clinicId,message)},60*1000);deliveryTimer.unref();
   void cleanupOrphanMessageFiles();const cleanupTimer=setInterval(()=>void cleanupOrphanMessageFiles(),6*60*60*1000);cleanupTimer.unref();
   const uploadCleanupTimer=setInterval(()=>{const now=Date.now(),token=readIntegrationSecret('yandexDiskToken');for(const [id,item] of diskUploadSessions)if(item.expiresAt<now){diskUploadSessions.delete(id);void deleteDiskResource(token,item.diskPath).catch(()=>{})}for(const [id,item] of largeUploadLinks)if(item.expiresAt<now||item.usedAt&&item.usedAt<now-24*60*60*1000)largeUploadLinks.delete(id)},10*60*1000);uploadCleanupTimer.unref();
-  void (async()=>{for(const orderId of Object.keys(orderFiles))await ensureOrderFilesOnDisk(orderId).catch(error=>console.error('Legacy order file migration failed:',error.message))})();
+  void (async()=>{
+    for(const order of portalSnapshot().orders){
+      await ensureOrderFilesOnDisk(order.id).catch(error=>console.error('Legacy order file migration failed:',error.message));
+      await ensurePublicOrderFolder(order.id).catch(error=>console.error('Yandex Disk folder publication failed:',error.message));
+    }
+  })();
 });
