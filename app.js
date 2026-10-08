@@ -2,6 +2,7 @@ import { seedOrders } from './seed-orders.js?v=mobile-fast-1';
 import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,downloadOrderFile,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile} from './portal-client.js?v=disk-upload-1';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=mobile-fast-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=dashboard-layout-4';
+import {workCatalog,rubles} from './work-catalog.js?v=work-prices-5';
 
 const $ = (selector) => document.querySelector(selector);
 const icons = {
@@ -40,60 +41,6 @@ if(oldLink.has('role')||oldLink.has('page')){
 const initialRoute=routeFromPath(location.pathname);
 const state = {role:initialRoute.role||'clinic',page:initialRoute.role==='clinic'?initialRoute.page:'home',step:0,filter:'Все',query:'',dueDateFilter:'',sortKey:'',sortDirection:'asc',orderId:initialRoute.orderId||'',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',selectedTeeth:[],bridgeRanges:[],bridgeStart:null,dentition:'Постоянные зубы',toothMode:'Одиночка',work:'',workOption:'',messages:[],chatText:'',chatAttachment:null,chatStatus:'Подключение к чату...',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),uploaded:[],orderFiles:[],orderPhotoUrls:{},filesFor:'',reworkOrderId:'',form:{surname:'',initials:'',birth:'',construction:'',material:'',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A2',comment:''},toast:''};
 let portalHistory=[];
-const workCatalog=[
-  {name:'Планирование и диагностика',price:null,options:[
-    {name:'Wax up цифровой',price:2000},
-    {name:'Wax up аналоговый',price:3000},
-    {name:'Wax up по Славичеку',price:5000}
-  ]},
-  {name:'Вкладки',price:null,options:[
-    {name:'Вкладка культевая',price:4000},
-    {name:'Вкладка культевая ZrO2/Дисиликат лития',price:7000}
-  ]},
-  {name:'Реставрации',price:null,options:[
-    {name:'PMMA коронка CAD/CAM',price:4000},
-    {name:'Композитная коронка CAD/CAM',price:10000},
-    {name:'Коронка E.max, ZrO2',price:12000},
-    {name:'Коронка E.max, ZrO2 по Славичеку',price:16000},
-    {name:'Коронка, винир на рефракторе',price:18000},
-    {name:'Одиночная реставрация OPTISHADE/MATISSE',price:25000}
-  ]},
-  {name:'Протетика',price:null,options:[
-    {name:'Индивидуальный Ti абатмент (Ti-включая вине)',price:8000},
-    {name:'Индивидуальный ZrO2 абатмент (Без Ti-Base)',price:9000},
-    {name:'Титановое основание Geo Medi',price:4500},
-    {name:'Титановое основание Аналог',price:2500}
-  ]},
-  {name:'Балочные конструкции',price:null,options:[
-    {name:'Цельнофрезерованная балка CoCr за единицу',price:3500},
-    {name:'Цельнофрезерованная балка Ti за единицу',price:6000}
-  ]},
-  {name:'Каппы',price:null,options:[
-    {name:'Бруксчекер',price:6000},
-    {name:'Каппа для отбеливания',price:4500},
-    {name:'Каппа ретенционная',price:4500},
-    {name:'Каппа разобщающая',price:4500},
-    {name:'Релаксационная шина',price:4500},
-    {name:'Депрограмматор Койса',price:5000}
-  ]},
-  {name:'Сплинты',price:null,options:[
-    {name:'Каппа-сплинт для завышения прикуса (ORTHOTIC)',price:10000},
-    {name:'Сплинт с функциональными буграми',price:12000}
-  ]},
-  {name:'Ложки прикуса',price:null,options:[
-    {name:'Индивидуальная ложка',price:2000},
-    {name:'Прикусной шаблон',price:2000},
-    {name:'Прикусной шаблон на жёстком базисе',price:3000},
-    {name:'Прикусной шаблон на жёстком базисе с фиксацией к имплантатам на магнитах',price:4500}
-  ]},
-  {name:'Хирургические шаблоны',price:null,options:[
-    {name:'Хирургический навигационный шаблон на 1 имплантант',price:7000},
-    {name:'Дополнительное гнездо под имплантант в хирургическом шаблоне',price:1500},
-    {name:'Маркировочный шаблон',price:3500},
-    {name:'Шаблон под КТ рентгеноконтрастный',price:7000}
-  ]},
-  {name:'Дополнительные работы',price:null,options:[]}
-];
 const selectedWork=()=>workCatalog.find(item=>item.name===state.work);
 const workOptionName=option=>typeof option==='string'?option:option.name;
 const selectedWorkOption=()=>selectedWork()?.options.find(option=>workOptionName(option)===state.workOption);
@@ -105,7 +52,6 @@ const orderEstimate = () => {
 const orderEstimateText = () => orderEstimate()===null?'Стоимость уточняется':rubles(orderEstimate());
 const upperTeeth=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
 const lowerTeeth=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
-const rubles = amount => new Intl.NumberFormat('ru-RU').format(amount) + ' ₽';
 const statusClass = s => ['В работе','Работа принята','Принято доктором','Завершен'].includes(s)?'green':s==='Новый'?'blue':'orange';
 const badge = s => `<span class="badge ${statusClass(s)}">${s}</span>`;
 const button = (label,action,kind='primary',extra='') => `<button class="btn ${kind}" data-action="${action}" ${extra}>${label}</button>`;

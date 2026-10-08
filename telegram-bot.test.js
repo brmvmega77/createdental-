@@ -34,6 +34,25 @@ test('requires the minimum safe fields before proposing a new order',()=>{
   assert.deepEqual(telegramInternals.missingCreateFields(analysis),['вид работы','номер зуба или верхнюю/нижнюю челюсть']);
 });
 
+test('requires an exact priced service when only a catalog category is given',()=>{
+  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров',work:'Реставрации',teeth:[11]}});
+  assert.deepEqual(telegramInternals.missingCreateFields(analysis),['точное название услуги из прайса']);
+});
+
+test('canonicalizes a catalog service and estimates the Telegram order price',()=>{
+  const analysis=telegramInternals.canonicalizeCatalogSelection(telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров',work:'Коронка E.max, ZrO2',teeth:[11,21],toothMode:'Мост'}}));
+  assert.equal(analysis.fields.work,'Реставрации');
+  assert.equal(analysis.fields.material,'Коронка E.max, ZrO2');
+  assert.deepEqual(telegramInternals.priceEstimate(analysis),{category:{name:'Реставрации',price:null,options:[{name:'PMMA коронка CAD/CAM',price:4000},{name:'Композитная коронка CAD/CAM',price:10000},{name:'Коронка E.max, ZrO2',price:12000},{name:'Коронка E.max, ZrO2 по Славичеку',price:16000},{name:'Коронка, винир на рефракторе',price:18000},{name:'Одиночная реставрация OPTISHADE/MATISSE',price:25000}]},option:{name:'Коронка E.max, ZrO2',price:12000},price:12000,units:2,amount:24000,text:'24 000 ₽'});
+});
+
+test('prices a full jaw as sixteen units',()=>{
+  const analysis=telegramInternals.canonicalizeCatalogSelection(telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров',work:'Вкладки',material:'Вкладка культевая',toothMode:'Челюсть',jaw:'upper'}}));
+  const estimate=telegramInternals.priceEstimate(analysis);
+  assert.equal(estimate.units,16);
+  assert.equal(estimate.amount,64000);
+});
+
 test('matches an existing clinic order by surname only when unambiguous',()=>{
   const snapshot={orders:[
     {id:'CD-1',clinicId:'clinic-1',patient:'Иванов А.А.',status:'Новый'},
