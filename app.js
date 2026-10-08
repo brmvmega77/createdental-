@@ -41,31 +41,20 @@ const initialRoute=routeFromPath(location.pathname);
 const state = {role:initialRoute.role||'clinic',page:initialRoute.role==='clinic'?initialRoute.page:'home',step:0,filter:'Все',query:'',dueDateFilter:'',sortKey:'',sortDirection:'asc',orderId:initialRoute.orderId||'',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',selectedTeeth:[],bridgeRanges:[],bridgeStart:null,dentition:'Постоянные зубы',toothMode:'Одиночка',work:'',workOption:'',messages:[],chatText:'',chatAttachment:null,chatStatus:'Подключение к чату...',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),uploaded:[],orderFiles:[],orderPhotoUrls:{},filesFor:'',reworkOrderId:'',form:{surname:'',initials:'',birth:'',construction:'',material:'',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A2',comment:''},toast:''};
 let portalHistory=[];
 const workCatalog=[
-  {name:'Wax up',price:1700,options:['Ручной','Цифровой (3D)','3D-печать модели']},
-  {name:'Вкладка культевая',price:7800,options:['Металлическая','Диоксид циркония']},
-  {name:'Временная коронка',price:3500,options:['PMMA','Композит']},
-  {name:'Металлокерамика',price:10500,options:['Коронка','Мостовидный протез']},
-  {name:'Коронка из ZrO2',price:12500,options:['Многослойный цирконий','Цирконий с облицовкой']},
-  {name:'Цельноциркониевая коронка',price:11500,options:['Стандартная','Высокоэстетичная']},
-  {name:'E.max',price:14000,options:['Вкладка','Винир / Коронка на цементной фиксации','Метод раскрашивания','Метод облицовки','Коронка + индивидуальный абатмент из титана','Коронка + индивидуальный абатмент из диоксида циркония','Коронка на винтовой фиксации']},
-  {name:'Композит',price:6500,options:['Коронка','Винир','Временная реставрация']},
-  {name:'Все на 4-6-8 (титан + акрил)',price:110000,options:['Все на 4','Все на 6','Все на 8']},
-  {name:'Все на 4-6-8 (циркон + титан)',price:190000,options:['Все на 4','Все на 6','Все на 8']},
-  {name:'Полный съемный протез',price:45000,options:['Акриловый','Нейлоновый']},
-  {name:'Частичный съемный (до 7 зубов)',price:28000,options:['Акриловый','Нейлоновый']},
-  {name:'Балка + Покрывной протез',price:95000,options:['На имплантатах','На аттачменах']},
-  {name:'Бюгельный протез',price:55000,options:['Кламмерный','Замковый']},
-  {name:'Хирургический шаблон',price:15000,options:['На зубах','На слизистой']},
-  {name:'Телескопы',price:18000,options:['Первичная коронка','Комплект']},
-  {name:'Сплинты (окклюзионные шины)',price:12000,options:['Мягкая','Жёсткая']},
-  {name:'Каппы',price:7500,options:['Ретенционная','Отбеливающая','Спортивная']},
-  {name:'Ложки / Прикуса',price:4500,options:['Индивидуальная ложка','Прикусной шаблон']},
-  {name:'Починки',price:5000,options:['Починка протеза','Добавление зуба','Перебазировка']},
-  {name:'Другие работы',price:0,options:['Опишите работу в комментарии']}
+  {name:'Планирование и диагностика',price:null,options:[]},
+  {name:'Вкладки',price:null,options:[]},
+  {name:'Реставрации.протетика',price:null,options:[]},
+  {name:'Балочные конструкции',price:null,options:[]},
+  {name:'Каппы',price:null,options:[]},
+  {name:'Сплинты',price:null,options:[]},
+  {name:'Ложки/прикуса',price:null,options:[]},
+  {name:'Хирургические шаблоны',price:null,options:[]},
+  {name:'Дополнительные работы',price:null,options:[]}
 ];
 const selectedWork=()=>workCatalog.find(item=>item.name===state.work);
 const orderUnits=()=>state.toothMode==='Челюсть'?1:Math.max(1,state.selectedTeeth.length);
-const orderEstimate = () => (selectedWork()?.price||0)*orderUnits();
+const orderEstimate = () => Number.isFinite(selectedWork()?.price)?selectedWork().price*orderUnits():null;
+const orderEstimateText = () => orderEstimate()===null?'Стоимость уточняется':rubles(orderEstimate());
 const upperTeeth=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
 const lowerTeeth=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
 const rubles = amount => new Intl.NumberFormat('ru-RU').format(amount) + ' ₽';
@@ -159,15 +148,16 @@ function patientStep(){return `<h2>Данные пациента</h2><div class=
 function workChooser(){
   const work=selectedWork();
   if(!work)return `<div class="order-work-grid">${workCatalog.map(item=>`<button data-action="work" data-value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</button>`).join('')}</div>`;
+  if(!work.options.length)return `<div class="work-detail"><button class="work-back" data-action="work-back">← Все виды работ</button><div class="work-current"><strong>${escapeHtml(work.name)}</strong><small>Категория выбрана</small></div></div>`;
   return `<div class="work-detail"><button class="work-back" data-action="work-back">← Все виды работ</button><div class="work-current"><strong>${escapeHtml(work.name)}</strong><small>Выберите вариант исполнения</small></div><div class="work-option-list">${work.options.map(option=>`<button class="${state.workOption===option?'selected':''}" data-action="work-option" data-value="${escapeHtml(option)}"><span>${escapeHtml(option)}</span><b>→</b></button>`).join('')}</div></div>`;
 }
 function orderDraft(){
-  const complete=state.selectedTeeth.length&&state.work&&state.workOption;
+  const work=selectedWork(),complete=state.selectedTeeth.length&&work&&(!work.options.length||state.workOption);
   if(!complete)return `<aside class="order-draft"><h2>Ваш заказ</h2><div class="order-draft-empty">${icon('orders',24)}<strong>Выберите нужные зубы и работу</strong><span>Здесь появится состав заказа и предварительная стоимость.</span></div></aside>`;
-  return `<aside class="order-draft"><h2>Ваш заказ</h2><div class="order-draft-card"><div><span>${state.toothMode}</span><strong>Зубы: ${state.selectedTeeth.join(', ')}</strong></div><h3>${escapeHtml(state.work)}</h3><p>${escapeHtml(state.workOption)}</p><dl><div><dt>Количество</dt><dd>${orderUnits()}</dd></div><div><dt>Предварительно</dt><dd>${rubles(orderEstimate())}</dd></div></dl><small>Итоговую стоимость лаборатория подтвердит после проверки заказа.</small></div></aside>`;
+  return `<aside class="order-draft"><h2>Ваш заказ</h2><div class="order-draft-card"><div><span>${state.toothMode}</span><strong>Зубы: ${state.selectedTeeth.join(', ')}</strong></div><h3>${escapeHtml(state.work)}</h3>${state.workOption?`<p>${escapeHtml(state.workOption)}</p>`:''}<dl><div><dt>Количество</dt><dd>${orderUnits()}</dd></div><div><dt>Предварительно</dt><dd>${orderEstimateText()}</dd></div></dl><small>Итоговую стоимость лаборатория подтвердит после проверки заказа.</small></div></aside>`;
 }
 function bridgeSelectionText(){if(state.toothMode!=='Мост')return state.selectedTeeth.length?`Выбрано: ${state.selectedTeeth.join(', ')}`:'Нажмите на нужные зубы';if(state.bridgeStart)return `Начало моста: ${state.bridgeStart}. Выберите последний зуб на этой челюсти`;if(state.bridgeRanges.length)return `Мосты: ${state.bridgeRanges.map(range=>`${range[0]}–${range.at(-1)}`).join(', ')}`;return 'Выберите первый и последний зуб моста'}
-function teethStep(){return `<div class="order-builder"><section class="tooth-picker"><h2>Выберите зуб(ы)</h2><div class="tooth-mode">${['Одиночка','Мост','Челюсть'].map(mode=>`<button class="${state.toothMode===mode?'selected':''}" data-action="tooth-mode" data-value="${mode}">${mode}</button>`).join('')}</div>${toothChart(true,state.selectedTeeth,state.bridgeRanges)}<div class="selected-teeth"><strong>${bridgeSelectionText()}</strong>${state.selectedTeeth.length?'<button class="clear" data-action="clear-teeth">Очистить</button>':''}</div></section><section class="work-picker"><div class="work-picker-title"><div><h2>Что нужно сделать?</h2><p>${state.work?'Уточните вариант исполнения':'Выберите вид работы из списка'}</p></div>${state.work?'<button data-action="work-back" aria-label="Вернуться к списку">⌕</button>':''}</div>${workChooser()}</section>${orderDraft()}</div>`}
+function teethStep(){const work=selectedWork();return `<div class="order-builder"><section class="tooth-picker"><h2>Выберите зуб(ы)</h2><div class="tooth-mode">${['Одиночка','Мост','Челюсть'].map(mode=>`<button class="${state.toothMode===mode?'selected':''}" data-action="tooth-mode" data-value="${mode}">${mode}</button>`).join('')}</div>${toothChart(true,state.selectedTeeth,state.bridgeRanges)}<div class="selected-teeth"><strong>${bridgeSelectionText()}</strong>${state.selectedTeeth.length?'<button class="clear" data-action="clear-teeth">Очистить</button>':''}</div></section><section class="work-picker"><div class="work-picker-title"><div><h2>Что нужно сделать?</h2><p>${work?.options.length?'Уточните вариант исполнения':state.work?'Категория выбрана':'Выберите вид работы из списка'}</p></div>${state.work?'<button data-action="work-back" aria-label="Вернуться к списку">⌕</button>':''}</div>${workChooser()}</section>${orderDraft()}</div>`}
 const uploadPreviewUrls=new WeakMap();
 function uploadPreview(file){
   if(!file?.type?.startsWith('image/')&&!/\.(?:jpg|jpeg|png)$/i.test(file?.name||''))return '';
@@ -177,7 +167,7 @@ function uploadPreview(file){
 function releaseUploadPreview(file){const url=uploadPreviewUrls.get(file);if(url)URL.revokeObjectURL(url);uploadPreviewUrls.delete(file)}
 function attachmentTiles(){return `<div class="attachment-grid">${state.uploaded.map(file=>{const preview=uploadPreview(file),extension=(file.name.split('.').pop()||'FILE').toUpperCase().slice(0,5),size=file.size>=1024*1024?`${(file.size/1024/1024).toFixed(1)} МБ`:`${Math.max(1,Math.ceil(file.size/1024))} КБ`;return `<div class="attachment">${preview?`<img src="${preview}" alt="Миниатюра ${escapeHtml(file.name)}">`:`<span class="attachment-file-icon">${escapeHtml(extension)}</span>`}<span class="attachment-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span><small>${size}</small><button aria-label="Удалить файл ${escapeHtml(file.name)}" data-action="remove-file" data-value="${escapeHtml(file.name)}">×</button></div>`}).join('')}<label class="attachment-add" title="Добавить файлы">${icon('plus',26)}<span>Добавить</span><input type="file" id="upload-input" accept=".jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.rtf" multiple hidden></label></div>`}
 function extraStep(){return `<h2>Дополнительная информация</h2><div class="form-grid">${field('Желаемый срок готовности',`<input type="date" data-field="due" value="${state.form.due}">`)}${field('Цвет/оттенок (например, Vita)',selectInput(['A2','A1','A3','B1','B2'],'shade'))}</div><div class="form-grid extra-fields"><div class="field"><span>Файлы заказа — сканы, КТ и фото</span><label class="upload-zone">${icon('upload',26)}<span>Перетащите файлы сюда<br>или нажмите, чтобы выбрать</span><input type="file" id="upload-input" accept=".jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.rtf" multiple hidden></label><small class="hint">Изображения, PDF, 3D-файлы, архивы и документы — до 200 МБ на файл. Файлы прикрепятся к заказу.</small>${attachmentTiles()}</div>${field('Комментарий к заказу',`<textarea rows="5" data-field="comment" placeholder="Напишите пожелания, особенности, дополнительные инструкции...">${escapeHtml(state.form.comment)}</textarea>`)}</div>`}
-function confirmStep(){return `<h2>Проверьте данные заказа</h2><div class="confirmation"><div>${toothChart(false,state.selectedTeeth,state.bridgeRanges)}</div><div class="summary-list">${[['Пациент',`${state.form.surname} ${state.form.initials}`],...(state.form.birth?[['Дата рождения',state.form.birth.split('-').reverse().join('.')]]:[]),['Выбранные зубы',state.selectedTeeth.join(', ')],...(state.toothMode==='Мост'?[['Мосты',state.bridgeRanges.map(range=>`${range[0]}–${range.at(-1)}`).join(', ')]]:[]),['Режим',state.toothMode],['Тип работы',state.form.construction],['Исполнение',state.form.material],['Желаемый срок',state.form.due.split('-').reverse().join('.')],['Предварительная сумма',rubles(orderEstimate())],['Цвет',state.form.shade],['Комментарий',state.form.comment||'—'],['Файлы',`${state.uploaded.length} файла`]].map(([k,v])=>`<div><span>${k}</span><strong>${escapeHtml(v)}</strong></div>`).join('')}${attachmentTiles()}</div></div>`}
+function confirmStep(){return `<h2>Проверьте данные заказа</h2><div class="confirmation"><div>${toothChart(false,state.selectedTeeth,state.bridgeRanges)}</div><div class="summary-list">${[['Пациент',`${state.form.surname} ${state.form.initials}`],...(state.form.birth?[['Дата рождения',state.form.birth.split('-').reverse().join('.')]]:[]),['Выбранные зубы',state.selectedTeeth.join(', ')],...(state.toothMode==='Мост'?[['Мосты',state.bridgeRanges.map(range=>`${range[0]}–${range.at(-1)}`).join(', ')]]:[]),['Режим',state.toothMode],['Тип работы',state.form.construction],...(state.form.material?[['Исполнение',state.form.material]]:[]),['Желаемый срок',state.form.due.split('-').reverse().join('.')],['Предварительная сумма',orderEstimateText()],['Цвет',state.form.shade],['Комментарий',state.form.comment||'—'],['Файлы',`${state.uploaded.length} файла`]].map(([k,v])=>`<div><span>${k}</span><strong>${escapeHtml(v)}</strong></div>`).join('')}${attachmentTiles()}</div></div>`}
 function newOrder(){const body=[patientStep,teethStep,extraStep,confirmStep][state.step]();shell(`${title(state.step===1?'Новый заказ — зубы и работа':state.step===2?'Новый заказ — дополнительные параметры':state.step===3?'Новый заказ — подтверждение':'Новый заказ')}${stepper()}<section class="wizard ${state.step===1?'order-builder-wizard':''}">${body}<div class="wizard-actions">${state.step>0?button('Назад','previous','outline'):''}${button(state.step===3?'Создать заказ':'Далее →','next')}</div></section>`)}
 function detail(){
   const o=currentOrders().find(item=>item.id===state.orderId);
@@ -323,7 +313,7 @@ async function hydratePortal(){
 }
 async function createOrder(){
   const id=`CD-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0,4).toUpperCase()}`;
-  const order={id,patient:`${state.form.surname} ${state.form.initials}`.trim(),birth:state.form.birth||'',work:state.form.construction,material:state.form.material,toothMode:state.toothMode,bridgeRanges:state.bridgeRanges.map(range=>[...range]),quantity:orderUnits(),date:state.form.due.split('-').reverse().join('.'),status:'Новый',sum:rubles(orderEstimate()),image:'tooth.png',clinicId:portalUser.subjectId,clinic:clinicRecord()?.name||'Клиника',teeth:[...state.selectedTeeth],shade:state.form.shade,comment:state.form.comment,createdAt:new Date().toISOString()};
+  const order={id,patient:`${state.form.surname} ${state.form.initials}`.trim(),birth:state.form.birth||'',work:state.form.construction,material:state.form.material,toothMode:state.toothMode,bridgeRanges:state.bridgeRanges.map(range=>[...range]),quantity:orderUnits(),date:state.form.due.split('-').reverse().join('.'),status:'Новый',sum:orderEstimateText(),image:'tooth.png',clinicId:portalUser.subjectId,clinic:clinicRecord()?.name||'Клиника',teeth:[...state.selectedTeeth],shade:state.form.shade,comment:state.form.comment,createdAt:new Date().toISOString()};
   try {
     await savePortal('orders',[order,...orders]);
     orders.unshift(order);
@@ -400,7 +390,7 @@ function advanceOrderStep(){
   if(state.step===1&&state.toothMode==='Мост'&&!state.bridgeRanges.length){notify('Выберите первый и последний зуб моста');return false}
   if(state.step===1&&!state.selectedTeeth.length){notify('Выберите зуб или челюсть');return false}
   if(state.step===1&&!state.work){notify('Выберите вид работы');return false}
-  if(state.step===1&&!state.workOption){notify('Выберите вариант исполнения');return false}
+  if(state.step===1&&selectedWork()?.options.length&&!state.workOption){notify('Выберите вариант исполнения');return false}
   if(state.step<steps.length-1){state.step++;return true}
   createOrder();return false;
 }
