@@ -30,7 +30,7 @@ const welcomeText=`👋 Добро пожаловать в чат Create Dental!
 Здесь можно общаться с лабораторией и управлять заказами. Обычные сообщения бот не обрабатывает как команды. Чтобы выполнить действие в CRM, отправьте /menu и выберите нужную функцию.
 
 ➕ Новый заказ
-Укажите пациента, вид работы, номера зубов, материал, цвет и срок.
+Укажите пациента, режим (одиночка, мост или челюсть), номера зубов, точную услугу, цвет и срок. Если чего-то не хватит, бот сохранит названные данные и подскажет варианты.
 Пример: «Новый заказ. Иванов Сергей. Коронки из циркония на 11 и 21, цвет A2. Срок — 20 октября».
 
 🔎 Статус заказа
@@ -193,6 +193,7 @@ function normalizeAnalysis(value){
       patient:cleanText(fields.patient,160),work:cleanText(fields.work,160),material:cleanText(fields.material,180),
       teeth:safeTeeth(fields.teeth),toothMode:['Одиночка','Мост','Челюсть'].includes(fields.toothMode)?fields.toothMode:'',
       jaw:['upper','lower'].includes(fields.jaw)?fields.jaw:'',
+      birthDate:/^\d{4}-\d{2}-\d{2}$/.test(fields.birthDate||'')?fields.birthDate:'',
       dueDate:/^\d{4}-\d{2}-\d{2}$/.test(fields.dueDate||'')?fields.dueDate:'',shade:cleanText(fields.shade,40),
       comment:cleanText(fields.comment,1800),reason:cleanText(fields.reason,1800)
     },
@@ -228,17 +229,71 @@ function hasFullPatientName(value){
 function missingCreateFields(analysis){
   const missing=[];
   if(!hasFullPatientName(analysis.fields.patient))missing.push('имя и фамилию пациента');
-  if(!analysis.fields.work)missing.push('вид работы');
+  if(!analysis.fields.toothMode)missing.push('режим: одиночка, мост или челюсть');
+  if(analysis.fields.toothMode==='Челюсть'&&!analysis.fields.jaw)missing.push('верхнюю или нижнюю челюсть');
+  else if(analysis.fields.toothMode==='Мост'&&analysis.fields.teeth.length<2)missing.push('минимум два номера зубов для моста');
+  else if(analysis.fields.toothMode!=='Челюсть'&&!analysis.fields.teeth.length)missing.push('номер зуба или номера зубов');
   const selection=resolveWorkSelection(analysis.fields.work,analysis.fields.material);
+  if(!selection.category)missing.push('вид работы из прайса');
   if(selection.category?.options.length&&!selection.option)missing.push('точное название услуги из прайса');
-  if(!analysis.fields.teeth.length&&!(analysis.fields.toothMode==='Челюсть'&&analysis.fields.jaw))missing.push('номер зуба или верхнюю/нижнюю челюсть');
+  if(!analysis.fields.dueDate)missing.push('желаемый срок готовности');
+  if(!analysis.fields.shade)missing.push('цвет/оттенок или «не требуется»');
   return missing;
+}
+
+function mergeCreateAnalysis(previous,current){
+  const before=normalizeAnalysis(previous||{intent:'create_order',fields:{}}),after=normalizeAnalysis(current||{intent:'create_order',fields:{}});
+  const nextWork=after.fields.work||before.fields.work;
+  const workChanged=Boolean(after.fields.work&&normalize(after.fields.work)!==normalize(before.fields.work));
+  const merged=normalizeAnalysis({
+    intent:'create_order',confidence:Math.max(before.confidence,after.confidence),
+    patientSurname:after.patientSurname||before.patientSurname,
+    fields:{
+      patient:after.fields.patient||before.fields.patient,
+      birthDate:after.fields.birthDate||before.fields.birthDate,
+      work:nextWork,
+      material:after.fields.material||(workChanged?'':before.fields.material),
+      teeth:after.fields.teeth.length?after.fields.teeth:before.fields.teeth,
+      toothMode:after.fields.toothMode||before.fields.toothMode,
+      jaw:after.fields.jaw||before.fields.jaw,
+      dueDate:after.fields.dueDate||before.fields.dueDate,
+      shade:after.fields.shade||before.fields.shade,
+      comment:after.fields.comment||before.fields.comment
+    },
+    summary:[before.summary,after.summary].filter(Boolean).join('; ')
+  });
+  return canonicalizeCatalogSelection(merged);
+}
+
+function createOrderMissingPrompt(analysis){
+  const missing=missingCreateFields(analysis),fields=analysis.fields,selection=resolveWorkSelection(fields.work,fields.material);
+  const options=[];
+  if(missing.includes('имя и фамилию пациента'))options.push('• Пациент: фамилия и имя; отчество — если есть. Пример: «Иванов Сергей Петрович».');
+  if(missing.includes('режим: одиночка, мост или челюсть'))options.push('• Режим: «Одиночка», «Мост» или «Челюсть».');
+  if(missing.includes('верхнюю или нижнюю челюсть'))options.push('• Челюсть: верхняя или нижняя.');
+  if(missing.includes('минимум два номера зубов для моста'))options.push('• Мост: назовите все зубы или его границы, например «11–13».');
+  if(missing.includes('номер зуба или номера зубов'))options.push('• Зубы: номера по системе FDI, например «11 и 21».');
+  if(missing.includes('вид работы из прайса'))options.push(`• Раздел работы: ${catalogForPrompt().map(item=>item.category).join(' / ')}.`);
+  if(missing.includes('точное название услуги из прайса')&&selection.category){
+    options.push(`• Услуга из раздела «${selection.category.name}»:`,...selection.category.options.map(option=>`  — ${option.name} — ${rubles(option.price)}`));
+  }
+  if(missing.includes('желаемый срок готовности'))options.push(`• Срок: конкретная дата или «стандартный срок» — ${displayDate(addDays(moscowDate(),14))}.`);
+  if(missing.includes('цвет/оттенок или «не требуется»'))options.push('• Цвет: A1 / A2 / A3 / B1 / B2 / другой оттенок / «не требуется».');
+  const recognized=[];
+  if(hasFullPatientName(fields.patient))recognized.push(`пациент — ${fields.patient}`);
+  if(fields.toothMode)recognized.push(`режим — ${fields.toothMode}`);
+  if(fields.teeth.length)recognized.push(`зубы — ${fields.teeth.join(', ')}`);
+  if(fields.jaw)recognized.push(`челюсть — ${fields.jaw==='upper'?'верхняя':'нижняя'}`);
+  if(selection.category)recognized.push(`работа — ${selection.category.name}${selection.option?` / ${selection.option.name}`:''}`);
+  if(fields.dueDate)recognized.push(`срок — ${displayDate(fields.dueDate)}`);
+  if(fields.shade)recognized.push(`цвет — ${fields.shade}`);
+  return [`Я сохранил указанную часть заказа.${recognized.length?`\nУже распознано: ${recognized.join('; ')}.`:''}`,'','Чтобы пройти все этапы, добавьте:',...options,'','Можно ответить одним текстовым или голосовым сообщением. Уже названные данные повторять не нужно.','Дата рождения, комментарий и файлы необязательны. Файлы можно добавить после принятия заказа главным техником.'].join('\n');
 }
 
 function buildPrompt(text,clinic,orders,snapshot,attachment=null){
   const orderList=orders.slice(0,60).map(order=>({id:order.id,patient:order.patient,work:order.work,material:order.material||'',teeth:order.teeth||[],due:order.date,status:orderStage(snapshot,order)}));
   const attachmentNote=attachment?.orderEligible?`\nК сообщению приложен файл: ${JSON.stringify(attachment.name)} (${attachment.kind==='photo'?'фото':'документ'}).`:'';
-  return `Сегодня ${moscowDate()}, часовой пояс Europe/Moscow.\nКлиника: ${clinic.name}; код подключения: ${clinic.telegramCode}.\nДействующие заказы клиники: ${JSON.stringify(orderList)}\n\nАктуальный каталог услуг и цены за единицу в рублях: ${JSON.stringify(catalogForPrompt())}\n\nСообщение клиента: ${JSON.stringify(text)}${attachmentNote}\n\nОпредели намерение и извлеки только прямо сообщенные данные. Верни только JSON без Markdown:\n{"intent":"create_order|update_order|cancel_order|status_request|accept_order|rework_order|general_message|clarify","confidence":0.0,"orderId":"","patientSurname":"","fields":{"patient":"","work":"","material":"","teeth":[],"toothMode":"Одиночка|Мост|Челюсть|","jaw":"upper|lower|","dueDate":"YYYY-MM-DD или пусто","shade":"","comment":"","reason":""},"summary":"краткое содержание","question":"вопрос при нехватке данных"}\n\nПравила:\n- Никогда не придумывай пациента, зубы, работу, материал, причину или номер заказа.\n- Сохраняй в fields.patient все названные части имени пациента без потерь: имя и фамилию, а также отчество, если оно прозвучало. Не сокращай полное имя до одной фамилии и не переставляй части имени без необходимости.\n- В patientSurname указывай только фамилию пациента в именительном падеже для поиска существующего заказа, например «Мамедову» — «Мамедов».\n- Для нового заказа обязательны минимум имя и фамилия. Если названа только одна часть имени, запроси недостающую часть и не разрешай создание заказа.\n- Для услуги из каталога укажи в fields.work точное название категории, а в fields.material точное название услуги. Не меняй формулировки каталога.\n- Если клиент использовал понятное сокращение или разговорное название, выбери соответствующую услугу из каталога только при однозначном соответствии. Иначе запроси уточнение.\n- Для изменения, отмены, статуса, приемки и доработки используй orderId, если он назван. Иначе используй фамилию.\n- Команда «загрузи», «добавь», «прикрепи» или «закинь» приложенный файл к пациенту/заказу означает update_order. Другие поля при этом оставь пустыми.\n- Если речь о новом заказе, intent=create_order. Для создания обязательны полное имя пациента, точная услуга из каталога и номера зубов либо явно указанная верхняя или нижняя челюсть.\n- Для всей верхней челюсти укажи toothMode=Челюсть и jaw=upper; для нижней jaw=lower.\n- Вопрос «что с заказом», «когда будет готов» означает status_request.\n- «Работу принимаю», «всё подходит» означает accept_order.\n- Просьба переделать или исправить означает rework_order, причину помести в fields.reason.\n- Обычное сообщение лаборатории без команды означает general_message.\n- Неопределенное намерение означает clarify.\n- Относительные даты преобразуй относительно сегодняшней даты.`;
+  return `Сегодня ${moscowDate()}, часовой пояс Europe/Moscow.\nКлиника: ${clinic.name}; код подключения: ${clinic.telegramCode}.\nДействующие заказы клиники: ${JSON.stringify(orderList)}\n\nАктуальный каталог услуг и цены за единицу в рублях: ${JSON.stringify(catalogForPrompt())}\n\nСообщение клиента: ${JSON.stringify(text)}${attachmentNote}\n\nОпредели намерение и извлеки только прямо сообщенные данные. Верни только JSON без Markdown:\n{"intent":"create_order|update_order|cancel_order|status_request|accept_order|rework_order|general_message|clarify","confidence":0.0,"orderId":"","patientSurname":"","fields":{"patient":"","birthDate":"YYYY-MM-DD или пусто","work":"","material":"","teeth":[],"toothMode":"Одиночка|Мост|Челюсть|","jaw":"upper|lower|","dueDate":"YYYY-MM-DD или пусто","shade":"","comment":"","reason":""},"summary":"краткое содержание","question":"вопрос при нехватке данных"}\n\nПравила:\n- Никогда не придумывай пациента, зубы, режим, работу, материал, цвет, срок, причину или номер заказа.\n- Сохраняй в fields.patient все названные части имени пациента без потерь: имя и фамилию, а также отчество, если оно прозвучало. Не сокращай полное имя до одной фамилии и не переставляй части имени без необходимости.\n- В patientSurname указывай только фамилию пациента в именительном падеже для поиска существующего заказа, например «Мамедову» — «Мамедов».\n- Для нового заказа обязательны минимум имя и фамилия. Если названа только одна часть имени, запроси недостающую часть и не разрешай создание заказа.\n- Дату рождения пациента помещай в birthDate только если её прямо назвали.\n- Для услуги из каталога укажи в fields.work точное название категории, а в fields.material точное название услуги. Не меняй формулировки каталога.\n- Если клиент использовал понятное сокращение или разговорное название, выбери соответствующую услугу из каталога только при однозначном соответствии. Иначе запроси уточнение.\n- Для изменения, отмены, статуса, приемки и доработки используй orderId, если он назван. Иначе используй фамилию.\n- Команда «загрузи», «добавь», «прикрепи» или «закинь» приложенный файл к пациенту/заказу означает update_order. Другие поля при этом оставь пустыми.\n- Если речь о новом заказе, intent=create_order. Для создания обязательны полное имя пациента, режим выбора, точная услуга из каталога, зубы или челюсть, срок и цвет либо явная фраза «цвет не требуется».\n- Не угадывай режим. Одиночка — отдельные единицы, Мост — связанная конструкция, Челюсть — вся верхняя или нижняя челюсть.\n- Для всей верхней челюсти укажи toothMode=Челюсть и jaw=upper; для нижней jaw=lower.\n- Фразу «стандартный срок» преобразуй в дату ${addDays(moscowDate(),14)}.\n- Вопрос «что с заказом», «когда будет готов» означает status_request.\n- «Работу принимаю», «всё подходит» означает accept_order.\n- Просьба переделать или исправить означает rework_order, причину помести в fields.reason.\n- Обычное сообщение лаборатории без команды означает general_message.\n- Неопределенное намерение означает clarify.\n- Относительные даты преобразуй относительно сегодняшней даты.`;
 }
 
 function actionLabel(intent){return ({create_order:'Создать заказ',update_order:'Изменить заказ',cancel_order:'Отменить заказ',accept_order:'Принять работу',rework_order:'Отправить на доработку'})[intent]||'Выполнить действие'}
@@ -247,6 +302,7 @@ function summaryLines(analysis,order,clinic){
   const lines=[actionLabel(analysis.intent),`Клиника: ${clinic.name}`];
   if(order)lines.push(`Заказ: ${order.id}`,`Пациент: ${order.patient}`);
   else if(fields.patient||analysis.patientSurname)lines.push(`Пациент: ${fields.patient||analysis.patientSurname}`);
+  if(fields.birthDate)lines.push(`Дата рождения: ${displayDate(fields.birthDate)}`);
   if(fields.work)lines.push(`Работа: ${fields.work}`);
   if(fields.material)lines.push(`Исполнение: ${fields.material}`);
   if(fields.teeth.length)lines.push(`Зубы: ${fields.teeth.join(', ')}`);
@@ -358,8 +414,8 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     if(!orderId)return;
     state.contexts[contextKey(chatId,userId)]={clinicId,orderId,expiresAt:Date.now()+2*60*60*1000};
   }
-  function rememberGuidedAction(chatId,userId,clinicId,orderId,mode){
-    state.guided[contextKey(chatId,userId)]={clinicId,orderId,mode,expiresAt:Date.now()+30*60*1000};
+  function rememberGuidedAction(chatId,userId,clinicId,orderId,mode,extra={}){
+    state.guided[contextKey(chatId,userId)]={clinicId,orderId,mode,...extra,expiresAt:Date.now()+30*60*1000};
   }
   function currentGuidedAction(chatId,userId,clinicId){
     const key=contextKey(chatId,userId),item=state.guided[key];
@@ -483,6 +539,13 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       const estimate=priceEstimate(item.analysis,order);
       lines.push('',`Предварительная стоимость: ${estimate.text}${estimate.amount!==null?` (${rubles(estimate.price)} × ${estimate.units} ед.)`:''}`,'Итоговую стоимость лаборатория подтвердит после проверки заказа.');
     }
+    if(item.analysis.intent==='create_order'){
+      const optional=[];
+      if(!item.analysis.fields.birthDate)optional.push('дата рождения');
+      if(!item.analysis.fields.comment)optional.push('комментарий');
+      if(!attachmentList(item).length)optional.push('файлы');
+      if(optional.length)lines.push('',`Не указано, но необязательно: ${optional.join(', ')}.`);
+    }
     const files=attachmentList(item);
     if(files.length)lines.push('',`Файлы (${files.length}):`,...files.map(file=>`• ${file.name}`));
     lines.push('',`Запросил: ${item.actor}`,'Выполнить это действие в CRM?');
@@ -503,8 +566,11 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     if(analysis.intent==='clarify')return send(message.chat.id,analysis.question||'Уточните, пожалуйста, что нужно сделать с заказом.');
     if(analysis.intent==='create_order'){
       const missing=missingCreateFields(analysis);
-      if(missing.length)return send(message.chat.id,`Чтобы создать заказ, уточните: ${missing.join(', ')}.`);
-      if(!analysis.fields.dueDate)analysis.fields.dueDate=addDays(moscowDate(),14);
+      if(missing.length){
+        rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:analysis});
+        await saveState();
+        return send(message.chat.id,createOrderMissingPrompt(analysis));
+      }
     }
     if(analysis.intent==='update_order'&&analysis.fields.work){
       const selection=resolveWorkSelection(analysis.fields.work,analysis.fields.material);
@@ -553,9 +619,9 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     if(analysis.intent==='create_order'){
       const fields=analysis.fields,teeth=safeTeeth(fields.teeth),id=item.targetOrderId||orderId();
       if(snapshot.orders.some(order=>order.id===id))return `Заказ ${id} уже был создан ранее.${await attach(id)}`;
-      const selectedTeeth=fields.toothMode==='Челюсть'&&!teeth.length?(fields.jaw==='lower'?lowerTeeth:upperTeeth):teeth;
+      const selectedTeeth=fields.toothMode==='Челюсть'?(fields.jaw==='lower'?lowerTeeth:upperTeeth):teeth;
       const estimate=priceEstimate(analysis);
-      const order={id,patient:fields.patient,work:estimate.category?.name||fields.work,material:estimate.option?.name||fields.material||'',toothMode:fields.toothMode||'Одиночка',bridgeRanges:[],quantity:estimate.units,date:displayDate(fields.dueDate||addDays(moscowDate(),14)),status:'Новый',sum:estimate.text,image:'tooth.png',clinicId:clinic.id,clinic:clinic.name,teeth:selectedTeeth,shade:fields.shade||'',comment:fields.comment||'',createdAt:new Date().toISOString(),source:'telegram',telegramDraft:true,telegramRequestedBy:item.actor,telegramConfirmedBy:callbackUser||item.actor,telegramActionId:item.id};
+      const order={id,patient:fields.patient,birth:fields.birthDate||'',work:estimate.category?.name||fields.work,material:estimate.option?.name||fields.material||'',toothMode:fields.toothMode,bridgeRanges:fields.toothMode==='Мост'?[selectedTeeth]:[],quantity:estimate.units,date:displayDate(fields.dueDate),status:'Новый',sum:estimate.text,image:'tooth.png',clinicId:clinic.id,clinic:clinic.name,teeth:selectedTeeth,shade:fields.shade,comment:fields.comment||'',createdAt:new Date().toISOString(),source:'telegram',telegramDraft:true,telegramRequestedBy:item.actor,telegramConfirmedBy:callbackUser||item.actor,telegramActionId:item.id};
       await replacePortalCollection('orders',[order,...snapshot.orders],actor);
       const fresh=portalSnapshot();
       await replacePortalCollection('orderOverrides',{...fresh.orderOverrides,[id]:{stage:'Черновик из Telegram'}},actor);
@@ -621,7 +687,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         return sendOrderPicker(callback.message.chat.id,clinic,id);
       }
       if(id==='human'){await answerCallback(callback.id,'Позвал человека');return send(callback.message.chat.id,'@CreateDental_io, вас зовут в этот чат.')}
-      const prompts={new:'Опишите заказ: имя и фамилия пациента (отчество, если есть), работа, зубы, материал и желаемый срок.'};
+      const prompts={new:'Опишите заказ одним текстовым или голосовым сообщением:\n\n1. Фамилия и имя пациента; отчество, если есть.\n2. Режим: одиночка, мост или челюсть.\n3. Номера зубов либо верхняя/нижняя челюсть.\n4. Точная услуга из прайса.\n5. Желаемый срок.\n6. Цвет или «не требуется».\n\nДата рождения, комментарий и файлы необязательны. Если чего-то не хватит, я сохраню названные данные и подскажу варианты.'};
       if(id==='new'){rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,'','new');await saveState()}
       await answerCallback(callback.id,'Готово');
       return send(callback.message.chat.id,prompts[id]||'Опишите, что нужно сделать с заказом.');
@@ -723,7 +789,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     const activeGuided=currentGuidedAction(message.chat.id,message.from?.id,clinic.id);
     if(menuInvocation)return sendMenu(message.chat.id);
     if(quickCommand){
-      if(quickCommand==='new'){rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new');await saveState();return send(message.chat.id,'Опишите заказ: имя и фамилия пациента (отчество, если есть), работа, зубы, материал и желаемый срок.')}
+      if(quickCommand==='new'){rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new');await saveState();return send(message.chat.id,'Опишите заказ одним текстовым или голосовым сообщением:\n\n1. Фамилия и имя пациента; отчество, если есть.\n2. Режим: одиночка, мост или челюсть.\n3. Номера зубов либо верхняя/нижняя челюсть.\n4. Точная услуга из прайса.\n5. Желаемый срок.\n6. Цвет или «не требуется».\n\nДата рождения, комментарий и файлы необязательны. Если чего-то не хватит, я сохраню названные данные и подскажу варианты.')}
       if(quickCommand==='human')return send(message.chat.id,'@CreateDental_io, вас зовут в этот чат.');
       return sendOrderPicker(message.chat.id,clinic,quickCommand);
     }
@@ -788,8 +854,15 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       }
     }
     const context=currentContext(message.chat.id,message.from?.id,clinic.id);
-    try{const analysis=await analyze(sourceText,clinic,attachment,guided?.orderId||context?.orderId||'');await propose(message,clinic,analysis,attachment)}
-    catch(error){health.lastErrorAt=new Date().toISOString();health.lastError=cleanText(error.message,300);console.error('Telegram analysis failed:',error.message);await send(message.chat.id,'Не удалось автоматически разобрать запрос. Укажите фамилию пациента и действие ещё раз или нажмите «Позвать человека» в меню.');}
+    try{
+      let analysis=await analyze(sourceText,clinic,attachment,guided?.orderId||context?.orderId||'');
+      if(guided?.mode==='new')analysis=mergeCreateAnalysis(guided.draftAnalysis,analysis);
+      await propose(message,clinic,analysis,attachment);
+    }
+    catch(error){
+      if(guided?.mode==='new'){rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:guided.draftAnalysis});await saveState().catch(()=>{})}
+      health.lastErrorAt=new Date().toISOString();health.lastError=cleanText(error.message,300);console.error('Telegram analysis failed:',error.message);await send(message.chat.id,'Не удалось автоматически разобрать запрос. Отправьте недостающие данные ещё раз или нажмите «Позвать человека» в меню.');
+    }
   }
 
   async function handleUpdate(update){if(update.callback_query)return handleCallback(update.callback_query);if(update.edited_message)return handleMessage({...update.edited_message,_edited:true});if(update.message)return handleMessage(update.message)}
@@ -871,4 +944,4 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   return {start,stop,status,reloadSecrets,sendClinicMessage,sendAutomatedMessage,notifyOrderStage,approveBinding,rejectBinding,unbindClinic};
 }
 
-export const telegramInternals={codeFromText,parseJson,normalizeAnalysis,canonicalizeCatalogSelection,priceEstimate,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,hasFullPatientName,missingCreateFields,displayDate,isoDateFromDisplay,orderCanReceiveFiles,orderPickerLabel};
+export const telegramInternals={codeFromText,parseJson,normalizeAnalysis,canonicalizeCatalogSelection,priceEstimate,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,hasFullPatientName,missingCreateFields,mergeCreateAnalysis,createOrderMissingPrompt,displayDate,isoDateFromDisplay,orderCanReceiveFiles,orderPickerLabel};

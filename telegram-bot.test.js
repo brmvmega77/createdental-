@@ -32,24 +32,44 @@ test('normalizes model output and rejects invalid tooth numbers',()=>{
 
 test('requires the minimum safe fields before proposing a new order',()=>{
   const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'',teeth:[]}});
-  assert.deepEqual(telegramInternals.missingCreateFields(analysis),['вид работы','номер зуба или верхнюю/нижнюю челюсть']);
+  assert.deepEqual(telegramInternals.missingCreateFields(analysis),['режим: одиночка, мост или челюсть','номер зуба или номера зубов','вид работы из прайса','желаемый срок готовности','цвет/оттенок или «не требуется»']);
 });
 
 test('does not allow creating an order with only one part of the patient name',()=>{
   const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',patientSurname:'Петров',fields:{patient:'Петров',work:'Вкладки',material:'Вкладка культевая',teeth:[11]}});
-  assert.deepEqual(telegramInternals.missingCreateFields(analysis),['имя и фамилию пациента']);
+  assert.deepEqual(telegramInternals.missingCreateFields(analysis),['имя и фамилию пациента','режим: одиночка, мост или челюсть','желаемый срок готовности','цвет/оттенок или «не требуется»']);
 });
 
 test('preserves the full patient name including patronymic',()=>{
-  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',patientSurname:'Петров',fields:{patient:'Пётр Сергеевич Петров',work:'Вкладки',material:'Вкладка культевая',teeth:[11]}});
+  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',patientSurname:'Петров',fields:{patient:'Пётр Сергеевич Петров',work:'Вкладки',material:'Вкладка культевая',teeth:[11],toothMode:'Одиночка',dueDate:'2026-10-20',shade:'A2'}});
   assert.equal(analysis.fields.patient,'Пётр Сергеевич Петров');
   assert.equal(analysis.patientSurname,'Петров');
   assert.deepEqual(telegramInternals.missingCreateFields(analysis),[]);
 });
 
 test('requires an exact priced service when only a catalog category is given',()=>{
-  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'Реставрации',teeth:[11]}});
+  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'Реставрации',teeth:[11],toothMode:'Одиночка',dueDate:'2026-10-20',shade:'A2'}});
   assert.deepEqual(telegramInternals.missingCreateFields(analysis),['точное название услуги из прайса']);
+});
+
+test('keeps recognized order data while collecting a follow-up message',()=>{
+  const first=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр Сергеевич',teeth:[11,21],toothMode:'Одиночка'}});
+  const second=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{work:'Реставрации',material:'Коронка E.max, ZrO2',dueDate:'2026-10-20',shade:'A2'}});
+  const merged=telegramInternals.mergeCreateAnalysis(first,second);
+  assert.equal(merged.fields.patient,'Петров Пётр Сергеевич');
+  assert.deepEqual(merged.fields.teeth,[11,21]);
+  assert.equal(merged.fields.material,'Коронка E.max, ZrO2');
+  assert.deepEqual(telegramInternals.missingCreateFields(merged),[]);
+});
+
+test('explains missing stages and provides valid choices',()=>{
+  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'Реставрации'}});
+  const prompt=telegramInternals.createOrderMissingPrompt(analysis);
+  assert.match(prompt,/Одиночка.*Мост.*Челюсть/);
+  assert.match(prompt,/PMMA коронка CAD\/CAM/);
+  assert.match(prompt,/Желаемый срок|Срок:/i);
+  assert.match(prompt,/A1 \/ A2/);
+  assert.match(prompt,/Уже названные данные повторять не нужно/);
 });
 
 test('canonicalizes a catalog service and estimates the Telegram order price',()=>{
