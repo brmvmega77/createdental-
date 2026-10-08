@@ -24,9 +24,10 @@ write_secret .data/telegram-bot-token 'Токен Telegram-бота'
 write_secret .data/yandex-speechkit-api-key 'API-ключ SpeechKit'
 write_secret .data/yandex-gpt-api-key 'API-ключ YandexGPT'
 write_secret .data/yandex-folder-id 'ID каталога Yandex Cloud'
+write_secret .data/yandex-disk-token 'OAuth-токен Яндекс Диска'
 
 chmod 700 .data
-chmod 600 .data/telegram-bot-token .data/yandex-speechkit-api-key .data/yandex-gpt-api-key .data/yandex-folder-id
+chmod 600 .data/telegram-bot-token .data/yandex-speechkit-api-key .data/yandex-gpt-api-key .data/yandex-folder-id .data/yandex-disk-token
 
 if [[ "$(id -u)" == '0' ]]; then
   chown -R 1000:1000 .data

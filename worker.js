@@ -1,5 +1,5 @@
-import {loadEmployees,seedDetails,stages} from './technician.js?v=dashboard-layout-4';
-import {savePortal,authRequest,loadOrderFiles,uploadOrderFile,downloadOrderFile} from './portal-client.js?v=mobile-fast-4';
+import {loadEmployees,seedDetails,stages} from './technician.js?v=disk-upload-1';
+import {savePortal,authRequest,loadOrderFiles,uploadOrderFile,downloadOrderFile} from './portal-client.js?v=disk-upload-1';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=mobile-fast-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=dashboard-layout-4';
 
@@ -177,8 +177,8 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   document.addEventListener('change',event=>{
     if(!isActive())return;
     if(event.target.id==='worker-result-photo'){
-      const order=myOrders().find(item=>item.id===state.orderId),selected=Array.from(event.target.files||[]),files=selected.filter(file=>/\.(jpg|jpeg|png)$/i.test(file.name)&&file.size<=50*1024*1024);
-      if(selected.length!==files.length)toast('Выберите фото JPG или PNG до 50 МБ.');
+      const order=myOrders().find(item=>item.id===state.orderId),selected=Array.from(event.target.files||[]),files=selected.filter(file=>/\.(jpg|jpeg|png)$/i.test(file.name)&&file.size<=200*1024*1024);
+      if(selected.length!==files.length)toast('Выберите фото JPG или PNG до 200 МБ.');
       if(!order||!files.length){event.target.value='';return}
       (async()=>{try{for(const file of files)await uploadOrderFile(order.id,file,{purpose:'result-photo'});const result=await loadOrderFiles(order.id);state.orderFiles=result.files||[];toast('Фото результата прикреплено к заказу');render()}catch(error){toast(error.message)}})();event.target.value='';return;
     }
