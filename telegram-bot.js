@@ -454,8 +454,11 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     if(files.length)lines.push('',`Файлы (${files.length}):`,...files.map(file=>`• ${file.name}`));
     lines.push('',`Запросил: ${item.actor}`,'Выполнить это действие в CRM?');
     const buttons=[[{text:'✅ Подтвердить',callback_data:`tgconfirm:${item.id}`},{text:'✏️ Редактировать',callback_data:`tgedit:${item.id}`}]];
-    if(item.analysis.intent!=='create_order')buttons.push([{text:'🔄 Выбрать другой заказ',callback_data:`tgreselect:${item.id}`}]);
-    buttons.push([{text:'❌ Отменить',callback_data:`tgreject:${item.id}`}]);
+    if(item.analysis.intent!=='create_order'){
+      buttons.push([{text:'🔄 Другой заказ',callback_data:`tgreselect:${item.id}`},{text:'❌ Отменить',callback_data:`tgreject:${item.id}`}]);
+    }else{
+      buttons.push([{text:'❌ Отменить',callback_data:`tgreject:${item.id}`}]);
+    }
     return send(item.chatId,lines.join('\n'),{reply_markup:{inline_keyboard:buttons}});
   }
 
