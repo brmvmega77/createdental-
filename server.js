@@ -263,10 +263,10 @@ function validateUploadDescription({name,size,type,purpose='order-file'}){
   return {name:safeName,size:bytes,type:storedType,ext,purpose};
 }
 function uploadOwner(user){return `${user.role}:${user.subjectId}`}
-function newDiskPath({clinicId,orderId,target,name,purpose}){
+function newDiskPath({orderId,name}){
+  if(!orderId)throw new Error('Для загрузки на Яндекс Диск нужен ID заказа');
   const day=new Date().toISOString().slice(0,10),unique=randomBytes(8).toString('hex');
-  const folder=target==='message'?`_Входящие/${safeDiskSegment(clinicId)}`:safeDiskSegment(orderId);
-  return `/Клиенты/${folder}/${day}-${unique}-${name}`;
+  return `/Клиенты/${safeDiskSegment(orderId)}/${day}-${unique}-${name}`;
 }
 function publicUploadRecord(record){
   const {diskPath,storage,clinicId,...visible}=record;
@@ -297,7 +297,7 @@ async function completeDiskUpload(item,uploadedBy){
 }
 async function beginDiskUpload(item){
   const token=readIntegrationSecret('yandexDiskToken');
-  if(!token)return {mode:'local'};
+  if(!token||item.target==='message')return {mode:'local'};
   const diskPath=newDiskPath(item),upload=await createDiskUpload(token,diskPath),id=randomBytes(18).toString('hex');
   diskUploadSessions.set(id,{...item,id,diskPath,createdAt:Date.now(),expiresAt:Date.now()+uploadSessionLifetime});
   return {mode:'direct',uploadId:id,href:upload.href,method:upload.method,expiresAt:new Date(Date.now()+uploadSessionLifetime).toISOString()};
@@ -612,16 +612,9 @@ async function saveTelegramAttachment(clinicId,{name,type,data,previewData,kind=
   const usedBytes=clinicFiles.reduce((total,file)=>total+(Number(file.size)||0),0);
   if(clinicFiles.length>=1000||usedBytes+data.length>2*1024*1024*1024)throw new Error('Достигнут лимит файлов клиники');
   const id=randomBytes(18).toString('hex');
-  const diskToken=readIntegrationSecret('yandexDiskToken'),diskPath=diskToken?newDiskPath({clinicId,target:'message',name:safeName,purpose:'message-file'}):'';
-  if(diskToken){
-    const upload=await createDiskUpload(diskToken,diskPath),response=await fetch(upload.href,{method:upload.method||'PUT',headers:{'Content-Type':storedType},body:data,signal:AbortSignal.timeout(60000)});
-    if(!response.ok)throw new Error('Яндекс Диск не принял файл из Telegram');
-    const metadata=await diskMetadata(diskToken,diskPath);if(Number(metadata.size)!==data.length)throw new Error('Размер файла на Яндекс Диске не совпадает');
-  }else{
-    await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
-    await fs.promises.writeFile(path.join(clinicMessageUploadDir,id),data,{flag:'wx',mode:0o600});
-  }
-  const record={id,clinicId,name:safeName,size:data.length,type:storedType,uploadedAt:new Date().toISOString(),uploadedBy:`Telegram · ${String(sender||'Клиент').slice(0,120)}`,kind:kind==='photo'?'photo':'document',orderEligible:Boolean(orderEligible),...(diskPath?{storage:'yandex-disk',diskPath}:{})};
+  await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
+  await fs.promises.writeFile(path.join(clinicMessageUploadDir,id),data,{flag:'wx',mode:0o600});
+  const record={id,clinicId,name:safeName,size:data.length,type:storedType,uploadedAt:new Date().toISOString(),uploadedBy:`Telegram · ${String(sender||'Клиент').slice(0,120)}`,kind:kind==='photo'?'photo':'document',orderEligible:Boolean(orderEligible)};
   clinicMessageFiles[id]=record;await saveClinicMessageFiles();
   const preview=Buffer.isBuffer(previewData)&&previewData.length&&previewData.length<=350*1024?`data:image/jpeg;base64,${previewData.toString('base64')}`:'';
   return {id,name:record.name,size:record.size,type:record.type,preview,kind:record.kind,orderEligible:record.orderEligible};
@@ -653,8 +646,18 @@ async function attachTelegramFileToOrder(orderId,clinicId,attachment,telegramAct
   }
   else{
     const data=await fs.promises.readFile(path.join(clinicMessageUploadDir,source.id));
-    await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
-    await fs.promises.writeFile(path.join(uploadDir,id),data,{flag:'wx',mode:0o600});
+    const token=readIntegrationSecret('yandexDiskToken');
+    if(token){
+      const diskPath=newDiskPath({orderId,name:source.name}),upload=await createDiskUpload(token,diskPath);
+      const response=await fetch(upload.href,{method:upload.method||'PUT',headers:{'Content-Type':source.type},body:data,signal:AbortSignal.timeout(60000)});
+      if(!response.ok)throw new Error('Яндекс Диск не принял файл из Telegram');
+      const metadata=await diskMetadata(token,diskPath);
+      if(Number(metadata.size)!==data.length)throw new Error('Размер файла на Яндекс Диске не совпадает');
+      storageFields={storage:'yandex-disk',diskPath};
+    }else{
+      await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
+      await fs.promises.writeFile(path.join(uploadDir,id),data,{flag:'wx',mode:0o600});
+    }
   }
   const record={id,name:source.name,size:source.size,type:source.type,uploadedAt:new Date().toISOString(),uploadedBy:source.uploadedBy||'Telegram',purpose:'order-file',source:'telegram',sourceAttachmentId:source.id,telegramActionId,...storageFields};
   orderFiles[orderId]=[...(orderFiles[orderId]||[]),record];await persistOrderFiles();
