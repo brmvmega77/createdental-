@@ -395,6 +395,25 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     }finally{await fs.promises.rm(directory,{recursive:true,force:true}).catch(()=>{})}
   }
 
+  async function downloadTelegramFile(fileId,maxBytes=20*1024*1024){
+    const file=await api('getFile',{file_id:fileId});
+    if(Number(file.file_size)>maxBytes)throw new Error('Файл превышает допустимый размер');
+    const response=await telegramFetch(`https://api.telegram.org/file/bot${token}/${file.file_path}`,{signal:AbortSignal.timeout(30000)});
+    if(!response.ok)throw new Error('Не удалось скачать файл из Telegram');
+    const data=Buffer.from(await response.arrayBuffer());
+    if(data.length>maxBytes)throw new Error('Файл превышает допустимый размер');
+    return data;
+  }
+
+  async function saveTelegramPhoto(clinicId,media,message){
+    const data=await downloadTelegramFile(media.fileId);
+    let previewData=data.length<=350*1024?data:null;
+    if(media.previewFileId&&media.previewFileId!==media.fileId){
+      previewData=await downloadTelegramFile(media.previewFileId,350*1024).catch(()=>previewData);
+    }
+    return saveTelegramAttachment(clinicId,{name:media.name,type:media.type,data,previewData,kind:'photo',orderEligible:false,sender:actorName(message)});
+  }
+
   async function analyze(text,clinic,attachment=null,contextOrderId=''){
     const snapshot=portalSnapshot(),orders=activeOrdersForClinic(snapshot,clinic.id);
     const directAttachmentAction=attachmentCommandAnalysis(text,attachment,clinic.id,snapshot,normalizeAnalysis({intent:'general_message',fields:{}}),contextOrderId);
@@ -681,8 +700,14 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     if(directMedia){
       const messageRole=supportMessage?'support':'client';
       const senderLabel=messageRole==='support'?supportLabel(message.from.username):'';
-      const mediaText=text||(directMedia.kind==='photo'?'Фото':`Документ: ${directMedia.name}`);
-      await onClinicMessage(clinic.id,{text:mediaText,attachment:null,sender:actorName(message),senderUsername:message.from?.username||'',senderLabel,telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole}).catch(()=>{});
+      const mediaText=directMedia.kind==='photo'?(text||'Фото'):[text,`Документ: ${directMedia.name}`].filter(Boolean).join('\n');
+      let storedAttachment=null;
+      if(directMedia.kind==='photo'){
+        try{storedAttachment=await saveTelegramPhoto(clinic.id,directMedia,message)}
+        catch(error){console.error('Telegram photo storage failed:',error.message)}
+      }
+      await onClinicMessage(clinic.id,{text:mediaText,attachment:storedAttachment,sender:actorName(message),senderUsername:message.from?.username||'',senderLabel,telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole}).catch(()=>{});
+      if(directMedia.kind==='document')return send(message.chat.id,'Чтобы прикрепить файл к заказу, откройте /menu, нажмите «📎 Загрузить файл» и выберите нужный заказ.');
       return;
     }
     const attachment=null;
@@ -699,7 +724,11 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       return sendOrderPicker(message.chat.id,clinic,quickCommand);
     }
     if(!activeGuided){
-      const passiveText=text||(message.voice||message.audio?'Голосовое сообщение':'');
+      let passiveText=text;
+      if(message.voice||message.audio){
+        try{passiveText=`Расшифровка аудио: ${await transcribeVoice(message)}`}
+        catch(error){passiveText='Расшифровка аудио: не удалось распознать сообщение';console.error('Telegram passive transcription failed:',error.message)}
+      }
       if(passiveText)await onClinicMessage(clinic.id,{text:passiveText,attachment:null,sender:actorName(message),senderUsername:message.from?.username||'',senderLabel:supportMessage?supportLabel(message.from?.username):'',telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:supportMessage?'support':'client'}).catch(()=>{});
       return;
     }
@@ -710,7 +739,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     }
     if(!sourceText&&!attachment)return;
     const chatText=sourceText||(attachment?.kind==='photo'?'Фото':`Документ: ${attachment?.name||''}`);
-    await onClinicMessage(clinic.id,{text:message.voice||message.audio?`Голосовое сообщение: ${sourceText}`:chatText,attachment,sender:actorName(message),senderUsername:message.from?.username||'',senderLabel:supportMessage?supportLabel(message.from?.username):'',telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:supportMessage?'support':'client'}).catch(()=>{});
+    await onClinicMessage(clinic.id,{text:message.voice||message.audio?`Расшифровка аудио: ${sourceText}`:chatText,attachment,sender:actorName(message),senderUsername:message.from?.username||'',senderLabel:supportMessage?supportLabel(message.from?.username):'',telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:supportMessage?'support':'client'}).catch(()=>{});
     if(message._edited)return;
     if(!sourceText&&attachment?.orderEligible){
       const pending=Object.values(state.pending).filter(item=>item.chatId===String(message.chat.id)&&item.userId===String(message.from?.id||'')&&item.expiresAt>Date.now()&&['create_order','update_order','cancel_order'].includes(item.analysis?.intent)).sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt))).at(-1);
