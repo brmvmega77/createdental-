@@ -15,8 +15,47 @@ const upperTeeth=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
 const lowerTeeth=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
 const validTeeth=new Set([...upperTeeth,...lowerTeeth]);
 const allowedIntents=new Set(['create_order','update_order','cancel_order','status_request','accept_order','rework_order','general_message','clarify']);
+const welcomeText=`👋 Добро пожаловать в чат Create Dental!
+
+Здесь можно общаться с лабораторией и управлять заказами. Упоминать бота не нужно: просто напишите или отправьте голосовое сообщение.
+
+➕ Новый заказ
+Укажите пациента, вид работы, номера зубов, материал, цвет и срок.
+Пример: «Новый заказ. Иванов Сергей. Коронки из циркония на 11 и 21, цвет A2. Срок — 20 октября».
+
+🔎 Статус заказа
+Пример: «Какой статус заказа Иванова?»
+
+📅 Изменить заказ
+Пример: «Перенеси срок заказа Иванова на 25 октября».
+
+📎 Добавить файл
+Отправьте фото или документ с подписью: «Прикрепи к заказу Иванова».
+
+❌ Отменить заказ
+Пример: «Отмени заказ Иванова. Пациент перенёс лечение».
+
+✅ Принять работу
+Пример: «Работу по Иванову принимаю».
+
+🔄 Отправить на доработку
+Пример: «Заказ Иванова на доработку. Исправить контакт на 11 зубе».
+
+🎤 Голосовые сообщения
+Назовите фамилию пациента, действие, зубы, материал, цвет и срок. Длительность — до 5 минут.
+
+Перед любым изменением CRM бот покажет краткое содержание. Проверьте его и нажмите «✅ Подтвердить». Если есть ошибка, нажмите «❌ Отменить» и отправьте исправленный запрос.
+
+Команда /menu в любой момент покажет кнопки функций.`;
 
 function cleanText(value,max=4000){return String(value||'').replace(/[<>]/g,'').trim().slice(0,max)}
+function messageAddsBot(message,botIdentity={}){
+  const expectedId=String(botIdentity.id||'');
+  const expectedUsername=normalizedUsername(botIdentity.username);
+  return (Array.isArray(message?.new_chat_members)?message.new_chat_members:[]).some(member=>member?.is_bot&&(
+    (expectedId&&String(member.id)===expectedId)||(expectedUsername&&normalizedUsername(member.username)===expectedUsername)
+  ));
+}
 function codeFromText(value){return String(value||'').toUpperCase().match(telegramCodePattern)?.[0]||''}
 function safeTeeth(value){return [...new Set((Array.isArray(value)?value:[]).map(Number).filter(number=>validTeeth.has(number)))].sort((a,b)=>a-b)}
 function moscowDate(){
@@ -202,6 +241,7 @@ async function readSecret(name){
 
 export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=async()=>{},saveTelegramAttachment=async()=>null,attachOrderFile=async()=>null,loadClinicAttachment=async()=>null}={}){
   let token='',speechKey='',gptKey='',folderId='';
+  let botIdentity={};
   let stopped=false,polling=false,state={offset:0,bindings:{},bindingRequests:{},pending:{},completed:{},contexts:{},messageActions:{},inbox:{}};
   const health={startedAt:'',lastUpdateAt:'',lastTelegramSuccessAt:'',lastYandexSuccessAt:'',lastErrorAt:'',lastError:'',processedUpdates:0};
   const stateFile=process.env.TELEGRAM_STATE_FILE||path.join(process.cwd(),'.data','telegram-bot.json');
@@ -242,6 +282,18 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     return result;
   }
   async function answerCallback(id,text){return api('answerCallbackQuery',{callback_query_id:id,text,show_alert:false})}
+  function quickMenuMarkup(){
+    return {inline_keyboard:[[{text:'➕ Новый заказ',callback_data:'tgquick:new'},{text:'🔎 Статус заказа',callback_data:'tgquick:status'}],[{text:'📎 Добавить файл',callback_data:'tgquick:file'},{text:'📅 Изменить срок',callback_data:'tgquick:due'}],[{text:'❌ Отменить заказ',callback_data:'tgquick:cancel'},{text:'👤 Главный техник',callback_data:'tgquick:human'}]]};
+  }
+  async function sendPinnedWelcome(chatId){
+    const message=await send(chatId,welcomeText,{reply_markup:quickMenuMarkup()},false);
+    try{await api('pinChatMessage',{chat_id:chatId,message_id:message.message_id,disable_notification:true})}
+    catch(error){
+      await send(chatId,'Чтобы закрепить инструкцию для всех участников, выдайте боту права администратора на закрепление сообщений.',{},false).catch(()=>{});
+      console.error('Telegram welcome pin failed:',error.message);
+    }
+    return message;
+  }
   function contextKey(chatId,userId){return `${chatId}:${userId}`}
   function currentContext(chatId,userId,clinicId){
     const key=contextKey(chatId,userId),item=state.contexts[key];
@@ -507,11 +559,13 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   }
 
   async function sendMenu(chatId){
-    return send(chatId,'Что нужно сделать?',{reply_markup:{inline_keyboard:[[{text:'➕ Новый заказ',callback_data:'tgquick:new'},{text:'🔎 Статус заказа',callback_data:'tgquick:status'}],[{text:'📎 Добавить файл',callback_data:'tgquick:file'},{text:'📅 Изменить срок',callback_data:'tgquick:due'}],[{text:'❌ Отменить заказ',callback_data:'tgquick:cancel'},{text:'👤 Главный техник',callback_data:'tgquick:human'}]]}});
+    return send(chatId,'Что нужно сделать?',{reply_markup:quickMenuMarkup()});
   }
 
   async function handleMessage(message){
-    if(!message||message.from?.is_bot)return;
+    if(!message)return;
+    if(messageAddsBot(message,botIdentity))await sendPinnedWelcome(message.chat.id);
+    if(message.from?.is_bot)return;
     const text=cleanText(message.text||message.caption,6000);
     const command=text.split(/\s+/)[0]?.toLowerCase();
     let clinic=boundClinicForMessage(message);
@@ -577,7 +631,10 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     [token,speechKey,gptKey,folderId]=await Promise.all([readSecret('TELEGRAM_BOT_TOKEN'),readSecret('YANDEX_SPEECHKIT_API_KEY'),readSecret('YANDEX_GPT_API_KEY'),readSecret('YANDEX_FOLDER_ID')]);
     const configured={telegramBot:Boolean(token),speechKit:Boolean(speechKey),yandexGpt:Boolean(gptKey),folderId:Boolean(folderId)};
     const ready=Object.values(configured).every(Boolean);
-    if(ready&&!polling&&!stopped)void poll();
+    if(ready){
+      botIdentity=await api('getMe');
+      if(!polling&&!stopped)void poll();
+    }
     return {...configured,ready,enabled:ready&&!stopped};
   }
   async function start(){
@@ -623,4 +680,4 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   return {start,stop,status,reloadSecrets,sendClinicMessage,sendAutomatedMessage,notifyOrderStage,approveBinding,rejectBinding,unbindClinic};
 }
 
-export const telegramInternals={codeFromText,parseJson,normalizeAnalysis,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,missingCreateFields:(analysis)=>{const missing=[];if(!(analysis.fields.patient||analysis.patientSurname))missing.push('фамилия пациента');if(!analysis.fields.work)missing.push('вид работы');if(!analysis.fields.teeth.length&&!(analysis.fields.toothMode==='Челюсть'&&analysis.fields.jaw))missing.push('номер зуба или верхнюю/нижнюю челюсть');return missing},displayDate,isoDateFromDisplay};
+export const telegramInternals={codeFromText,parseJson,normalizeAnalysis,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,missingCreateFields:(analysis)=>{const missing=[];if(!(analysis.fields.patient||analysis.patientSurname))missing.push('фамилия пациента');if(!analysis.fields.work)missing.push('вид работы');if(!analysis.fields.teeth.length&&!(analysis.fields.toothMode==='Челюсть'&&analysis.fields.jaw))missing.push('номер зуба или верхнюю/нижнюю челюсть');return missing},displayDate,isoDateFromDisplay};

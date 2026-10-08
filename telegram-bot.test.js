@@ -86,3 +86,14 @@ test('uses the recent order context for another attachment',()=>{
 test('repairs a harmless trailing comma in the model JSON',()=>{
   assert.deepEqual(telegramInternals.parseJson('```json\n{"intent":"status_request",}\n```'),{intent:'status_request'});
 });
+
+test('detects when this bot is added to a group',()=>{
+  const message={new_chat_members:[{id:10,is_bot:false,username:'doctor'},{id:20,is_bot:true,username:'createdental_helper_bot'}]};
+  assert.equal(telegramInternals.messageAddsBot(message,{id:20,username:'createdental_helper_bot'}),true);
+  assert.equal(telegramInternals.messageAddsBot(message,{id:30,username:'another_bot'}),false);
+});
+
+test('keeps the welcome guide within the Telegram message limit',()=>{
+  assert.ok(telegramInternals.welcomeText.includes('/menu'));
+  assert.ok(telegramInternals.welcomeText.length<4096);
+});
