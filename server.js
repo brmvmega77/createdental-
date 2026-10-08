@@ -7,7 +7,7 @@ import {createDataBackup} from './backup-data.js';
 import {portalSnapshot,replacePortalCollection,recordPortalEvent,portalClient,portalEmployee} from './portal-data.js';
 import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
 import {createTelegramBridge} from './telegram-bot.js';
-import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder} from './yandex-disk-storage.js';
+import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource} from './yandex-disk-storage.js';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
@@ -265,8 +265,8 @@ function validateUploadDescription({name,size,type,purpose='order-file'}){
 function uploadOwner(user){return `${user.role}:${user.subjectId}`}
 function newDiskPath({clinicId,orderId,target,name,purpose}){
   const day=new Date().toISOString().slice(0,10),unique=randomBytes(8).toString('hex');
-  const folder=target==='message'?'messages':`${safeDiskSegment(orderId)}/${purpose==='result-photo'?'result-photos':'files'}`;
-  return `/Create Dental/${safeDiskSegment(clinicId)}/${folder}/${day}-${unique}-${name}`;
+  const folder=target==='message'?`_Входящие/${safeDiskSegment(clinicId)}`:safeDiskSegment(orderId);
+  return `/Клиенты/${folder}/${day}-${unique}-${name}`;
 }
 function publicUploadRecord(record){
   const {diskPath,storage,clinicId,...visible}=record;
@@ -507,7 +507,7 @@ async function handleTelegramIntegration(req,res){
   for(const [name] of supplied)if(!validIntegrationSecret(name,body[name].trim()))return json(res,400,{error:name==='telegramBotToken'?'Проверьте токен Telegram-бота':name==='folderId'?'Проверьте ID каталога Yandex Cloud':name==='yandexDiskToken'?'Проверьте OAuth-токен Яндекс Диска':'Проверьте API-ключ Yandex Cloud'});
   try{
     const diskEntry=supplied.find(([name])=>name==='yandexDiskToken');
-    if(diskEntry)await ensureDiskFolder(body.yandexDiskToken.trim(),'/Create Dental');
+    if(diskEntry)await ensureDiskFolder(body.yandexDiskToken.trim(),'/Клиенты');
     for(const [name,file] of supplied)await writeIntegrationSecret(file,body[name].trim());
     await telegramBridge.reloadSecrets();
     return json(res,200,{ok:true,status:combinedIntegrationStatus()});
@@ -635,7 +635,22 @@ async function attachTelegramFileToOrder(orderId,clinicId,attachment,telegramAct
   if(existing)return existing;
   const id=randomBytes(18).toString('hex');
   let storageFields={};
-  if(source.storage==='yandex-disk'&&source.diskPath)storageFields={storage:'yandex-disk',diskPath:source.diskPath};
+  if(source.storage==='yandex-disk'&&source.diskPath){
+    const token=readIntegrationSecret('yandexDiskToken'),orderFolder=`/Клиенты/${safeDiskSegment(orderId)}/`;
+    let diskPath=source.diskPath;
+    if(!diskPath.startsWith(orderFolder)){
+      const destination=newDiskPath({clinicId,orderId,target:'order',name:source.name,purpose:'order-file'});
+      const usedByAnotherOrder=Object.entries(orderFiles).some(([candidateOrderId,files])=>candidateOrderId!==orderId&&(files||[]).some(file=>file.diskPath===diskPath));
+      if(usedByAnotherOrder)await copyDiskResource(token,diskPath,destination);
+      else{
+        await moveDiskResource(token,diskPath,destination);
+        source.diskPath=destination;
+        await saveClinicMessageFiles();
+      }
+      diskPath=destination;
+    }
+    storageFields={storage:'yandex-disk',diskPath};
+  }
   else{
     const data=await fs.promises.readFile(path.join(clinicMessageUploadDir,source.id));
     await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
