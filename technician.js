@@ -1,4 +1,4 @@
-import {savePortal,authRequest,portalToken,loadOrderFiles,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile} from './portal-client.js?v=disk-folder-1';
+import {savePortal,authRequest,portalToken,loadOrderFiles,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile} from './portal-client.js?v=disk-folder-2';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=mobile-fast-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=dashboard-layout-4';
 
@@ -145,10 +145,13 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const next=orders.filter(order=>order.id!==id);
     if(next.length===orders.length)return toast('Заказ не найден');
     const nextOverrides={...overrides};delete nextOverrides[id];
-    orders.splice(0,orders.length,...next);
-    overrides=nextOverrides;
-    localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
-    try{await savePortal('orders',next);await savePortal('orderOverrides',nextOverrides);state.page='orders';state.orderId='';toast('Заказ удалён');render()}catch(error){toast('Не удалось удалить заказ: '+error.message)}
+    try{
+      await deleteOrder(id);
+      orders.splice(0,orders.length,...next);
+      overrides=nextOverrides;
+      localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
+      state.page='orders';state.orderId='';toast('Заказ и папка на Яндекс Диске удалены');render();
+    }catch(error){toast('Не удалось удалить заказ: '+error.message)}
   }
   function toast(message){
     state.toast=message;
@@ -258,7 +261,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     });
   }
   function orderRows(list){
-    return sortedOrderRows(list).map(order=>`<tr data-tech-order="${order.id}" tabindex="0" class="tech-order-row"><td><strong>${order.id}</strong><small>${safe(order.clinic)}</small></td><td>${shortDate(order.createdAt)}</td><td>${safe(order.work)}<small>${safe(order.patient)}</small></td><td>${order.date}</td><td><span class="tech-stage ${stageTone(order.stage)}">${order.stage}</span></td><td>${safe(order.assignee||'Не назначен')}</td><td><div class="tech-order-actions"><button class="tech-link" data-tech-order="${order.id}">Открыть →</button><button type="button" class="tech-icon-btn" data-tech-order-action="edit" data-id="${order.id}" aria-label="Редактировать заказ ${order.id}">✎</button><button type="button" class="tech-icon-btn danger" data-tech-order-action="delete" data-id="${order.id}" aria-label="Удалить заказ ${order.id}">×</button></div></td></tr>`).join('')||'<tr><td colspan="7" class="tech-empty">Заказов не найдено</td></tr>';
+    return sortedOrderRows(list).map(order=>`<tr data-tech-order="${order.id}" tabindex="0" class="tech-order-row"><td><strong>${order.id}</strong><small>${safe(order.clinic)}</small></td><td>${shortDate(order.createdAt)}</td><td>${safe(order.work)}<small>${safe(order.patient)}</small></td><td>${order.date}</td><td><span class="tech-stage ${stageTone(order.stage)}">${order.stage}</span></td><td>${safe(order.assignee||'Не назначен')}</td><td><div class="tech-order-actions"><button class="tech-link" data-tech-order="${order.id}">Открыть →</button><button type="button" class="tech-icon-btn disk" data-tech-order-action="disk" data-id="${order.id}" aria-label="Открыть папку заказа ${order.id} на Яндекс Диске" title="Папка заказа на Яндекс Диске">${icon('disk',15)}</button><button type="button" class="tech-icon-btn" data-tech-order-action="edit" data-id="${order.id}" aria-label="Редактировать заказ ${order.id}">✎</button><button type="button" class="tech-icon-btn danger" data-tech-order-action="delete" data-id="${order.id}" aria-label="Удалить заказ ${order.id}">×</button></div></td></tr>`).join('')||'<tr><td colspan="7" class="tech-empty">Заказов не найдено</td></tr>';
   }
 
   function orderCreatedDate(order){
@@ -294,7 +297,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(!state.confirmOrderDeleteId)return '';
     const order=orderById(state.confirmOrderDeleteId);
     if(!order)return '';
-    return `<div class="tech-dialog-backdrop" data-tech-modal="order-delete"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="tech-order-delete-title"><button class="tech-dialog-close" data-tech-order-action="close-modal" aria-label="Закрыть">×</button><h2 id="tech-order-delete-title">Удалить заказ?</h2><p>Заказ ${safe(order.id)} будет удалён из списка лаборатории. Данные клиники и остальные заказы не изменятся.</p><div><button class="btn outline" data-tech-order-action="close-modal">Отмена</button><button class="btn danger" data-tech-order-action="confirm-delete" data-id="${safe(order.id)}">Удалить</button></div></section></div>`;
+    return `<div class="tech-dialog-backdrop" data-tech-modal="order-delete"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="tech-order-delete-title"><button class="tech-dialog-close" data-tech-order-action="close-modal" aria-label="Закрыть">×</button><h2 id="tech-order-delete-title">Удалить заказ?</h2><p>Заказ ${safe(order.id)}, его папка на Яндекс Диске и все файлы в ней будут удалены без возможности восстановления. Данные клиники и остальные заказы не изменятся.</p><div><button class="btn outline" data-tech-order-action="close-modal">Отмена</button><button class="btn danger" data-tech-order-action="confirm-delete" data-id="${safe(order.id)}">Удалить</button></div></section></div>`;
   }
   function ordersPage(){
     const all=allOrders();
@@ -563,6 +566,17 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(action==='toggle-paid'){
         const order=orders.find(item=>item.id===id);
         if(order)await saveOrderRecord(id,order.paidAt?{paidAt:'',paymentStatus:'Не оплачено'}:{paidAt:new Date().toISOString(),paymentStatus:'Оплачено'});
+        return;
+      }
+      if(action==='disk'){
+        const popup=window.open('about:blank','_blank');
+        if(popup)popup.opener=null;
+        try{
+          const result=await loadOrderFiles(id);
+          if(!result.folderUrl)throw new Error('Папка заказа недоступна');
+          if(popup)popup.location.replace(result.folderUrl);
+          else window.open(result.folderUrl,'_blank','noopener');
+        }catch(error){if(popup)popup.close();toast('Не удалось открыть папку: '+error.message)}
         return;
       }
       if(action==='edit'){state.editOrderId=id;state.confirmOrderDeleteId=null;render();return}

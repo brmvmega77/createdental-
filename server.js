@@ -217,7 +217,17 @@ async function handlePortal(req,res,url){
     const newOrders=key==='orders'&&Array.isArray(value)?value.filter(order=>!snapshot.orders.some(existing=>existing.id===order.id)):[];
     try {
       await replacePortalCollection(key,value,{role:user.role,name:actorName(user)});
-      if(newOrders.length)await Promise.allSettled(newOrders.map(order=>ensurePublicOrderFolder(order.id)));
+      if(newOrders.length){
+        const created=await Promise.allSettled(newOrders.map(order=>ensurePublicOrderFolder(order.id)));
+        const failed=created.find(result=>result.status==='rejected');
+        if(failed){
+          await replacePortalCollection('orders',snapshot.orders,{role:user.role,name:actorName(user)}).catch(rollbackError=>console.error('Order create rollback failed:',rollbackError.message));
+          const token=readIntegrationSecret('yandexDiskToken');
+          await Promise.allSettled(newOrders.map(order=>deleteDiskResource(token,orderDiskFolder(order.id))));
+          for(const order of newOrders)publicOrderFolderLinks.delete(order.id);
+          throw new Error('order_folder_failed');
+        }
+      }
       if(key==='employees')for(const employee of value)if(employee.status!=='active')revokeSubjectSessions('worker',employee.id);
       if(key==='orders'){
         const beforeById=new Map(snapshot.orders.map(order=>[order.id,order]));
@@ -229,7 +239,10 @@ async function handlePortal(req,res,url){
       }
       return json(res,200,{ok:true})
     }
-    catch(error){return json(res,error.message==='invalid_collection'?400:500,{error:error.message==='invalid_collection'?'Неверные данные':'Не удалось сохранить'})}
+    catch(error){
+      if(error.message==='order_folder_failed')return json(res,502,{error:'Не удалось создать папку заказа на Яндекс Диске. Заказ не создан'});
+      return json(res,error.message==='invalid_collection'?400:500,{error:error.message==='invalid_collection'?'Неверные данные':'Не удалось сохранить'});
+    }
   }
   return json(res,404,{error:'Не найдено'});
 }
@@ -285,6 +298,34 @@ async function ensurePublicOrderFolder(orderId){
   const publicUrl=await publishDiskResource(token,folder);
   publicOrderFolderLinks.set(key,publicUrl);
   return publicUrl;
+}
+async function deleteOrderWithFolder(user,orderId){
+  if(user.role!=='technician')throw new Error('forbidden');
+  const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===orderId);
+  if(!order)throw new Error('not_found');
+  const token=readIntegrationSecret('yandexDiskToken');
+  if(!token)throw new Error('disk_not_connected');
+  const nextOrders=snapshot.orders.filter(item=>item.id!==orderId),nextOverrides={...snapshot.orderOverrides};
+  delete nextOverrides[orderId];
+  const actor={role:user.role,name:actorName(user)};
+  let ordersChanged=false;
+  try{
+    await replacePortalCollection('orders',nextOrders,actor);ordersChanged=true;
+    await replacePortalCollection('orderOverrides',nextOverrides,actor);
+    await deleteDiskResource(token,orderDiskFolder(orderId));
+  }catch(error){
+    if(ordersChanged){
+      await replacePortalCollection('orders',snapshot.orders,actor).catch(rollbackError=>console.error('Order delete rollback failed:',rollbackError.message));
+      await replacePortalCollection('orderOverrides',snapshot.orderOverrides,actor).catch(rollbackError=>console.error('Override delete rollback failed:',rollbackError.message));
+    }
+    throw error;
+  }
+  publicOrderFolderLinks.delete(orderId);orderFileMigrationJobs.delete(orderId);
+  const files=orderFiles[orderId]||[];
+  for(const file of files)if(file.storage!=='yandex-disk')await fs.promises.unlink(path.join(uploadDir,file.id)).catch(()=>{});
+  delete orderFiles[orderId];
+  await persistOrderFiles().catch(error=>console.error('Deleted order file metadata cleanup failed:',error.message));
+  return order;
 }
 async function ensureOrderFilesOnDisk(orderId){
   const key=String(orderId||'');
@@ -475,6 +516,22 @@ async function handleOrderFiles(req,res,url){
     try{const data=await fs.promises.readFile(path.join(uploadDir,record.file.id));res.writeHead(200,{'Content-Type':record.file.type,'Content-Length':data.length,'Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(record.file.name)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});return res.end(data)}catch{return json(res,404,{error:'Файл не найден'})}
   }
   return json(res,404,{error:'Не найдено'});
+}
+
+async function handleOrderResource(req,res,url){
+  const user=session(req);if(!user)return json(res,401,{error:'Войдите в кабинет'});
+  if(user.role!=='technician')return json(res,403,{error:'Удалять заказы может только главный техник'});
+  if(req.method!=='DELETE')return json(res,405,{error:'Метод не поддерживается'});
+  const orderId=url.pathname.match(/^\/api\/orders\/([A-Za-z0-9_-]{1,80})$/)?.[1]||'';
+  if(!orderId)return json(res,404,{error:'Заказ не найден'});
+  try{await deleteOrderWithFolder(user,orderId);return json(res,200,{ok:true})}
+  catch(error){
+    if(error.message==='not_found')return json(res,404,{error:'Заказ не найден'});
+    if(error.message==='forbidden')return json(res,403,{error:'Доступ запрещён'});
+    if(error.message==='disk_not_connected')return json(res,503,{error:'Яндекс Диск не подключён. Заказ не удалён'});
+    console.error('Order and Yandex Disk folder deletion failed:',error.message);
+    return json(res,502,{error:'Не удалось удалить папку на Яндекс Диске. Заказ сохранён'});
+  }
 }
 
 async function persistNotificationReads(){
@@ -986,6 +1043,7 @@ const requestHandler=async (req,res) => {
   if(url.pathname.startsWith('/api/orders/')&&(url.pathname.endsWith('/files')||url.pathname.endsWith('/rework'))){
     try{return url.pathname.endsWith('/rework')?await handleOrderRework(req,res,url):await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка обработки заказа'})}
   }
+  if(/^\/api\/orders\/[A-Za-z0-9_-]{1,80}$/.test(url.pathname))return handleOrderResource(req,res,url);
   if(url.pathname==='/api/notifications')return handleNotifications(req,res);
   if(url.pathname==='/api/integrations/telegram')return handleTelegramIntegration(req,res);
   if(url.pathname.startsWith('/api/order-files/')){try{return await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка чтения файла'})}}

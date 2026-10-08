@@ -559,7 +559,11 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       await replacePortalCollection('orders',[order,...snapshot.orders],actor);
       const fresh=portalSnapshot();
       await replacePortalCollection('orderOverrides',{...fresh.orderOverrides,[id]:{stage:'Черновик из Telegram'}},actor);
-      await onOrderCreated(id);
+      try{await onOrderCreated(id)}catch(error){
+        await replacePortalCollection('orders',snapshot.orders,actor).catch(()=>{});
+        await replacePortalCollection('orderOverrides',snapshot.orderOverrides,actor).catch(()=>{});
+        throw new Error('Не удалось создать папку заказа на Яндекс Диске. Заказ не создан');
+      }
       await recordPortalEvent(id,actor,'telegram_confirmed',{summary:`Запросил: ${item.actor}; подтвердил: ${callbackUser||item.actor}`,clinicId:clinic.id,telegramActionId:item.id}).catch(()=>{});
       return `Черновик заказа ${id} создан и отправлен главному технику на проверку.${await attach(id)}`;
     }
