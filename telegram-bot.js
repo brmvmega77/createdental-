@@ -31,7 +31,7 @@ const welcomeText=`👋 Добро пожаловать в чат Create Dental!
 Пример: «Перенеси срок заказа Иванова на 25 октября».
 
 📎 Добавить файл
-Нажмите «📎 Загрузить файл», выберите заказ и откройте безопасную ссылку. За один раз можно загрузить до 10 файлов, каждый — до 200 МБ.
+После того, как главный техник примет заказ, нажмите «📎 Загрузить файл», выберите заказ и откройте безопасную ссылку. За один раз можно загрузить до 10 файлов, каждый — до 200 МБ.
 
 ❌ Отменить заказ
 Пример: «Отмени заказ Иванова. Пациент перенёс лечение».
@@ -42,10 +42,13 @@ const welcomeText=`👋 Добро пожаловать в чат Create Dental!
 🔄 Отправить на доработку
 Пример: «Заказ Иванова на доработку. Исправить контакт на 11 зубе».
 
+👤 Позвать человека
+Нажмите кнопку, и бот позовёт сотрудника Create Dental в чат.
+
 🎤 Голосовые сообщения
 Назовите имя и фамилию пациента, действие, зубы, материал, цвет и срок. Если называете отчество, бот тоже сохранит его. Длительность — до 5 минут.
 
-Перед любым изменением CRM бот покажет краткое содержание. Проверьте его и нажмите «✅ Подтвердить». Если есть ошибка, нажмите «❌ Отменить» и отправьте исправленный запрос.
+Перед любым изменением CRM бот покажет краткое содержание. Его можно подтвердить, отменить или отправить заново после нажатия «✏️ Редактировать».
 
 Команда /menu в любой момент покажет кнопки функций.`;
 
@@ -102,7 +105,7 @@ function orderId(){return `CD-${Date.now().toString(36).toUpperCase()}-${randomB
 function actorName(message){const user=message?.from||{};return cleanText([user.first_name,user.last_name].filter(Boolean).join(' ')||user.username||'Клиент Telegram',120)}
 function normalizedUsername(value){return String(value||'').trim().replace(/^@/,'').toLowerCase()}
 function isSupportUsername(value){
-  const configured=String(process.env.TELEGRAM_SUPPORT_USERNAMES||'createdental,createdental_admin').split(',').map(normalizedUsername).filter(Boolean);
+  const configured=['createdental','createdental_admin','createdental_io',...String(process.env.TELEGRAM_SUPPORT_USERNAMES||'').split(',')].map(normalizedUsername).filter(Boolean);
   return configured.includes(normalizedUsername(value));
 }
 function supportLabel(value){return normalizedUsername(value)==='createdental_admin'?'Техническая команда Create Dental':'Главный техник'}
@@ -122,6 +125,8 @@ function telegramMedia(message){
 }
 function orderStage(snapshot,order){return snapshot.orderOverrides[order.id]?.stage||order.status||'Новый'}
 function activeOrdersForClinic(snapshot,clinicId){return snapshot.orders.filter(order=>order.clinicId===clinicId&&order.status!=='Отменён')}
+function orderCanReceiveFiles(snapshot,order){return Boolean(order&&!order.telegramDraft&&orderStage(snapshot,order)!=='Черновик из Telegram'&&order.status!=='Отменён')}
+function orderPickerLabel(order){return `${order.patient} · ${order.work} · до ${order.date}`}
 
 function findOrder(snapshot,clinicId,analysis){
   const orders=activeOrdersForClinic(snapshot,clinicId);
@@ -282,7 +287,7 @@ async function readSecret(name){
 export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=async()=>{},saveTelegramAttachment=async()=>null,attachOrderFile=async()=>null,loadClinicAttachment=async()=>null,createLargeUploadLink=async()=>'',onOrderCreated=async()=>{}}={}){
   let token='',speechKey='',gptKey='',folderId='';
   let botIdentity={};
-  let stopped=false,polling=false,state={offset:0,bindings:{},bindingRequests:{},pending:{},completed:{},contexts:{},messageActions:{},inbox:{}};
+  let stopped=false,polling=false,state={offset:0,bindings:{},bindingRequests:{},pending:{},completed:{},contexts:{},guided:{},messageActions:{},inbox:{}};
   const health={startedAt:'',lastUpdateAt:'',lastTelegramSuccessAt:'',lastYandexSuccessAt:'',lastErrorAt:'',lastError:'',processedUpdates:0};
   const stateFile=process.env.TELEGRAM_STATE_FILE||path.join(process.cwd(),'.data','telegram-bot.json');
   let stateSaveQueue=Promise.resolve();
@@ -323,7 +328,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   }
   async function answerCallback(id,text){return api('answerCallbackQuery',{callback_query_id:id,text,show_alert:false})}
   function quickMenuMarkup(){
-    return {inline_keyboard:[[{text:'➕ Новый заказ',callback_data:'tgquick:new'},{text:'🔎 Статус заказа',callback_data:'tgquick:status'}],[{text:'📎 Загрузить файл',callback_data:'tgquick:file'},{text:'📅 Изменить срок',callback_data:'tgquick:due'}],[{text:'❌ Отменить заказ',callback_data:'tgquick:cancel'},{text:'👤 Главный техник',callback_data:'tgquick:human'}]]};
+    return {inline_keyboard:[[{text:'➕ Новый заказ',callback_data:'tgquick:new'},{text:'🔎 Статус заказа',callback_data:'tgquick:status'}],[{text:'📎 Загрузить файл',callback_data:'tgquick:file'},{text:'📅 Изменить срок',callback_data:'tgquick:due'}],[{text:'❌ Отменить заказ',callback_data:'tgquick:cancel'},{text:'👤 Позвать человека',callback_data:'tgquick:human'}]]};
   }
   async function sendPinnedWelcome(chatId){
     const message=await send(chatId,welcomeText,{reply_markup:quickMenuMarkup()},false);
@@ -343,6 +348,14 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   function rememberContext(chatId,userId,clinicId,orderId){
     if(!orderId)return;
     state.contexts[contextKey(chatId,userId)]={clinicId,orderId,expiresAt:Date.now()+2*60*60*1000};
+  }
+  function rememberGuidedAction(chatId,userId,clinicId,orderId,mode){
+    state.guided[contextKey(chatId,userId)]={clinicId,orderId,mode,expiresAt:Date.now()+30*60*1000};
+  }
+  function takeGuidedAction(chatId,userId,clinicId){
+    const key=contextKey(chatId,userId),item=state.guided[key];
+    if(!item||item.clinicId!==clinicId||item.expiresAt<Date.now()){if(item)delete state.guided[key];return null}
+    delete state.guided[key];return item;
   }
   function canConfirm(item,callback){return String(callback.from?.id||'')===String(item.userId||'')||isSupportUsername(callback.from?.username)}
 
@@ -440,8 +453,10 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     const files=attachmentList(item);
     if(files.length)lines.push('',`Файлы (${files.length}):`,...files.map(file=>`• ${file.name}`));
     lines.push('',`Запросил: ${item.actor}`,'Выполнить это действие в CRM?');
-    const first=[{text:'✅ Подтвердить',callback_data:`tgconfirm:${item.id}`}];if(item.analysis.intent!=='create_order')first.push({text:'✏️ Другой заказ',callback_data:`tgreselect:${item.id}`});
-    return send(item.chatId,lines.join('\n'),{reply_markup:{inline_keyboard:[first,[{text:'❌ Отменить',callback_data:`tgreject:${item.id}`}]]}});
+    const buttons=[[{text:'✅ Подтвердить',callback_data:`tgconfirm:${item.id}`},{text:'✏️ Редактировать',callback_data:`tgedit:${item.id}`}]];
+    if(item.analysis.intent!=='create_order')buttons.push([{text:'🔄 Выбрать другой заказ',callback_data:`tgreselect:${item.id}`}]);
+    buttons.push([{text:'❌ Отменить',callback_data:`tgreject:${item.id}`}]);
+    return send(item.chatId,lines.join('\n'),{reply_markup:{inline_keyboard:buttons}});
   }
 
   async function propose(message,clinic,analysis,attachment=null){
@@ -544,37 +559,54 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     throw new Error('Неподдерживаемое действие');
   }
 
-  async function sendUploadOrderPicker(chatId,clinic,intro='Выберите заказ, к которому нужно добавить файл:'){
-    const orders=activeOrdersForClinic(portalSnapshot(),clinic.id).slice(0,12);
-    if(!orders.length)return send(chatId,'Сначала создайте и подтвердите заказ, затем загрузите к нему файл через безопасную ссылку.');
-    return send(chatId,intro,{reply_markup:{inline_keyboard:orders.map(order=>[{text:`${order.patient} · ${order.work} · ${order.date}`,callback_data:`tglarge:${order.id}`}])}});
+  async function sendOrderPicker(chatId,clinic,mode,intro=''){
+    const snapshot=portalSnapshot();
+    const all=activeOrdersForClinic(snapshot,clinic.id);
+    const orders=(mode==='file'?all.filter(order=>orderCanReceiveFiles(snapshot,order)):all).slice(0,12);
+    if(!orders.length){
+      if(mode==='file'&&all.length)return send(chatId,'Файлы можно загрузить после того, как главный техник проверит и примет заказ.');
+      return send(chatId,'У клиники пока нет действующих заказов.');
+    }
+    const callback=order=>mode==='file'?`tglarge:${order.id}`:`tgorder:${mode}:${order.id}`;
+    const title=intro||({file:'Выберите принятый заказ для загрузки файлов:',due:'Выберите заказ. В списке указан текущий срок:',status:'Выберите заказ, чтобы посмотреть статус и срок:',cancel:'Выберите заказ для отмены. В списке указан текущий срок:'})[mode]||'Выберите заказ:';
+    return send(chatId,title,{reply_markup:{inline_keyboard:orders.map(order=>[{text:orderPickerLabel(order),callback_data:callback(order)}])}});
   }
 
   async function handleCallback(callback){
     const [action,id,value]=String(callback.data||'').split(':');
     if(action==='tgquick'){
       const clinic=boundClinicForMessage(callback.message||{});if(!clinic)return answerCallback(callback.id,'Чат не подключён');
-      if(id==='large'||id==='file'){
-        const hasOrders=activeOrdersForClinic(portalSnapshot(),clinic.id).length>0;
-        await answerCallback(callback.id,hasOrders?'Выберите заказ':'Нет активных заказов');
-        return sendUploadOrderPicker(callback.message.chat.id,clinic);
+      if(['file','status','due','cancel'].includes(id)){
+        await answerCallback(callback.id,'Выберите заказ');
+        return sendOrderPicker(callback.message.chat.id,clinic,id);
       }
-      const prompts={new:'Опишите заказ: имя и фамилия пациента (отчество, если есть), работа, зубы, материал и желаемый срок.',status:'Напишите фамилию пациента или выберите ранее найденный заказ.',due:'Напишите: «перенеси срок [фамилия] на [дата]».',cancel:'Напишите: «отмени заказ [фамилия]» и укажите причину.',human:'Главный техник получил запрос и увидит его в CRM.'};
+      if(id==='human'){await answerCallback(callback.id,'Позвал человека');return send(callback.message.chat.id,'@CreateDental_io, вас зовут в этот чат.')}
+      const prompts={new:'Опишите заказ: имя и фамилия пациента (отчество, если есть), работа, зубы, материал и желаемый срок.'};
       await answerCallback(callback.id,'Готово');
-      if(id==='human')await onClinicMessage(clinic.id,{text:'Клиент просит подключить главного техника',sender:actorName({from:callback.from}),senderUsername:callback.from?.username||'',telegramMessageId:`callback-${callback.id}`,telegramChatId:String(callback.message?.chat?.id||''),messageRole:'client'}).catch(()=>{});
       return send(callback.message.chat.id,prompts[id]||'Опишите, что нужно сделать с заказом.');
+    }
+    if(action==='tgorder'&&id&&value){
+      const clinic=boundClinicForMessage(callback.message||{});if(!clinic)return answerCallback(callback.id,'Чат не подключён');
+      const snapshot=portalSnapshot(),order=activeOrdersForClinic(snapshot,clinic.id).find(item=>item.id===value);
+      if(!order)return answerCallback(callback.id,'Заказ не найден');
+      rememberContext(callback.message.chat.id,callback.from?.id,clinic.id,order.id);
+      if(id==='status'){await saveState();await answerCallback(callback.id,'Статус готов');return send(callback.message.chat.id,`Заказ ${order.id}\nПациент: ${order.patient}\nРабота: ${order.work}\nСрок: ${order.date}\nСтатус: ${orderStage(snapshot,order)}`)}
+      if(!['due','cancel'].includes(id))return answerCallback(callback.id,'Действие недоступно');
+      rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,order.id,id);await saveState();await answerCallback(callback.id,'Заказ выбран');
+      return send(callback.message.chat.id,id==='due'?`Заказ ${order.id}\nТекущий срок: ${order.date}\n\nОтправьте новую дату текстом или голосовым сообщением.`:`Заказ ${order.id}\nПациент: ${order.patient}\nСрок: ${order.date}\n\nОтправьте причину отмены текстом или голосовым сообщением.`);
     }
     if(action==='tglarge'&&id){
       const clinic=boundClinicForMessage(callback.message||{});if(!clinic)return answerCallback(callback.id,'Чат не подключён');
-      const order=activeOrdersForClinic(portalSnapshot(),clinic.id).find(item=>item.id===id);
+      const snapshot=portalSnapshot(),order=activeOrdersForClinic(snapshot,clinic.id).find(item=>item.id===id);
       if(!order)return answerCallback(callback.id,'Заказ не найден');
+      if(!orderCanReceiveFiles(snapshot,order))return answerCallback(callback.id,'Заказ ещё не принят');
       try{
         const href=await createLargeUploadLink(clinic.id,order.id,actorName({from:callback.from}));
         await answerCallback(callback.id,'Ссылка готова');
         return send(callback.message.chat.id,`Загрузите до 10 файлов к заказу ${order.id}. Каждый файл — до 200 МБ. Ссылка действует 2 часа и используется один раз.\n\nЕсли страница не открывается внутри Telegram при включённом VPN, скопируйте ссылку и откройте её во внешнем браузере. Если VPN блокирует createdental.io, временно отключите его для загрузки.\n\n${href}`,{reply_markup:{inline_keyboard:[[{text:'📎 Открыть страницу загрузки',url:href}]]}});
       }catch(error){await answerCallback(callback.id,'Загрузка пока недоступна');return send(callback.message.chat.id,cleanText(error.message,400))}
     }
-    if(!['tgconfirm','tgreject','tgpick','tgreselect'].includes(action)||!id)return;
+    if(!['tgconfirm','tgreject','tgedit','tgpick','tgreselect'].includes(action)||!id)return;
     const item=state.pending[id];
     if(!item&&state.completed[id])return answerCallback(callback.id,'Это действие уже выполнено');
     if(!item||item.expiresAt<Date.now()){if(item){delete state.pending[id];await saveState()}return answerCallback(callback.id,'Подтверждение устарело');}
@@ -585,12 +617,19 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       const snapshot=portalSnapshot(),order=snapshot.orders.find(candidate=>candidate.id===value&&candidate.clinicId===item.clinicId);
       if(!order)return answerCallback(callback.id,'Заказ больше не найден');
       item.orderId=order.id;item.allowedOrderIds=[];rememberContext(item.chatId,item.userId,item.clinicId,order.id);await saveState();await answerCallback(callback.id,'Заказ выбран');
+      if(item.analysis.intent==='status_request'){delete state.pending[id];await saveState();return send(item.chatId,`Заказ ${order.id}\nПациент: ${order.patient}\nРабота: ${order.work}\nСрок: ${order.date}\nСтатус: ${orderStage(snapshot,order)}`)}
       return sendConfirmation(item,order,portalClient(item.clinicId));
     }
     if(action==='tgreselect'){
       const orders=activeOrdersForClinic(portalSnapshot(),item.clinicId).slice(0,12);
-      const buttons=orders.map(order=>[{text:`${order.patient} · ${order.work} · ${order.date}`,callback_data:`tgpick:${id}:${order.id}`}]);buttons.push([{text:'❌ Отменить',callback_data:`tgreject:${id}`}]);
+      item.allowedOrderIds=orders.map(order=>order.id);await saveState();
+      const buttons=orders.map(order=>[{text:orderPickerLabel(order),callback_data:`tgpick:${id}:${order.id}`}]);buttons.push([{text:'❌ Отменить',callback_data:`tgreject:${id}`}]);
       await answerCallback(callback.id,'Выберите заказ');return send(item.chatId,'Выберите заказ:',{reply_markup:{inline_keyboard:buttons}});
+    }
+    if(action==='tgedit'){
+      if(item.orderId)rememberContext(item.chatId,item.userId,item.clinicId,item.orderId);
+      delete state.pending[id];await saveState();await answerCallback(callback.id,'Жду исправленный запрос');
+      return send(item.chatId,'Отправьте исправленный запрос полностью одним текстовым или голосовым сообщением. Предыдущий вариант отменён и в CRM не передан.');
     }
     if(action==='tgreject'){
       delete state.pending[id];await saveState();await answerCallback(callback.id,'Отменено');return send(item.chatId,'Действие отменено. Данные CRM не изменены.');
@@ -623,7 +662,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       const messageRole=isSupportUsername(message.from?.username)?'support':'client';
       const senderLabel=messageRole==='support'?supportLabel(message.from.username):'';
       if(text)await onClinicMessage(clinic.id,{text,attachment:null,sender:actorName(message),senderUsername:message.from?.username||'',senderLabel,telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole}).catch(()=>{});
-      return sendUploadOrderPicker(message.chat.id,clinic,'Файлы в CRM загружаются только через безопасную ссылку. Выберите заказ:');
+      return sendOrderPicker(message.chat.id,clinic,'file','Файлы в CRM загружаются только через безопасную ссылку. Выберите принятый заказ:');
     }
     const attachment=null;
     if(isSupportUsername(message.from?.username)){
@@ -648,9 +687,14 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       return;
     }
     if(!sourceText)return;
+    const guided=takeGuidedAction(message.chat.id,message.from?.id,clinic.id);
+    if(guided){
+      sourceText=guided.mode==='due'?`Измени срок заказа ${guided.orderId}. Новый срок: ${sourceText}`:`Отмени заказ ${guided.orderId}. Причина: ${sourceText}`;
+      await saveState();
+    }
     const context=currentContext(message.chat.id,message.from?.id,clinic.id);
-    try{const analysis=await analyze(sourceText,clinic,attachment,context?.orderId||'');await propose(message,clinic,analysis,attachment)}
-    catch(error){health.lastErrorAt=new Date().toISOString();health.lastError=cleanText(error.message,300);console.error('Telegram analysis failed:',error.message);await send(message.chat.id,'Не удалось автоматически разобрать запрос. Укажите фамилию пациента и действие ещё раз или нажмите «Главный техник» в меню.');}
+    try{const analysis=await analyze(sourceText,clinic,attachment,guided?.orderId||context?.orderId||'');await propose(message,clinic,analysis,attachment)}
+    catch(error){health.lastErrorAt=new Date().toISOString();health.lastError=cleanText(error.message,300);console.error('Telegram analysis failed:',error.message);await send(message.chat.id,'Не удалось автоматически разобрать запрос. Укажите фамилию пациента и действие ещё раз или нажмите «Позвать человека» в меню.');}
   }
 
   async function handleUpdate(update){if(update.callback_query)return handleCallback(update.callback_query);if(update.edited_message)return handleMessage({...update.edited_message,_edited:true});if(update.message)return handleMessage(update.message)}
@@ -687,7 +731,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     return {...configured,ready,enabled:ready&&!stopped};
   }
   async function start(){
-    try{state={offset:0,bindings:{},bindingRequests:{},pending:{},completed:{},contexts:{},messageActions:{},inbox:{},...JSON.parse(await fs.promises.readFile(stateFile,'utf8'))}}catch(error){if(error.code!=='ENOENT')throw error}
+    try{state={offset:0,bindings:{},bindingRequests:{},pending:{},completed:{},contexts:{},guided:{},messageActions:{},inbox:{},...JSON.parse(await fs.promises.readFile(stateFile,'utf8'))};state.guided=state.guided||{}}catch(error){if(error.code!=='ENOENT')throw error}
     stopped=false;
     const status=await reloadSecrets();
     if(!status.ready){console.log('Telegram bridge disabled: secret files are not configured');return false}
@@ -730,4 +774,4 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   return {start,stop,status,reloadSecrets,sendClinicMessage,sendAutomatedMessage,notifyOrderStage,approveBinding,rejectBinding,unbindClinic};
 }
 
-export const telegramInternals={codeFromText,parseJson,normalizeAnalysis,canonicalizeCatalogSelection,priceEstimate,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,hasFullPatientName,missingCreateFields,displayDate,isoDateFromDisplay};
+export const telegramInternals={codeFromText,parseJson,normalizeAnalysis,canonicalizeCatalogSelection,priceEstimate,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,hasFullPatientName,missingCreateFields,displayDate,isoDateFromDisplay,orderCanReceiveFiles,orderPickerLabel};

@@ -10,6 +10,7 @@ test('extracts a clinic code from a Telegram group title',()=>{
 test('recognizes the CreateDental support account case-insensitively',()=>{
   assert.equal(telegramInternals.isSupportUsername('@CreateDental'),true);
   assert.equal(telegramInternals.isSupportUsername('@createdental_admin'),true);
+  assert.equal(telegramInternals.isSupportUsername('@CreateDental_io'),true);
   assert.equal(telegramInternals.isSupportUsername('doctor_account'),false);
   assert.equal(telegramInternals.supportLabel('@CreateDental'),'Главный техник');
   assert.equal(telegramInternals.supportLabel('@createdental_admin'),'Техническая команда Create Dental');
@@ -129,4 +130,16 @@ test('keeps the welcome guide within the Telegram message limit',()=>{
   assert.ok(telegramInternals.welcomeText.includes('до 10 файлов'));
   assert.ok(!telegramInternals.welcomeText.includes('Файл до 20 МБ'));
   assert.ok(telegramInternals.welcomeText.length<4096);
+});
+
+test('allows file links only after a Telegram draft is accepted',()=>{
+  const draft={id:'CD-DRAFT',patient:'Иванов Иван',date:'20.10.2026',status:'Новый',telegramDraft:true};
+  const accepted={...draft,id:'CD-READY',telegramDraft:false};
+  const snapshot={orderOverrides:{'CD-DRAFT':{stage:'Черновик из Telegram'},'CD-READY':{stage:'Ожидает распределения'}}};
+  assert.equal(telegramInternals.orderCanReceiveFiles(snapshot,draft),false);
+  assert.equal(telegramInternals.orderCanReceiveFiles(snapshot,accepted),true);
+});
+
+test('shows the current deadline in Telegram order choices',()=>{
+  assert.equal(telegramInternals.orderPickerLabel({patient:'Иванов Иван',work:'Коронка',date:'20.10.2026'}),'Иванов Иван · Коронка · до 20.10.2026');
 });

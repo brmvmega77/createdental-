@@ -382,8 +382,9 @@ async function handleUploads(req,res,url){
 function largeLinkKey(token){return createHash('sha256').update(String(token)).digest('hex')}
 function createLargeUploadLink(clinicId,orderId,requestedBy='Клиент Telegram'){
   if(!readIntegrationSecret('yandexDiskToken'))throw new Error('Яндекс Диск ещё не подключён в профиле главного техника');
-  const order=portalSnapshot().orders.find(item=>item.id===orderId&&item.clinicId===clinicId);
+  const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===orderId&&item.clinicId===clinicId);
   if(!order)throw new Error('Заказ не найден');
+  if(order.telegramDraft||snapshot.orderOverrides[order.id]?.stage==='Черновик из Telegram')throw new Error('Файлы можно загрузить после того, как главный техник примет заказ');
   const token=randomBytes(32).toString('base64url'),key=largeLinkKey(token);
   largeUploadLinks.set(key,{key,clinicId,orderId,requestedBy:String(requestedBy).slice(0,120),createdAt:Date.now(),expiresAt:Date.now()+uploadSessionLifetime,usedAt:0,startedCount:0,completedCount:0});
   const base=String(process.env.PUBLIC_BASE_URL||'https://createdental.io').replace(/\/$/,'');
@@ -394,8 +395,9 @@ async function handleLargeUpload(req,res,url){
   if(!match)return json(res,404,{error:'Ссылка не найдена'});
   const token=match[1],action=match[2]||'',uploadId=match[3]||'',link=largeUploadLinks.get(largeLinkKey(token));
   if(!link||link.expiresAt<Date.now()||link.usedAt)return json(res,410,{error:'Ссылка истекла или уже использована'});
-  const order=portalSnapshot().orders.find(item=>item.id===link.orderId&&item.clinicId===link.clinicId),clinic=portalClient(link.clinicId);
+  const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===link.orderId&&item.clinicId===link.clinicId),clinic=portalClient(link.clinicId);
   if(!order||!clinic)return json(res,404,{error:'Заказ не найден'});
+  if(order.status==='Отменён'||order.telegramDraft||snapshot.orderOverrides[order.id]?.stage==='Черновик из Telegram')return json(res,409,{error:'Загрузка файлов доступна после приёма заказа главным техником'});
   if(req.method==='GET'&&!action)return json(res,200,{clinic:clinic.name,orderId:order.id,patient:order.patient,work:order.work,date:order.date,maxSize:maximumAttachmentSize,maxFiles:maximumLargeUploadFiles,uploadedFiles:link.completedCount||0,expiresAt:new Date(link.expiresAt).toISOString()});
   if(req.method==='POST'&&action==='init'){
     if((link.startedCount||0)>=maximumLargeUploadFiles)return json(res,409,{error:`По одной ссылке можно загрузить не больше ${maximumLargeUploadFiles} файлов`});
