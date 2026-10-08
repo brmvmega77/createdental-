@@ -27,7 +27,7 @@ const botCommands=[
 ];
 const welcomeText=`👋 Добро пожаловать в чат Create Dental!
 
-Здесь можно общаться с лабораторией и управлять заказами. Упоминать бота не нужно: просто напишите или отправьте голосовое сообщение.
+Здесь можно общаться с лабораторией и управлять заказами. Обычные сообщения бот не обрабатывает как команды. Чтобы выполнить действие в CRM, отправьте /menu и выберите нужную функцию.
 
 ➕ Новый заказ
 Укажите пациента, вид работы, номера зубов, материал, цвет и срок.
@@ -55,9 +55,9 @@ const welcomeText=`👋 Добро пожаловать в чат Create Dental!
 Нажмите кнопку, и бот позовёт сотрудника Create Dental в чат.
 
 🎤 Голосовые сообщения
-Назовите имя и фамилию пациента, действие, зубы, материал, цвет и срок. Если называете отчество, бот тоже сохранит его. Длительность — до 5 минут.
+Сначала выберите функцию через /menu, затем отправьте голосовое сообщение. Назовите имя и фамилию пациента, действие, зубы, материал, цвет и срок. Если называете отчество, бот тоже сохранит его. Длительность — до 5 минут.
 
-Для запроса свободным текстом бот покажет краткое содержание. Его можно подтвердить, отменить или отправить заново после нажатия «✏️ Редактировать». Если действие выбрано кнопками меню, бот выполнит его после ввода запрошенных данных.
+Без выбранной функции текст, фото, документы и аудио передаются в переписку с лабораторией, но не запускают бота.
 
 Команда /menu в любой момент покажет кнопки функций.`;
 
@@ -676,39 +676,35 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       else if(['/start','/connect','/help'].includes(command))await send(message.chat.id,'Добавьте временный код клиники вида CD-CL-12345678 в название группового чата и отправьте /connect. Главный техник подтвердит подключение в CRM.',{},false);
       return;
     }
+    const supportMessage=isSupportUsername(message.from?.username);
     const directMedia=telegramMedia(message);
     if(directMedia){
-      const messageRole=isSupportUsername(message.from?.username)?'support':'client';
+      const messageRole=supportMessage?'support':'client';
       const senderLabel=messageRole==='support'?supportLabel(message.from.username):'';
-      if(text)await onClinicMessage(clinic.id,{text,attachment:null,sender:actorName(message),senderUsername:message.from?.username||'',senderLabel,telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole}).catch(()=>{});
-      return sendOrderPicker(message.chat.id,clinic,'file','Файлы в CRM загружаются только через безопасную ссылку. Выберите принятый заказ:');
+      const mediaText=text||(directMedia.kind==='photo'?'Фото':`Документ: ${directMedia.name}`);
+      await onClinicMessage(clinic.id,{text:mediaText,attachment:null,sender:actorName(message),senderUsername:message.from?.username||'',senderLabel,telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole}).catch(()=>{});
+      return;
     }
     const attachment=null;
-    const supportMessage=isSupportUsername(message.from?.username);
     const mentionedBot=normalizedUsername(text)===normalizedUsername(botIdentity.username);
     const menuInvocation=['/start','/connect','/help','/menu'].includes(command)||mentionedBot||normalize(text)==='бот';
     const quickCommand=({
       '/new':'new','/status':'status','/file':'file','/due':'due','/cancel':'cancel','/human':'human'
     })[command];
     const activeGuided=currentGuidedAction(message.chat.id,message.from?.id,clinic.id);
-    if(supportMessage&&!menuInvocation&&!quickCommand&&!activeGuided){
-      const supportText=text||(message.voice||message.audio?'Голосовое сообщение':'');
-      if(supportText||attachment)await onClinicMessage(clinic.id,{text:supportText||(attachment?.kind==='photo'?'Фото':`Документ: ${attachment?.name||''}`),attachment,sender:actorName(message),senderUsername:message.from.username,senderLabel:supportLabel(message.from.username),telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'support'}).catch(()=>{});
-      if(message.voice||message.audio)return send(message.chat.id,'Чтобы бот обработал голосовое сообщение, сначала выберите действие через /menu.');
-      return;
-    }
     if(menuInvocation)return sendMenu(message.chat.id);
     if(quickCommand){
       if(quickCommand==='new'){rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new');await saveState();return send(message.chat.id,'Опишите заказ: имя и фамилия пациента (отчество, если есть), работа, зубы, материал и желаемый срок.')}
       if(quickCommand==='human')return send(message.chat.id,'@CreateDental_io, вас зовут в этот чат.');
       return sendOrderPicker(message.chat.id,clinic,quickCommand);
     }
+    if(!activeGuided){
+      const passiveText=text||(message.voice||message.audio?'Голосовое сообщение':'');
+      if(passiveText)await onClinicMessage(clinic.id,{text:passiveText,attachment:null,sender:actorName(message),senderUsername:message.from?.username||'',senderLabel:supportMessage?supportLabel(message.from?.username):'',telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:supportMessage?'support':'client'}).catch(()=>{});
+      return;
+    }
     let sourceText=text;
     if(message.voice||message.audio){
-      if(!currentGuidedAction(message.chat.id,message.from?.id,clinic.id)){
-        await onClinicMessage(clinic.id,{text:'Голосовое сообщение',attachment:null,sender:actorName(message),senderUsername:message.from?.username||'',telegramMessageId:message.message_id,telegramChatId:String(message.chat.id),messageRole:'client'}).catch(()=>{});
-        return send(message.chat.id,'Чтобы бот обработал голосовое сообщение, сначала выберите действие через /menu.');
-      }
       await api('sendChatAction',{chat_id:message.chat.id,action:'typing'}).catch(()=>{});
       try{sourceText=await transcribeVoice(message)}catch(error){return send(message.chat.id,`Не удалось расшифровать аудио: ${cleanText(error.message,500)}`)}
     }
