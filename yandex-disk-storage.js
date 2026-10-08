@@ -49,10 +49,23 @@ async function waitForOperation(token,href){
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw diskError(data,response.status);
     if(data.status==='success')return;
-    if(data.status==='failed')throw new Error('Яндекс Диск не смог переместить файл');
+    if(data.status==='failed')throw new Error('Яндекс Диск не смог выполнить операцию');
     await new Promise(resolve=>setTimeout(resolve,500));
   }
-  throw new Error('Яндекс Диск слишком долго перемещает файл');
+  throw new Error('Яндекс Диск слишком долго выполняет операцию');
+}
+
+export async function publishDiskResource(token,diskPath){
+  if(!token)throw new Error('Яндекс Диск не подключён');
+  const response=await fetch(`${apiRoot}${query('/resources/publish',{path:diskPath})}`,{
+    method:'PUT',headers:{Authorization:`OAuth ${token}`},signal:AbortSignal.timeout(30000)
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok&&response.status!==409)throw diskError(data,response.status);
+  if(response.status===202&&data.href)await waitForOperation(token,data.href);
+  const metadata=await diskRequest(token,query('/resources',{path:diskPath,fields:'path,name,type,public_key,public_url'}));
+  if(!metadata.public_url)throw new Error('Яндекс Диск не выдал публичную ссылку');
+  return metadata.public_url;
 }
 
 export async function moveDiskResource(token,fromPath,toPath){

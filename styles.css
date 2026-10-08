@@ -418,6 +418,12 @@ html{zoom:.9}
 .order-file{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:11px 13px;border:1px solid #eeeeee;border-radius:9px;background:#fff;color:#333;text-align:left;cursor:pointer}
 .order-file strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
 .order-file small{flex:none;color:#808080;font-size:11px}
+.order-folder-link{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px;border:1px solid #e9e9e9;border-radius:10px;background:#fafafa}
+.order-folder-link>div{min-width:0;display:grid;gap:5px}
+.order-folder-link strong{font-size:13px;color:#333}
+.order-folder-link small{font-size:11px;color:#808080}
+.order-folder-link .btn{flex:none;text-decoration:none}
+@media(max-width:620px){.order-folder-link{align-items:stretch;flex-direction:column}.order-folder-link .btn{width:100%;justify-content:center}}
 
 /* Message attachments */
 .chat-compose-files{height:auto;min-height:60px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;padding:7px;gap:7px;position:relative}

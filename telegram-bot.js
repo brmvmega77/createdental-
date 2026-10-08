@@ -279,7 +279,7 @@ async function readSecret(name){
   try{return (await fs.promises.readFile(file,'utf8')).trim()}catch(error){if(error.code==='ENOENT')return '';throw error}
 }
 
-export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=async()=>{},saveTelegramAttachment=async()=>null,attachOrderFile=async()=>null,loadClinicAttachment=async()=>null,createLargeUploadLink=async()=>''}={}){
+export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=async()=>{},saveTelegramAttachment=async()=>null,attachOrderFile=async()=>null,loadClinicAttachment=async()=>null,createLargeUploadLink=async()=>'',onOrderCreated=async()=>{}}={}){
   let token='',speechKey='',gptKey='',folderId='';
   let botIdentity={};
   let stopped=false,polling=false,state={offset:0,bindings:{},bindingRequests:{},pending:{},completed:{},contexts:{},messageActions:{},inbox:{}};
@@ -508,6 +508,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       await replacePortalCollection('orders',[order,...snapshot.orders],actor);
       const fresh=portalSnapshot();
       await replacePortalCollection('orderOverrides',{...fresh.orderOverrides,[id]:{stage:'Черновик из Telegram'}},actor);
+      await onOrderCreated(id);
       await recordPortalEvent(id,actor,'telegram_confirmed',{summary:`Запросил: ${item.actor}; подтвердил: ${callbackUser||item.actor}`,clinicId:clinic.id,telegramActionId:item.id}).catch(()=>{});
       return `Черновик заказа ${id} создан и отправлен главному технику на проверку.${await attach(id)}`;
     }

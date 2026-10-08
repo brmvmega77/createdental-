@@ -7,7 +7,7 @@ import {createDataBackup} from './backup-data.js';
 import {portalSnapshot,replacePortalCollection,recordPortalEvent,portalClient,portalEmployee} from './portal-data.js';
 import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
 import {createTelegramBridge} from './telegram-bot.js';
-import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource} from './yandex-disk-storage.js';
+import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource} from './yandex-disk-storage.js';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
@@ -42,6 +42,8 @@ const maximumLargeUploadFiles=10;
 const uploadSessionLifetime=2*60*60*1000;
 const diskUploadSessions=new Map();
 const largeUploadLinks=new Map();
+const publicOrderFolderLinks=new Map();
+const orderFileMigrationJobs=new Map();
 function validAttachmentSignature(ext,data){
   if(!Buffer.isBuffer(data)||!data.length)return false;
   const ascii=data.subarray(0,16).toString('ascii'),hex=data.subarray(0,12).toString('hex');
@@ -212,8 +214,10 @@ async function handlePortal(req,res,url){
       if(!old||old.assignee!==employee.originalName||!next||next.assignee!==old.assignee||(!reworkResume&&(oldIndex<0||nextIndex<0||Math.abs(nextIndex-oldIndex)!==1))||Object.keys(next).some(field=>!['stage','reworkReason','reworkAt'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:'Неверный переход этапа'});
       value={...snapshot.orderOverrides,[id]:next};
     }
+    const newOrders=key==='orders'&&Array.isArray(value)?value.filter(order=>!snapshot.orders.some(existing=>existing.id===order.id)):[];
     try {
       await replacePortalCollection(key,value,{role:user.role,name:actorName(user)});
+      if(newOrders.length)await Promise.allSettled(newOrders.map(order=>ensurePublicOrderFolder(order.id)));
       if(key==='employees')for(const employee of value)if(employee.status!=='active')revokeSubjectSessions('worker',employee.id);
       if(key==='orders'){
         const beforeById=new Map(snapshot.orders.map(order=>[order.id,order]));
@@ -269,6 +273,48 @@ function newDiskPath({orderId,name}){
   const day=new Date().toISOString().slice(0,10),unique=randomBytes(8).toString('hex');
   return `/Клиенты/${safeDiskSegment(orderId)}/${day}-${unique}-${name}`;
 }
+function orderDiskFolder(orderId){return `/Клиенты/${safeDiskSegment(orderId)}`}
+async function ensurePublicOrderFolder(orderId){
+  const key=String(orderId||'');
+  if(!key)throw new Error('Не указан ID заказа');
+  if(publicOrderFolderLinks.has(key))return publicOrderFolderLinks.get(key);
+  const token=readIntegrationSecret('yandexDiskToken');
+  if(!token)throw new Error('Яндекс Диск не подключён');
+  const folder=orderDiskFolder(key);
+  await ensureDiskFolder(token,folder);
+  const publicUrl=await publishDiskResource(token,folder);
+  publicOrderFolderLinks.set(key,publicUrl);
+  return publicUrl;
+}
+async function ensureOrderFilesOnDisk(orderId){
+  const key=String(orderId||'');
+  const legacy=(orderFiles[key]||[]).filter(file=>file.storage!=='yandex-disk');
+  if(!legacy.length)return;
+  if(orderFileMigrationJobs.has(key))return orderFileMigrationJobs.get(key);
+  const job=(async()=>{
+    const token=readIntegrationSecret('yandexDiskToken');
+    if(!token)throw new Error('Яндекс Диск не подключён');
+    await ensurePublicOrderFolder(key);
+    let changed=false;
+    for(const file of legacy){
+      const source=path.join(uploadDir,file.id),diskPath=`${orderDiskFolder(key)}/import-${safeDiskSegment(file.id)}-${cleanUploadName(file.name)}`;
+      const data=await fs.promises.readFile(source);
+      let metadata=null;
+      try{metadata=await diskMetadata(token,diskPath)}catch{/* Upload when this legacy file is not on Disk yet. */}
+      if(!metadata){
+        const upload=await createDiskUpload(token,diskPath);
+        const response=await fetch(upload.href,{method:upload.method||'PUT',headers:{'Content-Type':file.type||'application/octet-stream'},body:data,signal:AbortSignal.timeout(120000)});
+        if(!response.ok)throw new Error(`Яндекс Диск не принял ${file.name}`);
+        metadata=await diskMetadata(token,diskPath);
+      }
+      if(Number(metadata.size)!==data.length)throw new Error(`Размер ${file.name} на Яндекс Диске не совпадает`);
+      file.storage='yandex-disk';file.diskPath=diskPath;changed=true;
+    }
+    if(changed)await persistOrderFiles();
+  })();
+  orderFileMigrationJobs.set(key,job);
+  try{return await job}finally{orderFileMigrationJobs.delete(key)}
+}
 function publicUploadRecord(record){
   const {diskPath,storage,clinicId,...visible}=record;
   return visible;
@@ -290,6 +336,7 @@ async function completeDiskUpload(item,uploadedBy){
   }
   const order=portalSnapshot().orders.find(order=>order.id===item.orderId&&order.clinicId===item.clinicId);
   if(!order)throw new Error('Заказ не найден');
+  await ensurePublicOrderFolder(item.orderId);
   const record={id,name:item.name,size:item.size,type:item.type,uploadedAt,uploadedBy,purpose:item.purpose,storage:'yandex-disk',diskPath:item.diskPath};
   orderFiles[item.orderId]=[...(orderFiles[item.orderId]||[]),record];await persistOrderFiles();
   await recordPortalEvent(item.orderId,{role:item.actorRole,name:uploadedBy},'file_uploaded',{summary:item.purpose==='result-photo'?'Добавлено фото готовой работы':'Добавлен файл к заказу',fileName:item.name,purpose:item.purpose,clinicId:item.clinicId}).catch(()=>{});
@@ -299,6 +346,7 @@ async function completeDiskUpload(item,uploadedBy){
 async function beginDiskUpload(item){
   const token=readIntegrationSecret('yandexDiskToken');
   if(!token||item.target==='message')return {mode:'local'};
+  await ensurePublicOrderFolder(item.orderId);
   const diskPath=newDiskPath(item),upload=await createDiskUpload(token,diskPath),id=randomBytes(18).toString('hex');
   diskUploadSessions.set(id,{...item,id,diskPath,createdAt:Date.now(),expiresAt:Date.now()+uploadSessionLifetime});
   return {mode:'direct',uploadId:id,href:upload.href,method:upload.method,expiresAt:new Date(Date.now()+uploadSessionLifetime).toISOString()};
@@ -383,7 +431,12 @@ async function handleOrderFiles(req,res,url){
   if(orderId){
     const order=portalSnapshot().orders.find(item=>item.id===orderId);
     if(!canAccessOrder(user,order))return json(res,404,{error:'Заказ не найден'});
-    if(req.method==='GET')return json(res,200,{files:(orderFiles[orderId]||[]).map(({id,name,size,type,uploadedAt,uploadedBy,purpose})=>({id,name,size,type,uploadedAt,uploadedBy,purpose:purpose||'order-file'}))});
+    if(req.method==='GET'){
+      let folderUrl='';
+      try{await ensureOrderFilesOnDisk(orderId)}catch(error){console.error('Legacy order file migration failed:',error.message)}
+      try{folderUrl=await ensurePublicOrderFolder(orderId)}catch(error){console.error('Yandex Disk folder publication failed:',error.message)}
+      return json(res,200,{folderUrl,files:(orderFiles[orderId]||[]).map(({id,name,size,type,uploadedAt,uploadedBy,purpose})=>({id,name,size,type,uploadedAt,uploadedBy,purpose:purpose||'order-file'}))});
+    }
     if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
     const name=decodeURIComponent(String(req.headers['x-upload-name']||'')).replace(/[\\/\\0-\\x1f]/g,'_').trim().slice(0,180);
     const ext=path.extname(name).toLowerCase();
@@ -633,6 +686,7 @@ async function attachTelegramFileToOrder(orderId,clinicId,attachment,telegramAct
   const order=portalSnapshot().orders.find(item=>item.id===orderId&&item.clinicId===clinicId);
   const source=clinicMessageFiles[String(attachment?.id||'')];
   if(!order||!source||source.clinicId!==clinicId||!source.orderEligible)throw new Error('Файл или заказ не найден');
+  await ensurePublicOrderFolder(orderId);
   const existing=(orderFiles[orderId]||[]).find(file=>telegramActionId&&file.telegramActionId===telegramActionId&&file.sourceAttachmentId===source.id);
   if(existing)return existing;
   const id=randomBytes(18).toString('hex');
@@ -952,7 +1006,7 @@ await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(uploadDir,0o700);
 await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(clinicMessageUploadDir,0o700);
-telegramBridge=createTelegramBridge({onClinicMessage:appendTelegramClinicMessage,onBotMessage:appendTelegramClinicMessage,saveTelegramAttachment,attachOrderFile:attachTelegramFileToOrder,loadClinicAttachment:loadTelegramAttachment,createLargeUploadLink});
+telegramBridge=createTelegramBridge({onClinicMessage:appendTelegramClinicMessage,onBotMessage:appendTelegramClinicMessage,saveTelegramAttachment,attachOrderFile:attachTelegramFileToOrder,loadClinicAttachment:loadTelegramAttachment,createLargeUploadLink,onOrderCreated:ensurePublicOrderFolder});
 await telegramBridge.start();
 server.listen(port,host,()=>{
   console.log(`Create Dental: ${tlsKeyFile?'https':'http'}://${host}:${port}`);
@@ -962,4 +1016,5 @@ server.listen(port,host,()=>{
   const deliveryTimer=setInterval(()=>{for(const [clinicId,chat] of Object.entries(clinicChats))for(const message of chat.messages||[])if(message.from==='support'&&message.deliveryStatus==='error'&&(Number(message.deliveryAttempts)||0)<5)void deliverSupportMessage(clinicId,message)},60*1000);deliveryTimer.unref();
   void cleanupOrphanMessageFiles();const cleanupTimer=setInterval(()=>void cleanupOrphanMessageFiles(),6*60*60*1000);cleanupTimer.unref();
   const uploadCleanupTimer=setInterval(()=>{const now=Date.now(),token=readIntegrationSecret('yandexDiskToken');for(const [id,item] of diskUploadSessions)if(item.expiresAt<now){diskUploadSessions.delete(id);void deleteDiskResource(token,item.diskPath).catch(()=>{})}for(const [id,item] of largeUploadLinks)if(item.expiresAt<now||item.usedAt&&item.usedAt<now-24*60*60*1000)largeUploadLinks.delete(id)},10*60*1000);uploadCleanupTimer.unref();
+  void (async()=>{for(const orderId of Object.keys(orderFiles))await ensureOrderFilesOnDisk(orderId).catch(error=>console.error('Legacy order file migration failed:',error.message))})();
 });
