@@ -30,12 +30,24 @@ test('normalizes model output and rejects invalid tooth numbers',()=>{
 });
 
 test('requires the minimum safe fields before proposing a new order',()=>{
-  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров',work:'',teeth:[]}});
+  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'',teeth:[]}});
   assert.deepEqual(telegramInternals.missingCreateFields(analysis),['вид работы','номер зуба или верхнюю/нижнюю челюсть']);
 });
 
+test('does not allow creating an order with only one part of the patient name',()=>{
+  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',patientSurname:'Петров',fields:{patient:'Петров',work:'Вкладки',material:'Вкладка культевая',teeth:[11]}});
+  assert.deepEqual(telegramInternals.missingCreateFields(analysis),['имя и фамилию пациента']);
+});
+
+test('preserves the full patient name including patronymic',()=>{
+  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',patientSurname:'Петров',fields:{patient:'Пётр Сергеевич Петров',work:'Вкладки',material:'Вкладка культевая',teeth:[11]}});
+  assert.equal(analysis.fields.patient,'Пётр Сергеевич Петров');
+  assert.equal(analysis.patientSurname,'Петров');
+  assert.deepEqual(telegramInternals.missingCreateFields(analysis),[]);
+});
+
 test('requires an exact priced service when only a catalog category is given',()=>{
-  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров',work:'Реставрации',teeth:[11]}});
+  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'Реставрации',teeth:[11]}});
   assert.deepEqual(telegramInternals.missingCreateFields(analysis),['точное название услуги из прайса']);
 });
 
