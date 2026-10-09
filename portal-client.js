@@ -20,6 +20,13 @@ export const loadPortal=()=>request('/api/portal');
 export const savePortal=(collection,value)=>request(`/api/portal/${collection}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
 export const loadOrderFiles=orderId=>request(`/api/orders/${encodeURIComponent(orderId)}/files`);
 export const deleteOrder=orderId=>request(`/api/orders/${encodeURIComponent(orderId)}`,{method:'DELETE'});
+export const submitCadReview=(orderId,fileId)=>request(`/api/orders/${encodeURIComponent(orderId)}/cad-review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',fileId})});
+export const decideCadReview=(orderId,action,comment='')=>request(`/api/orders/${encodeURIComponent(orderId)}/cad-review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,comment})});
+export const loadCadReviewHtml=async fileId=>{
+  const response=await fetch(`/api/order-files/${encodeURIComponent(fileId)}?content=1`,{headers:{'X-Portal-Token':portalToken()}});
+  if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.error||'Не удалось открыть CAD-файл')}
+  return response.text();
+};
 async function uploadDirect(file,details,localUpload){
   const prepared=await request('/api/uploads/init',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...details,name:file.name,size:file.size,type:file.type||'application/octet-stream'})});
   if(prepared.mode==='local')return localUpload();

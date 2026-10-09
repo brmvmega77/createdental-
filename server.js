@@ -2,6 +2,7 @@ import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
+import {Readable} from 'node:stream';
 import { timingSafeEqual,randomBytes,createHash } from 'node:crypto';
 import {createDataBackup} from './backup-data.js';
 import {portalSnapshot,replacePortalCollection,recordPortalEvent,portalClient,portalEmployee} from './portal-data.js';
@@ -35,7 +36,7 @@ const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-
 const sharedAttachmentTypes={
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream',
   '.zip':'application/zip','.rar':'application/vnd.rar','.7z':'application/x-7z-compressed','.doc':'application/msword','.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  '.xls':'application/vnd.ms-excel','.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','.txt':'text/plain','.rtf':'application/rtf'
+  '.xls':'application/vnd.ms-excel','.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','.txt':'text/plain','.rtf':'application/rtf','.html':'text/html'
 };
 const maximumAttachmentSize=200*1024*1024;
 const maximumLargeUploadFiles=10;
@@ -58,6 +59,10 @@ function validAttachmentSignature(ext,data){
   if(ext==='.7z')return hex.startsWith('377abcaf271c');
   if(['.doc','.xls'].includes(ext))return hex.startsWith('d0cf11e0a1b11ae1');
   if(ext==='.rtf')return ascii.startsWith('{\\rtf');
+  if(ext==='.html'){
+    if(data.subarray(0,8192).includes(0))return false;
+    return /<(?:!doctype\s+html|html|head|body|script|canvas|div)\b/i.test(data.subarray(0,65536).toString('utf8'));
+  }
   if(ext==='.ply')return ascii.toLowerCase().startsWith('ply');
   if(ext==='.txt')return !data.subarray(0,4096).includes(0);
   if(ext==='.stl'){
@@ -213,8 +218,18 @@ async function handlePortal(req,res,url){
       const [id,next]=changes[0],old=snapshot.orderOverrides[id];
       const oldIndex=stages.indexOf(old?.stage),nextIndex=stages.indexOf(next?.stage);
       const reworkResume=old?.stage==='На доработке'&&next?.stage==='Изготовление';
-      if(!old||old.assignee!==employee.originalName||!next||next.assignee!==old.assignee||(!reworkResume&&(oldIndex<0||nextIndex<0||Math.abs(nextIndex-oldIndex)!==1))||Object.keys(next).some(field=>!['stage','reworkReason','reworkAt'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:'Неверный переход этапа'});
+      const bypassesCad=old?.stage==='Моделирование'&&next?.stage==='Изготовление';
+      if(!old||old.assignee!==employee.originalName||!next||next.assignee!==old.assignee||bypassesCad||(!reworkResume&&(oldIndex<0||nextIndex<0||Math.abs(nextIndex-oldIndex)!==1))||Object.keys(next).some(field=>!['stage','reworkReason','reworkAt'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:bypassesCad?'Сначала отправьте CAD врачу на согласование':'Неверный переход этапа'});
       value={...snapshot.orderOverrides,[id]:next};
+    }else if(user.role==='technician'&&key==='orderOverrides'){
+      if(!value||typeof value!=='object'||Array.isArray(value))return json(res,400,{error:'Неверные данные'});
+      const ids=new Set([...Object.keys(snapshot.orderOverrides),...Object.keys(value)]);
+      const forbidden=[...ids].find(id=>{
+        const old=snapshot.orderOverrides[id]||{},next=value[id];
+        const downstream=['Согласование CAD','Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'];
+        return old.stage==='Моделирование'&&downstream.includes(next?.stage)||old.stage==='Согласование CAD'&&next?.stage!==old.stage;
+      });
+      if(forbidden)return json(res,409,{error:'CAD должен подтвердить или вернуть врач'});
     }
     const newOrders=key==='orders'&&Array.isArray(value)?value.filter(order=>!snapshot.orders.some(existing=>existing.id===order.id)):[];
     try {
@@ -319,7 +334,9 @@ function validateUploadDescription({name,size,type,purpose='order-file'}){
   if(!safeName||!storedType)throw new Error('Формат файла не поддерживается');
   if(!Number.isSafeInteger(bytes)||bytes<1)throw new Error('Файл пустой');
   if(bytes>maximumAttachmentSize)throw new Error('Файл больше 200 МБ');
-  if(!['order-file','result-photo','message-file'].includes(purpose))throw new Error('Неизвестный тип файла');
+  if(!['order-file','result-photo','message-file','cad-review'].includes(purpose))throw new Error('Неизвестный тип файла');
+  if(ext==='.html'&&purpose!=='cad-review')throw new Error('HTML можно загрузить только для согласования CAD');
+  if(purpose==='cad-review'&&ext!=='.html')throw new Error('Для согласования CAD нужен HTML-файл');
   return {name:safeName,size:bytes,type:storedType,ext,purpose};
 }
 function uploadOwner(user){return `${user.role}:${user.subjectId}`}
@@ -419,6 +436,10 @@ async function completeDiskUpload(item,uploadedBy){
   }
   const order=portalSnapshot().orders.find(order=>order.id===item.orderId&&order.clinicId===item.clinicId);
   if(!order)throw new Error('Заказ не найден');
+  if(item.purpose==='cad-review'){
+    const workerId=String(item.owner||'').startsWith('worker:')?String(item.owner).slice(7):'',employee=portalEmployee(workerId),details=portalSnapshot().orderOverrides[order.id]||{};
+    if(!employee||details.assignee!==employee.originalName||details.stage!=='Моделирование')throw new Error('CAD-файл можно отправить только моделировщику на этапе «Моделирование»');
+  }
   await ensurePublicOrderFolder(item.orderId);
   const record={id,name:item.name,size:item.size,type:item.type,uploadedAt,uploadedBy,purpose:item.purpose,storage:'yandex-disk',diskPath:item.diskPath};
   orderFiles[item.orderId]=[...(orderFiles[item.orderId]||[]),record];await persistOrderFiles();
@@ -445,6 +466,7 @@ async function handleUploads(req,res,url){
       if(!canAccessOrder(user,order))return json(res,404,{error:'Заказ не найден'});
       if(description.purpose==='result-photo'&&(user.role==='clinic'||!['.jpg','.jpeg','.png'].includes(description.ext)))return json(res,403,{error:'Фото результата может добавить только лаборатория в формате JPG или PNG'});
       if(description.purpose==='result-photo'&&user.role==='worker'&&portalSnapshot().orderOverrides[order.id]?.stage!=='Контроль качества')return json(res,409,{error:'Фото результата можно добавить на этапе контроля качества'});
+      if(description.purpose==='cad-review'&&(user.role!=='worker'||portalSnapshot().orderOverrides[order.id]?.stage!=='Моделирование'))return json(res,409,{error:'CAD-файл можно отправить только моделировщику на этапе «Моделирование»'});
       try{return json(res,200,await beginDiskUpload({...description,target,orderId:order.id,clinicId:order.clinicId,owner:uploadOwner(user),actorRole:user.role}))}catch(error){console.error('Yandex Disk upload init failed:',error.message);return json(res,502,{error:'Не удалось подготовить загрузку на Яндекс Диск'})}
     }
     const clinicId=user.role==='clinic'?user.subjectId:String(body.clinicId||'');
@@ -526,9 +548,11 @@ async function handleOrderFiles(req,res,url){
     const name=decodeURIComponent(String(req.headers['x-upload-name']||'')).replace(/[\\/\\0-\\x1f]/g,'_').trim().slice(0,180);
     const ext=path.extname(name).toLowerCase();
     const purpose=String(req.headers['x-file-purpose']||'order-file');
-    if(!['order-file','result-photo'].includes(purpose))return json(res,400,{error:'Неизвестный тип файла'});
+    if(!['order-file','result-photo','cad-review'].includes(purpose))return json(res,400,{error:'Неизвестный тип файла'});
     if(purpose==='result-photo'&&(user.role==='clinic'||!['.jpg','.jpeg','.png'].includes(ext)))return json(res,403,{error:'Фото результата может добавить только лаборатория в формате JPG или PNG'});
     if(purpose==='result-photo'&&user.role==='worker'&&portalSnapshot().orderOverrides[orderId]?.stage!=='Контроль качества')return json(res,409,{error:'Фото результата можно добавить на этапе контроля качества'});
+    if(ext==='.html'&&purpose!=='cad-review'||purpose==='cad-review'&&ext!=='.html')return json(res,400,{error:'Для согласования CAD нужен HTML-файл'});
+    if(purpose==='cad-review'&&(user.role!=='worker'||portalSnapshot().orderOverrides[orderId]?.stage!=='Моделирование'))return json(res,409,{error:'CAD-файл можно отправить только моделировщику на этапе «Моделирование»'});
     const allowed=sharedAttachmentTypes;
     if(!name||!allowed[ext])return json(res,400,{error:'Формат файла не поддерживается'});
     const type=String(req.headers['content-type']||'').split(';')[0].toLowerCase();
@@ -551,6 +575,18 @@ async function handleOrderFiles(req,res,url){
   if(match&&req.method==='GET'){
     const record=Object.entries(orderFiles).flatMap(([id,files])=>files.filter(file=>file.id===match[1]).map(file=>({orderId:id,file})))[0];
     if(!record||!canAccessOrder(user,portalSnapshot().orders.find(item=>item.id===record.orderId)))return json(res,404,{error:'Файл не найден'});
+    if(url.searchParams.get('content')==='1'){
+      if(record.file.purpose!=='cad-review'||path.extname(record.file.name).toLowerCase()!=='.html')return json(res,403,{error:'Предпросмотр доступен только для CAD HTML'});
+      const headers={'Content-Type':'text/plain; charset=utf-8','Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(record.file.name)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'};
+      if(record.file.storage==='yandex-disk'){
+        try{
+          const href=await signedDiskRecordUrl(record.file),remote=await fetch(href,{signal:AbortSignal.timeout(120000)});
+          if(!remote.ok||!remote.body)throw new Error('download_failed');
+          res.writeHead(200,headers);Readable.fromWeb(remote.body).pipe(res);return;
+        }catch{return json(res,404,{error:'CAD-файл не найден на Яндекс Диске'})}
+      }
+      try{const localPath=path.join(uploadDir,record.file.id);await fs.promises.access(localPath,fs.constants.R_OK);res.writeHead(200,headers);fs.createReadStream(localPath).pipe(res);return}catch{return json(res,404,{error:'CAD-файл не найден'})}
+    }
     if(record.file.storage==='yandex-disk'){
       try{const href=await signedDiskRecordUrl(record.file);if(url.searchParams.get('link')==='1')return json(res,200,{url:href,name:record.file.name,type:record.file.type});res.writeHead(302,{Location:href,'Cache-Control':'private, no-store'});return res.end()}
       catch{return json(res,404,{error:'Файл не найден на Яндекс Диске'})}
@@ -558,6 +594,43 @@ async function handleOrderFiles(req,res,url){
     try{const data=await fs.promises.readFile(path.join(uploadDir,record.file.id));res.writeHead(200,{'Content-Type':record.file.type,'Content-Length':data.length,'Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(record.file.name)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});return res.end(data)}catch{return json(res,404,{error:'Файл не найден'})}
   }
   return json(res,404,{error:'Не найдено'});
+}
+
+async function handleCadReview(req,res,url){
+  const user=session(req);if(!user)return json(res,401,{error:'Войдите в кабинет'});
+  if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
+  const orderId=url.pathname.match(/^\/api\/orders\/([A-Za-z0-9_-]{1,80})\/cad-review$/)?.[1]||'',snapshot=portalSnapshot();
+  const order=snapshot.orders.find(item=>item.id===orderId);if(!order)return json(res,404,{error:'Заказ не найден'});
+  let body;try{body=await readBody(req,12000)}catch{return json(res,400,{error:'Неверные данные'})}
+  const details=snapshot.orderOverrides[orderId]||{},now=new Date().toISOString();
+  if(body.action==='submit'){
+    const employee=user.role==='worker'?portalEmployee(user.subjectId):null;
+    if(!employee||details.assignee!==employee.originalName)return json(res,403,{error:'CAD может отправить только назначенный моделировщик'});
+    if(details.stage!=='Моделирование')return json(res,409,{error:'CAD можно отправить только на этапе «Моделирование»'});
+    const file=(orderFiles[orderId]||[]).find(item=>item.id===String(body.fileId||'')&&item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html');
+    if(!file)return json(res,404,{error:'CAD HTML не найден'});
+    const review={status:'pending',fileId:file.id,fileName:file.name,sentAt:now,sentBy:employee.name,revision:Number(details.cadReview?.revision||0)+1,comment:''};
+    const next={...snapshot.orderOverrides,[orderId]:{...details,stage:'Согласование CAD',cadReview:review}};
+    try{
+      await replacePortalCollection('orderOverrides',next,{role:'worker',name:employee.name});
+      await recordPortalEvent(orderId,{role:'worker',name:employee.name},'cad_review_requested',{clinicId:order.clinicId,summary:`CAD отправлен врачу на согласование · версия ${review.revision}`,fileId:file.id,fileName:file.name}).catch(()=>{});
+      void telegramBridge?.sendAutomatedMessage(order.clinicId,`CAD по заказу ${order.id} готов к согласованию. Откройте заказ в личном кабинете, чтобы подтвердить или вернуть с комментарием.`).catch(error=>console.error('Telegram CAD notification failed:',error.message));
+      return json(res,201,{ok:true,orderOverride:portalSnapshot().orderOverrides[orderId]});
+    }catch(error){console.error('CAD review submit failed:',error.message);return json(res,500,{error:'Не удалось отправить CAD врачу'})}
+  }
+  if(!['approve','return'].includes(body.action))return json(res,400,{error:'Неизвестное действие'});
+  if(user.role!=='clinic'||order.clinicId!==user.subjectId)return json(res,403,{error:'Решение может принять только врач этой клиники'});
+  if(details.stage!=='Согласование CAD'||details.cadReview?.status!=='pending')return json(res,409,{error:'CAD уже рассмотрен или не отправлен на согласование'});
+  const reviewer=user.displayName||portalClient(user.subjectId)?.contact||portalClient(user.subjectId)?.name||'Врач',comment=String(body.comment||'').replace(/[<>]/g,'').trim().slice(0,2000);
+  if(body.action==='return'&&comment.length<5)return json(res,400,{error:'Опишите, что нужно исправить'});
+  const approved=body.action==='approve',review={...details.cadReview,status:approved?'approved':'returned',reviewedAt:now,reviewedBy:reviewer,comment:approved?'':comment};
+  const next={...snapshot.orderOverrides,[orderId]:{...details,stage:approved?'Изготовление':'Моделирование',cadReview:review}};
+  try{
+    await replacePortalCollection('orderOverrides',next,{role:'clinic',name:reviewer});
+    await recordPortalEvent(orderId,{role:'clinic',name:reviewer},approved?'cad_review_approved':'cad_review_returned',{clinicId:order.clinicId,summary:approved?'CAD подтверждён врачом':`CAD возвращён моделировщику: ${comment}`,comment}).catch(()=>{});
+    void telegramBridge?.sendAutomatedMessage(order.clinicId,approved?`CAD по заказу ${order.id} подтверждён. Заказ передан в изготовление.`:`CAD по заказу ${order.id} возвращён моделировщику. Комментарий: ${comment}`).catch(error=>console.error('Telegram CAD decision notification failed:',error.message));
+    return json(res,200,{ok:true,orderOverride:publicClinicOverride(portalSnapshot().orderOverrides[orderId])});
+  }catch(error){console.error('CAD review decision failed:',error.message);return json(res,500,{error:'Не удалось сохранить решение по CAD'})}
 }
 
 async function handleOrderResource(req,res,url){
@@ -590,7 +663,7 @@ async function handleNotifications(req,res){
   if(req.method==='GET'){
     const accessible=new Set(snapshot.orders.filter(order=>canAccessOrder(user,order)).map(order=>order.id));
     const events=snapshot.orderHistory.filter(event=>{
-      if(user.role==='technician')return event.action==='message_received'||event.action==='clinic_registered'||event.action==='telegram_binding_requested'||event.action==='order_created'||event.action==='stage_changed'&&event.to==='Контроль качества';
+      if(user.role==='technician')return event.action==='message_received'||event.action==='clinic_registered'||event.action==='telegram_binding_requested'||event.action==='order_created'||event.action.startsWith('cad_review_')||event.action==='stage_changed'&&event.to==='Контроль качества';
       return (event.clinicId===user.subjectId||accessible.has(event.orderId))&&!(event.action==='stage_changed'&&event.to==='На доработке');
     });
     const readAt=notificationReads[key]||'';
@@ -604,6 +677,9 @@ async function handleNotifications(req,res){
       if(event.action==='stage_changed')return `Заказ ${event.orderId}: ${event.to}`;
       if(event.action==='assignee_changed')return user.role==='clinic'?`Заказ ${event.orderId}: исполнитель назначен`:`Заказ ${event.orderId}: исполнитель ${event.to}`;
       if(event.action==='rework_requested')return `Заказ ${event.orderId}: запрошена доработка`;
+      if(event.action==='cad_review_requested')return `Заказ ${event.orderId}: CAD ожидает согласования врача`;
+      if(event.action==='cad_review_approved')return `Заказ ${event.orderId}: врач подтвердил CAD`;
+      if(event.action==='cad_review_returned')return `Заказ ${event.orderId}: врач вернул CAD с комментарием`;
       if(event.action==='file_uploaded')return `Заказ ${event.orderId}: ${event.purpose==='result-photo'?'добавлено фото готовой работы':'добавлен файл'}`;
       if(event.action==='message_replied')return `Лаборатория ответила на сообщение`;
       return `Заказ ${event.orderId}: ${event.summary||'есть обновление'}`;
@@ -1082,8 +1158,8 @@ const requestHandler=async (req,res) => {
   if(url.pathname==='/api/clinic-message-files'||url.pathname.startsWith('/api/clinic-message-files/')){
     try{return await handleClinicMessageFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка файла сообщения'})}
   }
-  if(url.pathname.startsWith('/api/orders/')&&(url.pathname.endsWith('/files')||url.pathname.endsWith('/rework'))){
-    try{return url.pathname.endsWith('/rework')?await handleOrderRework(req,res,url):await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка обработки заказа'})}
+  if(url.pathname.startsWith('/api/orders/')&&(url.pathname.endsWith('/files')||url.pathname.endsWith('/rework')||url.pathname.endsWith('/cad-review'))){
+    try{return url.pathname.endsWith('/cad-review')?await handleCadReview(req,res,url):url.pathname.endsWith('/rework')?await handleOrderRework(req,res,url):await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка обработки заказа'})}
   }
   if(/^\/api\/orders\/[A-Za-z0-9_-]{1,80}$/.test(url.pathname))return handleOrderResource(req,res,url);
   if(url.pathname==='/api/notifications')return handleNotifications(req,res);
