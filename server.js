@@ -169,6 +169,7 @@ async function handlePortal(req,res,url){
       snapshot.employees=[];
       snapshot.orderOverrides=Object.fromEntries(Object.entries(snapshot.orderOverrides).filter(([id])=>snapshot.orders.some(order=>order.id===id)).map(([id,detail])=>[id,publicClinicOverride(detail)]));
       snapshot.orderHistory=snapshot.orderHistory.filter(event=>event.clinicId===user.subjectId||snapshot.orders.some(order=>order.id===event.orderId)).map(publicClinicHistoryEvent);
+      snapshot.clientRequests=snapshot.clientRequests.filter(item=>item.clinicId===user.subjectId);
     }else if(user.role==='worker'){
       const employee=portalEmployee(user.subjectId);
       snapshot.orders=snapshot.orders.filter(item=>snapshot.orderOverrides[item.id]?.assignee===employee.originalName);
@@ -176,6 +177,7 @@ async function handlePortal(req,res,url){
       snapshot.employees=[employee];
       snapshot.orderOverrides=Object.fromEntries(Object.entries(snapshot.orderOverrides).filter(([id])=>snapshot.orders.some(order=>order.id===id)));
       snapshot.orderHistory=snapshot.orderHistory.filter(event=>snapshot.orders.some(order=>order.id===event.orderId));
+      snapshot.clientRequests=[];
     }
     return json(res,200,{...snapshot,user:publicUser(user)});
   }
@@ -245,6 +247,46 @@ async function handlePortal(req,res,url){
     }
   }
   return json(res,404,{error:'Не найдено'});
+}
+
+function clientRequestLabel(type){return type==='cancel'?'отмену заказа':type==='deadline'?'изменение срока':'изменение заказа'}
+
+async function handleClientRequestDecision(req,res,url){
+  const user=session(req);
+  if(!user)return json(res,401,{error:'Войдите в кабинет'});
+  if(user.role!=='technician')return json(res,403,{error:'Решение может принять только главный техник'});
+  if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
+  const match=url.pathname.match(/^\/api\/client-requests\/([A-Za-z0-9_-]{1,80})\/(approve|reject)$/);
+  if(!match)return json(res,404,{error:'Запрос не найден'});
+  const [,requestId,decision]=match,snapshot=portalSnapshot();
+  const request=snapshot.clientRequests.find(item=>item.id===requestId);
+  if(!request)return json(res,404,{error:'Запрос не найден'});
+  if(request.status!=='pending')return json(res,409,{error:'По этому запросу уже принято решение'});
+  const order=snapshot.orders.find(item=>item.id===request.orderId&&item.clinicId===request.clinicId);
+  if(!order)return json(res,404,{error:'Заказ не найден'});
+  const reviewedAt=new Date().toISOString(),reviewedBy=actorName(user),status=decision==='approve'?'approved':'rejected';
+  try{
+    if(decision==='approve'){
+      if(request.type==='cancel'){
+        const reason=request.reason||request.summary||'Отмена по запросу клиента';
+        await replacePortalCollection('orders',snapshot.orders.map(item=>item.id===order.id?{...item,status:'Отменён',cancelledAt:reviewedAt,cancelReason:reason}:item),{role:'technician',name:reviewedBy});
+        const current=portalSnapshot();
+        await replacePortalCollection('orderOverrides',{...current.orderOverrides,[order.id]:{...(current.orderOverrides[order.id]||{}),stage:'Отменён',cancelledAt:reviewedAt,cancelReason:reason}},{role:'technician',name:reviewedBy});
+      }else{
+        const allowed=new Set(['patient','work','material','teeth','quantity','toothMode','date','shade','comment','sum','bridgeRanges']);
+        const changes=Object.fromEntries(Object.entries(request.changes||{}).filter(([key])=>allowed.has(key)));
+        const updated={...order,...changes,id:order.id,clinicId:order.clinicId,createdAt:order.createdAt,updatedAt:reviewedAt};
+        await replacePortalCollection('orders',snapshot.orders.map(item=>item.id===order.id?updated:item),{role:'technician',name:reviewedBy});
+      }
+    }
+    const current=portalSnapshot();
+    const reviewed=current.clientRequests.map(item=>item.id===request.id?{...item,status,reviewedAt,reviewedBy}:item);
+    await replacePortalCollection('clientRequests',reviewed,{role:'technician',name:reviewedBy});
+    await recordPortalEvent(order.id,{role:'technician',name:reviewedBy},decision==='approve'?'client_request_approved':'client_request_rejected',{clinicId:order.clinicId,summary:`Запрос на ${clientRequestLabel(request.type)} ${decision==='approve'?'одобрен':'отклонён'}`,clientRequestId:request.id}).catch(()=>{});
+    const resultText=decision==='approve'?`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} одобрен главным техником.`:`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} отклонён главным техником.`;
+    void telegramBridge?.sendAutomatedMessage(order.clinicId,resultText).catch(error=>console.error('Telegram client request notification failed:',error.message));
+    return json(res,200,{ok:true,request:reviewed.find(item=>item.id===request.id),portal:portalSnapshot()});
+  }catch(error){console.error('Client request decision failed:',error.message);return json(res,500,{error:'Не удалось обработать запрос'})}
 }
 
 async function persistOrderFiles(){
@@ -1051,6 +1093,7 @@ const requestHandler=async (req,res) => {
   if(url.pathname==='/api/clinic-messages'||url.pathname.startsWith('/api/chief/conversations')){
     try{return await handleClinicMessages(req,res,url)}catch{return json(res,500,{error:'Ошибка сообщений'})}
   }
+  if(url.pathname.startsWith('/api/client-requests/'))return handleClientRequestDecision(req,res,url);
   if(url.pathname==='/api/portal'||url.pathname.startsWith('/api/portal/'))return handlePortal(req,res,url);
   if (url.pathname.startsWith('/api/')) {
     try { return await handleChat(req,res,url); } catch { return json(res, 500, {error:'Ошибка сервера'}); }

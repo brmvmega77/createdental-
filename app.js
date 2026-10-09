@@ -42,6 +42,7 @@ if(oldLink.has('role')||oldLink.has('page')){
 const initialRoute=routeFromPath(location.pathname);
 const state = {role:initialRoute.role||'clinic',page:initialRoute.role==='clinic'?initialRoute.page:'home',step:0,filter:'Все',query:'',dueDateFilter:'',sortKey:'',sortDirection:'asc',orderId:initialRoute.orderId||'',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',selectedTeeth:[],bridgeRanges:[],bridgeStart:null,dentition:'Постоянные зубы',toothMode:'Одиночка',work:'',workOption:'',messages:[],chatText:'',chatAttachment:null,chatStatus:'Подключение к чату...',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),uploaded:[],orderFiles:[],orderFolderUrl:'',orderPhotoUrls:{},filesFor:'',reworkOrderId:'',form:{surname:'',initials:'',birth:'',construction:'',material:'',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A2',comment:''},toast:''};
 let portalHistory=[];
+let portalClientRequests=[];
 const selectedWork=()=>workCatalog.find(item=>item.name===state.work);
 const workOptionName=option=>typeof option==='string'?option:option.name;
 const selectedWorkOption=()=>selectedWork()?.options.find(option=>workOptionName(option)===state.workOption);
@@ -287,8 +288,8 @@ function syncRoute(){
 async function hydratePortal(){
   const data=await loadPortal();
   if(data.user.role==='technician'&&!technicianCabinet){
-    const {createTechnicianCabinet}=await import('./technician.js?v=disk-folder-3');
-    technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,onUserUpdate:user=>{portalUser=user}});
+    const {createTechnicianCabinet}=await import('./technician.js?v=client-requests-1');
+    technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
     const {createWorkerCabinet}=await import('./worker.js?v=disk-folder-1');
@@ -298,6 +299,7 @@ async function hydratePortal(){
   portalUser=data.user;
   orders.splice(0,orders.length,...data.orders);
   portalHistory=data.orderHistory||[];
+  portalClientRequests=data.clientRequests||[];
   localStorage.setItem('create-dental-tech-orders',JSON.stringify(data.orderOverrides));
   localStorage.setItem('create-dental-tech-clients',JSON.stringify(data.clients));
   localStorage.setItem('create-dental-employees',JSON.stringify(data.employees));
@@ -501,7 +503,7 @@ document.addEventListener('submit',async event=>{
   catch(error){clearPortalToken();portalError=error.message;render()}
 });
 window.addEventListener('popstate',syncRoute);
-setInterval(()=>{if(document.visibilityState!=='visible')return;loadMessages();technicianCabinet?.refreshMessages()},3000);
+setInterval(()=>{if(document.visibilityState!=='visible')return;loadMessages();technicianCabinet?.refreshMessages();technicianCabinet?.refreshClientRequests?.()},3000);
 setInterval(()=>{if(document.visibilityState!=='visible'||!portalReady)return;refreshNotificationCenter().then(()=>{const center=document.querySelector('.notification-center');if(center)center.outerHTML=notificationCenterMarkup()}).catch(()=>{})},20000);
 render();
 if(portalToken())hydratePortal().catch(error=>{

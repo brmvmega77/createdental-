@@ -202,3 +202,10 @@ test('requires a month when a client enters a new deadline',()=>{
   assert.equal(telegramInternals.hasExplicitDueMonth('10.11.2026'),true);
   assert.equal(telegramInternals.hasExplicitDueMonth('завтра'),true);
 });
+
+test('routes existing order changes through chief approval',()=>{
+  assert.equal(telegramInternals.clientRequestType('update_order',{date:'20.10.2026'}),'deadline');
+  assert.equal(telegramInternals.clientRequestType('update_order',{date:'20.10.2026',quantity:2,sum:'24 000 ₽'}),'deadline');
+  assert.equal(telegramInternals.clientRequestType('update_order',{work:'Реставрации',material:'Коронка E.max, ZrO2'}),'edit');
+  assert.equal(telegramInternals.clientRequestType('cancel_order',{}),'cancel');
+});

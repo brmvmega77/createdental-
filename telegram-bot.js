@@ -396,6 +396,12 @@ function changedFields(order,fields){
   return changes;
 }
 
+function clientRequestType(intent,changes={}){
+  if(intent==='cancel_order')return 'cancel';
+  const keys=Object.keys(changes).filter(key=>!['quantity','sum'].includes(key));
+  return keys.length===1&&keys[0]==='date'?'deadline':'edit';
+}
+
 function changeLines(order,fields){
   if(!order)return [];
   const changes=changedFields(order,fields),labels={patient:'Пациент',work:'Работа',material:'Исполнение',teeth:'Зубы',toothMode:'Режим',date:'Срок',shade:'Цвет',comment:'Комментарий'};
@@ -620,8 +626,11 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     }
     const files=attachmentList(item);
     if(files.length)lines.push('',`Файлы (${files.length}):`,...files.map(file=>`• ${file.name}`));
-    lines.push('',`Запросил: ${item.actor}`,'Выполнить это действие в CRM?');
-    const buttons=[[{text:'✅ Подтвердить',callback_data:`tgconfirm:${item.id}`},{text:'✏️ Редактировать',callback_data:`tgedit:${item.id}`}]];
+    const needsChiefApproval=['update_order','cancel_order'].includes(item.analysis.intent);
+    lines.push('',`Запросил: ${item.actor}`,needsChiefApproval?'Отправить запрос главному технику?':'Выполнить это действие в CRM?');
+    const buttons=item.analysis.intent==='create_order'
+      ?[[{text:'✅ Подтвердить',callback_data:`tgconfirm:${item.id}`},{text:'✏️ Редактировать',callback_data:`tgedit:${item.id}`}]]
+      :[[{text:needsChiefApproval?'✅ Отправить запрос':'✅ Подтвердить',callback_data:`tgconfirm:${item.id}`}]];
     if(item.analysis.intent!=='create_order'){
       buttons.push([{text:'🔄 Другой заказ',callback_data:`tgreselect:${item.id}`},{text:'❌ Отменить',callback_data:`tgreject:${item.id}`}]);
     }else{
@@ -690,6 +699,31 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       for(const file of files){try{await attachOrderFile(orderId,item.clinicId,file,item.id);attached+=1}catch(error){console.error('Telegram order attachment failed:',error.message)}}
       return attached===files.length?` Прикреплено файлов: ${attached}.`:` Прикреплено файлов: ${attached} из ${files.length}.`;
     };
+    const enqueueClientRequest=async(order,changes={},reason='')=>{
+      const current=portalSnapshot();
+      const existing=current.clientRequests.find(request=>request.telegramActionId===item.id);
+      if(existing)return existing;
+      const type=clientRequestType(analysis.intent,changes);
+      const request={
+        id:`cr-${randomBytes(10).toString('hex')}`,
+        orderId:order.id,
+        clinicId:clinic.id,
+        type,
+        status:'pending',
+        changes,
+        before:Object.fromEntries(Object.keys(changes).map(key=>[key,order[key]??''])),
+        reason:cleanText(reason,2000),
+        summary:cleanText(analysis.summary||reason||(type==='deadline'?'Изменение срока':type==='cancel'?'Отмена заказа':'Изменение заказа'),2000),
+        requestedBy:item.actor,
+        confirmedBy:callbackUser||item.actor,
+        source:'telegram',
+        telegramActionId:item.id,
+        createdAt:new Date().toISOString()
+      };
+      await replacePortalCollection('clientRequests',[request,...current.clientRequests],actor);
+      await recordPortalEvent(order.id,actor,'client_change_requested',{clinicId:clinic.id,summary:`Запрос на ${type==='cancel'?'отмену заказа':type==='deadline'?'изменение срока':'изменение заказа'} отправлен главному технику`,clientRequestId:request.id}).catch(()=>{});
+      return request;
+    };
     if(analysis.intent==='create_order'){
       const fields=analysis.fields,teeth=safeTeeth(fields.teeth),id=item.targetOrderId||orderId();
       if(snapshot.orders.some(order=>order.id===id))return `Заказ ${id} уже был создан ранее.${await attach(id)}`;
@@ -711,20 +745,19 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     if(!order)throw new Error('Заказ больше не найден');
     if(analysis.intent==='update_order'){
       const changes=changedFields(order,analysis.fields);
-      const estimate=priceEstimate(analysis,order);
-      if(estimate.amount!==null){changes.quantity=estimate.units;changes.sum=estimate.text}
-      const next={...order,...changes,updatedAt:new Date().toISOString()};
-      await replacePortalCollection('orders',snapshot.orders.map(candidate=>candidate.id===order.id?next:candidate),actor);
-      await recordPortalEvent(order.id,actor,'telegram_confirmed',{summary:`Изменение запросил: ${item.actor}; подтвердил: ${callbackUser||item.actor}`,clinicId:clinic.id,telegramActionId:item.id}).catch(()=>{});
-      return `Заказ ${order.id} изменён.${await attach(order.id)}`;
+      if(['work','material','teeth','toothMode'].some(key=>Object.prototype.hasOwnProperty.call(changes,key))){
+        const estimate=priceEstimate(analysis,order);
+        if(estimate.amount!==null){changes.quantity=estimate.units;changes.sum=estimate.text}
+      }
+      const request=await enqueueClientRequest(order,changes);
+      return request.type==='deadline'
+        ?`Запрос на изменение срока заказа ${order.id} отправлен главному технику. До одобрения срок останется прежним.`
+        :`Запрос на изменение заказа ${order.id} отправлен главному технику. До одобрения заказ останется без изменений.`;
     }
     if(analysis.intent==='cancel_order'){
       const reason=analysis.fields.reason||analysis.summary||'Отмена по сообщению клиники';
-      await replacePortalCollection('orders',snapshot.orders.map(candidate=>candidate.id===order.id?{...candidate,status:'Отменён',cancelledAt:new Date().toISOString(),cancelReason:reason}:candidate),actor);
-      const fresh=portalSnapshot();
-      await replacePortalCollection('orderOverrides',{...fresh.orderOverrides,[order.id]:{...(fresh.orderOverrides[order.id]||{}),stage:'Отменён',cancelledAt:new Date().toISOString(),cancelReason:reason}},actor);
-      await recordPortalEvent(order.id,actor,'telegram_confirmed',{summary:`Отмену запросил: ${item.actor}; подтвердил: ${callbackUser||item.actor}`,clinicId:clinic.id,telegramActionId:item.id}).catch(()=>{});
-      return `Заказ ${order.id} отменён.${await attach(order.id)}`;
+      await enqueueClientRequest(order,{},reason);
+      return `Запрос на отмену заказа ${order.id} отправлен главному технику. Заказ пока не отменён.`;
     }
     if(analysis.intent==='accept_order'){
       await replacePortalCollection('orderOverrides',{...snapshot.orderOverrides,[order.id]:{...(snapshot.orderOverrides[order.id]||{}),stage:'Принято доктором',doctorAcceptedAt:new Date().toISOString()}},actor);
@@ -872,6 +905,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       await answerCallback(callback.id,'Выберите заказ');return send(item.chatId,'Выберите заказ:',{reply_markup:{inline_keyboard:buttons}});
     }
     if(action==='tgedit'){
+      if(item.analysis.intent!=='create_order')return answerCallback(callback.id,'Редактирование доступно только при создании заказа');
       if(item.orderId)rememberContext(item.chatId,item.userId,item.clinicId,item.orderId);
       rememberGuidedAction(item.chatId,item.userId,item.clinicId,item.orderId||'','edit');
       delete state.pending[id];await saveState();await answerCallback(callback.id,'Жду исправленный запрос');
@@ -882,7 +916,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     }
     await answerCallback(callback.id,'Выполняю');
     try{
-      const result=await executePending(item,callback);rememberContext(item.chatId,item.userId,item.clinicId,item.orderId||item.targetOrderId);state.completed[id]={at:new Date().toISOString(),result};delete state.pending[id];for(const [key,done] of Object.entries(state.completed))if(Date.parse(done.at)<Date.now()-30*24*60*60*1000)delete state.completed[key];await saveState();await send(item.chatId,`${result}\nПодтвердил: ${actorName({from:callback.from})}`);
+      const result=await executePending(item,callback);rememberContext(item.chatId,item.userId,item.clinicId,item.orderId||item.targetOrderId);state.completed[id]={at:new Date().toISOString(),result};delete state.pending[id];for(const [key,done] of Object.entries(state.completed))if(Date.parse(done.at)<Date.now()-30*24*60*60*1000)delete state.completed[key];await saveState();await send(item.chatId,`${result}\n${['update_order','cancel_order'].includes(item.analysis.intent)?'Запрос отправил':'Подтвердил'}: ${actorName({from:callback.from})}`);
     }catch(error){await send(item.chatId,`Не удалось выполнить действие: ${cleanText(error.message,500)}. Данные CRM не изменены.`)}
   }
 
@@ -1092,4 +1126,4 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   return {start,stop,status,reloadSecrets,sendClinicMessage,sendAutomatedMessage,notifyOrderStage,approveBinding,rejectBinding,unbindClinic};
 }
 
-export const telegramInternals={codeFromText,parseJson,normalizeAnalysis,canonicalizeCatalogSelection,priceEstimate,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,hasFullPatientName,missingCreateFields,mergeCreateAnalysis,createOrderMissingPrompt,createOrderChoiceMarkup,createOrderWizardPrompt,displayDate,isoDateFromDisplay,hasExplicitDueMonth,orderCanReceiveFiles,orderPickerLabel};
+export const telegramInternals={codeFromText,parseJson,normalizeAnalysis,canonicalizeCatalogSelection,priceEstimate,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,hasFullPatientName,missingCreateFields,mergeCreateAnalysis,createOrderMissingPrompt,createOrderChoiceMarkup,createOrderWizardPrompt,displayDate,isoDateFromDisplay,hasExplicitDueMonth,orderCanReceiveFiles,orderPickerLabel,clientRequestType};

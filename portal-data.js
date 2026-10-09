@@ -27,6 +27,7 @@ const defaults=()=>({
   orders:seedOrders.map(order=>({...order})),
   orderOverrides:{},
   orderHistory:[],
+  clientRequests:[],
   clients:assignTelegramCodes(seedClients.map(client=>({...client}))),
   employees:seedEmployees.map(employee=>({...employee}))
 });
@@ -36,7 +37,7 @@ let saveQueue=Promise.resolve();
 try {
   const stored=JSON.parse(fs.readFileSync(file,'utf8'));
   if(stored&&typeof stored==='object'){
-    for(const key of ['orders','clients','employees'])if(Array.isArray(stored[key]))state[key]=stored[key];
+    for(const key of ['orders','clients','employees','clientRequests'])if(Array.isArray(stored[key]))state[key]=stored[key];
     if(stored.orderOverrides&&typeof stored.orderOverrides==='object'&&!Array.isArray(stored.orderOverrides))state.orderOverrides=stored.orderOverrides;
     if(Array.isArray(stored.orderHistory))state.orderHistory=stored.orderHistory;
     const demoClients=new Map([['clinic-1','Dental Clinic'],['clinic-2','Smile Studio'],['clinic-3','White Line'],['clinic-4','Nova Dent']]);
@@ -66,6 +67,7 @@ function validCollection(key,value){
   if(key==='orders')return Array.isArray(value)&&value.length<=5000&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.patient)&&text(item.work)&&/^\d{2}\.\d{2}\.\d{4}$/.test(item.date)&&text(item.sum,40)&&text(item.status,40)&&(!item.image||['tooth.png','smile.png','scan.png'].includes(item.image))&&(!item.clinicId||validId(item.clinicId))&&(!item.teeth||Array.isArray(item.teeth)&&item.teeth.every(tooth=>Number.isInteger(tooth)&&tooth>0&&tooth<100)));
   if(key==='clients')return Array.isArray(value)&&value.length<=2000&&unique(value)&&new Set(value.map(item=>item.telegramCode)).size===value.length&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&telegramCodePattern.test(item.telegramCode)&&(item.approved===undefined||typeof item.approved==='boolean'));
   if(key==='employees')return Array.isArray(value)&&value.length<=500&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&['active','disabled','fired'].includes(item.status));
+  if(key==='clientRequests')return Array.isArray(value)&&value.length<=20000&&unique(value)&&value.every(item=>item&&validId(item.id)&&validId(item.orderId)&&validId(item.clinicId)&&['edit','deadline','cancel'].includes(item.type)&&['pending','approved','rejected'].includes(item.status)&&text(item.requestedBy||'',200)&&text(item.summary||'',2000)&&(!item.reason||text(item.reason,2000))&&item.changes&&typeof item.changes==='object'&&!Array.isArray(item.changes));
   if(key==='orderOverrides')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=5000&&Object.entries(value).every(([id,detail])=>validId(id)&&detail&&typeof detail==='object'&&!Array.isArray(detail)&&(!detail.stage||text(detail.stage,80))&&(!detail.assignee||text(detail.assignee,200))&&(!detail.reworkReason||text(detail.reworkReason,2000))&&(!detail.completedAt||typeof detail.completedAt==='string'&&detail.completedAt.length<=40));
   return false;
 }

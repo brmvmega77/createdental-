@@ -1,6 +1,6 @@
 const pages={
   clinic:new Set(['home','new','orders','messages','clinic']),
-  technician:new Set(['overview','orders','intake','clients','messages','analytics','team','quality','profile']),
+  technician:new Set(['overview','orders','requests','intake','clients','messages','analytics','team','quality','profile']),
   worker:new Set(['overview','orders','profile'])
 };
 
