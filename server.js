@@ -496,7 +496,7 @@ function createLargeUploadLink(clinicId,orderId,requestedBy='Клиент Telegr
   return `${base}/large-upload.html?token=${encodeURIComponent(token)}`;
 }
 async function handleLargeUpload(req,res,url){
-  const match=url.pathname.match(/^\/api\/large-upload\/([A-Za-z0-9_-]{30,80})(?:\/(init|complete|finish)(?:\/([a-f0-9]{36}))?)?$/);
+  const match=url.pathname.match(/^\/api\/large-upload\/([A-Za-z0-9_-]{30,80})(?:\/(init|complete|cancel|finish)(?:\/([a-f0-9]{36}))?)?$/);
   if(!match)return json(res,404,{error:'Ссылка не найдена'});
   const token=match[1],action=match[2]||'',uploadId=match[3]||'',link=largeUploadLinks.get(largeLinkKey(token));
   if(!link||link.expiresAt<Date.now()||link.usedAt)return json(res,410,{error:'Ссылка истекла или уже использована'});
@@ -521,6 +521,14 @@ async function handleLargeUpload(req,res,url){
       diskUploadSessions.delete(item.id);link.completedCount=(link.completedCount||0)+1;
       return json(res,201,{ok:true,file:result.file,orderId:order.id});
     }catch(error){item.completing=false;console.error('Large upload completion failed:',error.message);return json(res,400,{error:error.message||'Не удалось подтвердить загрузку'})}
+  }
+  if(req.method==='POST'&&action==='cancel'&&uploadId){
+    const item=diskUploadSessions.get(uploadId);
+    if(!item||item.expiresAt<Date.now()||item.owner!==`large:${link.key}`||item.largeLinkKey!==link.key)return json(res,404,{error:'Загрузка не найдена или истекла'});
+    if(item.completing)return json(res,409,{error:'Файл уже отправляется'});
+    try{await deleteDiskResource(readIntegrationSecret('yandexDiskToken'),item.diskPath)}catch(error){console.error('Large upload cancel cleanup failed:',error.message)}
+    diskUploadSessions.delete(item.id);link.startedCount=Math.max(0,(link.startedCount||1)-1);
+    return json(res,200,{ok:true});
   }
   if(req.method==='POST'&&action==='finish'){
     const completed=Math.min(maximumLargeUploadFiles,Number(link.completedCount)||0);
