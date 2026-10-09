@@ -295,7 +295,7 @@ async function hydratePortal(){
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=cad-review-1');
+    const {createWorkerCabinet}=await import('./worker.js?v=cad-layout-2');
     workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,onUserUpdate:user=>{portalUser=user}});
   }
   if(portalUser?.subjectId!==data.user.subjectId)state.messages=[];
