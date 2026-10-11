@@ -901,12 +901,12 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
         if(next)saveOrder(id,{stage:next,...(next==='Изготовление'?{manufacturingStatus:manufacturingStatuses[0]}:next==='Контроль качества'?{technicianStatus:'ОТК'}:{})});
       }
       if(action.dataset.techAction==='approve'&&order.stage==='Контроль качества'){
-        const request=order.qualityRequest;
+        const request=order.qualityRequest,qualityApprovedAt=new Date().toISOString();
         if(request?.kind==='cad')saveOrder(id,{stage:'Согласование CAD',qualityRequest:null,cadOperatorStatus:'Работа сдана'});
-        else if(request?.kind==='preprod')saveOrder(id,{stage:'Изготовление',manufacturingStatus:manufacturingStatuses[0],qualityRequest:null,preprodTechnicianStatus:'Работа сдана',technicianStatus:'Принял работу'});
-        else if(request?.kind==='cam')saveOrder(id,{stage:'Изготовление',manufacturingStatus:manufacturingStatuses[1],qualityRequest:null,frameTechnicianStatus:'Работа сдана',technicianStatus:'Принял работу',painterStatus:'Принял работу',ceramicistStatus:'Принял работу'});
-        else if(request?.kind==='esthetic')saveOrder(id,{stage:'Работа принята',qualityRequest:null,technicianStatus:'Работа сдана',painterStatus:'Работа сдана',ceramicistStatus:'Работа сдана',completedAt:new Date().toISOString()});
-        else saveOrder(id,{stage:'Работа принята',technicianStatus:'Работа сдана',painterStatus:'Работа сдана',ceramicistStatus:'Работа сдана',completedAt:new Date().toISOString()});
+        else if(request?.kind==='preprod')saveOrder(id,{stage:'Изготовление',manufacturingStatus:manufacturingStatuses[0],qualityRequest:null,preprodTechnicianStatus:'Работа сдана',technicianStatus:'Принял работу',qualityApprovedAt});
+        else if(request?.kind==='cam')saveOrder(id,{stage:'Изготовление',manufacturingStatus:manufacturingStatuses[1],qualityRequest:null,frameTechnicianStatus:'Работа сдана',technicianStatus:'Принял работу',painterStatus:'Принял работу',ceramicistStatus:'Принял работу',qualityApprovedAt});
+        else if(request?.kind==='esthetic')saveOrder(id,{stage:'Работа принята',qualityRequest:null,technicianStatus:'Работа сдана',painterStatus:'Работа сдана',ceramicistStatus:'Работа сдана',completedAt:qualityApprovedAt,qualityApprovedAt});
+        else saveOrder(id,{stage:'Работа принята',technicianStatus:'Работа сдана',painterStatus:'Работа сдана',ceramicistStatus:'Работа сдана',completedAt:qualityApprovedAt,qualityApprovedAt});
       }
       if(action.dataset.techAction==='rework'&&order.stage==='Контроль качества'){
         const request=order.qualityRequest;

@@ -322,7 +322,7 @@ function createOrderMissingPrompt(analysis){
   }
   if(missing.includes('желаемый срок готовности'))options.push(`• Срок: конкретная дата или «стандартный срок» — ${displayDate(addDays(moscowDate(),14))}.`);
   if(missing.includes('цвет/оттенок или «не требуется»'))options.push('• Цвет: A1 / A2 / A3 / B1 / B2 / другой оттенок / «не требуется».');
-  if(!fields.productionType)options.push('• Тип работы: «Цифра» — сначала CAD оператор или «Аналог» — сначала препрод техник.');
+  if(!fields.productionType)options.push('• Тип работы: «Цифра» — нужны STL/сканы; «Аналог» — нужен гипсовый слепок.');
   const recognized=[];
   if(hasFullPatientName(fields.patient))recognized.push(`пациент — ${fields.patient}`);
   if(fields.toothMode)recognized.push(`режим — ${fields.toothMode}`);
@@ -370,8 +370,8 @@ function createOrderChoiceMarkup(analysis,wizardStep=''){
     [{text:'Другой оттенок',callback_data:'tgnew:shade:custom'},{text:'Не требуется',callback_data:'tgnew:shade:none'}]
   ]};
   if(!fields.productionType)return {inline_keyboard:[[
-    {text:'Цифра · сначала CAD оператор',callback_data:'tgnew:type:digital'},
-    {text:'Аналог · сначала препрод техник',callback_data:'tgnew:type:analog'}
+    {text:'Цифра · нужны STL/сканы',callback_data:'tgnew:type:digital'},
+    {text:'Аналог · нужен гипсовый слепок',callback_data:'tgnew:type:analog'}
   ]]};
   return null;
 }
