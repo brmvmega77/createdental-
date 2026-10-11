@@ -21,25 +21,35 @@ export const savePortal=(collection,value)=>request(`/api/portal/${collection}`,
 export const loadOrderFiles=orderId=>request(`/api/orders/${encodeURIComponent(orderId)}/files`);
 export const deleteOrder=orderId=>request(`/api/orders/${encodeURIComponent(orderId)}`,{method:'DELETE'});
 export const submitCadReview=(orderId,fileId)=>request(`/api/orders/${encodeURIComponent(orderId)}/cad-review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',fileId})});
-export const decideCadReview=(orderId,action,comment='')=>request(`/api/orders/${encodeURIComponent(orderId)}/cad-review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,comment})});
+export const decideCadReview=(orderId,action,comment='',attachments=[])=>request(`/api/orders/${encodeURIComponent(orderId)}/cad-review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,comment,attachments})});
 export const loadCadReviewHtml=async fileId=>{
-  const response=await fetch(`/api/order-files/${encodeURIComponent(fileId)}?content=1`,{headers:{'X-Portal-Token':portalToken()}});
+  const response=await fetch(`/api/order-files/${encodeURIComponent(fileId)}?content=1`,{headers:{'X-Portal-Token':portalToken()},cache:'no-store',signal:AbortSignal.timeout(45000)});
   if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.error||'Не удалось открыть CAD-файл')}
   return response.text();
 };
-async function uploadDirect(file,details,localUpload){
-  const prepared=await request('/api/uploads/init',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...details,name:file.name,size:file.size,type:file.type||'application/octet-stream'})});
-  if(prepared.mode==='local')return localUpload();
-  const sent=await fetch(prepared.href,{method:prepared.method||'PUT',body:file});
-  if(!sent.ok)throw new Error('Яндекс Диск не принял файл. Повторите загрузку');
-  return request(`/api/uploads/${encodeURIComponent(prepared.uploadId)}/complete`,{method:'POST'});
-}
-export const uploadOrderFile=async(orderId,file,{purpose='order-file'}={})=>{
-  const result=await uploadDirect(file,{target:'order',orderId,purpose},async()=>{
-    const response=await fetch(`/api/orders/${encodeURIComponent(orderId)}/files`,{method:'POST',headers:{'X-Portal-Token':portalToken(),'Content-Type':'application/octet-stream','X-Upload-Name':encodeURIComponent(file.name),'X-File-Purpose':purpose},body:file});
-    let data;try{data=await response.json()}catch{throw new Error('Сервер вернул неверный ответ')}
-    if(!response.ok)throw new Error(data.error||'Не удалось загрузить файл');return data;
+function sendToDisk(file,prepared,onProgress){
+  return new Promise((resolve,reject)=>{
+    const xhr=new XMLHttpRequest();
+    xhr.open(prepared.method||'PUT',prepared.href);
+    xhr.upload.addEventListener('progress',event=>{if(event.lengthComputable)onProgress(Math.min(99,Math.round(event.loaded/event.total*100)))});
+    xhr.addEventListener('load',()=>xhr.status>=200&&xhr.status<300?resolve():reject(new Error('Яндекс Диск не принял файл. Повторите загрузку')));
+    xhr.addEventListener('error',()=>reject(new Error('Не удалось связаться с Яндекс Диском')));
+    xhr.addEventListener('abort',()=>reject(new Error('Загрузка отменена')));
+    xhr.send(file);
   });
+}
+async function uploadDirect(file,details,{onProgress=()=>{}}={}){
+  const prepared=await request('/api/uploads/init',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...details,name:file.name,size:file.size,type:file.type||'application/octet-stream'})});
+  if(prepared.mode!=='direct'||!prepared.href)throw new Error('Загрузка доступна только через Яндекс Диск');
+  onProgress(0);
+  await sendToDisk(file,prepared,onProgress);
+  onProgress(99);
+  const result=await request(`/api/uploads/${encodeURIComponent(prepared.uploadId)}/complete`,{method:'POST'});
+  onProgress(100);
+  return result;
+}
+export const uploadOrderFile=async(orderId,file,{purpose='order-file',onProgress=()=>{}}={})=>{
+  const result=await uploadDirect(file,{target:'order',orderId,purpose},{onProgress});
   return result.file;
 };
 export const loadOrderFilePreview=async fileId=>{
@@ -58,11 +68,7 @@ export const downloadOrderFile=async fileId=>{
 };
 export const requestOrderRework=(orderId,reason)=>request(`/api/orders/${encodeURIComponent(orderId)}/rework`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason})});
 export const uploadClinicMessageFile=async(file,clinicId='')=>{
-  const result=await uploadDirect(file,{target:'message',clinicId,purpose:'message-file'},async()=>{
-    const response=await fetch('/api/clinic-message-files',{method:'POST',headers:{'X-Portal-Token':portalToken(),'Content-Type':'application/octet-stream','X-Upload-Name':encodeURIComponent(file.name),...(clinicId?{'X-Clinic-Id':clinicId}:{})},body:file});
-    let data;try{data=await response.json()}catch{throw new Error('Сервер вернул неверный ответ')}
-    if(!response.ok)throw new Error(data.error||'Не удалось загрузить файл');return data;
-  });
+  const result=await uploadDirect(file,{target:'message',clinicId,purpose:'message-file'});
   return result.attachment;
 };
 export const downloadClinicMessageFile=async fileId=>{

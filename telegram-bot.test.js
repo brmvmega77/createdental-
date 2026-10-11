@@ -47,6 +47,12 @@ test('preserves the full patient name including patronymic',()=>{
   assert.deepEqual(telegramInternals.missingCreateFields(analysis),[]);
 });
 
+test('repairs a surname lost by speech analysis when the source names the full patient',()=>{
+  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Виктор Арменович'}});
+  telegramInternals.repairPatientName(analysis,'Расшифровка аудио: Новый заказ Бабаян Виктор Арменович, зубы 17 и 18');
+  assert.equal(analysis.fields.patient,'Бабаян Виктор Арменович');
+});
+
 test('requires an exact priced service when only a catalog category is given',()=>{
   const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'Реставрации',teeth:[11],toothMode:'Одиночка',dueDate:'2026-10-20',shade:'A2'}});
   assert.deepEqual(telegramInternals.missingCreateFields(analysis),['точное название услуги из прайса']);
@@ -80,6 +86,12 @@ test('keeps the tooth buttons open until done and hides every selected tooth',()
   assert.ok(buttons.some(button=>button.callback_data==='tgnew:tooth:23'));
   assert.ok(!buttons.some(button=>button.callback_data==='tgnew:tooth:11'));
   assert.match(telegramInternals.createOrderWizardPrompt(analysis,'teeth'),/После выбора нажмите «Готово»/);
+});
+
+test('accepts tooth numbers typed into the guided Telegram picker',()=>{
+  assert.deepEqual(telegramInternals.parseGuidedTeethInput('12, 15'),[12,15]);
+  assert.deepEqual(telegramInternals.parseGuidedTeethInput('зуб 12 и зуб 15'),[12,15]);
+  assert.deepEqual(telegramInternals.parseGuidedTeethInput('99'),[]);
 });
 
 test('shows catalog categories first and services as the next button level',()=>{
@@ -183,11 +195,11 @@ test('keeps the welcome guide within the Telegram message limit',()=>{
   assert.ok(telegramInternals.welcomeText.length<4096);
 });
 
-test('allows file links only after a Telegram draft is accepted',()=>{
+test('treats a Telegram order like a regular new order for file links',()=>{
   const draft={id:'CD-DRAFT',patient:'Иванов Иван',date:'20.10.2026',status:'Новый',telegramDraft:true};
   const accepted={...draft,id:'CD-READY',telegramDraft:false};
   const snapshot={orderOverrides:{'CD-DRAFT':{stage:'Черновик из Telegram'},'CD-READY':{stage:'Ожидает распределения'}}};
-  assert.equal(telegramInternals.orderCanReceiveFiles(snapshot,draft),false);
+  assert.equal(telegramInternals.orderCanReceiveFiles(snapshot,draft),true);
   assert.equal(telegramInternals.orderCanReceiveFiles(snapshot,accepted),true);
 });
 

@@ -36,14 +36,18 @@ let saveQueue=Promise.resolve();
 
 try {
   const stored=JSON.parse(fs.readFileSync(file,'utf8'));
-  if(stored&&typeof stored==='object'){
+    if(stored&&typeof stored==='object'){
     for(const key of ['orders','clients','employees','clientRequests'])if(Array.isArray(stored[key]))state[key]=stored[key];
     if(stored.orderOverrides&&typeof stored.orderOverrides==='object'&&!Array.isArray(stored.orderOverrides))state.orderOverrides=stored.orderOverrides;
     if(Array.isArray(stored.orderHistory))state.orderHistory=stored.orderHistory;
+    const before=JSON.stringify(state);
+    // Ранее Telegram-заказы помечались отдельным черновиком. Теперь это
+    // обычный новый заказ, как созданный через сайт.
+    state.orders=state.orders.map(order=>order?.telegramDraft?{...order,telegramDraft:false}:order);
+    state.orderOverrides=Object.fromEntries(Object.entries(state.orderOverrides).map(([id,detail])=>[id,detail?.stage==='Черновик из Telegram'?{...detail,stage:'Ожидает распределения',assignee:'',cadOperator:'',technician:''}:detail]));
     const demoClients=new Map([['clinic-1','Dental Clinic'],['clinic-2','Smile Studio'],['clinic-3','White Line'],['clinic-4','Nova Dent']]);
     const demoEmployees=new Map([['tech-1','Анна Смирнова'],['tech-2','Дмитрий Орлов'],['tech-3','Мария Ким'],['tech-4','Илья Федоров']]);
     const demoOrders=new Map([['CD-1042','Иванов А.В.'],['CD-1041','Петрова М.С.'],['CD-1040','Смирнов К.О.'],['CD-1039','Кузнецова Е.А.'],['CD-1038','Лебедев Р.И.'],['CD-1037','Соколов Д.В.'],['CD-1036','Орлова Н.С.'],['CD-1035','Морозов К.А.']]);
-    const before=JSON.stringify(state);
     state.clients=state.clients.filter(item=>demoClients.get(item.id)!==item.name);
     state.clients=assignTelegramCodes(state.clients);
     state.employees=state.employees.filter(item=>demoEmployees.get(item.id)!==item.name);
@@ -67,8 +71,8 @@ function validCollection(key,value){
   if(key==='orders')return Array.isArray(value)&&value.length<=5000&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.patient)&&text(item.work)&&/^\d{2}\.\d{2}\.\d{4}$/.test(item.date)&&text(item.sum,40)&&text(item.status,40)&&(!item.image||['tooth.png','smile.png','scan.png'].includes(item.image))&&(!item.clinicId||validId(item.clinicId))&&(!item.teeth||Array.isArray(item.teeth)&&item.teeth.every(tooth=>Number.isInteger(tooth)&&tooth>0&&tooth<100)));
   if(key==='clients')return Array.isArray(value)&&value.length<=2000&&unique(value)&&new Set(value.map(item=>item.telegramCode)).size===value.length&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&telegramCodePattern.test(item.telegramCode)&&(item.approved===undefined||typeof item.approved==='boolean'));
   if(key==='employees')return Array.isArray(value)&&value.length<=500&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&['active','disabled','fired'].includes(item.status));
-  if(key==='clientRequests')return Array.isArray(value)&&value.length<=20000&&unique(value)&&value.every(item=>item&&validId(item.id)&&validId(item.orderId)&&validId(item.clinicId)&&['edit','deadline','cancel'].includes(item.type)&&['pending','approved','rejected'].includes(item.status)&&text(item.requestedBy||'',200)&&text(item.summary||'',2000)&&(!item.reason||text(item.reason,2000))&&item.changes&&typeof item.changes==='object'&&!Array.isArray(item.changes));
-  if(key==='orderOverrides')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=5000&&Object.entries(value).every(([id,detail])=>validId(id)&&detail&&typeof detail==='object'&&!Array.isArray(detail)&&(!detail.stage||text(detail.stage,80))&&(!detail.assignee||text(detail.assignee,200))&&(!detail.reworkReason||text(detail.reworkReason,2000))&&(!detail.completedAt||typeof detail.completedAt==='string'&&detail.completedAt.length<=40)&&(!detail.cadReview||detail.cadReview&&typeof detail.cadReview==='object'&&!Array.isArray(detail.cadReview)&&['pending','approved','returned'].includes(detail.cadReview.status)&&validId(detail.cadReview.fileId)&&text(detail.cadReview.fileName,200)&&text(detail.cadReview.sentBy||'',200)&&text(detail.cadReview.reviewedBy||'',200)&&text(detail.cadReview.comment||'',2000)&&Number.isSafeInteger(detail.cadReview.revision)&&detail.cadReview.revision>0&&detail.cadReview.revision<10000&&typeof detail.cadReview.sentAt==='string'&&detail.cadReview.sentAt.length<=40&&(!detail.cadReview.reviewedAt||typeof detail.cadReview.reviewedAt==='string'&&detail.cadReview.reviewedAt.length<=40)));
+  if(key==='clientRequests')return Array.isArray(value)&&value.length<=20000&&unique(value)&&value.every(item=>item&&validId(item.id)&&validId(item.orderId)&&validId(item.clinicId)&&['edit','deadline','cancel'].includes(item.type)&&['pending','approved','rejected','archived'].includes(item.status)&&(!item.decision||['approved','rejected'].includes(item.decision))&&text(item.requestedBy||'',200)&&text(item.summary||'',2000)&&(!item.reason||text(item.reason,2000))&&item.changes&&typeof item.changes==='object'&&!Array.isArray(item.changes));
+  if(key==='orderOverrides')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=5000&&Object.entries(value).every(([id,detail])=>validId(id)&&detail&&typeof detail==='object'&&!Array.isArray(detail)&&(!detail.stage||text(detail.stage,80))&&(!detail.manufacturingStatus||text(detail.manufacturingStatus,80))&&(!detail.assignee||text(detail.assignee,200))&&(!detail.reworkReason||text(detail.reworkReason,2000))&&(!detail.completedAt||typeof detail.completedAt==='string'&&detail.completedAt.length<=40)&&(!detail.cadReview||detail.cadReview&&typeof detail.cadReview==='object'&&!Array.isArray(detail.cadReview)&&['pending','approved','returned'].includes(detail.cadReview.status)&&validId(detail.cadReview.fileId)&&text(detail.cadReview.fileName,200)&&text(detail.cadReview.sentBy||'',200)&&text(detail.cadReview.reviewedBy||'',200)&&text(detail.cadReview.comment||'',2000)&&Number.isSafeInteger(detail.cadReview.revision)&&detail.cadReview.revision>0&&detail.cadReview.revision<10000&&typeof detail.cadReview.sentAt==='string'&&detail.cadReview.sentAt.length<=40&&(!detail.cadReview.reviewedAt||typeof detail.cadReview.reviewedAt==='string'&&detail.cadReview.reviewedAt.length<=40)));
   return false;
 }
 
@@ -91,6 +95,7 @@ export async function replacePortalCollection(key,value,actor={}){
           generated.push(eventFor(id,actor,'stage_changed',{from:before.stage||'Новый',to:after.stage||'Новый',reason:after.reworkReason||''}));
         }
         if(before.assignee!==after.assignee)generated.push(eventFor(id,actor,'assignee_changed',{from:before.assignee||'Не назначен',to:after.assignee||'Не назначен'}));
+        if(before.manufacturingStatus!==after.manufacturingStatus&&after.manufacturingStatus)generated.push(eventFor(id,actor,'manufacturing_status_changed',{from:before.manufacturingStatus||'—',to:after.manufacturingStatus}));
         if(before.reworkReason!==after.reworkReason&&after.reworkReason)generated.push(eventFor(id,actor,'rework_requested',{reason:after.reworkReason}));
       }
     }else if(key==='orders'){

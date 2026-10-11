@@ -5,7 +5,7 @@ const timers=new WeakMap();
 const controllers=new WeakMap();
 
 function formatPhone(value){
-  let digits=value.replace(/\D/g,'');
+  let digits=String(value||'').replace(/\D/g,'');
   if(digits.startsWith('7')||digits.startsWith('8'))digits=digits.slice(1);
   digits=digits.slice(0,10);
   if(!digits)return '';
@@ -16,6 +16,18 @@ function formatPhone(value){
   if(digits.length>8)result+='-'+digits.slice(8,10);
   return result;
 }
+
+function enhancePhoneInput(input){
+  if(!input?.matches('input[type="tel"]'))return;
+  input.placeholder=input.placeholder||'+7 (999) 123-45-67';
+  input.inputMode='tel';
+  input.maxLength=18;
+  input.pattern='\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}';
+  if(input.value)input.value=formatPhone(input.value);
+}
+
+window.createDentalFormatPhone=formatPhone;
+window.createDentalEnhancePhoneInput=enhancePhoneInput;
 
 function suggestions(input,items){
   input.parentElement.querySelector('.location-options')?.remove();
@@ -29,7 +41,7 @@ function suggestions(input,items){
 
 document.addEventListener('input',event=>{
   const input=event.target;
-  if(input.matches('input[type="tel"]')){input.value=formatPhone(input.value);input.placeholder='+7 (999) 123-45-67';input.inputMode='tel';input.maxLength=18;input.pattern='\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}';input.setCustomValidity('');return}
+  if(input.matches('input[type="tel"]')){enhancePhoneInput(input);input.setCustomValidity('');return}
   if(input.matches('input[type="email"]')){
     const value=input.value.trim().toLowerCase(),at=value.indexOf('@');
     suggestions(input,at>0?emailDomains.map(domain=>value.slice(0,at+1)+domain).filter(candidate=>candidate.startsWith(value)&&candidate!==value).slice(0,5):[]);
@@ -53,6 +65,13 @@ document.addEventListener('input',event=>{
     }catch{/* Manual entry remains available. */}
   },300));
 });
+
+document.addEventListener('focusin',event=>enhancePhoneInput(event.target));
+document.addEventListener('change',event=>enhancePhoneInput(event.target));
+const enhanceAllPhoneInputs=()=>document.querySelectorAll('input[type="tel"]').forEach(enhancePhoneInput);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',enhanceAllPhoneInputs,{once:true});
+else enhanceAllPhoneInputs();
+new MutationObserver(enhanceAllPhoneInputs).observe(document.documentElement,{childList:true,subtree:true});
 
 document.addEventListener('click',event=>{
   const choice=event.target.closest('[data-location-choice]');

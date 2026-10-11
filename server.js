@@ -2,13 +2,15 @@ import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
-import {Readable} from 'node:stream';
+import {gzip} from 'node:zlib';
 import { timingSafeEqual,randomBytes,createHash } from 'node:crypto';
 import {createDataBackup} from './backup-data.js';
 import {portalSnapshot,replacePortalCollection,recordPortalEvent,portalClient,portalEmployee} from './portal-data.js';
 import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
 import {createTelegramBridge} from './telegram-bot.js';
+import {createEmployeeTelegramBridge} from './employee-telegram-bot.js';
 import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource} from './yandex-disk-storage.js';
+import {workCatalog,rubles} from './work-catalog.js';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
@@ -23,6 +25,7 @@ const uploadMetaFile=process.env.ORDER_UPLOAD_META_FILE||path.join(root,'.data',
 const notificationReadFile=process.env.NOTIFICATION_READ_FILE||path.join(root,'.data','notification-read.json');
 const integrationSecretFiles={
   telegramBotToken:process.env.TELEGRAM_BOT_TOKEN_FILE||path.join(root,'.data','telegram-bot-token'),
+  employeeTelegramBotToken:process.env.EMPLOYEE_TELEGRAM_BOT_TOKEN_FILE||path.join(root,'.data','employee-telegram-bot-token'),
   speechKitKey:process.env.YANDEX_SPEECHKIT_API_KEY_FILE||path.join(root,'.data','yandex-speechkit-api-key'),
   yandexGptKey:process.env.YANDEX_GPT_API_KEY_FILE||path.join(root,'.data','yandex-gpt-api-key'),
   folderId:process.env.YANDEX_FOLDER_ID_FILE||path.join(root,'.data','yandex-folder-id'),
@@ -31,7 +34,7 @@ const integrationSecretFiles={
 const tlsKeyFile=process.env.TLS_KEY_FILE||'';
 const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
-const publicFiles = new Set(['/','/index.html','/app.js','/work-catalog.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/styles.css','/support.html','/support.js','/large-upload.html','/large-upload.js','/yandex_a7db0249ed96373e.html']);
+const publicFiles = new Set(['/','/index.html','/app.js','/work-catalog.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/styles.css','/support.html','/support.js','/large-upload.html','/large-upload.js','/yandex_a7db0249ed96373e.html']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon'};
 const sharedAttachmentTypes={
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream',
@@ -45,6 +48,37 @@ const diskUploadSessions=new Map();
 const largeUploadLinks=new Map();
 const publicOrderFolderLinks=new Map();
 const orderFileMigrationJobs=new Map();
+const cadHtmlCache=new Map();
+const cadHtmlInflight=new Map();
+let cadHtmlCacheBytes=0;
+const cadHtmlCacheLimit=24*1024*1024;
+function rememberCadHtml(id,html){
+  const size=Buffer.byteLength(html,'utf8');
+  if(size>cadHtmlCacheLimit)return;
+  if(cadHtmlCache.has(id))cadHtmlCacheBytes-=cadHtmlCache.get(id).size;
+  cadHtmlCache.set(id,{html,size,usedAt:Date.now()});cadHtmlCacheBytes+=size;
+  while(cadHtmlCacheBytes>cadHtmlCacheLimit){
+    const oldest=[...cadHtmlCache.entries()].sort((a,b)=>a[1].usedAt-b[1].usedAt)[0];
+    if(!oldest)break;
+    cadHtmlCacheBytes-=oldest[1].size;cadHtmlCache.delete(oldest[0]);
+  }
+}
+async function readCadHtml(record){
+  const key=String(record.file.id),cached=cadHtmlCache.get(key);
+  if(cached){cached.usedAt=Date.now();return cached.html}
+  if(cadHtmlInflight.has(key))return cadHtmlInflight.get(key);
+  const promise=(async()=>{
+    let html='';
+    if(record.file.storage==='yandex-disk'){
+      const href=await signedDiskRecordUrl(record.file),remote=await fetch(href,{signal:AbortSignal.timeout(120000)});
+      if(!remote.ok)throw new Error('download_failed');
+      html=await remote.text();
+    }else html=await fs.promises.readFile(path.join(uploadDir,record.file.id),'utf8');
+    rememberCadHtml(key,html);return html;
+  })();
+  cadHtmlInflight.set(key,promise);
+  try{return await promise}finally{cadHtmlInflight.delete(key)}
+}
 function validAttachmentSignature(ext,data){
   if(!Buffer.isBuffer(data)||!data.length)return false;
   const ascii=data.subarray(0,16).toString('ascii'),hex=data.subarray(0,12).toString('hex');
@@ -85,6 +119,7 @@ let orderFilesQueue=Promise.resolve();
 let notificationReads={};
 let notificationReadQueue=Promise.resolve();
 let telegramBridge=null;
+let employeeTelegramBridge=null;
 try{orderFiles=JSON.parse(fs.readFileSync(uploadMetaFile,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
 try{notificationReads=JSON.parse(fs.readFileSync(notificationReadFile,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
 const locationCache=new Map();
@@ -129,12 +164,26 @@ function canAccessOrder(user,order){
   if(!user||!order)return false;
   if(user.role==='technician')return true;
   if(user.role==='clinic')return order.clinicId===user.subjectId;
-  return user.role==='worker'&&portalEmployee(user.subjectId)?.originalName===portalSnapshot().orderOverrides[order.id]?.assignee;
+  const employee=portalEmployee(user.subjectId),details=portalSnapshot().orderOverrides[order.id]||{};
+  return user.role==='worker'&&employee&&[details.assignee,details.cadOperator,details.preprodTechnician,details.technician,details.frameTechnician,details.painter,details.ceramicist].includes(employee.originalName);
 }
 function actorName(user){
   if(user?.role==='clinic')return portalClient(user.subjectId)?.name||user.displayName||'Клиника';
   if(user?.role==='worker')return portalEmployee(user.subjectId)?.name||user.displayName||'Техник';
   return user?.displayName||user?.email||'Главный техник';
+}
+function isCadOperatorEmployee(employee){
+  return /cad\s*\/?\s*cam|cadcam|cad\s*оператор|моделировщик/i.test(String(employee?.specialty||''));
+}
+function isPreprodEmployee(employee){return /препрод|pre\s*prod|предпрод/i.test(String(employee?.specialty||''));}
+function isPainterEmployee(employee){
+  const value=String(employee?.specialty||'').trim();
+  return /красильщик|керамист|эстетист/i.test(value);
+}
+const isCeramicistEmployee=isPainterEmployee;
+function isFrameEmployee(employee){
+  const value=String(employee?.specialty||'').trim();
+  return !isCadOperatorEmployee(employee)&&!isPreprodEmployee(employee)&&(!value||/зубной\s+техник|каркасист/i.test(value));
 }
 function publicUser(user){
   if(user?.role==='technician'&&user.subjectId==='chief')return {...user,...chiefAccountProfile()};
@@ -145,7 +194,7 @@ function publicUser(user){
   return user;
 }
 function publicClinicOverride(detail={}){
-  const {assignee,...visible}=detail||{};
+  const {assignee,cadOperator,preprodTechnician,technician,frameTechnician,painter,ceramicist,frameTechnicianStatus,painterStatus,ceramicistStatus,manufacturingStatus,...visible}=detail||{};
   return {...visible,assigned:Boolean(assignee&&assignee!=='Не назначен')};
 }
 function publicClinicHistoryEvent(event){
@@ -177,7 +226,13 @@ async function handlePortal(req,res,url){
       snapshot.clientRequests=snapshot.clientRequests.filter(item=>item.clinicId===user.subjectId);
     }else if(user.role==='worker'){
       const employee=portalEmployee(user.subjectId);
-      snapshot.orders=snapshot.orders.filter(item=>snapshot.orderOverrides[item.id]?.assignee===employee.originalName);
+      // A worker can be assigned in either role. CAD/CAM operators and
+      // dental technicians are stored separately, so do not limit the
+      // worker cabinet to the legacy `assignee` field.
+      snapshot.orders=snapshot.orders.filter(item=>{
+        const details=snapshot.orderOverrides[item.id]||{};
+        return [details.assignee,details.cadOperator,details.preprodTechnician,details.technician,details.frameTechnician,details.painter,details.ceramicist].includes(employee.originalName);
+      });
       snapshot.clients=[];
       snapshot.employees=[employee];
       snapshot.orderOverrides=Object.fromEntries(Object.entries(snapshot.orderOverrides).filter(([id])=>snapshot.orders.some(order=>order.id===id)));
@@ -198,7 +253,7 @@ async function handlePortal(req,res,url){
         if(!Array.isArray(value))return json(res,400,{error:'Неверные данные'});
         const existing=new Set(snapshot.orders.map(item=>item.id));
         const additions=value.filter(item=>!existing.has(item.id));
-        if(additions.length!==1||value.length!==snapshot.orders.filter(item=>item.clinicId===user.subjectId).length+1||additions[0].clinicId!==user.subjectId||snapshot.orders.some(item=>item.id===additions[0].id))return json(res,403,{error:'Можно добавить только свой заказ'});
+        if(!additions.length||additions.length>20||value.length!==snapshot.orders.filter(item=>item.clinicId===user.subjectId).length+additions.length||additions.some(item=>item.clinicId!==user.subjectId||snapshot.orders.some(existingOrder=>existingOrder.id===item.id)))return json(res,403,{error:'Можно добавить до 20 своих заказов за один раз'});
         value=[...additions,...snapshot.orders];
       }else if(key==='orderOverrides'){
         if(!value||typeof value!=='object'||Array.isArray(value))return json(res,400,{error:'Неверные данные'});
@@ -206,24 +261,46 @@ async function handlePortal(req,res,url){
         if(changes.length!==1)return json(res,403,{error:'Можно изменить только один свой заказ'});
         const [id,next]=changes[0],order=snapshot.orders.find(item=>item.id===id&&item.clinicId===user.subjectId),old=snapshot.orderOverrides[id]||{};
         const visibleOld=publicClinicOverride(old);
-        if(!order||old.stage!=='В доставке'||next.stage!=='Принято доктором'||Object.keys({...visibleOld,...next}).some(field=>!['stage','doctorAcceptedAt'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(visibleOld[field])))return json(res,403,{error:'Неверный переход этапа'});
+        const currentStage=old.stage||(['В пути к вам','В доставке'].includes(order?.status)?'В доставке':order?.status==='Принято'?'Принято доктором':order?.status);
+        if(!order||currentStage!=='В доставке'||next.stage!=='Принято доктором'||Object.keys({...visibleOld,...next}).some(field=>!['stage','doctorAcceptedAt'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(visibleOld[field])))return json(res,403,{error:'Неверный переход этапа'});
         value={...snapshot.orderOverrides,[id]:{...old,stage:'Принято доктором',doctorAcceptedAt:new Date().toISOString()}};
       }else return json(res,403,{error:'Доступ запрещён'});
     }else if(user.role==='worker'){
       if(key!=='orderOverrides'||!value||typeof value!=='object')return json(res,403,{error:'Доступ запрещён'});
       const employee=portalEmployee(user.subjectId);
-      const stages=['Подготовка','Моделирование','Изготовление','Контроль качества'];
+      const cadOperator=isCadOperatorEmployee(employee),preprod=isPreprodEmployee(employee),painter=isPainterEmployee(employee),stages=cadOperator?['Подготовка','Моделирование','Контроль качества']:preprod?['Подготовка','Препрод','Контроль качества']:['Изготовление','Контроль качества'];
       const changes=Object.entries(value).filter(([id,detail])=>JSON.stringify(detail)!==JSON.stringify(snapshot.orderOverrides[id]));
       if(changes.length!==1)return json(res,403,{error:'Можно изменить только один свой заказ'});
       const [id,next]=changes[0],old=snapshot.orderOverrides[id];
       const oldIndex=stages.indexOf(old?.stage),nextIndex=stages.indexOf(next?.stage);
-      const reworkResume=old?.stage==='На доработке'&&next?.stage==='Изготовление';
+      if(old?.stage==='Согласование CAD'&&next?.stage!==old.stage)return json(res,409,{error:'CAD остаётся на согласовании у врача до его решения'});
+      const reworkResume=old?.stage==='На доработке'&&['Изготовление','Препрод'].includes(next?.stage);
       const bypassesCad=old?.stage==='Моделирование'&&next?.stage==='Изготовление';
-      if(!old||old.assignee!==employee.originalName||!next||next.assignee!==old.assignee||bypassesCad||(!reworkResume&&(oldIndex<0||nextIndex<0||Math.abs(nextIndex-oldIndex)!==1))||Object.keys(next).some(field=>!['stage','reworkReason','reworkAt'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:bypassesCad?'Сначала отправьте CAD врачу на согласование':'Неверный переход этапа'});
+      const statusField=preprod?'preprodTechnicianStatus':painter?'painterStatus':'frameTechnicianStatus';
+      const statusOnly=preprod?old?.stage==='Препрод'&&next?.stage==='Препрод'&&['Принял работу','В работе'].includes(next?.[statusField]):!cadOperator&&old?.stage==='Изготовление'&&next?.stage==='Изготовление'&&['Принял работу','В работе'].includes(next?.[statusField]);
+      const qualityKind=preprod?'preprod':painter?'esthetic':'cam';
+      const qualitySubmit=preprod?old?.stage==='Препрод'&&next?.stage==='Контроль качества'&&old?.[statusField]==='В работе'&&next?.qualityRequest?.kind==='preprod'&&next?.qualityRequest?.employeeId===employee?.id&&next?.[statusField]==='ОТК':!cadOperator&&old?.stage==='Изготовление'&&next?.stage==='Контроль качества'&&old?.manufacturingStatus===(painter?'В работе у Красильщика':'В работе у Каркасиста')&&old?.[statusField]==='В работе'&&next?.qualityRequest?.kind===qualityKind&&next?.qualityRequest?.employeeId===employee?.id&&next?.[statusField]==='ОТК';
+      const handoff=false;
+      const assignedToWorker=[old.assignee,old.cadOperator,old.preprodTechnician,old.technician,old.frameTechnician,old.painter,old.ceramicist].includes(employee?.originalName);
+      if(!old||!assignedToWorker||!next||next.assignee!==old.assignee||bypassesCad||(!reworkResume&&!statusOnly&&!qualitySubmit&&!handoff&&(oldIndex<0||nextIndex<0||Math.abs(nextIndex-oldIndex)!==1))||Object.keys(next).some(field=>!['stage','reworkReason','reworkAt','qualityRequest','cadOperator','preprodTechnician','preprodTechnicianStatus','technician','frameTechnician','painter','ceramicist','technicianStatus','frameTechnicianStatus','painterStatus','ceramicistStatus','manufacturingStatus','workerAcceptances'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:bypassesCad?'Сначала отправьте CAD главному технику на ОТК':cadOperator?'Неверный переход этапа для CAD оператора':'Этот этап выполняется на текущей стадии производства'});
       value={...snapshot.orderOverrides,[id]:next};
     }else if(user.role==='technician'&&key==='orderOverrides'){
       if(!value||typeof value!=='object'||Array.isArray(value))return json(res,400,{error:'Неверные данные'});
       const ids=new Set([...Object.keys(snapshot.orderOverrides),...Object.keys(value)]);
+      const cadConfirmed=detail=>detail?.cadReview?.status==='approved'||['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(detail?.stage);
+      const assignmentViolation=[...ids].find(id=>{
+        const old=snapshot.orderOverrides[id]||{},next=value[id]||{};
+        const oldStage=old.stage==='Черновик из Telegram'?'Ожидает распределения':old.stage;
+        const technicianChanged=next.technician!==old.technician||next.preprodTechnician!==old.preprodTechnician||next.frameTechnician!==old.frameTechnician||next.painter!==old.painter||next.ceramicist!==old.ceramicist;
+        const cadChanged=next.cadOperator!==old.cadOperator;
+        const order=snapshot.orders.find(item=>item.id===id),analog=order?.productionType==='analog';
+        const firstAnalogAssigned=analog&&next.preprodTechnician&&['Подготовка','Препрод'].includes(oldStage);
+        const analogProductionAssigned=analog&&(next.frameTechnician||next.painter||next.ceramicist)&&['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(oldStage);
+        if(technicianChanged&&(next.technician||next.frameTechnician||next.painter||next.ceramicist||next.preprodTechnician)&&!cadConfirmed(next)&&!cadConfirmed(old)&&!firstAnalogAssigned&&!analogProductionAssigned)return true;
+        if(cadChanged&&next.cadOperator&&oldStage==='Ожидает распределения')return true;
+        return false;
+      });
+      if(assignmentViolation)return json(res,409,{error:'Сначала подтвердите CAD врачом и переведите заказ на этап «Приём / Доставка». Каркасиста и красильщика можно назначить только после этого'});
       const forbidden=[...ids].find(id=>{
         const old=snapshot.orderOverrides[id]||{},next=value[id];
         const downstream=['Согласование CAD','Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'];
@@ -245,13 +322,14 @@ async function handlePortal(req,res,url){
           throw new Error('order_folder_failed');
         }
       }
-      if(key==='employees')for(const employee of value)if(employee.status!=='active')revokeSubjectSessions('worker',employee.id);
+      if(key==='employees')for(const employee of value)if(employee.status!=='active'){revokeSubjectSessions('worker',employee.id);void employeeTelegramBridge?.revokeEmployee(employee.id).catch(error=>console.error('Employee Telegram revoke failed:',error.message))}
       if(key==='orders'){
         const beforeById=new Map(snapshot.orders.map(order=>[order.id,order]));
         for(const order of value){const before=beforeById.get(order.id);if(before&&before.date!==order.date)void telegramBridge?.sendAutomatedMessage(order.clinicId,`Заказ ${order.id}\nНовый срок сдачи: ${order.date}`).catch(error=>console.error('Telegram deadline notification failed:',error.message))}
       }
       if(key==='orderOverrides')for(const [id,detail] of Object.entries(value)){
         const before=snapshot.orderOverrides[id]||{};
+        if(detail&&(detail.assignee!==before.assignee||detail.technician!==before.technician||detail.preprodTechnician!==before.preprodTechnician||detail.frameTechnician!==before.frameTechnician||detail.painter!==before.painter||detail.ceramicist!==before.ceramicist||detail.cadOperator!==before.cadOperator)){const order=snapshot.orders.find(item=>item.id===id);if(order)void employeeTelegramBridge?.notifyAssignment(order,detail).catch(error=>console.error('Employee Telegram assignment notification failed:',error.message))}
         if(detail?.stage&&detail.stage!==before.stage){const order=snapshot.orders.find(item=>item.id===id);if(order)void telegramBridge?.notifyOrderStage(order,detail.stage).catch(error=>console.error('Telegram status notification failed:',error.message))}
       }
       return json(res,200,{ok:true})
@@ -266,6 +344,79 @@ async function handlePortal(req,res,url){
 
 function clientRequestLabel(type){return type==='cancel'?'отмену заказа':type==='deadline'?'изменение срока':'изменение заказа'}
 
+const permanentTeeth=[11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,31,32,33,34,35,36,37,38,41,42,43,44,45,46,47,48];
+const permanentTeethSet=new Set(permanentTeeth);
+const upperJaw=permanentTeeth.filter(tooth=>tooth<30);
+const lowerJaw=permanentTeeth.filter(tooth=>tooth>30);
+function cleanRequestText(value,maximum=2000){return String(value??'').replace(/[<>]/g,'').trim().slice(0,maximum)}
+function requestPrice(work,material,teeth){const category=workCatalog.find(item=>item.name===work),option=category?.options.find(item=>item.name===material),units=Math.max(1,teeth.length||1);return Number.isFinite(option?.price)?rubles(option.price*units):null}
+
+async function handleClientRequestCreate(req,res,url){
+  const user=session(req);
+  if(!user)return json(res,401,{error:'Войдите в кабинет'});
+  if(user.role!=='clinic')return json(res,403,{error:'Запрос может отправить только клиника'});
+  if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
+  const match=url.pathname.match(/^\/api\/orders\/([A-Za-z0-9_-]{1,80})\/client-request$/);
+  if(!match)return json(res,404,{error:'Заказ не найден'});
+  let body;try{body=await readBody(req,12000)}catch{return json(res,400,{error:'Неверные данные запроса'})}
+  const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===match[1]&&item.clinicId===user.subjectId);
+  if(!order)return json(res,404,{error:'Заказ не найден'});
+  if(order.status==='Отменён')return json(res,409,{error:'Заказ уже отменён'});
+  const type=body.type==='cancel'?'cancel':body.type==='edit'?'edit':'';
+  if(!type)return json(res,400,{error:'Выберите тип запроса'});
+  const requestedBy=actorName(user),createdAt=new Date().toISOString();
+  let reason='',summary='',changes={},requestType=type;
+  if(type==='cancel'){
+    reason=cleanRequestText(body.reason);
+    if(reason.length<3)return json(res,400,{error:'Коротко укажите причину отмены'});
+    summary=`Отмена заказа: ${reason}`;
+  }else{
+    const field=cleanRequestText(body.field,40),value=body.value;
+    if(field==='patient'){
+      const patient=cleanRequestText(value,160);
+      if(patient.split(/\s+/).filter(Boolean).length<2)return json(res,400,{error:'Укажите имя и фамилию пациента'});
+      changes={patient};summary=`Пациент: ${patient}`;
+    }else if(field==='birth'){
+      const birth=cleanRequestText(value,20);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(birth))return json(res,400,{error:'Укажите дату рождения'});
+      changes={birth};summary=`Дата рождения: ${birth.split('-').reverse().join('.')}`;
+    }else if(field==='teeth'){
+      const teeth=[...new Set(String(value||'').split(/[^0-9]+/).filter(Boolean).map(Number))].filter(tooth=>permanentTeethSet.has(tooth));
+      if(!teeth.length)return json(res,400,{error:'Укажите номера зубов через запятую'});
+      changes={teeth,quantity:teeth.length};const priced=requestPrice(order.work,order.material,teeth);if(priced)changes.sum=priced;summary=`Зубы: ${teeth.join(', ')}`;
+    }else if(field==='mode'){
+      const mode=cleanRequestText(value,30);
+      if(!['single','bridge','upper','lower'].includes(mode))return json(res,400,{error:'Выберите режим'});
+      if(mode==='upper'||mode==='lower'){
+        const teeth=mode==='upper'?upperJaw:lowerJaw;
+        changes={toothMode:'Челюсть',teeth,quantity:teeth.length,bridgeRanges:[]};const priced=requestPrice(order.work,order.material,teeth);if(priced)changes.sum=priced;summary=`Режим: ${mode==='upper'?'верхняя челюсть':'нижняя челюсть'}`;
+      }else{changes={toothMode:mode==='bridge'?'Мост':'Одиночка',bridgeRanges:mode==='bridge'?[order.teeth||[]]:[]};summary=`Режим: ${changes.toothMode}`}
+    }else if(field==='service'){
+      const [work,material]=String(value||'').split('|||').map(item=>cleanRequestText(item,200));
+      const category=workCatalog.find(item=>item.name===work),option=category?.options.find(item=>item.name===material);
+      if(!category||!option)return json(res,400,{error:'Выберите услугу из прайса'});
+      const teeth=Array.isArray(order.teeth)?order.teeth:[],quantity=Math.max(1,teeth.length||Number(order.quantity)||1);
+      changes={work:category.name,material:option.name,quantity,sum:rubles(option.price*quantity)};summary=`Услуга: ${category.name} · ${option.name}`;
+    }else if(field==='date'){
+      const date=cleanRequestText(value,20);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(`${date}T00:00:00`)))return json(res,400,{error:'Укажите новый срок'});
+      changes={date:date.split('-').reverse().join('.')};requestType='deadline';summary=`Новый срок: ${changes.date}`;
+    }else if(field==='shade'){
+      const shade=cleanRequestText(value,80);if(!shade)return json(res,400,{error:'Укажите цвет'});changes={shade};summary=`Цвет: ${shade}`;
+    }else if(field==='comment'){
+      const comment=cleanRequestText(value);if(comment.length<3)return json(res,400,{error:'Введите новый комментарий'});changes={comment};summary='Изменение комментария к заказу';
+    }else return json(res,400,{error:'Выберите, что нужно изменить'});
+  }
+  if(snapshot.clientRequests.some(item=>item.orderId===order.id&&item.type===requestType&&item.status==='pending'))return json(res,409,{error:requestType==='cancel'?'Запрос на отмену уже ожидает решения':requestType==='deadline'?'Запрос на изменение срока уже ожидает решения':'По заказу уже есть правка, ожидающая решения'});
+  const before=Object.fromEntries(Object.keys(changes).map(key=>[key,order[key]??'']));
+  const request={id:`cr-${randomBytes(10).toString('hex')}`,orderId:order.id,clinicId:order.clinicId,type:requestType,status:'pending',requestedBy,confirmedBy:requestedBy,summary,reason,changes,before,createdAt,source:'portal'};
+  try{
+    await replacePortalCollection('clientRequests',[request,...snapshot.clientRequests],{role:'clinic',name:requestedBy});
+    await recordPortalEvent(order.id,{role:'clinic',name:requestedBy},'client_change_requested',{clinicId:order.clinicId,summary:`Запрошено ${clientRequestLabel(requestType)}`,clientRequestId:request.id}).catch(()=>{});
+    return json(res,201,{ok:true,request});
+  }catch(error){console.error('Client request creation failed:',error.message);return json(res,500,{error:'Не удалось отправить запрос'})}
+}
+
 async function handleClientRequestDecision(req,res,url){
   const user=session(req);
   if(!user)return json(res,401,{error:'Войдите в кабинет'});
@@ -279,7 +430,7 @@ async function handleClientRequestDecision(req,res,url){
   if(request.status!=='pending')return json(res,409,{error:'По этому запросу уже принято решение'});
   const order=snapshot.orders.find(item=>item.id===request.orderId&&item.clinicId===request.clinicId);
   if(!order)return json(res,404,{error:'Заказ не найден'});
-  const reviewedAt=new Date().toISOString(),reviewedBy=actorName(user),status=decision==='approve'?'approved':'rejected';
+  const reviewedAt=new Date().toISOString(),reviewedBy=actorName(user),status='archived',decisionResult=decision==='approve'?'approved':'rejected';
   try{
     if(decision==='approve'){
       if(request.type==='cancel'){
@@ -288,14 +439,14 @@ async function handleClientRequestDecision(req,res,url){
         const current=portalSnapshot();
         await replacePortalCollection('orderOverrides',{...current.orderOverrides,[order.id]:{...(current.orderOverrides[order.id]||{}),stage:'Отменён',cancelledAt:reviewedAt,cancelReason:reason}},{role:'technician',name:reviewedBy});
       }else{
-        const allowed=new Set(['patient','work','material','teeth','quantity','toothMode','date','shade','comment','sum','bridgeRanges']);
+        const allowed=new Set(['patient','birth','work','material','teeth','quantity','toothMode','date','shade','comment','sum','bridgeRanges']);
         const changes=Object.fromEntries(Object.entries(request.changes||{}).filter(([key])=>allowed.has(key)));
         const updated={...order,...changes,id:order.id,clinicId:order.clinicId,createdAt:order.createdAt,updatedAt:reviewedAt};
         await replacePortalCollection('orders',snapshot.orders.map(item=>item.id===order.id?updated:item),{role:'technician',name:reviewedBy});
       }
     }
     const current=portalSnapshot();
-    const reviewed=current.clientRequests.map(item=>item.id===request.id?{...item,status,reviewedAt,reviewedBy}:item);
+    const reviewed=current.clientRequests.map(item=>item.id===request.id?{...item,status,decision:decisionResult,reviewedAt,reviewedBy}:item);
     await replacePortalCollection('clientRequests',reviewed,{role:'technician',name:reviewedBy});
     await recordPortalEvent(order.id,{role:'technician',name:reviewedBy},decision==='approve'?'client_request_approved':'client_request_rejected',{clinicId:order.clinicId,summary:`Запрос на ${clientRequestLabel(request.type)} ${decision==='approve'?'одобрен':'отклонён'}`,clientRequestId:request.id}).catch(()=>{});
     const resultText=decision==='approve'?`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} одобрен главным техником.`:`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} отклонён главным техником.`;
@@ -334,16 +485,19 @@ function validateUploadDescription({name,size,type,purpose='order-file'}){
   if(!safeName||!storedType)throw new Error('Формат файла не поддерживается');
   if(!Number.isSafeInteger(bytes)||bytes<1)throw new Error('Файл пустой');
   if(bytes>maximumAttachmentSize)throw new Error('Файл больше 200 МБ');
-  if(!['order-file','result-photo','message-file','cad-review'].includes(purpose))throw new Error('Неизвестный тип файла');
-  if(ext==='.html'&&purpose!=='cad-review')throw new Error('HTML можно загрузить только для согласования CAD');
+  if(!['order-file','result-photo','source-photo','message-file','cad-review','cad-review-attachment'].includes(purpose))throw new Error('Неизвестный тип файла');
+  if(ext==='.html'&&!['cad-review','cad-review-attachment'].includes(purpose))throw new Error('HTML можно загрузить только для согласования CAD');
   if(purpose==='cad-review'&&ext!=='.html')throw new Error('Для согласования CAD нужен HTML-файл');
+  if(purpose==='source-photo'&&!['.jpg','.jpeg','.png','.webp'].includes(ext))throw new Error('Исходные фото должны быть JPG, PNG или WebP');
   return {name:safeName,size:bytes,type:storedType,ext,purpose};
 }
 function uploadOwner(user){return `${user.role}:${user.subjectId}`}
-function newDiskPath({orderId,name}){
-  if(!orderId)throw new Error('Для загрузки на Яндекс Диск нужен ID заказа');
+function messageDiskFolder(clinicId){return `/Клиенты/Сообщения/${safeDiskSegment(clinicId)}`}
+function newDiskPath({target,orderId,clinicId,name,purpose}){
+  const folder=target==='message'?messageDiskFolder(clinicId):purpose==='source-photo'?`${orderDiskFolder(orderId)}/Исходные фото`:orderDiskFolder(orderId);
+  if(!folder)throw new Error('Не удалось определить папку на Яндекс Диске');
   const day=new Date().toISOString().slice(0,10),unique=randomBytes(8).toString('hex');
-  return `/Клиенты/${safeDiskSegment(orderId)}/${day}-${unique}-${name}`;
+  return `${folder}/${day}-${unique}-${name}`;
 }
 function orderDiskFolder(orderId){return `/Клиенты/${safeDiskSegment(orderId)}`}
 async function ensurePublicOrderFolder(orderId){
@@ -436,25 +590,41 @@ async function completeDiskUpload(item,uploadedBy){
   }
   const order=portalSnapshot().orders.find(order=>order.id===item.orderId&&order.clinicId===item.clinicId);
   if(!order)throw new Error('Заказ не найден');
-  if(item.purpose==='cad-review'){
+  if(item.purpose==='cad-review'&&item.actorRole==='worker'){
     const workerId=String(item.owner||'').startsWith('worker:')?String(item.owner).slice(7):'',employee=portalEmployee(workerId),details=portalSnapshot().orderOverrides[order.id]||{};
-    if(!employee||details.assignee!==employee.originalName||details.stage!=='Моделирование')throw new Error('CAD-файл можно отправить только моделировщику на этапе «Моделирование»');
+    if(!employee||!isCadOperatorEmployee(employee)||(details.cadOperator||details.assignee)!==employee.originalName||details.stage!=='Моделирование')throw new Error('CAD-файл можно отправить только CAD оператору на этапе «Моделирование»');
   }
   await ensurePublicOrderFolder(item.orderId);
   const record={id,name:item.name,size:item.size,type:item.type,uploadedAt,uploadedBy,purpose:item.purpose,storage:'yandex-disk',diskPath:item.diskPath};
   orderFiles[item.orderId]=[...(orderFiles[item.orderId]||[]),record];await persistOrderFiles();
-  await recordPortalEvent(item.orderId,{role:item.actorRole,name:uploadedBy},'file_uploaded',{summary:item.purpose==='result-photo'?'Добавлено фото готовой работы':'Добавлен файл к заказу',fileName:item.name,purpose:item.purpose,clinicId:item.clinicId}).catch(()=>{});
+  await recordPortalEvent(item.orderId,{role:item.actorRole,name:uploadedBy},'file_uploaded',{summary:item.purpose==='result-photo'?'Добавлено фото готовой работы':item.purpose==='source-photo'?'Добавлены исходные фото от клиники':'Добавлен файл к заказу',fileName:item.name,purpose:item.purpose,clinicId:item.clinicId}).catch(()=>{});
   if(item.purpose==='result-photo')void telegramBridge?.sendAutomatedMessage(item.clinicId,`К заказу ${item.orderId} добавлено фото готовой работы.`).catch(error=>console.error('Telegram file notification failed:',error.message));
   return {target:'order',file:publicUploadRecord(record)};
 }
 async function beginDiskUpload(item){
   const token=readIntegrationSecret('yandexDiskToken');
-  if(!token||item.target==='message')return {mode:'local'};
-  await ensurePublicOrderFolder(item.orderId);
+  if(!token)throw new Error('Яндекс Диск не подключён');
+  if(item.target==='message')await ensureDiskFolder(token,messageDiskFolder(item.clinicId));
+  else {await ensurePublicOrderFolder(item.orderId);if(item.purpose==='source-photo')await ensureDiskFolder(token,`${orderDiskFolder(item.orderId)}/Исходные фото`)}
   const diskPath=newDiskPath(item),upload=await createDiskUpload(token,diskPath),id=randomBytes(18).toString('hex');
   diskUploadSessions.set(id,{...item,id,diskPath,createdAt:Date.now(),expiresAt:Date.now()+uploadSessionLifetime});
   return {mode:'direct',uploadId:id,href:upload.href,method:upload.method,expiresAt:new Date(Date.now()+uploadSessionLifetime).toISOString()};
 }
+async function uploadEmployeeCadFile({employee,order,name,type,data}){
+  if(!employee||employee.status!=='active'||!order||!Buffer.isBuffer(data))throw new Error('Неверные данные CAD-файла');
+  const description=validateUploadDescription({name,size:data.length,type,purpose:'cad-review'}),snapshot=portalSnapshot(),details=snapshot.orderOverrides[order.id]||{};
+  if(!isCadOperatorEmployee(employee)||(details.cadOperator||details.assignee)!==employee.originalName||details.stage!=='Моделирование')throw new Error('CAD-файл можно загрузить только назначенному CAD оператору на этапе «Моделирование»');
+  const token=readIntegrationSecret('yandexDiskToken');if(!token)throw new Error('Яндекс Диск не подключён');
+  await ensurePublicOrderFolder(order.id);
+  const diskPath=newDiskPath({target:'order',orderId:order.id,clinicId:order.clinicId,name:description.name,purpose:'cad-review'}),upload=await createDiskUpload(token,diskPath);
+  const response=await fetch(upload.href,{method:upload.method||'PUT',headers:{'Content-Type':description.type},body:data,signal:AbortSignal.timeout(120000)});
+  if(!response.ok)throw new Error('Яндекс Диск не принял CAD-файл');
+  return completeDiskUpload({...description,target:'order',orderId:order.id,clinicId:order.clinicId,owner:`worker:${employee.id}`,actorRole:'worker',diskPath},employee.name);
+}
+uploadEmployeeCadFile.findFile=async(orderId,fileId)=>{
+  const file=(orderFiles[String(orderId)]||[]).find(item=>item.id===String(fileId)&&item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html');
+  return file?publicUploadRecord(file):null;
+};
 async function handleUploads(req,res,url){
   const user=session(req);if(!user)return json(res,401,{error:'Войдите в кабинет'});
   if(req.method==='POST'&&url.pathname==='/api/uploads/init'){
@@ -465,8 +635,9 @@ async function handleUploads(req,res,url){
       const order=portalSnapshot().orders.find(item=>item.id===String(body.orderId||''));
       if(!canAccessOrder(user,order))return json(res,404,{error:'Заказ не найден'});
       if(description.purpose==='result-photo'&&(user.role==='clinic'||!['.jpg','.jpeg','.png'].includes(description.ext)))return json(res,403,{error:'Фото результата может добавить только лаборатория в формате JPG или PNG'});
+      if(description.purpose==='source-photo'&&(user.role!=='technician'||!['.jpg','.jpeg','.png','.webp'].includes(description.ext)))return json(res,403,{error:'Исходные фото может загрузить только главный техник в формате JPG, PNG или WebP'});
       if(description.purpose==='result-photo'&&user.role==='worker'&&portalSnapshot().orderOverrides[order.id]?.stage!=='Контроль качества')return json(res,409,{error:'Фото результата можно добавить на этапе контроля качества'});
-      if(description.purpose==='cad-review'&&(user.role!=='worker'||portalSnapshot().orderOverrides[order.id]?.stage!=='Моделирование'))return json(res,409,{error:'CAD-файл можно отправить только моделировщику на этапе «Моделирование»'});
+      if(description.purpose==='cad-review'&&user.role!=='technician'&&(user.role!=='worker'||!isCadOperatorEmployee(portalEmployee(user.subjectId))||(portalSnapshot().orderOverrides[order.id]?.cadOperator||portalSnapshot().orderOverrides[order.id]?.assignee)!==portalEmployee(user.subjectId)?.originalName||portalSnapshot().orderOverrides[order.id]?.stage!=='Моделирование'))return json(res,409,{error:'CAD-файл можно отправить только CAD оператору на этапе «Моделирование»'});
       try{return json(res,200,await beginDiskUpload({...description,target,orderId:order.id,clinicId:order.clinicId,owner:uploadOwner(user),actorRole:user.role}))}catch(error){console.error('Yandex Disk upload init failed:',error.message);return json(res,502,{error:'Не удалось подготовить загрузку на Яндекс Диск'})}
     }
     const clinicId=user.role==='clinic'?user.subjectId:String(body.clinicId||'');
@@ -550,17 +721,23 @@ async function handleOrderFiles(req,res,url){
       let folderUrl='';
       try{await ensureOrderFilesOnDisk(orderId)}catch(error){console.error('Legacy order file migration failed:',error.message)}
       try{folderUrl=await ensurePublicOrderFolder(orderId)}catch(error){console.error('Yandex Disk folder publication failed:',error.message)}
-      return json(res,200,{folderUrl,files:(orderFiles[orderId]||[]).map(({id,name,size,type,uploadedAt,uploadedBy,purpose})=>({id,name,size,type,uploadedAt,uploadedBy,purpose:purpose||'order-file'}))});
+      const rawFiles=orderFiles[orderId]||[];
+      for(const file of rawFiles.filter(item=>item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html'))void readCadHtml({file}).catch(error=>console.error('CAD prefetch failed:',error.message));
+      const visibleFiles=rawFiles.map(({id,name,size,type,uploadedAt,uploadedBy,purpose})=>({id,name,size,type,uploadedAt,uploadedBy,purpose:purpose||'order-file'}));
+      return json(res,200,{folderUrl,files:visibleFiles});
     }
     if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
+    return json(res,410,{error:'Загружайте файлы через Яндекс Диск'});
+    /* Legacy local upload code is intentionally unreachable. */
     const name=decodeURIComponent(String(req.headers['x-upload-name']||'')).replace(/[\\/\\0-\\x1f]/g,'_').trim().slice(0,180);
     const ext=path.extname(name).toLowerCase();
     const purpose=String(req.headers['x-file-purpose']||'order-file');
-    if(!['order-file','result-photo','cad-review'].includes(purpose))return json(res,400,{error:'Неизвестный тип файла'});
+    if(!['order-file','result-photo','source-photo','cad-review'].includes(purpose))return json(res,400,{error:'Неизвестный тип файла'});
     if(purpose==='result-photo'&&(user.role==='clinic'||!['.jpg','.jpeg','.png'].includes(ext)))return json(res,403,{error:'Фото результата может добавить только лаборатория в формате JPG или PNG'});
+    if(purpose==='source-photo'&&(user.role!=='technician'||!['.jpg','.jpeg','.png','.webp'].includes(ext)))return json(res,403,{error:'Исходные фото может загрузить только главный техник в формате JPG, PNG или WebP'});
     if(purpose==='result-photo'&&user.role==='worker'&&portalSnapshot().orderOverrides[orderId]?.stage!=='Контроль качества')return json(res,409,{error:'Фото результата можно добавить на этапе контроля качества'});
     if(ext==='.html'&&purpose!=='cad-review'||purpose==='cad-review'&&ext!=='.html')return json(res,400,{error:'Для согласования CAD нужен HTML-файл'});
-    if(purpose==='cad-review'&&(user.role!=='worker'||portalSnapshot().orderOverrides[orderId]?.stage!=='Моделирование'))return json(res,409,{error:'CAD-файл можно отправить только моделировщику на этапе «Моделирование»'});
+    if(purpose==='cad-review'&&user.role!=='technician'&&(user.role!=='worker'||!isCadOperatorEmployee(portalEmployee(user.subjectId))||(portalSnapshot().orderOverrides[orderId]?.cadOperator||portalSnapshot().orderOverrides[orderId]?.assignee)!==portalEmployee(user.subjectId)?.originalName||portalSnapshot().orderOverrides[orderId]?.stage!=='Моделирование'))return json(res,409,{error:'CAD-файл можно отправить только CAD оператору на этапе «Моделирование»'});
     const allowed=sharedAttachmentTypes;
     if(!name||!allowed[ext])return json(res,400,{error:'Формат файла не поддерживается'});
     const type=String(req.headers['content-type']||'').split(';')[0].toLowerCase();
@@ -585,15 +762,10 @@ async function handleOrderFiles(req,res,url){
     if(!record||!canAccessOrder(user,portalSnapshot().orders.find(item=>item.id===record.orderId)))return json(res,404,{error:'Файл не найден'});
     if(url.searchParams.get('content')==='1'){
       if(record.file.purpose!=='cad-review'||path.extname(record.file.name).toLowerCase()!=='.html')return json(res,403,{error:'Предпросмотр доступен только для CAD HTML'});
-      const headers={'Content-Type':'text/plain; charset=utf-8','Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(record.file.name)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'};
-      if(record.file.storage==='yandex-disk'){
-        try{
-          const href=await signedDiskRecordUrl(record.file),remote=await fetch(href,{signal:AbortSignal.timeout(120000)});
-          if(!remote.ok||!remote.body)throw new Error('download_failed');
-          res.writeHead(200,headers);Readable.fromWeb(remote.body).pipe(res);return;
-        }catch{return json(res,404,{error:'CAD-файл не найден на Яндекс Диске'})}
-      }
-      try{const localPath=path.join(uploadDir,record.file.id);await fs.promises.access(localPath,fs.constants.R_OK);res.writeHead(200,headers);fs.createReadStream(localPath).pipe(res);return}catch{return json(res,404,{error:'CAD-файл не найден'})}
+      try{
+        const html=await readCadHtml(record),headers={'Content-Type':'text/html; charset=utf-8','Content-Length':Buffer.byteLength(html,'utf8'),'Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(record.file.name)}`,'Cache-Control':'private, max-age=60','X-Content-Type-Options':'nosniff'};
+        res.writeHead(200,headers);res.end(html);return;
+      }catch(error){console.error('CAD preview load failed:',error.message);return json(res,504,{error:'Не удалось быстро загрузить CAD. Повторите открытие ещё раз.'})}
     }
     if(record.file.storage==='yandex-disk'){
       try{const href=await signedDiskRecordUrl(record.file);if(url.searchParams.get('link')==='1')return json(res,200,{url:href,name:record.file.name,type:record.file.type});res.writeHead(302,{Location:href,'Cache-Control':'private, no-store'});return res.end()}
@@ -613,25 +785,28 @@ async function handleCadReview(req,res,url){
   const details=snapshot.orderOverrides[orderId]||{},now=new Date().toISOString();
   if(body.action==='submit'){
     const employee=user.role==='worker'?portalEmployee(user.subjectId):null;
-    if(!employee||details.assignee!==employee.originalName)return json(res,403,{error:'CAD может отправить только назначенный моделировщик'});
+    if(!employee||!isCadOperatorEmployee(employee)||(details.cadOperator||details.assignee)!==employee.originalName)return json(res,403,{error:'CAD может отправить только назначенный CAD оператор'});
     if(details.stage!=='Моделирование')return json(res,409,{error:'CAD можно отправить только на этапе «Моделирование»'});
     const file=(orderFiles[orderId]||[]).find(item=>item.id===String(body.fileId||'')&&item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html');
     if(!file)return json(res,404,{error:'CAD HTML не найден'});
     const review={status:'pending',fileId:file.id,fileName:file.name,sentAt:now,sentBy:employee.name,revision:Number(details.cadReview?.revision||0)+1,comment:''};
-    const next={...snapshot.orderOverrides,[orderId]:{...details,stage:'Согласование CAD',cadReview:review}};
+    const next={...snapshot.orderOverrides,[orderId]:{...details,stage:'Контроль качества',cadOperatorStatus:'ОТК',qualityRequest:{kind:'cad',employeeId:user.subjectId,requestedBy:employee.originalName,requestedByName:employee.name,requestedAt:now,next:'CAD на согласование у врача'},cadReview:review}};
     try{
       await replacePortalCollection('orderOverrides',next,{role:'worker',name:employee.name});
-      await recordPortalEvent(orderId,{role:'worker',name:employee.name},'cad_review_requested',{clinicId:order.clinicId,summary:`CAD отправлен врачу на согласование · версия ${review.revision}`,fileId:file.id,fileName:file.name}).catch(()=>{});
-      void telegramBridge?.sendAutomatedMessage(order.clinicId,`CAD по заказу ${order.id} готов к согласованию. Откройте заказ в личном кабинете, чтобы подтвердить или вернуть с комментарием.`).catch(error=>console.error('Telegram CAD notification failed:',error.message));
+      await recordPortalEvent(orderId,{role:'worker',name:employee.name},'cad_review_requested',{clinicId:order.clinicId,summary:`CAD передан главному технику на ОТК · версия ${review.revision}`,fileId:file.id,fileName:file.name}).catch(()=>{});
+      void telegramBridge?.sendAutomatedMessage(order.clinicId,`CAD по заказу ${order.id} передан главному технику на ОТК.`).catch(error=>console.error('Telegram CAD notification failed:',error.message));
       return json(res,201,{ok:true,orderOverride:portalSnapshot().orderOverrides[orderId]});
-    }catch(error){console.error('CAD review submit failed:',error.message);return json(res,500,{error:'Не удалось отправить CAD врачу'})}
+    }catch(error){console.error('CAD review submit failed:',error.message);return json(res,500,{error:'Не удалось отправить CAD на проверку главному технику'})}
   }
   if(!['approve','return'].includes(body.action))return json(res,400,{error:'Неизвестное действие'});
   if(user.role!=='clinic'||order.clinicId!==user.subjectId)return json(res,403,{error:'Решение может принять только врач этой клиники'});
   if(details.stage!=='Согласование CAD'||details.cadReview?.status!=='pending')return json(res,409,{error:'CAD уже рассмотрен или не отправлен на согласование'});
   const reviewer=user.displayName||portalClient(user.subjectId)?.contact||portalClient(user.subjectId)?.name||'Врач',comment=String(body.comment||'').replace(/[<>]/g,'').trim().slice(0,2000);
   if(body.action==='return'&&comment.length<5)return json(res,400,{error:'Опишите, что нужно исправить'});
-  const approved=body.action==='approve',review={...details.cadReview,status:approved?'approved':'returned',reviewedAt:now,reviewedBy:reviewer,comment:approved?'':comment};
+  const attachmentIds=[...new Set(Array.isArray(body.attachments)?body.attachments.map(id=>String(id||'')).filter(Boolean).slice(0,10):[])];
+  const orderAttachments=(orderFiles[orderId]||[]).filter(file=>attachmentIds.includes(file.id)&&file.purpose==='cad-review-attachment');
+  if(orderAttachments.length!==attachmentIds.length)return json(res,400,{error:'Не удалось проверить прикреплённые файлы'});
+  const approved=body.action==='approve',review={...details.cadReview,status:approved?'approved':'returned',reviewedAt:now,reviewedBy:reviewer,comment:approved?'':comment,...(orderAttachments.length?{attachments:orderAttachments.map(publicUploadRecord)}:{})};
   const next={...snapshot.orderOverrides,[orderId]:{...details,stage:approved?'Изготовление':'Моделирование',cadReview:review}};
   try{
     await replacePortalCollection('orderOverrides',next,{role:'clinic',name:reviewer});
@@ -671,8 +846,8 @@ async function handleNotifications(req,res){
   if(req.method==='GET'){
     const accessible=new Set(snapshot.orders.filter(order=>canAccessOrder(user,order)).map(order=>order.id));
     const events=snapshot.orderHistory.filter(event=>{
-      if(user.role==='technician')return event.action==='message_received'||event.action==='clinic_registered'||event.action==='telegram_binding_requested'||event.action==='order_created'||event.action.startsWith('cad_review_')||event.action==='stage_changed'&&event.to==='Контроль качества';
-      return (event.clinicId===user.subjectId||accessible.has(event.orderId))&&!(event.action==='stage_changed'&&event.to==='На доработке');
+      if(user.role==='technician')return event.action==='message_received'||event.action==='clinic_registered'||event.action==='telegram_binding_requested'||event.action==='order_created'||event.action.startsWith('cad_review_')||(event.action==='stage_changed'&&['Контроль качества','Работа принята','Принято доктором'].includes(event.to));
+      return event.actorRole!=='clinic'&&(event.clinicId===user.subjectId||accessible.has(event.orderId))&&!(event.action==='stage_changed'&&event.to==='На доработке');
     });
     const readAt=notificationReads[key]||'';
     const describe=event=>{
@@ -682,10 +857,12 @@ async function handleNotifications(req,res){
       if(event.action==='telegram_binding_requested')return `Запрос на подключение Telegram: ${event.summary||clinic?.name||'клиника'}`;
       if(event.action==='order_created')return `Новый заказ ${event.orderId}${order?.clinic||clinic?.name?` от ${order?.clinic||clinic?.name}`:''}`;
       if(event.action==='stage_changed'&&event.to==='Контроль качества')return `Заказ ${event.orderId} требует проверки качества`;
+      if(event.action==='stage_changed'&&event.to==='Работа принята')return `Работа принята: заказ ${event.orderId}`;
+      if(event.action==='stage_changed'&&event.to==='Принято доктором')return `Клиент принял работу по заказу ${event.orderId}`;
       if(event.action==='stage_changed')return `Заказ ${event.orderId}: ${event.to}`;
       if(event.action==='assignee_changed')return user.role==='clinic'?`Заказ ${event.orderId}: исполнитель назначен`:`Заказ ${event.orderId}: исполнитель ${event.to}`;
       if(event.action==='rework_requested')return `Заказ ${event.orderId}: запрошена доработка`;
-      if(event.action==='cad_review_requested')return `Заказ ${event.orderId}: CAD ожидает согласования врача`;
+      if(event.action==='cad_review_requested')return event.summary?.includes('ОТК')?`Заказ ${event.orderId}: CAD передан главному технику на проверку`:`Заказ ${event.orderId}: CAD ожидает согласования врача`;
       if(event.action==='cad_review_approved')return `Заказ ${event.orderId}: врач подтвердил CAD`;
       if(event.action==='cad_review_returned')return `Заказ ${event.orderId}: врач вернул CAD с комментарием`;
       if(event.action==='file_uploaded')return `Заказ ${event.orderId}: ${event.purpose==='result-photo'?'добавлено фото готовой работы':'добавлен файл'}`;
@@ -698,6 +875,7 @@ async function handleNotifications(req,res){
       if(event.action==='telegram_binding_requested')return {type:'registration',target:'profile',clinicId:event.clinicId||''};
       if(event.action==='order_created')return {type:'order',target:'detail',clinicId:event.clinicId||''};
       if(event.action==='stage_changed'&&event.to==='Контроль качества')return {type:'quality',target:'detail',clinicId:event.clinicId||''};
+      if(event.action==='stage_changed'&&['Работа принята','Принято доктором'].includes(event.to))return {type:'quality',target:'detail',clinicId:event.clinicId||''};
       return {type:'update',target:event.orderId?'detail':'messages',clinicId:event.clinicId||''};
     };
     const items=events.slice(-100).reverse().map(event=>({id:event.id,orderId:event.orderId||'',at:event.at,text:describe(event),read:Boolean(readAt&&event.at<=readAt),actorRole:event.actorRole,...notificationMeta(event)}));
@@ -720,7 +898,7 @@ async function writeIntegrationSecret(file,value){
 
 function validIntegrationSecret(name,value){
   if(typeof value!=='string'||!value||value.length>500||/\s/.test(value))return false;
-  if(name==='telegramBotToken')return /^\d{6,15}:[A-Za-z0-9_-]{20,}$/.test(value);
+  if(name==='telegramBotToken'||name==='employeeTelegramBotToken')return /^\d{6,15}:[A-Za-z0-9_-]{20,}$/.test(value);
   if(name==='folderId')return /^[a-z0-9]{10,50}$/.test(value);
   if(name==='yandexDiskToken')return value.length>=20;
   return value.length>=20;
@@ -728,7 +906,7 @@ function validIntegrationSecret(name,value){
 
 function combinedIntegrationStatus(){
   const status=telegramBridge?.status()||{telegramBot:false,speechKit:false,yandexGpt:false,folderId:false,ready:false,enabled:false};
-  return {...status,yandexDisk:Boolean(readIntegrationSecret('yandexDiskToken'))};
+  return {...status,...(employeeTelegramBridge?.status()||{}),yandexDisk:Boolean(readIntegrationSecret('yandexDiskToken'))};
 }
 
 async function handleTelegramIntegration(req,res){
@@ -751,14 +929,24 @@ async function handleTelegramIntegration(req,res){
   }
   const supplied=Object.entries(integrationSecretFiles).filter(([name])=>typeof body[name]==='string'&&body[name].trim());
   if(!supplied.length)return json(res,400,{error:'Введите хотя бы одно новое значение'});
-  for(const [name] of supplied)if(!validIntegrationSecret(name,body[name].trim()))return json(res,400,{error:name==='telegramBotToken'?'Проверьте токен Telegram-бота':name==='folderId'?'Проверьте ID каталога Yandex Cloud':name==='yandexDiskToken'?'Проверьте OAuth-токен Яндекс Диска':'Проверьте API-ключ Yandex Cloud'});
+  for(const [name] of supplied)if(!validIntegrationSecret(name,body[name].trim()))return json(res,400,{error:name==='telegramBotToken'?'Проверьте токен Telegram-бота':name==='employeeTelegramBotToken'?'Проверьте токен Telegram-бота сотрудников':name==='folderId'?'Проверьте ID каталога Yandex Cloud':name==='yandexDiskToken'?'Проверьте OAuth-токен Яндекс Диска':'Проверьте API-ключ Yandex Cloud'});
   try{
     const diskEntry=supplied.find(([name])=>name==='yandexDiskToken');
     if(diskEntry)await ensureDiskFolder(body.yandexDiskToken.trim(),'/Клиенты');
     for(const [name,file] of supplied)await writeIntegrationSecret(file,body[name].trim());
     await telegramBridge.reloadSecrets();
+    await employeeTelegramBridge?.reloadSecrets();
     return json(res,200,{ok:true,status:combinedIntegrationStatus()});
   }catch(error){console.error('Integration settings failed:',error.message);return json(res,500,{error:String(error.message||'').toLowerCase().includes('диск')||supplied.some(([name])=>name==='yandexDiskToken')?'Не удалось подключить Яндекс Диск. Проверьте OAuth-токен и права чтения/записи':'Не удалось сохранить настройки интеграции'})}
+}
+
+async function handleEmployeeTelegramPair(req,res){
+  const user=session(req);
+  if(!user)return json(res,401,{error:'Войдите в кабинет'});
+  if(user.role!=='worker')return json(res,403,{error:'Подключить Telegram можно из кабинета сотрудника'});
+  if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
+  try{return json(res,200,{ok:true,pairing:await employeeTelegramBridge.createPairing(user.subjectId)})}
+  catch(error){return json(res,400,{error:error.message||'Не удалось создать код подключения'})}
 }
 
 async function handleOrderRework(req,res,url){
@@ -769,7 +957,8 @@ async function handleOrderRework(req,res,url){
   const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===id);
   if(user.role!=='clinic'||!order||order.clinicId!==user.subjectId)return json(res,404,{error:'Заказ не найден'});
   const old=snapshot.orderOverrides[id]||{};
-  if(old.stage!=='В доставке')return json(res,409,{error:'Отправить заказ на доработку можно после доставки'});
+  const currentStage=old.stage||(['В пути к вам','В доставке'].includes(order.status)?'В доставке':order.status==='Принято'?'Принято доктором':order.status);
+  if(currentStage!=='В доставке')return json(res,409,{error:'Отправить заказ на доработку можно после доставки'});
   let body;try{body=await readBody(req,6000)}catch{return json(res,400,{error:'Укажите причину доработки'})}
   const reason=String(body.reason||'').trim();
   if(reason.length<5||reason.length>2000)return json(res,400,{error:'Опишите причину доработки (от 5 до 2000 символов)'});
@@ -796,8 +985,10 @@ async function handleAuth(req,res,url){
     let body;try{body=await readBody(req,2000000)}catch(error){return json(res,400,{error:error.message==='too_large'?'Фото слишком большое. Загрузите изображение поменьше.':'Неверные данные'})}
     const employee=portalEmployee(user.subjectId);
     if(!employee||employee.status!=='active')return json(res,403,{error:'Доступ недоступен'});
-    const name=String(body.name||'').trim(),specialty=String(body.specialty||'').trim(),phone=String(body.phone||'').trim(),email=String(body.email||'').trim().toLowerCase();
-    if(name.length<2||name.length>120||/[<>]/.test(name+specialty+phone)||specialty.length>120||phone.length>40||!validEmail(email))return json(res,400,{error:'Проверьте имя, почту и телефон'});
+    // Employee identity and contact details are managed by the chief technician.
+    // Only the worker's password and avatar may be changed from this cabinet.
+    const name=String(employee.name||'').trim(),specialty=String(employee.specialty||'').trim(),phone=String(employee.phone||'').trim(),email=String(employee.email||'').trim().toLowerCase();
+    if(name.length<2||name.length>120||/[<>]/.test(name+specialty+phone)||specialty.length>120||phone.length>40||!validEmail(email))return json(res,400,{error:'Профиль сотрудника заполнен неверно'});
     try{
       const profile=await updateWorkerAccount({employeeId:employee.id,displayName:name,email,password:body.password||'',avatar:body.avatar||''});
       const updated={...employee,name,specialty,phone,email};
@@ -981,6 +1172,8 @@ async function cleanupOrphanMessageFiles(){
 async function handleClinicMessageFiles(req,res,url){
   const user=session(req);if(!user)return json(res,401,{error:'Войдите в кабинет'});
   if(url.pathname==='/api/clinic-message-files'&&req.method==='POST'){
+    return json(res,410,{error:'Загружайте файлы через Яндекс Диск'});
+    /* Legacy local upload code is intentionally unreachable. */
     const clinicId=user.role==='clinic'?user.subjectId:String(req.headers['x-clinic-id']||'');
     if(user.role!=='clinic'&&user.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
     if(!portalClient(clinicId))return json(res,404,{error:'Клиника не найдена'});
@@ -1149,8 +1342,19 @@ function serveFile(req, res, pathname) {
     const isAsset=pathname.startsWith('/assets/');
     const isVersionedCode=/\.(?:js|css)$/.test(pathname)&&/[?&]v=[A-Za-z0-9._-]+/.test(req.url||'');
     const cacheControl=isAsset?'public, max-age=2592000':isVersionedCode?'public, max-age=31536000, immutable':'no-store';
-    res.writeHead(200, {'Content-Type':types[path.extname(file)] || 'application/octet-stream','Cache-Control':cacheControl,'X-Content-Type-Options':'nosniff'});
-    res.end(req.method === 'HEAD' ? undefined : data);
+    const headers={'Content-Type':types[path.extname(file)] || 'application/octet-stream','Cache-Control':cacheControl,'X-Content-Type-Options':'nosniff'};
+    const canCompress=/\.(?:html|css|js)$/.test(file)&&/\bgzip\b/i.test(String(req.headers['accept-encoding']||''));
+    if(req.method==='HEAD')return res.writeHead(200,headers).end();
+    if(canCompress){
+      gzip(data,(gzipError,compressed)=>{
+        if(gzipError)return res.writeHead(200,headers).end(data);
+        res.writeHead(200,{...headers,'Content-Encoding':'gzip','Vary':'Accept-Encoding','Content-Length':compressed.length});
+        res.end(compressed);
+      });
+      return;
+    }
+    res.writeHead(200,{...headers,'Content-Length':data.length});
+    res.end(data);
   });
 }
 
@@ -1166,12 +1370,13 @@ const requestHandler=async (req,res) => {
   if(url.pathname==='/api/clinic-message-files'||url.pathname.startsWith('/api/clinic-message-files/')){
     try{return await handleClinicMessageFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка файла сообщения'})}
   }
-  if(url.pathname.startsWith('/api/orders/')&&(url.pathname.endsWith('/files')||url.pathname.endsWith('/rework')||url.pathname.endsWith('/cad-review'))){
-    try{return url.pathname.endsWith('/cad-review')?await handleCadReview(req,res,url):url.pathname.endsWith('/rework')?await handleOrderRework(req,res,url):await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка обработки заказа'})}
+  if(url.pathname.startsWith('/api/orders/')&&(url.pathname.endsWith('/files')||url.pathname.endsWith('/rework')||url.pathname.endsWith('/cad-review')||url.pathname.endsWith('/client-request'))){
+    try{return url.pathname.endsWith('/client-request')?await handleClientRequestCreate(req,res,url):url.pathname.endsWith('/cad-review')?await handleCadReview(req,res,url):url.pathname.endsWith('/rework')?await handleOrderRework(req,res,url):await handleOrderFiles(req,res,url)}catch(error){console.error('Order request failed:',error.message);return json(res,500,{error:'Ошибка обработки заказа'})}
   }
   if(/^\/api\/orders\/[A-Za-z0-9_-]{1,80}$/.test(url.pathname))return handleOrderResource(req,res,url);
   if(url.pathname==='/api/notifications')return handleNotifications(req,res);
   if(url.pathname==='/api/integrations/telegram')return handleTelegramIntegration(req,res);
+  if(url.pathname==='/api/employee-telegram/pair')return handleEmployeeTelegramPair(req,res);
   if(url.pathname.startsWith('/api/order-files/')){try{return await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка чтения файла'})}}
   if(url.pathname==='/api/locations')return handleLocations(req,res,url);
   if(url.pathname==='/api/clinic-messages'||url.pathname.startsWith('/api/chief/conversations')){
@@ -1195,6 +1400,12 @@ await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(clinicMessageUploadDir,0o700);
 telegramBridge=createTelegramBridge({onClinicMessage:appendTelegramClinicMessage,onBotMessage:appendTelegramClinicMessage,saveTelegramAttachment,attachOrderFile:attachTelegramFileToOrder,loadClinicAttachment:loadTelegramAttachment,createLargeUploadLink,onOrderCreated:ensurePublicOrderFolder});
 await telegramBridge.start();
+employeeTelegramBridge=createEmployeeTelegramBridge({
+  tokenFile:integrationSecretFiles.employeeTelegramBotToken,
+  uploadCadFile:uploadEmployeeCadFile,
+  notifyCadReview:async({order})=>{await telegramBridge?.sendAutomatedMessage(order.clinicId,`CAD по заказу ${order.id} готов к согласованию. Откройте заказ в кабинете клиники.`).catch(error=>console.error('Telegram CAD notification failed:',error.message))}
+});
+await employeeTelegramBridge.start();
 server.listen(port,host,()=>{
   console.log(`Create Dental: ${tlsKeyFile?'https':'http'}://${host}:${port}`);
   const backup=async()=>{try{const saved=await createDataBackup();console.log(`Data backup created: ${path.basename(saved)}`)}catch(error){console.error('Data backup failed:',error.message)}};
