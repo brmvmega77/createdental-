@@ -947,3 +947,15 @@ html[data-theme="dark"] .tech-edit-variant select{background:#1b1e22;border-colo
 .order-type-choice{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:0 0 28px;padding:20px 22px;border:1px solid #e8e8e8;border-radius:18px;background:#fafafa}
 .order-type-choice h3{margin:0 0 5px;font-size:18px}.order-type-choice p{margin:0;color:#8b8b8b;font-size:14px}.order-type-options{display:flex;gap:10px;min-width:330px}.order-type-options button{flex:1;border:1px solid #e5e5e5;border-radius:12px;background:#fff;padding:13px 15px;text-align:left;cursor:pointer;color:#444}.order-type-options button strong,.order-type-options button small{display:block}.order-type-options button small{display:block;margin-top:4px;color:#929292;font-size:12px;white-space:nowrap}.order-type-options button.selected{border-color:#3d3d3d;box-shadow:0 0 0 2px #3d3d3d inset;background:#f4f4f4}@media(max-width:700px){.order-type-choice{display:block}.order-type-options{min-width:0;margin-top:16px}}
 html[data-theme="dark"] .order-type-choice{border-color:#343a41;background:#20252a}html[data-theme="dark"] .order-type-options button{border-color:#343a41;background:#1a1e22;color:#e7e9eb}html[data-theme="dark"] .order-type-options button.selected{border-color:#dfe4e8;box-shadow:0 0 0 2px #dfe4e8 inset;background:#2a3036}
+
+/* Keep the long client order status on one line without touching the amount column. */
+@media(min-width:761px){
+  .orders-table{table-layout:fixed}
+  .orders-table th:nth-child(1),.orders-table td:nth-child(1){width:17%}
+  .orders-table th:nth-child(2),.orders-table td:nth-child(2){width:14%}
+  .orders-table th:nth-child(3),.orders-table td:nth-child(3){width:12%}
+  .orders-table th:nth-child(4),.orders-table td:nth-child(4){width:10%}
+  .orders-table th:nth-child(5),.orders-table td:nth-child(5){width:10%}
+  .orders-table th:nth-child(6),.orders-table td:nth-child(6){width:24%;padding-right:24px}
+  .orders-table th:nth-child(7),.orders-table td:nth-child(7){width:13%;padding-left:24px}
+}
