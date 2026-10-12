@@ -1491,6 +1491,10 @@ html[data-theme="dark"] .order-history li>span{color:#eef0f2}
 .tech-order-type-badge.digital{color:#28704f;background:#e7f8ef}
 html[data-theme="dark"] .tech-order-type-badge.analog{color:#ffc766;background:#4a341d}
 html[data-theme="dark"] .tech-order-type-badge.digital{color:#72d6a2;background:#193b2b}
+.tech-order-type-row{width:max-content;max-width:100%;margin-top:3px;color:#28704f!important;font-size:10px!important;font-weight:750!important;line-height:1.2}
+.tech-order-type-row.analog{color:#b46b00!important}
+html[data-theme="dark"] .tech-order-type-row.digital{color:#72d6a2!important}
+html[data-theme="dark"] .tech-order-type-row.analog{color:#ffc766!important}
 @media(max-width:760px){.tech-order-type-badge{display:flex;width:max-content;margin:6px 0 0}}
 
 /* Orders toolbar: keep status menu, search, and filter on one desktop row. */
