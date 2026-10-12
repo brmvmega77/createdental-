@@ -1419,10 +1419,6 @@ html,body,#app{max-width:100%;overflow-x:hidden}
   .tech-order-tools .tech-order-searchbar{width:365px;max-width:100%;margin-left:0;justify-self:end;align-self:start}
   .tech-order-tools .tech-order-searchbar input#tech-search{width:auto;flex:1 1 0}
 }
-@media(min-width:1501px){
-  .tech-order-tools{grid-template-columns:minmax(0,1fr) 446px}
-  .tech-order-tools .tech-order-searchbar{width:446px}
-}
 @media(max-width:760px){
   .tech-order-searchbar:has(.tech-order-filter-panel){grid-template-columns:1fr}
   .tech-order-searchbar:has(.tech-order-filter-panel) .tech-filter-button,
