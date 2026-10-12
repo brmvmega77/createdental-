@@ -1480,7 +1480,7 @@ html[data-theme="dark"] .order-history li>span{color:#eef0f2}
 
 /* Orders toolbar: keep status menu, search, and filter on one desktop row. */
 @media(min-width:761px){
-  .clinic-orders-panel{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;align-items:center}
+  .clinic-orders-panel{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;row-gap:20px;align-items:center}
   .clinic-orders-panel>.clinic-status-segment{height:36px;padding:3px}
   .clinic-orders-panel>.clinic-status-segment{grid-column:1;grid-row:1;min-width:0;margin:0}
   .clinic-orders-panel>.toolbar{grid-column:2;grid-row:1;height:36px;margin:0}
