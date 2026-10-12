@@ -1473,3 +1473,12 @@ html[data-theme="dark"] .clinic-orders-panel .toolbar .search input::placeholder
 .detail-main-column .order-service-card>header{border-bottom:0}
 .detail-side-column .order-side-stack{border-top:0;padding-top:0}
 .order-history li{border-bottom:0}
+
+/* Orders toolbar: keep status menu, search, and filter on one desktop row. */
+@media(min-width:761px){
+  .clinic-orders-panel{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;align-items:center}
+  .clinic-orders-panel>.clinic-status-segment{grid-column:1;grid-row:1;min-width:0;margin:0}
+  .clinic-orders-panel>.toolbar{grid-column:2;grid-row:1;margin:0}
+  .clinic-orders-panel>.active-date-filter{grid-column:1/-1}
+  .clinic-orders-panel>.table-wrap{grid-column:1/-1}
+}
