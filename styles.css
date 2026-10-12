@@ -1369,3 +1369,16 @@ html,body,#app{max-width:100%;overflow-x:hidden}
 @media(max-width:760px){
   .dashboard-grid,.dashboard-aside{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Keep the order menu on one line; narrow layouts scroll it inside the content area. */
+.dashboard-main .tabs{
+  flex-wrap:nowrap;
+  justify-content:flex-start;
+  gap:2px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  white-space:nowrap;
+  scrollbar-width:none;
+}
+.dashboard-main .tabs::-webkit-scrollbar{display:none}
+.dashboard-main .tabs .tab{flex:0 0 auto;min-width:max-content;padding-left:4px;padding-right:4px}
