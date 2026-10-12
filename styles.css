@@ -392,7 +392,7 @@
 .tech-order-filter-panel{position:absolute;right:0;top:calc(100% + 8px);width:min(420px,calc(100vw - 40px));background:#fff;border:1px solid #eeeeee;border-radius:12px;box-shadow:0 18px 55px #33333324;z-index:25;padding:16px;display:grid;gap:15px}
 .tech-order-filter-panel strong{display:block;color:#333333;font-size:13px;margin-bottom:9px}
 .tech-order-filter-panel select{width:100%;height:40px;border:1px solid #eeeeee;border-radius:8px;background:#fff;color:#333333;padding:0 12px;font-size:13px}
-.tech-order-filter-actions{display:flex;justify-content:flex-end;gap:9px;border-top:1px solid #f5f5f5;padding-top:13px}
+.tech-order-filter-actions{display:flex;justify-content:flex-end;gap:9px;padding-top:13px}
 @media(max-width:760px){.tech-order-searchbar{display:grid;grid-template-columns:1fr;gap:8px;margin-left:0}.tech-order-searchbar input#tech-search{width:100%;max-width:100%;flex:0 1 auto}.tech-filter-button{width:100%}.tech-order-filter-panel{position:static;width:100%;box-shadow:none}.tech-order-filter-actions{display:grid;grid-template-columns:1fr}.tech-order-filter-actions .btn{width:100%}}
 /* Keep the clinic dashboard's side column while preventing grid overflow. */
 html{zoom:.9}
@@ -517,7 +517,7 @@ html{zoom:.9}
 .tech-orders-table th:nth-child(7){width:22%}
 .tech-orders-table td{overflow-wrap:anywhere}
 .tech-orders-table td:nth-child(5){padding-right:20px}
-.tech-orders-table td:nth-child(6){padding-left:20px;border-left:1px solid #f5f5f5;font-weight:650;color:#555}
+.tech-orders-table td:nth-child(6){padding-left:20px;font-weight:650;color:#555}
 .tech-orders-table td:nth-child(5) .tech-stage{max-width:none;white-space:nowrap;line-height:1.25;text-align:left;display:inline-flex}
 .tech-orders-table .tech-order-actions{gap:6px;flex-wrap:nowrap}
 .tech-orders-table .tech-order-actions .tech-link{min-width:72px;padding:0 7px}
@@ -692,6 +692,78 @@ html{zoom:.9}
   .tech-order-service dt{font-size:12px}
   .tech-order-service dd{font-size:13.75px}
 }
+
+/* Final dark theme contrast pass for every cabinet and order detail. */
+html[data-theme="dark"] .detail-grid h3,
+html[data-theme="dark"] .order-services h3,
+html[data-theme="dark"] .detail-side-column h3{color:#f0f1f2}
+html[data-theme="dark"] .facts>div{border-color:#343a41}
+html[data-theme="dark"] .facts span{color:#9da4ad}
+html[data-theme="dark"] .facts strong{color:#eef0f2}
+html[data-theme="dark"] .order-service-card,
+html[data-theme="dark"] .order-variant-card,
+html[data-theme="dark"] .order-cart,
+html[data-theme="dark"] .order-upload-card,
+html[data-theme="dark"] .upload-progress-file{background:#252a2f;border-color:#3a4047;color:#e6e8eb}
+html[data-theme="dark"] .order-service-card>header,
+html[data-theme="dark"] .order-variant-card,
+html[data-theme="dark"] .order-cart article,
+html[data-theme="dark"] .order-service-card>header{border-color:#343a41}
+html[data-theme="dark"] .order-service-card>header strong,
+html[data-theme="dark"] .order-service-card dd,
+html[data-theme="dark"] .order-variant-card strong,
+html[data-theme="dark"] .order-variant-card dd,
+html[data-theme="dark"] .order-cart strong,
+html[data-theme="dark"] .upload-progress-file strong{color:#eef0f2}
+html[data-theme="dark"] .order-service-card dt,
+html[data-theme="dark"] .order-variant-card p,
+html[data-theme="dark"] .order-variant-card small,
+html[data-theme="dark"] .order-variant-card dt,
+html[data-theme="dark"] .order-cart article small,
+html[data-theme="dark"] .order-total,
+html[data-theme="dark"] .order-total-note,
+html[data-theme="dark"] .upload-progress-file small{color:#9da4ad}
+html[data-theme="dark"] .order-cart article button,
+html[data-theme="dark"] .order-variant-remove{background:#30363d;color:#cbd1d8}
+html[data-theme="dark"] .order-cart-add,
+html[data-theme="dark"] .order-variant-add{background:#202a35;border-color:#3d566d;color:#b9d0e4}
+html[data-theme="dark"] .order-service-card .tooth circle{fill:#202428;stroke:#89939e}
+html[data-theme="dark"] .order-service-card .tooth text{fill:#e6e8eb}
+html[data-theme="dark"] .timeline{border-color:#3a4047}
+html[data-theme="dark"] .clinic-production-timeline>div{color:#7f8994}
+html[data-theme="dark"] .clinic-production-timeline .complete{color:#aeb5bd}
+html[data-theme="dark"] .clinic-production-timeline .current,
+html[data-theme="dark"] .clinic-production-timeline .current strong{color:#f0f1f2}
+html[data-theme="dark"] .clinic-production-timeline i{background:#202428;border-color:#4a525b}
+html[data-theme="dark"] .clinic-production-timeline .complete i{background:#808890;border-color:#808890}
+html[data-theme="dark"] .clinic-production-timeline>div.current i{background:#202428;border-color:#e6e8eb;box-shadow:0 0 0 3px #30363d}
+html[data-theme="dark"] .order-files-panel .order-folder-link,
+html[data-theme="dark"] .order-files-panel .order-upload-card{background:#202428;border-color:#3a4047;color:#e6e8eb}
+html[data-theme="dark"] .order-files-panel .order-folder-link strong,
+html[data-theme="dark"] .order-files-panel .order-upload-card strong{color:#eef0f2}
+html[data-theme="dark"] .order-files-panel .order-folder-link small,
+html[data-theme="dark"] .order-files-panel .order-upload-card small{color:#9da4ad}
+html[data-theme="dark"] .upload-dialog-picker{background:#202a35;border-color:#3d566d;color:#b9d0e4}
+html[data-theme="dark"] .upload-progress-file.success{background:#20352b;border-color:#386b50}
+html[data-theme="dark"] .upload-progress-file.error{background:#352427;border-color:#6b3d42}
+html[data-theme="dark"] .cad-worker-panel,
+html[data-theme="dark"] .cad-review-card{background:#202a35;border-color:#3d566d;color:#e6e8eb}
+html[data-theme="dark"] .cad-worker-panel.returned,
+html[data-theme="dark"] .cad-review-card.returned{background:#352d24;border-color:#705333}
+html[data-theme="dark"] .cad-review-card.approved{background:#20352b;border-color:#386b50}
+html[data-theme="dark"] .cad-worker-panel p,
+html[data-theme="dark"] .cad-review-card p{color:#aeb9c4}
+html[data-theme="dark"] .cad-preview-dialog{background:#202428;color:#e6e8eb}
+html[data-theme="dark"] .cad-preview-dialog>header{border-color:#343a41}
+html[data-theme="dark"] .cad-preview-dialog p{color:#9da4ad}
+html[data-theme="dark"] .cad-preview-dialog header button{background:#30363d;color:#e6e8eb}
+html[data-theme="dark"] .client-request-dialog label{color:#aeb5bd}
+html[data-theme="dark"] .client-request-dialog input,
+html[data-theme="dark"] .client-request-dialog select,
+html[data-theme="dark"] .client-request-dialog textarea{background:#1b1e22;border-color:#3a4047;color:#eef0f2}
+html[data-theme="dark"] .client-request-dialog input::placeholder,
+html[data-theme="dark"] .client-request-dialog textarea::placeholder{color:#737b85}
+html[data-theme="dark"] .order-total{border-color:#343a41}
 @media(min-width:900px){.tech-request-list{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.tech-request-card{min-width:0}}
 @media(max-width:899px){.tech-request-list{grid-template-columns:1fr}}
 .tech-request-filters{display:flex;align-items:center;gap:6px;margin:-12px 0 12px;padding:4px;width:max-content;max-width:100%;overflow-x:auto;border-radius:9px;background:#f5f5f5;scrollbar-width:none}
@@ -787,7 +859,7 @@ html[data-theme="dark"] .tech-table th,html[data-theme="dark"] .orders-table th{
 html[data-theme="dark"] .tech-table td,html[data-theme="dark"] .orders-table td{border-color:#343a41;color:#b7bec6}
 html[data-theme="dark"] .tech-table td strong,html[data-theme="dark"] .orders-table td strong,html[data-theme="dark"] .tech-table td::before,html[data-theme="dark"] .orders-table td::before{color:#eef0f2}
 html[data-theme="dark"] .tech-table td small{color:#9da4ad}
-html[data-theme="dark"] .tech-orders-table td:nth-child(6){border-left-color:#343a41;color:#d8dde2}
+html[data-theme="dark"] .tech-orders-table td:nth-child(6){color:#d8dde2}
 html[data-theme="dark"] .tech-order-row:hover,html[data-theme="dark"] .orders-table tr[data-order]:hover{background:#292e34}
 html[data-theme="dark"] .order-sort,html[data-theme="dark"] .tech-link,html[data-theme="dark"] .tech-back{color:#aeb5bd}
 html[data-theme="dark"] .order-sort:hover,html[data-theme="dark"] .tech-link:hover,html[data-theme="dark"] .tech-back:hover{color:#fff}
@@ -842,6 +914,28 @@ html[data-theme="dark"] .tech-assign-filters select,
 html[data-theme="dark"] .worker-account select,
 html[data-theme="dark"] .clinic-select,
 html[data-theme="dark"] .clinic-order-filter select{background:#1b1e22;border-color:#3a4047;color:#eef0f2}
+html[data-theme="dark"] .portal-login .portal-logo{content:url('/assets/create-dental-logo-dark.png');background:transparent}
+html[data-theme="dark"] .stat{background:#202428;border-color:#343a41;box-shadow:0 7px 24px #00000018}
+html[data-theme="dark"] .stat strong{color:#eef0f2}
+html[data-theme="dark"] .stat span:not(.stat-icon){color:#9da4ad}
+html[data-theme="dark"] .stat-icon{background:#30363d;color:#cbd1d8}
+html[data-theme="dark"] .stat-icon.orange{background:#463522;color:#f2bd75}
+html[data-theme="dark"] .stat-icon.green{background:#203c2c;color:#72d39a}
+html[data-theme="dark"] .stat-icon.navy{background:#30363d;color:#cbd1d8}
+html[data-theme="dark"] .recent-message strong{color:#eef0f2}
+html[data-theme="dark"] .recent-message small,
+html[data-theme="dark"] .recent-message time{color:#9da4ad}
+html[data-theme="dark"] .recent-message{border-color:#343a41}
+html[data-theme="dark"] .upcoming-order{border-color:#343a41}
+html[data-theme="dark"] .upcoming-order strong{color:#eef0f2}
+html[data-theme="dark"] .upcoming-order small,
+html[data-theme="dark"] .upcoming-order time{color:#9da4ad}
+html[data-theme="dark"] .portal-login-tools{position:fixed;top:24px;right:24px;z-index:2}
+html[data-theme="dark"] .portal-login-tools .theme-toggle{background:#25292e;border-color:#3a4047;color:#e6e8eb}
+html[data-theme="dark"] .portal-login-tools .theme-toggle:hover{background:#30363d;color:#fff}
+.portal-login{position:relative}
+.portal-login-tools{position:fixed;top:24px;right:24px;z-index:2}
+@media(max-width:760px){.portal-login-tools{top:14px;right:14px}}
 html[data-theme="dark"] .tech-bar-track{border-color:#3a4047}
 html[data-theme="dark"] .tech-bar-track i{background:#3d444c}
 html[data-theme="dark"] .tech-bar.active .tech-bar-track i,
@@ -868,7 +962,7 @@ html[data-theme="dark"] .tech-timeline .current i{box-shadow:0 0 0 3px #30363d}
 html[data-theme="dark"] .tech-progress-head{color:#8c959f}html[data-theme="dark"] .tech-progress-head b{color:#e6e9ec}html[data-theme="dark"] .tech-progress-track{background:#343a41}html[data-theme="dark"] .tech-progress-track i{background:#aeb6bf}
 
 /* Refined stage progress layout */
-.tech-timeline-role{position:relative;display:block!important;min-height:0!important;margin:10px 0 3px;padding:4px 0 4px 30px!important}
+.tech-timeline-role{position:relative;display:block!important;min-height:0!important;margin:0 0 3px;padding:4px 0 4px 30px!important}
 .tech-timeline-role>div{width:min(100%,220px);min-width:0}
 .tech-timeline-role>div>strong{display:block;margin-bottom:7px;color:#444;font-size:12px}
 .tech-timeline-role small{position:absolute;top:5px;right:0;margin:0;color:#8b8b8b;font-size:10px;font-weight:600}
@@ -938,10 +1032,41 @@ html[data-theme="dark"] .tech-edit-price strong{color:#eef0f2}
 html[data-theme="dark"] .tech-edit-grid select,
 html[data-theme="dark"] .tech-edit-variant input,
 html[data-theme="dark"] .tech-edit-variant select{background:#1b1e22;border-color:#3a4047;color:#eef0f2}
-.tech-timeline-role small{position:static!important;display:block;width:min(100%,220px)!important;margin:6px 0 0 30px!important}
+.tech-timeline-role small{position:static!important;display:block;width:min(100%,220px)!important;margin:6px 0 0 0!important}
+.tech-timeline-role>strong{display:block;margin:0;color:#444;font-size:12px}
+.tech-timeline-role.future>strong{color:#c5c5c5;font-weight:500}
+.tech-timeline-role.future small{font-weight:500}
+html[data-theme="dark"] .tech-timeline-role.future>strong{color:#7f8994}
 .tech-timeline-hint{display:block;width:max-content;max-width:100%;margin:5px 0 0 8px!important}
 .tech-timeline>li:not(.tech-timeline-role){flex-wrap:wrap;row-gap:2px}
+.tech-timeline>li:not(.tech-timeline-role)>.tech-stage-progress{flex-basis:100%;margin:4px 0 14px 23px}
+.tech-timeline>li.tech-timeline-stage{display:grid!important;grid-template-columns:23px minmax(0,1fr);column-gap:10px;align-items:center;min-height:32px}
+.tech-timeline>li.tech-timeline-stage>i{grid-column:1;grid-row:1}
+.tech-timeline>li.tech-timeline-stage>span{grid-column:2;grid-row:1}
+.tech-timeline>li.tech-timeline-stage>.tech-stage-progress{grid-column:2;grid-row:2;width:min(100%,240px);flex:none;margin:6px 0 14px}
+.tech-timeline>li.tech-timeline-stage>.tech-timeline-hint{grid-column:2;grid-row:2;margin:4px 0 10px!important}
+.tech-timeline>li.tech-timeline-stage{grid-template-columns:23px 250px 220px;justify-content:start}
+.tech-timeline>li.tech-timeline-stage>.tech-stage-progress{grid-column:3;grid-row:1;width:220px;margin:0}
+.tech-timeline>li.tech-timeline-stage>.tech-timeline-hint{grid-column:3;grid-row:1;margin:0!important}
+.tech-timeline>li.tech-timeline-stage{position:relative}
+.tech-timeline>li.tech-timeline-stage>.tech-stage-progress,.tech-timeline>li.tech-timeline-stage>.tech-timeline-hint{position:absolute;left:auto;right:0;top:50%;transform:translateY(-50%)}
+.tech-timeline>li.tech-timeline-stage>.tech-stage-progress{top:0;transform:none}
+@media(max-width:760px){.tech-timeline>li.tech-timeline-stage{grid-template-columns:23px minmax(0,1fr)}.tech-timeline>li.tech-timeline-stage>.tech-stage-progress,.tech-timeline>li.tech-timeline-stage>.tech-timeline-hint{position:static;grid-column:2;grid-row:2;width:min(100%,220px);margin:6px 0 12px!important;transform:none}}
 .tech-timeline>li:not(.tech-timeline-role)>.tech-timeline-hint{flex-basis:100%;margin:0 0 4px 23px!important}
+.clinic-stage-progress,.worker-detail-side>.tech-stage-progress{width:220px;max-width:220px;margin:14px 0 0;box-sizing:border-box}
+.clinic-production-timeline .complete i{display:block;background:#808080;border-color:#808080}
+.clinic-production-timeline>div.current{position:relative;color:#333;font-weight:700}
+.clinic-production-timeline>div.current i{left:-8px;top:0;width:14px;height:14px;background:#fff;border:2px solid #333;box-shadow:0 0 0 3px #f5f5f5}
+.clinic-production-timeline>div.current strong{color:#333;font-weight:700}
+
+/* Keep the chief technician's order action visible before the long timeline. */
+.tech-detail-side>.tech-panel:first-child{display:flex;flex-direction:column}
+.tech-detail-side>.tech-panel:first-child>h2{order:0}
+.tech-detail-side>.tech-panel:first-child>.tech-detail-actions{order:1;margin-top:10px;padding-top:0;border-top:0}
+.tech-detail-side>.tech-panel:first-child>.tech-assign,
+.tech-detail-side>.tech-panel:first-child>.tech-assign-filters{order:2}
+.tech-detail-side>.tech-panel:first-child>h3{order:3}
+.tech-detail-side>.tech-panel:first-child>.tech-timeline{order:4}
 
 /* Тип производственного маршрута заказа */
 .order-type-choice{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:0 0 28px;padding:20px 22px;border:1px solid #e8e8e8;border-radius:18px;background:#fafafa}
@@ -953,10 +1078,119 @@ html[data-theme="dark"] .order-type-choice{border-color:#343a41;background:#2025
   .orders-table{table-layout:fixed}
   .orders-table th,.orders-table td{white-space:nowrap;overflow-wrap:normal}
   .orders-table th:nth-child(1),.orders-table td:nth-child(1){width:14%}
-  .orders-table th:nth-child(2),.orders-table td:nth-child(2){width:12%}
-  .orders-table th:nth-child(3),.orders-table td:nth-child(3){width:10%}
+  .orders-table th:nth-child(2),.orders-table td:nth-child(2){width:18%}
+  .orders-table th:nth-child(3),.orders-table td:nth-child(3){width:14%}
   .orders-table th:nth-child(4),.orders-table td:nth-child(4){width:8%}
   .orders-table th:nth-child(5),.orders-table td:nth-child(5){width:8%}
-  .orders-table th:nth-child(6),.orders-table td:nth-child(6){width:25%;min-width:340px;padding-right:16px}
-  .orders-table th:nth-child(7),.orders-table td:nth-child(7){width:23%;padding-left:16px}
+  .orders-table th:nth-child(6),.orders-table td:nth-child(6){width:23%;min-width:340px;padding-right:16px}
+  .orders-table th:nth-child(7),.orders-table td:nth-child(7){width:15%;padding-left:16px}
+  .orders-table td:nth-child(1),.orders-table td:nth-child(2),.orders-table td:nth-child(3),.orders-table td:nth-child(4),.orders-table td:nth-child(5),.orders-table td:nth-child(7){overflow:hidden;text-overflow:ellipsis}
 }
+
+/* Final dark theme contrast pass for shared clinic, technician and worker screens. */
+html[data-theme="dark"] .detail-heading .muted,
+html[data-theme="dark"] .back-link,
+html[data-theme="dark"] .text-link{color:#aeb5bd}
+html[data-theme="dark"] .more-btn,
+html[data-theme="dark"] .mobile-menu,
+html[data-theme="dark"] .clinic-photo button,
+html[data-theme="dark"] .attachment-add{background:#252a2f;border-color:#3a4047;color:#d8dde2}
+html[data-theme="dark"] .file-card strong,
+html[data-theme="dark"] .result-photo{color:#e6e8eb}
+html[data-theme="dark"] .result-photos h3,
+html[data-theme="dark"] .result-photo-upload h3{color:#f0f1f2}
+html[data-theme="dark"] .result-photos>p,
+html[data-theme="dark"] .result-photo-upload>p,
+html[data-theme="dark"] .result-photo-loading{color:#9da4ad}
+html[data-theme="dark"] .result-photo-loading,
+html[data-theme="dark"] .attachment{background:#252a2f}
+html[data-theme="dark"] .result-photos,
+html[data-theme="dark"] .result-photo-upload{border-color:#343a41}
+html[data-theme="dark"] .messages-layout .contacts,
+html[data-theme="dark"] .messages-layout .conversation,
+html[data-theme="dark"] .messages-layout .conversation-head,
+html[data-theme="dark"] .messages-layout .chat-compose{background:#202428;border-color:#343a41}
+html[data-theme="dark"] .messages-layout .contact{background:transparent;color:#e6e8eb}
+html[data-theme="dark"] .messages-layout .contact:hover,
+html[data-theme="dark"] .messages-layout .contact.active{background:#292e34}
+html[data-theme="dark"] .messages-layout .contact strong,
+html[data-theme="dark"] .messages-layout .conversation-head strong{color:#eef0f2}
+html[data-theme="dark"] .messages-layout .contact small,
+html[data-theme="dark"] .messages-layout .contact time{color:#9da4ad}
+html[data-theme="dark"] .messages-layout .bubble{background:#2b3036;color:#e6e8eb}
+html[data-theme="dark"] .messages-layout .bubble time{color:#9da4ad}
+html[data-theme="dark"] .messages-layout .chat-compose input{background:transparent;color:#eef0f2}
+html[data-theme="dark"] .messages-layout .attach-btn{color:#aeb5bd}
+html[data-theme="dark"] .btn.danger{background:#40282b;border-color:#63363a;color:#ffb4b7}
+html[data-theme="dark"] .upload-zone{border-color:#3a4047;background:#202428;color:#aeb5bd}
+html[data-theme="dark"] .hint,
+html[data-theme="dark"] .chart-legend{color:#9da4ad}
+html[data-theme="dark"] .selected-teeth button{background:#30363d;color:#d8dde2}
+html[data-theme="dark"] .selected-teeth .clear{background:transparent;color:#aeb5bd}
+html[data-theme="dark"] .teeth-options h2,
+html[data-theme="dark"] .summary-list strong{color:#eef0f2}
+html[data-theme="dark"] .summary-list>div:not(.attachment-grid){border-color:#343a41}
+html[data-theme="dark"] .summary-list span{color:#9da4ad}
+html[data-theme="dark"] .tooth circle{fill:#202428;stroke:#89939e}
+html[data-theme="dark"] .tooth text{fill:#e6e8eb}
+html[data-theme="dark"] .tooth.selected circle{fill:#808890;stroke:#aeb5bd}
+html[data-theme="dark"] .tooth.selected text{fill:#fff}
+
+/* Chief technician dark theme is the shared visual reference for every cabinet. */
+html[data-theme="dark"]{
+  --ui-bg:#17191c;
+  --ui-surface:#202428;
+  --ui-surface-raised:#25292e;
+  --ui-surface-soft:#292e34;
+  --ui-border:#343a41;
+  --ui-text:#f0f1f2;
+  --ui-muted:#9da4ad;
+  --ui-control:#1b1e22;
+}
+html[data-theme="dark"] .orders-table tbody tr,
+html[data-theme="dark"] .tech-table tbody tr{background:#202428;border-color:#343a41}
+html[data-theme="dark"] .orders-table tbody tr:hover,
+html[data-theme="dark"] .tech-table tbody tr:hover{background:#292e34}
+html[data-theme="dark"] .order-service-card,
+html[data-theme="dark"] .order-variant-card,
+html[data-theme="dark"] .order-cart,
+html[data-theme="dark"] .order-upload-card,
+html[data-theme="dark"] .upload-progress-file{background:#202428}
+html[data-theme="dark"] .tech-attention>button:hover{background:#292e34}
+html[data-theme="dark"] .tech-attention>button{border-color:#343a41}
+html[data-theme="dark"] .tech-attention strong{color:#eef0f2}
+html[data-theme="dark"] .tech-attention small{color:#9da4ad}
+html[data-theme="dark"] .tech-order-icon{background:#30363d;color:#cbd1d8}
+html[data-theme="dark"] .tech-stage.work,
+html[data-theme="dark"] .tech-stage.review{background:#30363d;color:#cbd1d8}
+html[data-theme="dark"] .tech-stage.new{background:#463522;color:#f2bd75}
+html[data-theme="dark"] .tech-stage.ready{background:#203c2c;color:#72d39a}
+html[data-theme="dark"] .tech-filters label,
+html[data-theme="dark"] .tech-assign,
+html[data-theme="dark"] .tech-assign-filters label,
+html[data-theme="dark"] .worker-account{color:#aeb5bd}
+html[data-theme="dark"] .tech-detail-teeth,
+html[data-theme="dark"] .tech-detail-actions{border-color:#343a41}
+html[data-theme="dark"] .tech-client-form label{color:#aeb5bd}
+html[data-theme="dark"] .tech-client-form input[readonly]{background:#1b1e22;color:#9da4ad;border-color:#3a4047}
+html[data-theme="dark"] .tech-client-close{color:#aeb5bd}
+html[data-theme="dark"] .tech-employee-status.active{background:#203c2c;color:#72d39a}
+html[data-theme="dark"] .tech-employee-status.disabled{background:#463522;color:#f2bd75}
+html[data-theme="dark"] .worker-rate-note{background:#202428;border-color:#343a41;color:#d8dde2}
+html[data-theme="dark"] .worker-rate-note span{color:#72d39a}
+html[data-theme="dark"] .location-options,
+html[data-theme="dark"] .location-options button{background:#202428;border-color:#343a41;color:#e6e8eb}
+html[data-theme="dark"] .location-options button:hover,
+html[data-theme="dark"] .location-options button:focus{background:#292e34}
+html[data-theme="dark"] .portal-login{background:radial-gradient(circle at 75% 0%,#252a30,transparent 45%),#17191c}
+html[data-theme="dark"] .portal-login section{background:#202428;border-color:#343a41;box-shadow:0 18px 60px #00000035}
+html[data-theme="dark"] .portal-login h1{color:#f0f1f2}
+html[data-theme="dark"] .portal-login p,
+html[data-theme="dark"] .portal-login label{color:#aeb5bd}
+html[data-theme="dark"] .portal-login input{background:#1b1e22;border-color:#3a4047;color:#eef0f2}
+html[data-theme="dark"] .portal-login small{color:#7f8994}
+html[data-theme="dark"] .auth-links button{color:#aeb5bd}
+html[data-theme="dark"] .clinic-filter-wrap>.btn.active{background:#30363d;border-color:#59616b;color:#eef0f2}
+html[data-theme="dark"] .clinic-order-filter{background:#202428;border-color:#343a41;box-shadow:0 18px 46px #00000045}
+html[data-theme="dark"] .clinic-order-filter label{color:#e6e8eb}
+html[data-theme="dark"] .clinic-order-filter select{background:#1b1e22;border-color:#3a4047;color:#eef0f2}

@@ -31,7 +31,7 @@ const welcomeText=`👋 Добро пожаловать в чат Create Dental!
 Здесь можно общаться с лабораторией и управлять заказами. Обычные сообщения бот не обрабатывает как команды. Чтобы выполнить действие в CRM, отправьте /menu и выберите нужную функцию.
 
 ➕ Новый заказ
-Укажите пациента, тип работы (цифра или аналог), режим (одиночка, мост или челюсть), номера зубов, точную услугу, цвет и срок. Если типа не хватит, бот предложит выбрать его кнопкой.
+Укажите пациента, тип работы (цифровой или аналоговый), режим (одиночка, мост или челюсть), номера зубов, точную услугу, цвет и срок. Если типа не хватит, бот предложит выбрать его кнопкой.
 Пример: «Новый заказ. Иванов Сергей. Коронки из циркония на 11 и 21, цвет A2. Срок — 20 октября».
 
 🔎 Статус заказа
@@ -322,7 +322,7 @@ function createOrderMissingPrompt(analysis){
   }
   if(missing.includes('желаемый срок готовности'))options.push(`• Срок: конкретная дата или «стандартный срок» — ${displayDate(addDays(moscowDate(),14))}.`);
   if(missing.includes('цвет/оттенок или «не требуется»'))options.push('• Цвет: A1 / A2 / A3 / B1 / B2 / другой оттенок / «не требуется».');
-  if(!fields.productionType)options.push('• Тип работы: «Цифра» — нужны STL/сканы; «Аналог» — нужен гипсовый слепок.');
+  if(!fields.productionType)options.push('• Тип работы: «Цифровой» — нужны STL/сканы; «Аналоговый» — нужен гипсовый слепок.');
   const recognized=[];
   if(hasFullPatientName(fields.patient))recognized.push(`пациент — ${fields.patient}`);
   if(fields.toothMode)recognized.push(`режим — ${fields.toothMode}`);
@@ -331,7 +331,7 @@ function createOrderMissingPrompt(analysis){
   if(selection.category)recognized.push(`работа — ${selection.category.name}${selection.option?` / ${selection.option.name}`:''}`);
   if(fields.dueDate)recognized.push(`срок — ${displayDate(fields.dueDate)}`);
   if(fields.shade)recognized.push(`цвет — ${fields.shade}`);
-  if(fields.productionType)recognized.push(`тип — ${fields.productionType==='analog'?'аналог':'цифра'}`);
+  if(fields.productionType)recognized.push(`тип — ${fields.productionType==='analog'?'аналоговый':'цифровой'}`);
   return [`Я сохранил указанную часть заказа.${recognized.length?`\nУже распознано: ${recognized.join('; ')}.`:''}`,'','Чтобы пройти все этапы, добавьте:',...options,'','Можно ответить одним текстовым или голосовым сообщением. Уже названные данные повторять не нужно.','Дата рождения, комментарий и файлы необязательны. Файлы можно добавить после принятия заказа главным техником.'].join('\n');
 }
 
@@ -370,8 +370,8 @@ function createOrderChoiceMarkup(analysis,wizardStep=''){
     [{text:'Другой оттенок',callback_data:'tgnew:shade:custom'},{text:'Не требуется',callback_data:'tgnew:shade:none'}]
   ]};
   if(!fields.productionType)return {inline_keyboard:[[
-    {text:'Цифра · нужны STL/сканы',callback_data:'tgnew:type:digital'},
-    {text:'Аналог · нужен гипсовый слепок',callback_data:'tgnew:type:analog'}
+    {text:'Цифровой · нужны STL/сканы',callback_data:'tgnew:type:digital'},
+    {text:'Аналоговый · нужен гипсовый слепок',callback_data:'tgnew:type:analog'}
   ]]};
   return null;
 }
@@ -415,7 +415,7 @@ function summaryLines(analysis,order,clinic){
   if(fields.teeth.length)lines.push(`Зубы: ${fields.teeth.join(', ')}`);
   if(fields.toothMode)lines.push(`Режим: ${fields.toothMode}`);
   if(fields.jaw)lines.push(`Челюсть: ${fields.jaw==='upper'?'верхняя':'нижняя'}`);
-  if(fields.productionType)lines.push(`Тип работы: ${fields.productionType==='analog'?'Аналог':'Цифра'}`);
+  if(fields.productionType)lines.push(`Тип работы: ${fields.productionType==='analog'?'Аналоговый':'Цифровой'}`);
   if(fields.dueDate)lines.push(`Срок: ${displayDate(fields.dueDate)}`);
   if(fields.shade)lines.push(`Цвет: ${fields.shade}`);
   if(fields.reason)lines.push(`Причина: ${fields.reason}`);
@@ -464,7 +464,7 @@ async function readSecret(name){
   try{return (await fs.promises.readFile(file,'utf8')).trim()}catch(error){if(error.code==='ENOENT')return '';throw error}
 }
 
-export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=async()=>{},saveTelegramAttachment=async()=>null,attachOrderFile=async()=>null,loadClinicAttachment=async()=>null,createLargeUploadLink=async()=>'',onOrderCreated=async()=>{}}={}){
+export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=async()=>{},saveTelegramAttachment=async()=>null,attachOrderFile=async()=>null,loadClinicAttachment=async()=>null,createLargeUploadLink=async()=>'',createCadPreviewLink=()=>'',onOrderCreated=async()=>{}}={}){
   let token='',speechKey='',gptKey='',folderId='';
   let botIdentity={};
   let stopped=false,polling=false,state={offset:0,bindings:{},bindingRequests:{},pending:{},completed:{},contexts:{},guided:{},carts:{},messageActions:{},inbox:{}};
@@ -847,7 +847,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         return sendOrderPicker(callback.message.chat.id,clinic,id);
       }
       if(id==='human'){await answerCallback(callback.id,'Позвал человека');return send(callback.message.chat.id,'@CreateDental_io, вас зовут в этот чат.')}
-      const prompts={new:'Опишите заказ одним текстовым или голосовым сообщением:\n\n1. Фамилия и имя пациента (обязательно); отчество — по желанию.\n2. Тип: «цифра» или «аналог». Если не укажете, бот предложит выбрать кнопкой.\n3. Режим: одиночка, мост или челюсть.\n4. Номера зубов либо верхняя/нижняя челюсть.\n5. Точная услуга из прайса.\n6. Желаемый срок.\n7. Цвет или «не требуется».\n\nДата рождения, комментарий и файлы необязательны. Если чего-то не хватит, я сохраню названные данные и подскажу варианты.'};
+      const prompts={new:'Опишите заказ одним текстовым или голосовым сообщением:\n\n1. Фамилия и имя пациента (обязательно); отчество — по желанию.\n2. Тип работы: «цифровой» или «аналоговый». Если не укажете, бот предложит выбрать кнопкой.\n3. Режим: одиночка, мост или челюсть.\n4. Номера зубов либо верхняя/нижняя челюсть.\n5. Точная услуга из прайса.\n6. Желаемый срок.\n7. Цвет или «не требуется».\n\nДата рождения, комментарий и файлы необязательны. Если чего-то не хватит, я сохраню названные данные и подскажу варианты.'};
       if(id==='new'){rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,'','new');await saveState()}
       await answerCallback(callback.id,'Готово');
       return send(callback.message.chat.id,prompts[id]||'Опишите, что нужно сделать с заказом.');
@@ -904,7 +904,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         analysis.fields.shade=value==='none'?'Не требуется':cleanText(value,40);wizardStep='';callbackText='Цвет выбран';
       }else if(id==='type'){
         if(!['digital','analog'].includes(value))return answerCallback(callback.id,'Неизвестный тип работы');
-        analysis.fields.productionType=value;wizardStep='';callbackText=value==='analog'?'Выбран аналог':'Выбрана цифра';
+        analysis.fields.productionType=value;wizardStep='';callbackText=value==='analog'?'Выбран аналоговый тип':'Выбран цифровой тип';
       }else return answerCallback(callback.id,'Неизвестное действие');
 
       const missing=missingCreateFields(analysis);
@@ -929,7 +929,12 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       const snapshot=portalSnapshot(),order=activeOrdersForClinic(snapshot,clinic.id).find(item=>item.id===value);
       if(!order)return answerCallback(callback.id,'Заказ не найден');
       rememberContext(callback.message.chat.id,callback.from?.id,clinic.id,order.id);
-      if(id==='status'){await saveState();await answerCallback(callback.id,'Статус готов');return send(callback.message.chat.id,`Заказ ${order.id}\nПациент: ${order.patient}\nРабота: ${order.work}\nСрок: ${order.date}\nСтатус: ${orderStage(snapshot,order)}`)}
+      if(id==='status'){
+        await saveState();await answerCallback(callback.id,'Статус готов');
+        const stage=orderStage(snapshot,order),details=snapshot.orderOverrides[order.id]||{},cadPending=stage==='Согласование CAD'&&details.cadReview?.status==='pending',previewUrl=cadPending?createCadPreviewLink({...order,cadReview:details.cadReview}):'';
+        const extra=cadPending?{reply_markup:{inline_keyboard:[...(previewUrl?[[{text:'Открыть CAD',url:previewUrl}]]:[]),[{text:'✅ Принять заказ',callback_data:`tgcad:approve:${order.id}`}],[{text:'↩️ Вернуть заказ',callback_data:`tgcad:return:${order.id}`}]]}}:{};
+        return send(callback.message.chat.id,`Заказ ${order.id}\nПациент: ${order.patient}\nРабота: ${order.work}\nСрок: ${order.date}\nСтатус: ${stage}${cadPending?'\n\nОжидает решения врача по CAD.':''}`,extra);
+      }
       if(id==='edit'){
         await saveState();await answerCallback(callback.id,'Выберите пункт');
         return send(callback.message.chat.id,`Что изменить в заказе ${order.id}?`,{reply_markup:{inline_keyboard:[
@@ -953,6 +958,28 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         await answerCallback(callback.id,'Ссылка готова');
         return send(callback.message.chat.id,`Загрузите до 10 файлов к заказу ${order.id}. Каждый файл — до 200 МБ. Ссылка действует 2 часа и используется один раз.\n\nЕсли страница не открывается внутри Telegram при включённом VPN, скопируйте ссылку и откройте её во внешнем браузере. Если VPN блокирует createdental.io, временно отключите его для загрузки.\n\n${href}`,{reply_markup:{inline_keyboard:[[{text:'📎 Открыть страницу загрузки',url:href}]]}});
       }catch(error){await answerCallback(callback.id,'Загрузка пока недоступна');return send(callback.message.chat.id,cleanText(error.message,400))}
+    }
+    if(action==='tgcad'&&id&&value){
+      if(!['approve','return'].includes(id))return answerCallback(callback.id,'Действие недоступно');
+      const message=callback.message||{},clinic=boundClinicForMessage(message);
+      if(!clinic)return answerCallback(callback.id,'Чат не подключён');
+      const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===value&&item.clinicId===clinic.id);
+      if(!order)return answerCallback(callback.id,'Заказ не найден');
+      const details=snapshot.orderOverrides[order.id]||{};
+      if(details.stage!=='Согласование CAD'||details.cadReview?.status!=='pending')return answerCallback(callback.id,'CAD уже рассмотрен или не отправлен на согласование');
+      const reviewer=actorName({from:callback.from})||clinic.name||'Врач',approved=id==='approve',now=new Date().toISOString();
+      const comment=approved?'':'Возврат из Telegram: требуется доработка CAD.';
+      const review={...details.cadReview,status:approved?'approved':'returned',reviewedAt:now,reviewedBy:reviewer,comment};
+      const next={...snapshot.orderOverrides,[order.id]:{...details,stage:approved?'Изготовление':'Моделирование',cadReview:review}};
+      try{
+        await replacePortalCollection('orderOverrides',next,{role:'clinic',name:reviewer});
+        await recordPortalEvent(order.id,{role:'clinic',name:reviewer},approved?'cad_review_approved':'cad_review_returned',{clinicId:order.clinicId,summary:approved?'CAD подтверждён врачом в Telegram':'CAD возвращён моделировщику из Telegram',comment}).catch(()=>{});
+        await answerCallback(callback.id,approved?'Заказ принят':'Заказ возвращён');
+        return editMessage(message.chat.id,message.message_id,approved?`✅ CAD по заказу ${order.id} принят. Заказ передан в изготовление.`:`↩️ CAD по заказу ${order.id} возвращён моделировщику.`,{inline_keyboard:[]});
+      }catch(error){
+        console.error('Telegram CAD decision failed:',error.message);
+        return answerCallback(callback.id,'Не удалось сохранить решение');
+      }
     }
     if(action==='tgoldedit'&&id&&value){
       const clinic=boundClinicForMessage(callback.message||{});if(!clinic)return answerCallback(callback.id,'Чат не подключён');
@@ -1080,7 +1107,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     const activeGuided=currentGuidedAction(message.chat.id,message.from?.id,clinic.id);
     if(menuInvocation)return sendMenu(message.chat.id);
     if(quickCommand){
-      if(quickCommand==='new'){rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new');await saveState();return send(message.chat.id,'Опишите заказ одним текстовым или голосовым сообщением:\n\n1. Фамилия и имя пациента (обязательно); отчество — по желанию.\n2. Тип: «цифра» или «аналог». Если не укажете, бот предложит выбрать кнопкой.\n3. Режим: одиночка, мост или челюсть.\n4. Номера зубов либо верхняя/нижняя челюсть.\n5. Точная услуга из прайса.\n6. Желаемый срок.\n7. Цвет или «не требуется».\n\nДата рождения, комментарий и файлы необязательны. Если чего-то не хватит, я сохраню названные данные и подскажу варианты.')}
+      if(quickCommand==='new'){rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new');await saveState();return send(message.chat.id,'Опишите заказ одним текстовым или голосовым сообщением:\n\n1. Фамилия и имя пациента (обязательно); отчество — по желанию.\n2. Тип работы: «цифровой» или «аналоговый». Если не укажете, бот предложит выбрать кнопкой.\n3. Режим: одиночка, мост или челюсть.\n4. Номера зубов либо верхняя/нижняя челюсть.\n5. Точная услуга из прайса.\n6. Желаемый срок.\n7. Цвет или «не требуется».\n\nДата рождения, комментарий и файлы необязательны. Если чего-то не хватит, я сохраню названные данные и подскажу варианты.')}
       if(quickCommand==='human')return send(message.chat.id,'@CreateDental_io, вас зовут в этот чат.');
       return sendOrderPicker(message.chat.id,clinic,quickCommand);
     }
@@ -1276,10 +1303,10 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     }
     if(text)await send(chatId,text,{},false);return true;
   }
-  async function sendAutomatedMessage(clinicId,text){
+  async function sendAutomatedMessage(clinicId,text,extra={}){
     const binding=state.bindings[clinicId],chatId=typeof binding==='object'?binding?.chatId:binding;
     if(!chatId||!token)return false;
-    if(text)await send(chatId,text,{},true);
+    if(text)await send(chatId,text,extra,true);
     return true;
   }
   async function notifyOrderStage(order,stage){

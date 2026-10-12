@@ -34,7 +34,7 @@ const integrationSecretFiles={
 const tlsKeyFile=process.env.TLS_KEY_FILE||'';
 const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
-const publicFiles = new Set(['/','/index.html','/app.js','/work-catalog.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/styles.css','/support.html','/support.js','/large-upload.html','/large-upload.js','/yandex_a7db0249ed96373e.html']);
+const publicFiles = new Set(['/','/index.html','/app.js','/work-catalog.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/styles.css','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/yandex_a7db0249ed96373e.html']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon'};
 const sharedAttachmentTypes={
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream',
@@ -47,6 +47,8 @@ const uploadSessionLifetime=2*60*60*1000;
 const diskUploadSessions=new Map();
 const largeUploadLinks=new Map();
 const publicOrderFolderLinks=new Map();
+const cadPreviewLinks=new Map();
+const cadPreviewLinkLifetime=7*24*60*60*1000;
 const orderFileMigrationJobs=new Map();
 const cadHtmlCache=new Map();
 const cadHtmlInflight=new Map();
@@ -203,6 +205,35 @@ function publicClinicHistoryEvent(event){
   return {...visible,assigned:Boolean(to&&to!=='Не назначен')};
 }
 
+function publicBaseUrl(){return String(process.env.PUBLIC_BASE_URL||'https://createdental.io').replace(/\/$/,'')}
+function cadPreviewKey(token){return createHash('sha256').update(String(token)).digest('hex')}
+function createCadPreviewLink(order){
+  const orderId=String(order?.id||''),clinicId=String(order?.clinicId||''),fileId=String(order?.cadReview?.fileId||'');
+  if(!orderId||!clinicId||!fileId)return '';
+  const file=(orderFiles[orderId]||[]).find(item=>item.id===fileId&&item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html');
+  if(!file)return '';
+  const now=Date.now();
+  for(const [key,item] of cadPreviewLinks)if(item.expiresAt<=now)cadPreviewLinks.delete(key);
+  const token=randomBytes(32).toString('base64url');
+  cadPreviewLinks.set(cadPreviewKey(token),{orderId,clinicId,fileId,createdAt:now,expiresAt:now+cadPreviewLinkLifetime});
+  return `${publicBaseUrl()}/cad-preview.html?token=${encodeURIComponent(token)}`;
+}
+async function handleCadPreview(req,res,url){
+  const match=url.pathname.match(/^\/api\/cad-preview\/([A-Za-z0-9_-]{30,80})$/);
+  if(!match)return json(res,404,{error:'Ссылка на CAD не найдена'});
+  const token=match[1],link=cadPreviewLinks.get(cadPreviewKey(token));
+  if(!link||link.expiresAt<=Date.now()){if(link)cadPreviewLinks.delete(cadPreviewKey(token));return json(res,410,{error:'Ссылка на CAD истекла'});}
+  const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===link.orderId&&item.clinicId===link.clinicId);
+  const details=snapshot.orderOverrides[link.orderId]||{},file=(orderFiles[link.orderId]||[]).find(item=>item.id===link.fileId&&item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html');
+  if(!order||!file||String(details.cadReview?.fileId||'')!==link.fileId)return json(res,404,{error:'CAD-файл недоступен'});
+  if(req.method!=='GET'&&req.method!=='HEAD')return json(res,405,{error:'Метод не поддерживается'});
+  try{
+    const html=await readCadHtml({file}),headers={'Content-Type':'text/html; charset=utf-8','Cache-Control':'private, no-store','Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,'X-Content-Type-Options':'nosniff','X-Frame-Options':'SAMEORIGIN','Content-Security-Policy':"frame-ancestors 'self'"};
+    if(req.method==='HEAD')return res.writeHead(200,headers).end();
+    res.writeHead(200,{...headers,'Content-Length':Buffer.byteLength(html,'utf8')});res.end(html);
+  }catch(error){console.error('Public CAD preview load failed:',error.message);return json(res,504,{error:'Не удалось загрузить CAD. Откройте ссылку ещё раз.'})}
+}
+
 async function readBody(req,limit=8192) {
   let body = '';
   for await (const chunk of req) {
@@ -323,14 +354,13 @@ async function handlePortal(req,res,url){
         }
       }
       if(key==='employees')for(const employee of value)if(employee.status!=='active'){revokeSubjectSessions('worker',employee.id);void employeeTelegramBridge?.revokeEmployee(employee.id).catch(error=>console.error('Employee Telegram revoke failed:',error.message))}
-      if(key==='orders'){
-        const beforeById=new Map(snapshot.orders.map(order=>[order.id,order]));
-        for(const order of value){const before=beforeById.get(order.id);if(before&&before.date!==order.date)void telegramBridge?.sendAutomatedMessage(order.clinicId,`Заказ ${order.id}\nНовый срок сдачи: ${order.date}`).catch(error=>console.error('Telegram deadline notification failed:',error.message))}
-      }
       if(key==='orderOverrides')for(const [id,detail] of Object.entries(value)){
         const before=snapshot.orderOverrides[id]||{};
         if(detail&&(detail.assignee!==before.assignee||detail.technician!==before.technician||detail.preprodTechnician!==before.preprodTechnician||detail.frameTechnician!==before.frameTechnician||detail.painter!==before.painter||detail.ceramicist!==before.ceramicist||detail.cadOperator!==before.cadOperator)){const order=snapshot.orders.find(item=>item.id===id);if(order)void employeeTelegramBridge?.notifyAssignment(order,detail).catch(error=>console.error('Employee Telegram assignment notification failed:',error.message))}
-        if(detail?.stage&&detail.stage!==before.stage){const order=snapshot.orders.find(item=>item.id===id);if(order)void telegramBridge?.notifyOrderStage(order,detail.stage).catch(error=>console.error('Telegram status notification failed:',error.message))}
+        if(detail?.stage==='Согласование CAD'&&before.stage!=='Согласование CAD'){
+          const order=snapshot.orders.find(item=>item.id===id),previewUrl=createCadPreviewLink(order&&{...order,cadReview:detail.cadReview});
+          if(order&&previewUrl)void telegramBridge?.sendAutomatedMessage(order.clinicId,`CAD по заказу ${order.id} готов к согласованию врача.`,{reply_markup:{inline_keyboard:[[{text:'Открыть CAD',url:previewUrl}],[{text:'✅ Принять заказ',callback_data:`tgcad:approve:${order.id}`}],[{text:'↩️ Вернуть заказ',callback_data:`tgcad:return:${order.id}`}]]}}).catch(error=>console.error('Telegram CAD notification failed:',error.message));
+        }
       }
       return json(res,200,{ok:true})
     }
@@ -598,7 +628,6 @@ async function completeDiskUpload(item,uploadedBy){
   const record={id,name:item.name,size:item.size,type:item.type,uploadedAt,uploadedBy,purpose:item.purpose,storage:'yandex-disk',diskPath:item.diskPath};
   orderFiles[item.orderId]=[...(orderFiles[item.orderId]||[]),record];await persistOrderFiles();
   await recordPortalEvent(item.orderId,{role:item.actorRole,name:uploadedBy},'file_uploaded',{summary:item.purpose==='result-photo'?'Добавлено фото готовой работы':item.purpose==='source-photo'?'Добавлены исходные фото от клиники':'Добавлен файл к заказу',fileName:item.name,purpose:item.purpose,clinicId:item.clinicId}).catch(()=>{});
-  if(item.purpose==='result-photo')void telegramBridge?.sendAutomatedMessage(item.clinicId,`К заказу ${item.orderId} добавлено фото готовой работы.`).catch(error=>console.error('Telegram file notification failed:',error.message));
   return {target:'order',file:publicUploadRecord(record)};
 }
 async function beginDiskUpload(item){
@@ -705,7 +734,6 @@ async function handleLargeUpload(req,res,url){
     const completed=Math.min(maximumLargeUploadFiles,Number(link.completedCount)||0);
     if(!completed)return json(res,409,{error:'Сначала загрузите хотя бы один файл'});
     link.usedAt=Date.now();
-    void telegramBridge?.sendAutomatedMessage(clinic.id,`К заказу ${order.id} добавлено файлов: ${completed}.`).catch(error=>console.error('Telegram upload confirmation failed:',error.message));
     return json(res,201,{ok:true,files:completed,orderId:order.id});
   }
   return json(res,405,{error:'Метод не поддерживается'});
@@ -752,7 +780,6 @@ async function handleOrderFiles(req,res,url){
       const record={id,name,size:data.length,type:allowed[ext],uploadedAt:new Date().toISOString(),uploadedBy:actorName(user),purpose};
       orderFiles[orderId]=[...(orderFiles[orderId]||[]),record];await persistOrderFiles();
       await recordPortalEvent(orderId,{role:user.role,name:actorName(user)},'file_uploaded',{summary:purpose==='result-photo'?'Добавлено фото готовой работы':'Добавлен файл к заказу',fileName:name,purpose,clinicId:order.clinicId}).catch(()=>{});
-      if(purpose==='result-photo')void telegramBridge?.sendAutomatedMessage(order.clinicId,`К заказу ${order.id} добавлено фото готовой работы.`).catch(error=>console.error('Telegram file notification failed:',error.message));
       return json(res,201,{file:record});
     }catch{return json(res,500,{error:'Не удалось сохранить файл'})}
   }
@@ -794,7 +821,6 @@ async function handleCadReview(req,res,url){
     try{
       await replacePortalCollection('orderOverrides',next,{role:'worker',name:employee.name});
       await recordPortalEvent(orderId,{role:'worker',name:employee.name},'cad_review_requested',{clinicId:order.clinicId,summary:`CAD передан главному технику на ОТК · версия ${review.revision}`,fileId:file.id,fileName:file.name}).catch(()=>{});
-      void telegramBridge?.sendAutomatedMessage(order.clinicId,`CAD по заказу ${order.id} передан главному технику на ОТК.`).catch(error=>console.error('Telegram CAD notification failed:',error.message));
       return json(res,201,{ok:true,orderOverride:portalSnapshot().orderOverrides[orderId]});
     }catch(error){console.error('CAD review submit failed:',error.message);return json(res,500,{error:'Не удалось отправить CAD на проверку главному технику'})}
   }
@@ -1365,6 +1391,7 @@ const requestHandler=async (req,res) => {
   const isSecure=Boolean(req.socket.encrypted)||req.headers['x-forwarded-proto']==='https';
   if(httpsRedirect&&!isSecure){const requestHost=String(req.headers.host||'').replace(/[^A-Za-z0-9.:[\]-]/g,'');if(!requestHost)return json(res,400,{error:'Неверный адрес'});res.writeHead(308,{Location:`https://${requestHost}${req.url||'/'}`,'Cache-Control':'no-store'});return res.end()}
   if(url.pathname.startsWith('/api/large-upload/')){try{return await handleLargeUpload(req,res,url)}catch(error){console.error('Large upload request failed:',error.message);return json(res,500,{error:'Ошибка загрузки файла'})}}
+  if(url.pathname.startsWith('/api/cad-preview/')){try{return await handleCadPreview(req,res,url)}catch(error){console.error('CAD preview request failed:',error.message);return json(res,500,{error:'Ошибка предпросмотра CAD'})}}
   if(url.pathname.startsWith('/api/auth/'))return handleAuth(req,res,url);
   if(url.pathname==='/api/uploads/init'||url.pathname.startsWith('/api/uploads/')){try{return await handleUploads(req,res,url)}catch(error){console.error('Upload request failed:',error.message);return json(res,500,{error:'Ошибка загрузки файла'})}}
   if(url.pathname==='/api/clinic-message-files'||url.pathname.startsWith('/api/clinic-message-files/')){
@@ -1398,12 +1425,12 @@ await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(uploadDir,0o700);
 await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(clinicMessageUploadDir,0o700);
-telegramBridge=createTelegramBridge({onClinicMessage:appendTelegramClinicMessage,onBotMessage:appendTelegramClinicMessage,saveTelegramAttachment,attachOrderFile:attachTelegramFileToOrder,loadClinicAttachment:loadTelegramAttachment,createLargeUploadLink,onOrderCreated:ensurePublicOrderFolder});
+telegramBridge=createTelegramBridge({onClinicMessage:appendTelegramClinicMessage,onBotMessage:appendTelegramClinicMessage,saveTelegramAttachment,attachOrderFile:attachTelegramFileToOrder,loadClinicAttachment:loadTelegramAttachment,createLargeUploadLink,createCadPreviewLink,onOrderCreated:ensurePublicOrderFolder});
 await telegramBridge.start();
 employeeTelegramBridge=createEmployeeTelegramBridge({
   tokenFile:integrationSecretFiles.employeeTelegramBotToken,
   uploadCadFile:uploadEmployeeCadFile,
-  notifyCadReview:async({order})=>{await telegramBridge?.sendAutomatedMessage(order.clinicId,`CAD по заказу ${order.id} готов к согласованию. Откройте заказ в кабинете клиники.`).catch(error=>console.error('Telegram CAD notification failed:',error.message))}
+  notifyCadReview:async({order})=>{const previewUrl=createCadPreviewLink(order);const extra=previewUrl?{reply_markup:{inline_keyboard:[[{text:'Открыть CAD',url:previewUrl}],[{text:'✅ Принять заказ',callback_data:`tgcad:approve:${order.id}`}],[{text:'↩️ Вернуть заказ',callback_data:`tgcad:return:${order.id}`}]]}}:{};await telegramBridge?.sendAutomatedMessage(order.clinicId,`CAD по заказу ${order.id} готов к согласованию врача.`,extra).catch(error=>console.error('Telegram CAD notification failed:',error.message))}
 });
 await employeeTelegramBridge.start();
 server.listen(port,host,()=>{
@@ -1413,7 +1440,7 @@ server.listen(port,host,()=>{
   const backupTimer=setInterval(backup,24*60*60*1000);backupTimer.unref();
   const deliveryTimer=setInterval(()=>{for(const [clinicId,chat] of Object.entries(clinicChats))for(const message of chat.messages||[])if(message.from==='support'&&message.deliveryStatus==='error'&&(Number(message.deliveryAttempts)||0)<5)void deliverSupportMessage(clinicId,message)},60*1000);deliveryTimer.unref();
   void cleanupOrphanMessageFiles();const cleanupTimer=setInterval(()=>void cleanupOrphanMessageFiles(),6*60*60*1000);cleanupTimer.unref();
-  const uploadCleanupTimer=setInterval(()=>{const now=Date.now(),token=readIntegrationSecret('yandexDiskToken');for(const [id,item] of diskUploadSessions)if(item.expiresAt<now){diskUploadSessions.delete(id);void deleteDiskResource(token,item.diskPath).catch(()=>{})}for(const [id,item] of largeUploadLinks)if(item.expiresAt<now||item.usedAt&&item.usedAt<now-24*60*60*1000)largeUploadLinks.delete(id)},10*60*1000);uploadCleanupTimer.unref();
+  const uploadCleanupTimer=setInterval(()=>{const now=Date.now(),token=readIntegrationSecret('yandexDiskToken');for(const [id,item] of diskUploadSessions)if(item.expiresAt<now){diskUploadSessions.delete(id);void deleteDiskResource(token,item.diskPath).catch(()=>{})}for(const [id,item] of largeUploadLinks)if(item.expiresAt<now||item.usedAt&&item.usedAt<now-24*60*60*1000)largeUploadLinks.delete(id);for(const [id,item] of cadPreviewLinks)if(item.expiresAt<now)cadPreviewLinks.delete(id)},10*60*1000);uploadCleanupTimer.unref();
   void (async()=>{
     for(const order of portalSnapshot().orders){
       await ensureOrderFilesOnDisk(order.id).catch(error=>console.error('Legacy order file migration failed:',error.message));
