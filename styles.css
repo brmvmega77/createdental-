@@ -1529,8 +1529,13 @@ html[data-theme="dark"] .tech-order-type-row.analog{color:#ffc766!important}
   }
   .tech-orders-table th,
   .tech-orders-table td{padding-left:16px;padding-right:16px}
+  .tech-orders-table th,
+  .tech-orders-table td{overflow:hidden;vertical-align:middle}
+  .tech-orders-table td:nth-child(7){overflow-wrap:anywhere}
+  .tech-orders-table .tech-stage{display:inline-flex;max-width:100%;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
   .tech-orders-table .tech-order-actions{min-width:0;gap:6px;justify-content:flex-start}
-  .tech-orders-table .tech-order-actions .tech-link{min-width:0;padding-left:6px;padding-right:6px}
+  .tech-orders-table .tech-order-actions .tech-link{width:70px;min-width:0;flex:0 1 70px;padding-left:2px;padding-right:2px;overflow:hidden;text-overflow:ellipsis}
+  .tech-orders-table .tech-order-actions .tech-icon-btn{width:28px;height:30px;flex:0 0 28px}
 }
 
 /* Keep the technician search field visible beside the filter at reduced zoom. */
