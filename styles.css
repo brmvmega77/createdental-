@@ -1472,3 +1472,4 @@ html[data-theme="dark"] .clinic-orders-panel .toolbar .search input::placeholder
 .detail-main-column .facts>div{border-bottom:0}
 .detail-main-column .order-service-card>header{border-bottom:0}
 .detail-side-column .order-side-stack{border-top:0;padding-top:0}
+.order-history li{border-bottom:0}
