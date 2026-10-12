@@ -395,7 +395,6 @@
 .tech-order-filter-actions{display:flex;justify-content:flex-end;gap:9px;padding-top:13px}
 @media(max-width:760px){.tech-order-searchbar{display:grid;grid-template-columns:1fr;gap:8px;margin-left:0}.tech-order-searchbar input#tech-search{width:100%;max-width:100%;flex:0 1 auto}.tech-filter-button{width:100%}.tech-order-filter-panel{position:static;width:100%;box-shadow:none}.tech-order-filter-actions{display:grid;grid-template-columns:1fr}.tech-order-filter-actions .btn{width:100%}}
 /* Keep the clinic dashboard's side column while preventing grid overflow. */
-html{zoom:.9}
 .dashboard-grid{grid-template-columns:minmax(0,1fr) minmax(290px,340px);gap:22px;align-items:start}
 .dashboard-aside{grid-template-columns:minmax(0,1fr);align-content:start}
 .dashboard-main,.dashboard-card,.deadline-card,.recent-card,.upcoming-list,.recent-card *,.deadline-card *{min-width:0}
@@ -1353,4 +1352,17 @@ html[data-theme="dark"] .messages-layout:not(.chief-messages) .bubble.them,
 html[data-theme="dark"] .messages-layout:not(.chief-messages) .bubble.bot{
   background:#333333;
   color:#ffffff;
+}
+
+/* Final QA: prevent dashboard columns from creating horizontal overflow or visual overlap. */
+html,body,#app{max-width:100%;overflow-x:hidden}
+.dashboard-grid{width:100%;max-width:100%;grid-template-columns:minmax(0,1fr) minmax(280px,340px)}
+.dashboard-main,.dashboard-aside{min-width:0;max-width:100%}
+.dashboard-main .hero,.dashboard-main .section-heading,.dashboard-main .tabs,.dashboard-main .table-wrap{max-width:100%}
+@media(max-width:1200px){
+  .dashboard-grid{grid-template-columns:minmax(0,1fr)}
+  .dashboard-aside{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .dashboard-grid,.dashboard-aside{grid-template-columns:minmax(0,1fr)}
 }
