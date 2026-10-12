@@ -1194,3 +1194,108 @@ html[data-theme="dark"] .clinic-filter-wrap>.btn.active{background:#30363d;borde
 html[data-theme="dark"] .clinic-order-filter{background:#202428;border-color:#343a41;box-shadow:0 18px 46px #00000045}
 html[data-theme="dark"] .clinic-order-filter label{color:#e6e8eb}
 html[data-theme="dark"] .clinic-order-filter select{background:#1b1e22;border-color:#3a4047;color:#eef0f2}
+
+/* Keep the clinic and worker cabinets on the chief technician's dark palette. */
+html[data-theme="dark"] .dashboard-card,
+html[data-theme="dark"] .deadline-card,
+html[data-theme="dark"] .recent-card,
+html[data-theme="dark"] .upcoming-list,
+html[data-theme="dark"] .reference-card,
+html[data-theme="dark"] .clinic-orders-panel,
+html[data-theme="dark"] .worker-stats article,
+html[data-theme="dark"] .salary-entry,
+html[data-theme="dark"] .worker-rate-note,
+html[data-theme="dark"] .worker-telegram-pairing,
+html[data-theme="dark"] .order-file,
+html[data-theme="dark"] .order-folder-link,
+html[data-theme="dark"] .order-type-choice {
+  background:var(--ui-surface);
+  border-color:var(--ui-border);
+  color:var(--ui-text);
+}
+html[data-theme="dark"] .dashboard-card h2,
+html[data-theme="dark"] .dashboard-card-heading h3,
+html[data-theme="dark"] .recent-card .dashboard-card-heading h2,
+html[data-theme="dark"] .calendar-head strong,
+html[data-theme="dark"] .order-file strong,
+html[data-theme="dark"] .order-folder-link strong,
+html[data-theme="dark"] .order-type-choice h3,
+html[data-theme="dark"] .order-type-options button strong,
+html[data-theme="dark"] .salary-entry>div strong {
+  color:var(--ui-text);
+}
+html[data-theme="dark"] .dashboard-empty,
+html[data-theme="dark"] .calendar-weekday,
+html[data-theme="dark"] .recent-message small,
+html[data-theme="dark"] .recent-message time,
+html[data-theme="dark"] .upcoming-order small,
+html[data-theme="dark"] .upcoming-order time,
+html[data-theme="dark"] .order-file small,
+html[data-theme="dark"] .order-folder-link small,
+html[data-theme="dark"] .order-type-choice p,
+html[data-theme="dark"] .order-type-options button small,
+html[data-theme="dark"] .salary-entry span,
+html[data-theme="dark"] .salary-entry time,
+html[data-theme="dark"] .worker-rate-note {
+  color:var(--ui-muted);
+}
+html[data-theme="dark"] .calendar-head button,
+html[data-theme="dark"] .calendar-day,
+html[data-theme="dark"] .recent-avatar,
+html[data-theme="dark"] .upcoming-order:hover,
+html[data-theme="dark"] .recent-message:hover {
+  background:var(--ui-surface-raised);
+  color:var(--ui-muted);
+}
+html[data-theme="dark"] .calendar-head button:hover,
+html[data-theme="dark"] .calendar-day:hover {
+  background:var(--ui-surface-soft);
+  color:#fff;
+}
+html[data-theme="dark"] .calendar-day.selected,
+html[data-theme="dark"] .tech-bar.active .tech-bar-track i,
+html[data-theme="dark"] .tech-bar.current .tech-bar-track i {
+  background:#808890;
+  color:#fff;
+}
+html[data-theme="dark"] .upcoming-order,
+html[data-theme="dark"] .recent-message,
+html[data-theme="dark"] .salary-month {
+  border-color:var(--ui-border);
+}
+html[data-theme="dark"] .order-type-options button,
+html[data-theme="dark"] .worker-telegram-pairing,
+html[data-theme="dark"] .worker-rate-note {
+  border-color:#3a4047;
+}
+html[data-theme="dark"] .order-type-options button {
+  background:var(--ui-control);
+  color:var(--ui-text);
+}
+html[data-theme="dark"] .order-type-options button.selected {
+  background:var(--ui-surface-soft);
+  border-color:#dfe4e8;
+  box-shadow:0 0 0 2px #dfe4e8 inset;
+}
+html[data-theme="dark"] .chat-attach-button,
+html[data-theme="dark"] .chat-attachment,
+html[data-theme="dark"] .attachment-add,
+html[data-theme="dark"] .cad-return-file,
+html[data-theme="dark"] .cad-return-file-picker {
+  background:var(--ui-surface-soft);
+  border-color:#3a4047;
+  color:#e6e8eb;
+}
+html[data-theme="dark"] .chat-attachment small,
+html[data-theme="dark"] .cad-return-file small,
+html[data-theme="dark"] .cad-return-file-hint {
+  color:var(--ui-muted);
+}
+html[data-theme="dark"] .order-cart-add,
+html[data-theme="dark"] .order-variant-add,
+html[data-theme="dark"] .upload-dialog-picker,
+html[data-theme="dark"] .cad-return-file-picker {
+  background:var(--ui-surface-raised);
+  border-color:#3a4047;
+  color:#d8dde2;
+}
