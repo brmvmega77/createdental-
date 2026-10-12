@@ -1518,6 +1518,21 @@ html[data-theme="dark"] .tech-order-type-row.analog{color:#ffc766!important}
   .tech-order-tools>.tech-order-searchbar .tech-filter-button{height:36px;box-sizing:border-box}
 }
 
+/* Distribute the laboratory order table evenly across all columns. */
+@media(min-width:761px){
+  .tech-orders-table{table-layout:fixed}
+  .tech-orders-table th,
+  .tech-orders-table td{
+    width:12.5%!important;
+    max-width:none!important;
+    box-sizing:border-box;
+  }
+  .tech-orders-table th,
+  .tech-orders-table td{padding-left:16px;padding-right:16px}
+  .tech-orders-table .tech-order-actions{min-width:0;gap:6px;justify-content:flex-start}
+  .tech-orders-table .tech-order-actions .tech-link{min-width:0;padding-left:6px;padding-right:6px}
+}
+
 /* Keep the technician search field visible beside the filter at reduced zoom. */
 @media(min-width:761px){
   .tech-order-tools{
