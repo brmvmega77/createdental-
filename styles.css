@@ -1494,3 +1494,62 @@ html[data-theme="dark"] .order-history li>span{color:#eef0f2}
   .tech-order-tools>.tech-order-searchbar input#tech-search,
   .tech-order-tools>.tech-order-searchbar .tech-filter-button{height:36px;box-sizing:border-box}
 }
+
+/* Keep the technician search field visible beside the filter at reduced zoom. */
+@media(min-width:761px){
+  .tech-order-tools{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(260px,365px)!important;
+    gap:12px;
+    align-items:start;
+    flex-wrap:nowrap;
+  }
+  .tech-order-tools>.tech-segment{
+    grid-column:1;
+    grid-row:1;
+    min-width:0;
+    max-width:100%;
+    overflow-x:auto;
+    overflow-y:hidden;
+    flex-wrap:nowrap;
+  }
+  .tech-order-tools>.tech-order-searchbar{
+    grid-column:2;
+    grid-row:1;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    width:100%!important;
+    max-width:none;
+    min-width:0;
+    margin-left:0;
+    justify-self:stretch;
+    align-self:start;
+    overflow:visible;
+  }
+  .tech-order-tools>.tech-order-searchbar input#tech-search{
+    grid-column:1!important;
+    grid-row:1!important;
+    display:block;
+    width:100%!important;
+    min-width:0;
+    flex:none!important;
+  }
+  .tech-order-tools>.tech-order-searchbar>.tech-filter-button{
+    grid-column:2!important;
+    grid-row:1!important;
+    width:auto;
+    min-width:0;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    white-space:nowrap;
+  }
+  .tech-order-tools>.tech-order-searchbar>.tech-order-filter-panel{
+    grid-column:1/-1!important;
+    grid-row:2!important;
+    position:static;
+    width:100%;
+    justify-self:stretch;
+    box-shadow:none;
+  }
+}
