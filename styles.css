@@ -1507,8 +1507,10 @@ html[data-theme="dark"] .order-history li>span{color:#eef0f2}
   .tech-order-tools>.tech-segment{
     grid-column:1;
     grid-row:1;
+    width:max-content;
     min-width:0;
     max-width:100%;
+    justify-self:start;
     overflow-x:auto;
     overflow-y:hidden;
     flex-wrap:nowrap;
