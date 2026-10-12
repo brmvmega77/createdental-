@@ -1474,6 +1474,25 @@ html[data-theme="dark"] .order-history time,
 html[data-theme="dark"] .order-history li>strong,
 html[data-theme="dark"] .order-history li>span{color:#eef0f2}
 
+/* Make the production type immediately visible on the order detail page. */
+.tech-order-type-badge{
+  display:inline-flex;
+  align-items:center;
+  margin-left:8px;
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:750;
+  line-height:1.2;
+  vertical-align:middle;
+  white-space:nowrap;
+}
+.tech-order-type-badge.analog{color:#9b6200;background:#fff0cf}
+.tech-order-type-badge.digital{color:#28704f;background:#e7f8ef}
+html[data-theme="dark"] .tech-order-type-badge.analog{color:#ffc766;background:#4a341d}
+html[data-theme="dark"] .tech-order-type-badge.digital{color:#72d6a2;background:#193b2b}
+@media(max-width:760px){.tech-order-type-badge{display:flex;width:max-content;margin:6px 0 0}}
+
 /* Orders toolbar: keep status menu, search, and filter on one desktop row. */
 @media(min-width:761px){
   .clinic-orders-panel{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;row-gap:20px;align-items:center}
