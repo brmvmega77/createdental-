@@ -1388,3 +1388,34 @@ html,body,#app{max-width:100%;overflow-x:hidden}
   .tech-sidebar{display:flex;position:fixed;left:0;top:0;bottom:0;width:226px;z-index:10}
   .tech-shell{margin-left:226px;width:auto;min-width:0;max-width:calc(100% - 226px)}
 }
+
+/* Keep the chief technician order table inside its panel at every desktop width. */
+.tech-orders-table-wrap{max-width:100%;overflow-x:auto;overflow-y:visible}
+.tech-orders-table{width:100%;max-width:100%;min-width:0;table-layout:fixed}
+.tech-orders-table th,.tech-orders-table td{overflow-wrap:anywhere}
+
+/* Open filters in their own row so the panel never covers the order table. */
+.tech-order-searchbar:has(.tech-order-filter-panel){
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+}
+.tech-order-searchbar:has(.tech-order-filter-panel) .tech-filter-button{grid-column:1;grid-row:1}
+.tech-order-searchbar:has(.tech-order-filter-panel) input#tech-search{grid-column:2;grid-row:1}
+.tech-order-searchbar:has(.tech-order-filter-panel) .tech-order-filter-panel{
+  position:static;
+  grid-column:1/-1;
+  grid-row:2;
+  width:100%;
+  justify-self:stretch;
+  box-shadow:none;
+}
+@media(max-width:760px){
+  .tech-order-searchbar:has(.tech-order-filter-panel){grid-template-columns:1fr}
+  .tech-order-searchbar:has(.tech-order-filter-panel) .tech-filter-button,
+  .tech-order-searchbar:has(.tech-order-filter-panel) input#tech-search,
+  .tech-order-searchbar:has(.tech-order-filter-panel) .tech-order-filter-panel{grid-column:1}
+  .tech-order-searchbar:has(.tech-order-filter-panel) .tech-filter-button{grid-row:1}
+  .tech-order-searchbar:has(.tech-order-filter-panel) input#tech-search{grid-row:2}
+  .tech-order-searchbar:has(.tech-order-filter-panel) .tech-order-filter-panel{grid-row:3}
+}
