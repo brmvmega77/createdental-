@@ -1489,3 +1489,12 @@ html[data-theme="dark"] .order-history li>span{color:#eef0f2}
   .clinic-orders-panel>.active-date-filter{grid-column:1/-1}
   .clinic-orders-panel>.table-wrap{grid-column:1/-1}
 }
+
+/* Match chief technician search and filter controls to the status menu height. */
+@media(min-width:761px){
+  .tech-order-tools>.tech-segment{height:36px;box-sizing:border-box;align-items:center}
+  .tech-order-tools>.tech-segment button{height:30px;display:inline-flex;align-items:center}
+  .tech-order-tools>.tech-order-searchbar{height:36px;box-sizing:border-box}
+  .tech-order-tools>.tech-order-searchbar input#tech-search,
+  .tech-order-tools>.tech-order-searchbar .tech-filter-button{height:36px;box-sizing:border-box}
+}
