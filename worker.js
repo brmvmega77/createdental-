@@ -16,7 +16,7 @@ const isCadOperatorEmployee=employee=>/cad\s*\/?\s*cam|cadcam|cad\s*операт
 const workerSpecialtyLabel=employee=>{if(isCadOperatorEmployee(employee))return 'CAD/CAM оператор';const value=String(employee?.specialty||'').trim();if(/препрод|pre\s*prod|предпрод/i.test(value))return 'Препрод техник';if(/зубной\s+техник|каркасист|cam\s*оператор/i.test(value)||!value)return 'Каркасист';if(/красильщик|керамист|эстетист/i.test(value))return 'Красильщик';return value};
 const workerSpecialtyDisplayLabel=employee=>({'Каркасист':'CAM оператор','Красильщик':'Эстетист','CAD/CAM оператор':'CAD оператор','Препрод техник':'Препрод техник'}[workerSpecialtyLabel(employee)]||workerSpecialtyLabel(employee));
 const workerDisplayStatus=status=>status==='Принял работу'?'Принял в работу':status==='Работа сдана'?'Передал дальше':status;
-const workerQualityStageTitle=kind=>({cad:'ОТК — CAD оператор',preprod:'ОТК — препрод техник',cam:'ОТК — CAM оператор',esthetic:'ОТК — эстетист'}[kind]||'ОТК');
+const workerQualityStageTitle=kind=>({cad:'ОТК — CAD оператор',preprod:'ОТК — препрод техник',cam:'ОТК — CAM оператор',esthetic:'ОТК — эстетист',final:'Финальная ОТК'}[kind]||'ОТК');
 const workerDisplayStage=(stage,order)=>stage==='Контроль качества'&&order?.qualityRequest?.kind?workerQualityStageTitle(order.qualityRequest.kind):({'Согласование CAD':'CAD на согласовании у врача','На согласовании':'CAD на согласовании у врача','Работа принята':'Принято врачом','В доставке':'Доставка в клинику','В пути к вам':'Доставка в клинику','Принято доктором':'Принято врачом','Принято':'Принято врачом','Готово к выдаче':'Принято врачом','На доработке':'Доработка и эстетика'}[stage]||stage);
 const specialistProgress=status=>({'Принял работу':25,'Принял в работу':25,'В работе':50,'ОТК':75,'Работа сдана':100,'Передал дальше':100}[status]||0);
 const isPreprodEmployee=employee=>workerSpecialtyLabel(employee)==='Препрод техник';
@@ -216,9 +216,9 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     const order=myOrders().find(item=>item.id===state.orderId);
     if(!order)return ordersPage();
     if(state.filesFor!==order.id){state.filesFor=order.id;state.orderFiles=[];state.orderFolderUrl='';loadOrderFiles(order.id).then(result=>{if(state.orderId===order.id&&isActive()){state.orderFiles=result.files||[];state.orderFolderUrl=result.folderUrl||'';render()}}).catch(()=>{})}
-    const baseStages=order.productionType==='analog'?stages.filter(stage=>!['Моделирование','Согласование CAD'].includes(stage)):stages.filter(stage=>stage!=='Препрод');
+    const baseStages=isCadOperator()?stages.filter(stage=>stage!=='Препрод'):order.productionType==='analog'?stages.filter(stage=>!['Моделирование','Согласование CAD'].includes(stage)):stages.filter(stage=>stage!=='Препрод');
     const workerQualityKind=order.qualityRequest?.kind,workerQualityTimeline=order.stage==='Контроль качества'&&workerQualityKind;
-    const workerQualityAfter={cad:'Моделирование',preprod:'Препрод',cam:'Изготовление',esthetic:'Изготовление'}[workerQualityKind];
+    const workerQualityAfter={cad:'Моделирование',preprod:'Препрод',cam:'Изготовление',esthetic:'Изготовление',final:'Изготовление'}[workerQualityKind];
     const overallStages=workerQualityTimeline?baseStages.flatMap(stage=>stage===workerQualityAfter?[stage,workerQualityStageTitle(workerQualityKind)]:[stage]):baseStages;
     const index=workerQualityTimeline?overallStages.indexOf(workerQualityStageTitle(workerQualityKind)):order.stage==='Работа принята'?overallStages.indexOf('Контроль качества'):overallStages.indexOf(order.stage);
     const events=orderHistory().filter(event=>event.orderId===order.id).slice().reverse();
@@ -357,7 +357,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
         }
         if(action.dataset.workerAction==='advance'&&preprodActionAllowed){
           const overrides=readOrders();
-          const qualityRequest={kind:'preprod',employeeId:employee.id,requestedBy:employee.originalName,requestedByName:employee.name,requestedAt:new Date().toISOString(),next:'Изготовление'};
+          const qualityRequest={kind:'preprod',employeeId:employee.id,requestedBy:employee.originalName,requestedByName:employee.name,requestedAt:new Date().toISOString(),next:'Моделирование (CAD)'};
           const change={stage:'Контроль качества',preprodTechnicianStatus:'ОТК',technicianStatus:'ОТК',qualityRequest};
           overrides[order.id]={...(overrides[order.id]||{}),...change};
           localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));

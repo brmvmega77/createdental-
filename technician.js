@@ -177,7 +177,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   }
   function orderById(id){return allOrders().find(order=>order.id===id)}
   function chiefStageLabel(order){return order?.stage==='Изготовление'&&manufacturingStatuses.includes(order.manufacturingStatus)?order.manufacturingStatus:order?.stage||''}
-  const qualityStageTitle=kind=>({cad:'ОТК — CAD оператор',preprod:'ОТК — препрод техник',cam:'ОТК — CAM оператор',esthetic:'ОТК — эстетист'}[kind]||'ОТК');
+  const qualityStageTitle=kind=>({cad:'ОТК — CAD оператор',preprod:'ОТК — препрод техник',cam:'ОТК — CAM оператор',esthetic:'ОТК — эстетист',final:'Финальная ОТК'}[kind]||'ОТК');
   const displayChiefStage=(stage,order)=>stage==='Контроль качества'&&order?.qualityRequest?.kind?qualityStageTitle(order.qualityRequest.kind):({'Черновик из Telegram':'Ожидает подтверждения','Ожидает распределения':'Ожидает подтверждения','Препрод':'Аналоговая подготовка','Согласование CAD':'CAD на согласовании у врача','На согласовании':'CAD на согласовании у врача','В доставке':'Доставка в клинику','В пути к вам':'Доставка в клинику','Принято доктором':'Принято врачом','Принято':'Принято врачом','Готово к выдаче':'Принято врачом','На доработке':'Доработка и эстетика'}[stage]||stage);
   function chiefDisplayStageLabel(order){if(order?.stage==='Работа принята')return 'Контроль качества';const label=chiefStageLabel(order);return displayChiefStage(label,order)}
   const displayChiefTimelineStage=(stage,order)=>displayChiefStage(stage,order);
@@ -658,12 +658,12 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     };
     const stageProgress=(progress)=>`<div class="tech-stage-progress" style="width:220px;max-width:220px;flex:0 0 220px;margin:0;box-sizing:border-box" aria-label="Прогресс этапа ${progress}%"><div class="tech-progress-head"><span>Прогресс этапа</span><b>${progress}%</b></div><div class="tech-progress-track"><i style="width:${progress}%"></i></div></div>`;
     const nestedRole=(title,role)=>{const future=!roleStatus[role];return `<li class="tech-timeline-role${future?' future':''}"><strong>${title}</strong>${roleState(role)?`<small>${roleState(role)}</small>`:''}</li>${labels.map((label,index)=>{const rank=labels.indexOf(roleStatus[role]);return `<li class="tech-timeline-specialist ${index<rank?'done':index===rank?'current':''}"><i></i><span>${label}</span></li>`}).join('')}`};
-    const visibleStages=productionStages.filter(item=>order.productionType==='analog'? !['Моделирование','CAD на согласовании у врача'].includes(item.label):item.label!=='Аналоговая подготовка');
+    const visibleStages=order.productionType==='analog'?['Ожидает подтверждения','Приём / Доставка','Аналоговая подготовка','Моделирование','CAD на согласовании у врача','Изготовление','Контроль качества','Доставка в клинику','Принято врачом'].map(label=>productionStages.find(item=>item.label===label)).filter(Boolean):productionStages.filter(item=>item.label!=='Аналоговая подготовка');
     const visibleCurrent=Math.max(0,visibleStages.findIndex(item=>item.matches.includes(order.stage)));
-    const qualityCompleted=qualityKind==='cad'?['Ожидает подтверждения','Приём / Доставка','Моделирование']:qualityKind==='preprod'?['Ожидает подтверждения','Приём / Доставка','Аналоговая подготовка']:qualityKind==='cam'?['Ожидает подтверждения','Приём / Доставка','Моделирование','CAD на согласовании у врача','Изготовление']:qualityKind==='esthetic'?['Ожидает подтверждения','Приём / Доставка','Моделирование','CAD на согласовании у врача','Изготовление','Доработка и эстетика']:[];
+    const qualityCompleted=qualityKind==='cad'?['Ожидает подтверждения','Приём / Доставка','Моделирование']:qualityKind==='preprod'?['Ожидает подтверждения','Приём / Доставка','Аналоговая подготовка']:qualityKind==='cam'?['Ожидает подтверждения','Приём / Доставка','Моделирование','CAD на согласовании у врача','Изготовление']:qualityKind==='esthetic'?['Ожидает подтверждения','Приём / Доставка','Моделирование','CAD на согласовании у врача','Изготовление']:qualityKind==='final'?['Ожидает подтверждения','Приём / Доставка','Моделирование','CAD на согласовании у врача','Изготовление']:[];
     const qualityTimeline=order.stage==='Контроль качества'&&qualityKind;
     const finalQualityActive=order.stage==='Работа принята';
-    const qualityAfter={cad:'Моделирование',preprod:'Аналоговая подготовка',cam:'Изготовление',esthetic:'Доработка и эстетика'}[qualityKind];
+    const qualityAfter={cad:'Моделирование',preprod:'Аналоговая подготовка',cam:'Изготовление',esthetic:'Изготовление',final:'Изготовление'}[qualityKind];
     const timelineStages=qualityTimeline?visibleStages.flatMap(item=>item.label===qualityAfter?[item,{label:qualityStageTitle(qualityKind),matches:[],qualityMarker:true}]:[item]):visibleStages;
     const finalQualityIndex=visibleStages.findIndex(item=>item.label==='Контроль качества');
     const overall=timelineStages.map((item,index)=>{const done=qualityTimeline?(item.qualityMarker?false:qualityCompleted.includes(item.label)):finalQualityActive?(index<finalQualityIndex):index<visibleCurrent;const active=qualityTimeline?(item.qualityMarker===true):finalQualityActive?(item.label==='Контроль качества'):index===visibleCurrent;const stateClass=`tech-timeline-stage ${done?'done':''} ${active?'current':''} ${!item.qualityMarker&&index===timelineStages.length-1&&index===current?'final':''}`;const progress=item.label==='Моделирование'?progressPercent(roleStatus.cad):item.label==='Аналоговая подготовка'?progressPercent(roleStatus.preprod):item.label==='Изготовление'?manufacturingProgress():item.label==='Доработка и эстетика'?progressPercent(roleStatus.painter):null;const label=item.label;const base=`<li class="${stateClass}"><i></i><span>${safe(label)}</span>${item.label==='CAD на согласовании у врача'&&order.stage==='Согласование CAD'?'<small class="tech-timeline-hint">Ожидается решение врача</small>':''}${progress!==null?stageProgress(progress):''}</li>`;if(item.label==='Моделирование')return `${base}${nestedRole('CAD оператор','cad')}`;if(item.label==='Аналоговая подготовка')return `${base}${nestedRole('Препрод техник','preprod')}`;if(item.label==='Изготовление')return `${base}${nestedRole('CAM оператор','frame')}`;if(item.label==='Доработка и эстетика')return `${base}${nestedRole('Эстетист','painter')}`;return base}).join('');
@@ -685,9 +685,10 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     // специалиста после этапа «Приём / Доставка». CAM/CAD и Эстетист
     // остаются заблокированы до завершения предыдущего этапа.
     const pendingConfirmation=['Черновик из Telegram','Ожидает распределения','Ожидает подтверждения'].includes(order.stage);
-    const cadUnlocked=!analog&&!pendingConfirmation;
     const preprodUnlocked=analog&&!pendingConfirmation;
-    const productionUnlocked=analog?['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(order.stage):order.cadReview?.status==='approved'||['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(order.stage);
+    const cadUnlocked=pendingConfirmation?false:(analog?['Моделирование','Контроль качества','Согласование CAD'].includes(order.stage)&&(!order.qualityRequest||order.qualityRequest.kind==='cad'):true);
+    const frameUnlocked=analog?order.cadReview?.status==='approved'||['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(order.stage):order.cadReview?.status==='approved'||['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(order.stage);
+    const painterUnlocked=['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(order.stage)&&(!analog||order.manufacturingStatus===manufacturingStatuses[1]||order.qualityRequest?.kind==='esthetic');
     const optionMarkup=(role)=>{
       const matches=role==='cad'?employee=>isCadOperatorEmployee(employee):role==='preprod'?isPreprodEmployee:role==='frame'?isFrameEmployee:isPainterEmployee;
       const employees=activeTeam().filter(matches);
@@ -708,12 +709,12 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const assignmentLabel=(role,label)=>`${label}${specialistStatus(role)?` <small class="tech-assign-status">${safe(specialistStatus(role))}</small>`:''}`;
     const wrapper=document.createElement('div');
     wrapper.className='tech-assign-filters';
-    const assignmentFields=analog?[['preprod','Препрод техник'],['frame','CAM оператор'],['painter','Эстетист']]:[['cad','CAD оператор'],['frame','CAM оператор'],['painter','Эстетист']];
+    const assignmentFields=analog?[['preprod','Препрод техник'],['cad','CAD оператор'],['frame','CAM оператор'],['painter','Эстетист']]:[['cad','CAD оператор'],['frame','CAM оператор'],['painter','Эстетист']];
     wrapper.innerHTML=assignmentFields.map(([role,label])=>`<label>${assignmentLabel(role,label)}<select data-tech-assign="${safe(order.id)}" data-tech-assign-role="${role}">${optionMarkup(role)}</select></label>`).join('');
     const preprodSelect=wrapper.querySelector('[data-tech-assign-role="preprod"]'),frameSelect=wrapper.querySelector('[data-tech-assign-role="frame"]'),painterSelect=wrapper.querySelector('[data-tech-assign-role="painter"]'),cadSelect=wrapper.querySelector('[data-tech-assign-role="cad"]');
     if(preprodSelect&&!preprodUnlocked)preprodSelect.disabled=true;
-    if(frameSelect&&!productionUnlocked)frameSelect.disabled=true;
-    if(painterSelect&&!productionUnlocked)painterSelect.disabled=true;
+    if(frameSelect&&!frameUnlocked)frameSelect.disabled=true;
+    if(painterSelect&&!painterUnlocked)painterSelect.disabled=true;
     if(cadSelect&&!cadUnlocked)cadSelect.disabled=true;
     legacy.replaceWith(wrapper);
   }
@@ -914,8 +915,11 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
         if(order.stage==='Изготовление'){const productionKey=order.manufacturingStatus===manufacturingStatuses[1]?order.painterKey:order.frameTechnicianKey;if(!activeTeam().some(employee=>employee.originalName===productionKey))return toast(order.manufacturingStatus===manufacturingStatuses[1]?'Назначьте Эстетиста':'Назначьте CAM оператора');}else if(!activeTeam().some(employee=>employee.originalName===order.assigneeKey))return toast('Назначьте активного исполнителя');
         if(['Моделирование','Согласование CAD'].includes(order.stage)&&order.productionType!=='analog')return toast('CAD должен согласовать врач');
         if(order.stage==='Изготовление'){
-          if(order.manufacturingStatus===manufacturingStatuses[0]){if(!order.painterKey)return toast('Сначала назначьте красильщика');saveOrder(id,{manufacturingStatus:manufacturingStatuses[1]});}
-          else saveOrder(id,{stage:'Контроль качества',manufacturingStatus:'',technicianStatus:'ОТК'});
+          if(order.manufacturingStatus===manufacturingStatuses[0]){
+            saveOrder(id,{stage:'Контроль качества',manufacturingStatus:'',frameTechnicianStatus:'ОТК',technicianStatus:'ОТК',qualityRequest:{kind:'cam',requestedBy:'chief',requestedByName:'Главный техник',requestedAt:new Date().toISOString(),next:'Передача Эстетисту'}});
+          }else{
+            saveOrder(id,{stage:'Контроль качества',manufacturingStatus:'',painterStatus:'ОТК',ceramicistStatus:'ОТК',technicianStatus:'ОТК',qualityRequest:{kind:'esthetic',requestedBy:'chief',requestedByName:'Главный техник',requestedAt:new Date().toISOString(),next:'Финальная ОТК'}});
+          }
           return;
         }
         const next=order.productionType==='analog'&&order.stage==='Подготовка'?'Препрод':stages[stages.indexOf(order.stage)+1];
@@ -924,17 +928,18 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(action.dataset.techAction==='approve'&&order.stage==='Контроль качества'){
         const request=order.qualityRequest,qualityApprovedAt=new Date().toISOString();
         if(request?.kind==='cad')saveOrder(id,{stage:'Согласование CAD',qualityRequest:null,cadOperatorStatus:'Работа сдана'});
-        else if(request?.kind==='preprod')saveOrder(id,{stage:'Изготовление',manufacturingStatus:manufacturingStatuses[0],qualityRequest:null,preprodTechnicianStatus:'Работа сдана',technicianStatus:'Принял работу',qualityApprovedAt});
-        else if(request?.kind==='cam')saveOrder(id,{stage:'Изготовление',manufacturingStatus:manufacturingStatuses[1],qualityRequest:null,frameTechnicianStatus:'Работа сдана',technicianStatus:'Принял работу',painterStatus:'Принял работу',ceramicistStatus:'Принял работу',qualityApprovedAt});
-        else if(request?.kind==='esthetic')saveOrder(id,{stage:'Работа принята',qualityRequest:null,technicianStatus:'Работа сдана',painterStatus:'Работа сдана',ceramicistStatus:'Работа сдана',completedAt:qualityApprovedAt,qualityApprovedAt});
+        else if(request?.kind==='preprod')saveOrder(id,{stage:order.productionType==='analog'?'Моделирование':'Изготовление',manufacturingStatus:order.productionType==='analog'?'':manufacturingStatuses[0],qualityRequest:null,preprodTechnicianStatus:'Работа сдана',technicianStatus:'Принял работу',qualityApprovedAt});
+        else if(request?.kind==='cam')saveOrder(id,{stage:'Изготовление',manufacturingStatus:manufacturingStatuses[1],qualityRequest:null,frameTechnicianStatus:'Работа сдана',technicianStatus:'Принял работу',qualityApprovedAt});
+        else if(request?.kind==='esthetic')saveOrder(id,{stage:'Контроль качества',qualityRequest:{kind:'final',requestedBy:'chief',requestedByName:'Главный техник',requestedAt:qualityApprovedAt,next:'Доставка в клинику'},painterStatus:'Работа сдана',ceramicistStatus:'Работа сдана',technicianStatus:'Финальная ОТК',qualityApprovedAt});
+        else if(request?.kind==='final')saveOrder(id,{stage:'В доставке',qualityRequest:null,technicianStatus:'Работа сдана',completedAt:qualityApprovedAt,qualityApprovedAt});
         else saveOrder(id,{stage:'Работа принята',technicianStatus:'Работа сдана',painterStatus:'Работа сдана',ceramicistStatus:'Работа сдана',completedAt:qualityApprovedAt,qualityApprovedAt});
       }
       if(action.dataset.techAction==='rework'&&order.stage==='Контроль качества'){
         const request=order.qualityRequest;
         if(request?.kind==='cad')saveOrder(id,{stage:'Моделирование',qualityRequest:null,cadReview:{...(order.cadReview||{}),status:'returned',comment:'Главный техник отправил CAD на доработку',reviewedAt:new Date().toISOString()}});
-        else saveOrder(id,{stage:request?.kind==='preprod'?'На доработке':'На доработке',qualityRequest:null,reworkKind:request?.kind==='preprod'?'preprod':request?.kind==='esthetic'?'esthetic':'cam',reworkReason:`Главный техник отправил работу на доработку (${request?.requestedByName||'проверка ОТК'})`,reworkAt:new Date().toISOString()});
+        else saveOrder(id,{stage:request?.kind==='preprod'?'На доработке':'Изготовление',manufacturingStatus:request?.kind==='esthetic'?manufacturingStatuses[1]:request?.kind==='cam'?'':order.manufacturingStatus,qualityRequest:null,reworkKind:request?.kind==='preprod'?'preprod':request?.kind==='esthetic'?'esthetic':request?.kind==='final'?'esthetic':'cam',reworkReason:`Главный техник отправил работу на доработку (${request?.requestedByName||'проверка ОТК'})`,reworkAt:new Date().toISOString()});
       }
-      if(action.dataset.techAction==='rework-resume'&&order.stage==='На доработке')saveOrder(id,{stage:order.reworkKind==='preprod'?'Препрод':'Изготовление',manufacturingStatus:order.reworkKind==='preprod'?'':manufacturingStatuses[0],preprodTechnicianStatus:order.reworkKind==='preprod'?'Принял работу':'',technicianStatus:'В работе'});
+      if(action.dataset.techAction==='rework-resume'&&order.stage==='На доработке')saveOrder(id,{stage:order.reworkKind==='preprod'?'Препрод':'Изготовление',manufacturingStatus:order.reworkKind==='preprod'?'':order.reworkKind==='esthetic'?manufacturingStatuses[1]:manufacturingStatuses[0],preprodTechnicianStatus:order.reworkKind==='preprod'?'Принял работу':'',technicianStatus:'В работе'});
       if(action.dataset.techAction==='rollback'){
         if(order.stage==='Изготовление'&&order.manufacturingStatus===manufacturingStatuses[1])saveOrder(id,{manufacturingStatus:manufacturingStatuses[0]});
         else {const previous=order.stage==='Изготовление'?'Моделирование':stages[stages.indexOf(order.stage)-1];if(previous&&previous!=='Согласование CAD')saveOrder(id,{stage:previous,manufacturingStatus:''})}
@@ -1004,9 +1009,10 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       const current=orderById(id);
       if(!current)return;
       const role=event.target.dataset.techAssignRole;
-      if(role==='cad'&&['Черновик из Telegram','Ожидает распределения','Ожидает подтверждения'].includes(current.stage))return toast('Сначала подтвердите заказ и переведите его на этап «Приём / Доставка»');
+      if(role==='cad'&&(['Черновик из Telegram','Ожидает распределения','Ожидает подтверждения'].includes(current.stage)||current.productionType==='analog'&&!['Моделирование','Контроль качества','Согласование CAD'].includes(current.stage)))return toast('Сначала завершите препрод и его ОТК');
       if(role==='preprod'&&name&&(!current.productionType||current.productionType==='digital'))return toast('Для цифрового заказа назначается CAD оператор');
-      if(['frame','painter'].includes(role)&&name&&!(current.productionType==='analog'?['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(current.stage):(current.cadReview?.status==='approved'||['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(current.stage))))return toast('Сначала завершите первый этап заказа и ОТК');
+      if(role==='frame'&&name&&!(current.cadReview?.status==='approved'||['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(current.stage)))return toast('Сначала завершите CAD и его согласование');
+      if(role==='painter'&&name&&!(current.stage==='Изготовление'&&current.manufacturingStatus===manufacturingStatuses[1]||['Контроль качества','Работа принята','В доставке','Принято доктором'].includes(current.stage)))return toast('Сначала завершите работу CAM оператора и его ОТК');
       const change=role==='cad'?{cadOperator:name,assignee:current.frameTechnicianKey||current.painterKey||name||''}:role==='preprod'?{preprodTechnician:name,assignee:name||current.cadOperatorKey||''}:role==='frame'?{frameTechnician:name,technician:name,assignee:name||current.painterKey||current.cadOperatorKey||''}:{painter:name,ceramicist:name,assignee:current.frameTechnicianKey||name||current.cadOperatorKey||''};
       saveOrder(id,change);
     }

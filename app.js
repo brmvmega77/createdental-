@@ -4,7 +4,7 @@ import {routeFromPath,pathFor,navigate} from './routes.js?v=worker-salary-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=dashboard-layout-4';
 import {workCatalog,rubles} from './work-catalog.js?v=work-prices-5';
 import {themeToggleMarkup} from './theme.js?v=theme-toggle-1';
-import {productionStages} from './technician.js?v=progress-stage-18';
+import {productionStages} from './technician.js?v=progress-stage-19';
 import './location-assist.js?v=phone-mask-2';
 
 const $ = (selector) => document.querySelector(selector);
@@ -386,11 +386,11 @@ function syncRoute(){
 async function hydratePortal(){
   const data=await loadPortal();
   if(data.user.role==='technician'&&!technicianCabinet){
-    const {createTechnicianCabinet}=await import('./technician.js?v=progress-stage-18');
+    const {createTechnicianCabinet}=await import('./technician.js?v=progress-stage-19');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=result-photos-removed-4');
+    const {createWorkerCabinet}=await import('./worker.js?v=workflow-analog-cad-1');
     workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,orderHistory:()=>portalHistory,onUserUpdate:user=>{portalUser=user}});
   }
   if(portalUser?.subjectId!==data.user.subjectId)state.messages=[];
