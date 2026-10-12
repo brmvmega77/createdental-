@@ -1467,3 +1467,8 @@ html[data-theme="dark"] .clinic-orders-panel .toolbar .search input{
 }
 html[data-theme="dark"] .clinic-orders-panel .toolbar .search input::placeholder{color:#8b949e}
 .clinic-orders-panel .toolbar .search:focus-within{border-color:#8a949f}
+
+/* Order overview: long row borders read as stray lines on wide screens. */
+.detail-main-column .facts>div{border-bottom:0}
+.detail-main-column .order-service-card>header{border-bottom:0}
+.detail-side-column .order-side-stack{border-top:0;padding-top:0}
