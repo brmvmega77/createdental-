@@ -1382,3 +1382,9 @@ html,body,#app{max-width:100%;overflow-x:hidden}
 }
 .dashboard-main .tabs::-webkit-scrollbar{display:none}
 .dashboard-main .tabs .tab{flex:0 0 auto;min-width:max-content;padding-left:4px;padding-right:4px}
+
+/* Keep the chief technician navigation and content offset stable on desktop. */
+@media(min-width:761px){
+  .tech-sidebar{display:flex;position:fixed;left:0;top:0;bottom:0;width:226px;z-index:10}
+  .tech-shell{margin-left:226px;width:auto;min-width:0;max-width:calc(100% - 226px)}
+}
