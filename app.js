@@ -4,7 +4,7 @@ import {routeFromPath,pathFor,navigate} from './routes.js?v=worker-salary-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=dashboard-layout-4';
 import {workCatalog,rubles} from './work-catalog.js?v=work-prices-5';
 import {themeToggleMarkup} from './theme.js?v=theme-toggle-1';
-import {productionStages} from './technician.js?v=progress-stage-17';
+import {productionStages} from './technician.js?v=progress-stage-18';
 import './location-assist.js?v=phone-mask-2';
 
 const $ = (selector) => document.querySelector(selector);
@@ -386,7 +386,7 @@ function syncRoute(){
 async function hydratePortal(){
   const data=await loadPortal();
   if(data.user.role==='technician'&&!technicianCabinet){
-    const {createTechnicianCabinet}=await import('./technician.js?v=progress-stage-17');
+    const {createTechnicianCabinet}=await import('./technician.js?v=progress-stage-18');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
