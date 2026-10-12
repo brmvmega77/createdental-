@@ -1432,3 +1432,38 @@ html,body,#app{max-width:100%;overflow-x:hidden}
   .tech-order-searchbar:has(.tech-order-filter-panel) input#tech-search{grid-row:2}
   .tech-order-searchbar:has(.tech-order-filter-panel) .tech-order-filter-panel{grid-row:3}
 }
+
+/* Clinic order search: one compact field instead of a dark input inside a white shell. */
+.clinic-orders-panel .toolbar{justify-content:flex-end}
+.clinic-orders-panel .toolbar .search{
+  flex:0 1 520px;
+  width:100%;
+  min-width:0;
+  height:44px;
+  gap:10px;
+  padding:0 14px;
+  border:1px solid #e5e7eb;
+  border-radius:9px;
+  background:#fff;
+}
+.clinic-orders-panel .toolbar .search input{
+  flex:1 1 auto;
+  min-width:0;
+  height:100%;
+  padding:0;
+  border:0;
+  outline:0;
+  box-shadow:none;
+  background:transparent;
+}
+html[data-theme="dark"] .clinic-orders-panel .toolbar .search{
+  background:#1b1e22;
+  border-color:#3a4047;
+  color:#9da4ad;
+}
+html[data-theme="dark"] .clinic-orders-panel .toolbar .search input{
+  background:transparent;
+  color:#eef0f2;
+}
+html[data-theme="dark"] .clinic-orders-panel .toolbar .search input::placeholder{color:#8b949e}
+.clinic-orders-panel .toolbar .search:focus-within{border-color:#8a949f}
