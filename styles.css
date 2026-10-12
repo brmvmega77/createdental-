@@ -1473,6 +1473,10 @@ html[data-theme="dark"] .clinic-orders-panel .toolbar .search input::placeholder
 .detail-main-column .order-service-card>header{border-bottom:0}
 .detail-side-column .order-side-stack{border-top:0;padding-top:0}
 .order-history li{border-bottom:0}
+html[data-theme="dark"] .order-history li,
+html[data-theme="dark"] .order-history time,
+html[data-theme="dark"] .order-history li>strong,
+html[data-theme="dark"] .order-history li>span{color:#eef0f2}
 
 /* Orders toolbar: keep status menu, search, and filter on one desktop row. */
 @media(min-width:761px){
