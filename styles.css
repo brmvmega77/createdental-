@@ -1410,6 +1410,14 @@ html,body,#app{max-width:100%;overflow-x:hidden}
   justify-self:stretch;
   box-shadow:none;
 }
+/* Keep status tabs and filter/search aligned at normal desktop zoom. */
+@media(min-width:1001px){
+  .tech-order-tools{display:grid;grid-template-columns:minmax(0,1fr) 446px;gap:12px;align-items:start}
+  .tech-order-tools .tech-segment{min-width:0;max-width:100%;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+  .tech-order-tools .tech-segment::-webkit-scrollbar{display:none}
+  .tech-order-tools .tech-segment button{flex:0 0 auto}
+  .tech-order-tools .tech-order-searchbar{width:446px;max-width:100%;margin-left:0;justify-self:end;align-self:start}
+}
 @media(max-width:760px){
   .tech-order-searchbar:has(.tech-order-filter-panel){grid-template-columns:1fr}
   .tech-order-searchbar:has(.tech-order-filter-panel) .tech-filter-button,
