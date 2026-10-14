@@ -277,6 +277,12 @@ test('explains why an unsuitable Telegram deadline is rejected',()=>{
   assert.match(weekend,/Ближайшая доступная дата — 22\.10\.2026/);
 });
 
+test('does not reveal the recommended deadline before a custom date is entered',()=>{
+  const prompt=telegramInternals.guidedDuePrompt({});
+  assert.match(prompt,/Напишите желаемую дату готовности/);
+  assert.ok(!prompt.includes('Рекомендуемая дата'));
+});
+
 test('routes existing order changes through chief approval',()=>{
   assert.equal(telegramInternals.clientRequestType('update_order',{date:'20.10.2026'}),'deadline');
   assert.equal(telegramInternals.clientRequestType('update_order',{date:'20.10.2026',quantity:2,sum:'24 000 ₽'}),'deadline');
