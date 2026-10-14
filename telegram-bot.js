@@ -113,12 +113,12 @@ function telegramDeadlineError(order,dueIso,acceptedAt=new Date()){
   const minimum=earliestDueDateForOrder(order,acceptedAt);
   if(!isWorkingDay(due)){
     const nextWorking=addWorkingDays(due,0),nearest=minimum&&isoDateLocal(nextWorking)<isoDateLocal(minimum)?minimum:nextWorking;
-    return `Эту дату выбрать нельзя: ${displayDate(dueIso)} — выходной день. Производство работает с понедельника по пятницу, поэтому суббота и воскресенье не учитываются. Ближайшая доступная дата — ${displayDate(isoDateLocal(nearest))}.`;
+    return `Эту дату выбрать нельзя: ${displayDate(dueIso)} — выходной день. Производство работает с понедельника по пятницу, поэтому суббота и воскресенье не учитываются. Ближайший рабочий день — ${displayDate(isoDateLocal(nearest))}.`;
   }
   if(minimum&&isoDateLocal(due)<isoDateLocal(minimum)){
     const days=productionDaysForOrder(order);
     const reason=Number.isFinite(days)?`Для выбранной услуги требуется ${days} ${russianWorkingDaysLabel(days)} изготовления + 1 рабочий день на приём заказа.`:'Для выбранной услуги действует установленный минимальный срок изготовления.';
-    return `Эту дату выбрать нельзя: ${displayDate(dueIso)} раньше минимального срока. ${reason} Суббота и воскресенье не учитываются. Ближайшая доступная дата — ${displayDate(isoDateLocal(minimum))}.`;
+    return `Эту дату выбрать нельзя: ${displayDate(dueIso)} раньше минимального срока. ${reason} Суббота и воскресенье не учитываются. Минимально допустимая дата — ${displayDate(isoDateLocal(minimum))}.`;
   }
   return '';
 }
