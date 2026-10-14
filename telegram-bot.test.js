@@ -144,6 +144,17 @@ test('shows catalog categories first and services as the next button level',()=>
   assert.equal(telegramInternals.createOrderWizardPrompt(serviceStep).split('\n').length,1);
 });
 
+test('does not preselect a jaw for template services',()=>{
+  const analysis=telegramInternals.canonicalizeCatalogSelection(telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'Ложки прикуса',material:'Прикусной шаблон'}}));
+  assert.equal(analysis.fields.jaw,'');
+  assert.equal(analysis.fields.toothMode,'');
+  const buttons=telegramInternals.createOrderChoiceMarkup(analysis).inline_keyboard.flat();
+  assert.ok(buttons.some(button=>button.callback_data==='tgnew:jaw:upper'));
+  assert.ok(buttons.some(button=>button.callback_data==='tgnew:jaw:lower'));
+  assert.ok(buttons.some(button=>button.callback_data==='tgnew:jaw:both'));
+  assert.ok(!buttons.some(button=>button.text.includes('✓')));
+});
+
 test('explains missing stages and provides valid choices',()=>{
   const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'Реставрации'}});
   const prompt=telegramInternals.createOrderMissingPrompt(analysis);
