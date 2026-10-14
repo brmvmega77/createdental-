@@ -475,7 +475,7 @@ function guidedNavigationMarkup(){return {inline_keyboard:[[{text:'◀️ Наз
 function guidedStartNavigationMarkup(){return {inline_keyboard:[[{text:'❌ Отменить заказ',callback_data:'tgnew:cancel'}]]}}
 function patientConfirmationMarkup(){return {inline_keyboard:[[{text:'✅ Верно, продолжить',callback_data:'tgnew:patientconfirm:yes'},{text:'✏️ Исправить',callback_data:'tgnew:patientconfirm:edit'}],[{text:'❌ Отменить заказ',callback_data:'tgnew:cancel'}]]}}
 function patientConfirmationPrompt(patient){return `Проверьте распознанное ФИО: «${patient||'—'}». Нажмите «Верно, продолжить» или «Исправить».`}
-function productionTypeMarkup(){return {inline_keyboard:[[{text:'Цифровой · STL/сканы',callback_data:'tgnew:type:digital'},{text:'Аналоговый · слепок',callback_data:'tgnew:type:analog'}],...guidedNavigationMarkup().inline_keyboard]}}
+function productionTypeMarkup(){return {inline_keyboard:[[{text:'Цифровой · STL/сканы',callback_data:'tgnew:type:digital'},{text:'Аналоговый · Слепок',callback_data:'tgnew:type:analog'}],...guidedNavigationMarkup().inline_keyboard]}}
 function fileChoiceMarkup(){return {inline_keyboard:[[{text:'📎 Загрузить файлы пациента',callback_data:'tgnew:files:now'}],[{text:'⏭️ Загрузить позже',callback_data:'tgnew:files:later'}],...guidedNavigationMarkup().inline_keyboard]}}
 function fileUploadMarkup(){return {inline_keyboard:[[{text:'✅ Файлы загружены, продолжить',callback_data:'tgnew:files:done'}],[{text:'⏭️ Загрузить позже',callback_data:'tgnew:files:later'}],...guidedNavigationMarkup().inline_keyboard]}}
 function guidedReadyPrompt(){return 'Все обязательные пункты заполнены. Можно добавить услугу или перейти к проверке заказа:'}
