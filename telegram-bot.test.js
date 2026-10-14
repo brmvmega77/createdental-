@@ -105,6 +105,16 @@ test('collects patient name before the guided order can continue',()=>{
   assert.match(telegramInternals.guidedPatientPrompt('Манвел'),/Первая часть ФИО/);
 });
 
+test('always offers a previous step in the guided order flow',()=>{
+  const service=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петросян Манвел',work:'Реставрации'}});
+  const serviceMarkup=telegramInternals.createOrderChoiceMarkup(service).inline_keyboard.flat();
+  assert.ok(serviceMarkup.some(button=>button.callback_data==='tgnew:back'));
+  const due=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петросян Манвел',work:'Реставрации',material:'Коронка дисиликат лития',toothMode:'Одиночка',teeth:[11]}});
+  const previous=telegramInternals.backGuidedOrder(due,{wizardStep:''});
+  assert.equal(previous.wizardStep,'teeth');
+  assert.deepEqual(previous.analysis.fields.teeth,[11]);
+});
+
 test('shows catalog categories first and services as the next button level',()=>{
   const categoryStep=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',toothMode:'Одиночка',teeth:[11]}});
   const categoryButtons=telegramInternals.createOrderChoiceMarkup(categoryStep).inline_keyboard.flat();
