@@ -1595,6 +1595,8 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         }else if(guided.mode==='new'&&guided.awaitingInput==='due'&&!hasExplicitDueMonth(sourceText)){
           rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:guided.draftAnalysis,wizardStep:'',awaitingInput:'due'});await saveState();
           return send(message.chat.id,`Укажите день и месяц срока. Например: «10 ноября» или «10.11.2026».\n${guidedDuePrompt(guided.draftAnalysis)}`,{reply_markup:guidedNavigationMarkup()});
+        }else if(guided.mode==='new'&&guided.awaitingInput==='due'){
+          sourceText=`Создай новый заказ. Срок готовности: ${sourceText}`;
         }else if(guided.mode==='new'&&guided.awaitingInput==='shade'){
           directCreateAnalysis=mergeCreateAnalysis(guided.draftAnalysis,normalizeAnalysis({intent:'create_order',fields:{shade:cleanText(sourceText,40)}}));
         }else if(guided.mode==='new'&&guided.awaitingInput==='comment'){
