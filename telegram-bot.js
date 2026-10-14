@@ -473,7 +473,7 @@ function guidedPatientPrompt(patient=''){
 
 function guidedNavigationMarkup(){return {inline_keyboard:[[{text:'◀️ Назад',callback_data:'tgnew:back'},{text:'❌ Отменить заказ',callback_data:'tgnew:cancel'}]]}}
 function guidedStartNavigationMarkup(){return {inline_keyboard:[[{text:'❌ Отменить заказ',callback_data:'tgnew:cancel'}]]}}
-function patientConfirmationMarkup(){return {inline_keyboard:[[{text:'✅ Верно, продолжить',callback_data:'tgnew:patientconfirm:yes'},{text:'✏️ Исправить',callback_data:'tgnew:patientconfirm:edit'}],...guidedNavigationMarkup().inline_keyboard]}}
+function patientConfirmationMarkup(){return {inline_keyboard:[[{text:'✅ Верно, продолжить',callback_data:'tgnew:patientconfirm:yes'},{text:'✏️ Исправить',callback_data:'tgnew:patientconfirm:edit'}],[{text:'❌ Отменить заказ',callback_data:'tgnew:cancel'}]]}}
 function patientConfirmationPrompt(patient){return `Проверьте распознанное ФИО: «${patient||'—'}». Нажмите «Верно, продолжить» или «Исправить».`}
 function productionTypeMarkup(){return {inline_keyboard:[[{text:'Цифровой',callback_data:'tgnew:type:digital'},{text:'Аналоговый',callback_data:'tgnew:type:analog'}],...guidedNavigationMarkup().inline_keyboard]}}
 function fileChoiceMarkup(){return {inline_keyboard:[[{text:'📎 Загрузить файлы пациента',callback_data:'tgnew:files:now'}],[{text:'⏭️ Загрузить позже',callback_data:'tgnew:files:later'}],...guidedNavigationMarkup().inline_keyboard]}}

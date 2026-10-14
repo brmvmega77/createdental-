@@ -119,7 +119,7 @@ test('shows the recognized patient name for confirmation before services',()=>{
   const markup=telegramInternals.patientConfirmationMarkup().inline_keyboard.flat();
   assert.ok(markup.some(button=>button.callback_data==='tgnew:patientconfirm:yes'));
   assert.ok(markup.some(button=>button.callback_data==='tgnew:patientconfirm:edit'));
-  assert.ok(markup.some(button=>button.callback_data==='tgnew:back'));
+  assert.ok(markup.some(button=>button.callback_data==='tgnew:cancel'));
 });
 
 test('asks for production type after patient confirmation and files before final check',()=>{
