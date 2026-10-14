@@ -94,6 +94,17 @@ test('accepts tooth numbers typed into the guided Telegram picker',()=>{
   assert.deepEqual(telegramInternals.parseGuidedTeethInput('99'),[]);
 });
 
+test('collects patient name before the guided order can continue',()=>{
+  const partial=telegramInternals.parseGuidedPatientInput('Манвел');
+  assert.equal(partial.hasFullName,false);
+  assert.equal(partial.value,'Манвел');
+  const full=telegramInternals.parseGuidedPatientInput('Петросян Манвел');
+  assert.equal(full.hasFullName,true);
+  assert.equal(full.value,'Петросян Манвел');
+  assert.match(telegramInternals.guidedPatientPrompt(),/Сначала укажите фамилию и имя/);
+  assert.match(telegramInternals.guidedPatientPrompt('Манвел'),/Первая часть ФИО/);
+});
+
 test('shows catalog categories first and services as the next button level',()=>{
   const categoryStep=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',toothMode:'Одиночка',teeth:[11]}});
   const categoryButtons=telegramInternals.createOrderChoiceMarkup(categoryStep).inline_keyboard.flat();
