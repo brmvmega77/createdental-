@@ -319,14 +319,27 @@ function hasFullPatientName(value){
 
 function enforcePatientNameRequirement(analysis,sourceText,previousAnalysis=null){
   const previousPatient=previousAnalysis?.fields?.patient||'';
-  if(hasFullPatientName(previousPatient))return analysis;
+  const previousWords=(String(previousPatient).match(/[A-Za-zА-Яа-яЁё-]+/g)||[]);
   const words=(String(sourceText||'').match(/[A-Za-zА-Яа-яЁё-]+/g)||[])
     .filter(word=>!['создай','новый','заказ','пациент'].includes(normalize(word)));
   if(words.length!==1)return analysis;
   const next=normalizeAnalysis(analysis);
+  if(previousWords.length===1){
+    next.fields.patient=titleCasePatientName(`${previousWords[0]} ${words[0]}`);
+    next.patientSurname=previousWords[0];
+    return next;
+  }
   next.fields.patient=titleCasePatientName(words[0]);
   next.patientSurname='';
   return next;
+}
+
+function mergePatientNames(beforeValue,afterValue){
+  const before=cleanText(beforeValue,160),after=cleanText(afterValue,160);
+  if(hasFullPatientName(after)||!before)return after||before;
+  if(!after)return before;
+  if(normalize(before)===normalize(after))return before;
+  return titleCasePatientName(`${before} ${after}`);
 }
 
 function titleCasePatientName(value){
@@ -389,7 +402,7 @@ function mergeCreateAnalysis(previous,current){
     intent:'create_order',confidence:Math.max(before.confidence,after.confidence),
     patientSurname:after.patientSurname||before.patientSurname,
     fields:{
-      patient:after.fields.patient||before.fields.patient,
+      patient:mergePatientNames(before.fields.patient,after.fields.patient),
       birthDate:after.fields.birthDate||before.fields.birthDate,
       work:nextWork,
       material:after.fields.material||(workChanged?'':before.fields.material),
@@ -411,7 +424,10 @@ function mergeCreateAnalysis(previous,current){
 function createOrderMissingPrompt(analysis){
   const missing=missingCreateFields(analysis),fields=analysis.fields,selection=resolveWorkSelection(fields.work,fields.material);
   const options=[];
-  if(missing.includes('имя и фамилию пациента'))options.push('• Пациент: фамилия и имя обязательны; отчество — по желанию. Пример: «Иванов Сергей» или «Иванов Сергей Петрович».');
+  if(missing.includes('имя и фамилию пациента')){
+    const patientWords=(String(fields.patient||'').match(/[A-Za-zА-Яа-яЁё-]+/g)||[]);
+    options.push(patientWords.length===1?`• Имя «${patientWords[0]}» сохранено. Укажите фамилию пациента.`:'• Пациент: фамилия и имя обязательны; отчество — по желанию. Пример: «Иванов Сергей» или «Иванов Сергей Петрович».');
+  }
   if(missing.includes('режим: одиночка, мост или челюсть'))options.push('• Режим: «Одиночка», «Мост» или «Челюсть».');
   if(missing.includes('верхнюю или нижнюю челюсть'))options.push('• Челюсть: верхняя или нижняя.');
   if(missing.includes('челюсть для шаблона'))options.push('• Для шаблона выбрана верхняя челюсть. При необходимости добавьте нижнюю.');
@@ -492,7 +508,10 @@ function createOrderWizardPrompt(analysis,wizardStep=''){
       'После выбора нажмите «Готово».'
     ].join('\n');
   }
-  if(missing.includes('имя и фамилию пациента'))return 'Укажите фамилию и имя пациента. Отчество — по желанию.';
+  if(missing.includes('имя и фамилию пациента')){
+    const patientWords=(String(fields.patient||'').match(/[A-Za-zА-Яа-яЁё-]+/g)||[]);
+    return patientWords.length===1?`Имя «${patientWords[0]}» сохранено. Укажите фамилию пациента.`:'Укажите фамилию и имя пациента. Отчество — по желанию.';
+  }
   if(missing.includes('вид работы из прайса'))return 'Выберите раздел работы:';
   if(missing.includes('точное название услуги из прайса'))return `Выберите услугу из раздела «${selection.category?.name||fields.work}»:`;
   if(missing.includes('челюсть для шаблона'))return 'Для шаблона выбрана верхняя челюсть. При необходимости добавьте нижнюю:';
