@@ -129,6 +129,8 @@ test('asks for production type after patient confirmation and files before final
   const fileButtons=telegramInternals.fileChoiceMarkup().inline_keyboard.flat();
   assert.ok(fileButtons.some(button=>button.callback_data==='tgnew:files:now'));
   assert.ok(fileButtons.some(button=>button.callback_data==='tgnew:files:later'));
+  const waitingButtons=telegramInternals.fileUploadWaitingMarkup().inline_keyboard.flat();
+  assert.ok(!waitingButtons.some(button=>button.callback_data==='tgnew:files:done'));
 });
 
 test('shows catalog categories first and services as the next button level',()=>{

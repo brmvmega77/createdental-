@@ -477,6 +477,7 @@ function patientConfirmationMarkup(){return {inline_keyboard:[[{text:'✅ Вер
 function patientConfirmationPrompt(patient){return `Проверьте распознанное ФИО: «${patient||'—'}». Нажмите «Верно, продолжить» или «Исправить».`}
 function productionTypeMarkup(){return {inline_keyboard:[[{text:'Цифровой · STL/сканы',callback_data:'tgnew:type:digital'},{text:'Аналоговый · Слепок',callback_data:'tgnew:type:analog'}],...guidedNavigationMarkup().inline_keyboard]}}
 function fileChoiceMarkup(){return {inline_keyboard:[[{text:'📎 Загрузить файлы пациента',callback_data:'tgnew:files:now'}],[{text:'⏭️ Загрузить позже',callback_data:'tgnew:files:later'}],...guidedNavigationMarkup().inline_keyboard]}}
+function fileUploadWaitingMarkup(){return {inline_keyboard:[[{text:'⏭️ Загрузить позже',callback_data:'tgnew:files:later'}],...guidedNavigationMarkup().inline_keyboard]}}
 function fileUploadMarkup(){return {inline_keyboard:[[{text:'✅ Файлы загружены, продолжить',callback_data:'tgnew:files:done'}],[{text:'⏭️ Загрузить позже',callback_data:'tgnew:files:later'}],...guidedNavigationMarkup().inline_keyboard]}}
 function guidedReadyPrompt(){return 'Все обязательные пункты заполнены. Можно добавить услугу или перейти к проверке заказа:'}
 function guidedReadyMarkup(){return {inline_keyboard:[[{text:'➕ Добавить услугу',callback_data:'tgnew:addservice'},{text:'✅ Перейти к проверке',callback_data:'tgnew:finish'}],...guidedNavigationMarkup().inline_keyboard]}}
@@ -1103,7 +1104,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
           rememberGuidedAction(message.chat.id,callback.from?.id,clinic.id,'','new',{draftAnalysis:analysis,awaitingInput:'files',readyForConfirmation:false});
           await saveState();
           await answerCallback(callback.id,'Жду файлы');
-          return editMessage(message.chat.id,message.message_id,'Отправьте файлы пациента документами или фотографиями. После загрузки нажмите «Файлы загружены, продолжить».',fileUploadMarkup());
+          return editMessage(message.chat.id,message.message_id,'Отправьте файлы пациента документами или фотографиями. После загрузки появится кнопка «Файлы загружены, продолжить».',fileUploadWaitingMarkup());
         }
         if(value==='later'||value==='done'){
           rememberGuidedAction(message.chat.id,callback.from?.id,clinic.id,'','new',{draftAnalysis:analysis,awaitingInput:'',readyForConfirmation:true});
@@ -1146,7 +1147,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         if(previous.awaitingInput==='patientConfirm'){backPrompt=patientConfirmationPrompt(previous.analysis.fields.patient);backMarkup=patientConfirmationMarkup()}
         if(previous.awaitingInput==='productionType'){backPrompt='Выберите тип работы для заказа:';backMarkup=productionTypeMarkup()}
         if(previous.awaitingInput==='fileChoice'){backPrompt='Перед отправкой главному технику выберите, как поступить с файлами пациента:';backMarkup=fileChoiceMarkup()}
-        if(previous.awaitingInput==='files'){backPrompt='Отправьте файлы пациента документами или фотографиями. После загрузки нажмите «Файлы загружены, продолжить».';backMarkup=fileUploadMarkup()}
+        if(previous.awaitingInput==='files'){backPrompt='Отправьте файлы пациента документами или фотографиями. После загрузки появится кнопка «Файлы загружены, продолжить».';backMarkup=attachmentList(previous).length?fileUploadMarkup():fileUploadWaitingMarkup()}
         if(previous.awaitingInput==='patient')backMarkup=guidedNavigationMarkup();
         return editMessage(message.chat.id,message.message_id,backPrompt,backMarkup);
       }
@@ -1528,7 +1529,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
           }
           rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:guided.draftAnalysis,awaitingInput:'files'});
           await saveState();
-          return send(message.chat.id,'Отправьте файл документом или фотографией. Когда закончите, нажмите «Файлы загружены, продолжить».',{reply_markup:fileUploadMarkup()});
+          return send(message.chat.id,'Отправьте файл документом или фотографией. После загрузки появится кнопка «Файлы загружены, продолжить».',{reply_markup:fileUploadWaitingMarkup()});
         }else if(guided.mode==='new'&&guided.readyForConfirmation){
           rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:guided.draftAnalysis,awaitingInput:'',readyForConfirmation:true});
           await saveState();
@@ -1726,4 +1727,4 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   return {start,stop,status,reloadSecrets,sendClinicMessage,sendAutomatedMessage,syncClinicChatPhoto,notifyOrderStage,approveBinding,rejectBinding,unbindClinic};
 }
 
-export const telegramInternals={codeFromText,parseJson,normalizeVariant,normalizeAnalysis,canonicalizeCatalogSelection,analysisVariants,isNoTeethSelection,isJawSplitSelection,priceEstimate,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,hasFullPatientName,enforcePatientNameRequirement,extractExplicitPatientName,repairPatientName,missingCreateFields,mergeCreateAnalysis,createOrderMissingPrompt,createOrderChoiceMarkup,createOrderWizardPrompt,backGuidedOrder,parseGuidedTeethInput,parseGuidedPatientInput,guidedPatientPrompt,patientConfirmationMarkup,productionTypeMarkup,fileChoiceMarkup,fileUploadMarkup,guidedReadyMarkup,displayDate,isoDateFromDisplay,hasExplicitDueMonth,orderCanReceiveFiles,orderPickerLabel,clientRequestType,telegramDueDateForAnalysis,telegramDeadlineError};
+export const telegramInternals={codeFromText,parseJson,normalizeVariant,normalizeAnalysis,canonicalizeCatalogSelection,analysisVariants,isNoTeethSelection,isJawSplitSelection,priceEstimate,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,hasFullPatientName,enforcePatientNameRequirement,extractExplicitPatientName,repairPatientName,missingCreateFields,mergeCreateAnalysis,createOrderMissingPrompt,createOrderChoiceMarkup,createOrderWizardPrompt,backGuidedOrder,parseGuidedTeethInput,parseGuidedPatientInput,guidedPatientPrompt,patientConfirmationMarkup,productionTypeMarkup,fileChoiceMarkup,fileUploadWaitingMarkup,fileUploadMarkup,guidedReadyMarkup,displayDate,isoDateFromDisplay,hasExplicitDueMonth,orderCanReceiveFiles,orderPickerLabel,clientRequestType,telegramDueDateForAnalysis,telegramDeadlineError};
