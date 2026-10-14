@@ -472,6 +472,7 @@ function guidedPatientPrompt(patient=''){
 }
 
 function guidedNavigationMarkup(){return {inline_keyboard:[[{text:'◀️ Назад',callback_data:'tgnew:back'},{text:'❌ Отменить заказ',callback_data:'tgnew:cancel'}]]}}
+function patientConfirmationMarkup(){return {inline_keyboard:[[{text:'✅ Верно, продолжить',callback_data:'tgnew:patientconfirm:yes'},{text:'✏️ Исправить',callback_data:'tgnew:patientconfirm:edit'}],...guidedNavigationMarkup().inline_keyboard]}}
 
 function createOrderChoiceMarkup(analysis,wizardStep=''){
   const missing=missingCreateFields(analysis),fields=analysis.fields,catalog=catalogForPrompt();
@@ -1080,6 +1081,23 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         return editMessage(message.chat.id,message.message_id,'Создание заказа отменено. Чтобы начать заново, выберите «Новый заказ» в меню.');
       }
       const analysis=canonicalizeCatalogSelection(normalizeAnalysis(guided.draftAnalysis||{intent:'create_order',fields:{}}));
+      if(guided.awaitingInput==='patientConfirm'&&id==='patientconfirm'){
+        if(value==='edit'){
+          analysis.fields.patient='';analysis.patientSurname='';
+          rememberGuidedAction(message.chat.id,callback.from?.id,clinic.id,'','new',{draftAnalysis:analysis,awaitingInput:'patient'});
+          await saveState();
+          await answerCallback(callback.id,'Введите ФИО ещё раз');
+          return editMessage(message.chat.id,message.message_id,guidedPatientPrompt(),guidedNavigationMarkup());
+        }
+        if(value==='yes'){
+          rememberGuidedAction(message.chat.id,callback.from?.id,clinic.id,'','new',{draftAnalysis:analysis,awaitingInput:''});
+          await saveState();
+          await answerCallback(callback.id,'ФИО подтверждено');
+          const replyMarkup=createOrderChoiceMarkup(analysis);
+          return editMessage(message.chat.id,message.message_id,createOrderWizardPrompt(analysis),replyMarkup||guidedNavigationMarkup());
+        }
+        return answerCallback(callback.id,'Неизвестный выбор');
+      }
       if(id==='back'){
         const previous=backGuidedOrder(analysis,guided);
         if(previous.cancel){
@@ -1449,7 +1467,11 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         }
       }
       if(!guidedAnalysis){
-        if(guided.mode==='new'&&guided.awaitingInput==='patient'){
+        if(guided.mode==='new'&&guided.awaitingInput==='patientConfirm'){
+          rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:guided.draftAnalysis,awaitingInput:'patientConfirm'});
+          await saveState();
+          return send(message.chat.id,`Проверьте распознанное ФИО: «${guided.draftAnalysis?.fields?.patient||'—'}». Нажмите «Верно, продолжить» или «Исправить».`,{reply_markup:patientConfirmationMarkup()});
+        }else if(guided.mode==='new'&&guided.awaitingInput==='patient'){
           const parsedPatient=parseGuidedPatientInput(sourceText);
           const draft=normalizeAnalysis(guided.draftAnalysis||{intent:'create_order',fields:{}});
           const previousPatient=draft.fields.patient||'';
@@ -1467,10 +1489,9 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
           draft.fields.patient=combined;
           draft.patientSurname=(combined.match(/[A-Za-zА-Яа-яЁё-]+/g)||[])[0]||'';
           draft.fields.addingService=false;
-          rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:draft,awaitingInput:''});
+          rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:draft,awaitingInput:'patientConfirm'});
           await saveState();
-          const replyMarkup=createOrderChoiceMarkup(draft);
-          return send(message.chat.id,createOrderWizardPrompt(draft),replyMarkup?{reply_markup:replyMarkup}:{reply_markup:guidedNavigationMarkup()});
+          return send(message.chat.id,`Проверьте распознанное ФИО: «${draft.fields.patient}». Нажмите «Верно, продолжить» или «Исправить».`,{reply_markup:patientConfirmationMarkup()});
         }else if(guided.mode==='new'&&guided.wizardStep==='teeth'){
           const typedTeeth=parseGuidedTeethInput(sourceText),draft=normalizeAnalysis(guided.draftAnalysis||{intent:'create_order',fields:{}});
           if(typedTeeth.length){
@@ -1639,4 +1660,4 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   return {start,stop,status,reloadSecrets,sendClinicMessage,sendAutomatedMessage,syncClinicChatPhoto,notifyOrderStage,approveBinding,rejectBinding,unbindClinic};
 }
 
-export const telegramInternals={codeFromText,parseJson,normalizeVariant,normalizeAnalysis,canonicalizeCatalogSelection,analysisVariants,isNoTeethSelection,isJawSplitSelection,priceEstimate,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,hasFullPatientName,enforcePatientNameRequirement,extractExplicitPatientName,repairPatientName,missingCreateFields,mergeCreateAnalysis,createOrderMissingPrompt,createOrderChoiceMarkup,createOrderWizardPrompt,backGuidedOrder,parseGuidedTeethInput,parseGuidedPatientInput,guidedPatientPrompt,displayDate,isoDateFromDisplay,hasExplicitDueMonth,orderCanReceiveFiles,orderPickerLabel,clientRequestType,telegramDueDateForAnalysis,telegramDeadlineError};
+export const telegramInternals={codeFromText,parseJson,normalizeVariant,normalizeAnalysis,canonicalizeCatalogSelection,analysisVariants,isNoTeethSelection,isJawSplitSelection,priceEstimate,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,hasFullPatientName,enforcePatientNameRequirement,extractExplicitPatientName,repairPatientName,missingCreateFields,mergeCreateAnalysis,createOrderMissingPrompt,createOrderChoiceMarkup,createOrderWizardPrompt,backGuidedOrder,parseGuidedTeethInput,parseGuidedPatientInput,guidedPatientPrompt,patientConfirmationMarkup,displayDate,isoDateFromDisplay,hasExplicitDueMonth,orderCanReceiveFiles,orderPickerLabel,clientRequestType,telegramDueDateForAnalysis,telegramDeadlineError};

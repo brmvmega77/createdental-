@@ -115,6 +115,13 @@ test('always offers a previous step in the guided order flow',()=>{
   assert.deepEqual(previous.analysis.fields.teeth,[11]);
 });
 
+test('shows the recognized patient name for confirmation before services',()=>{
+  const markup=telegramInternals.patientConfirmationMarkup().inline_keyboard.flat();
+  assert.ok(markup.some(button=>button.callback_data==='tgnew:patientconfirm:yes'));
+  assert.ok(markup.some(button=>button.callback_data==='tgnew:patientconfirm:edit'));
+  assert.ok(markup.some(button=>button.callback_data==='tgnew:back'));
+});
+
 test('shows catalog categories first and services as the next button level',()=>{
   const categoryStep=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',toothMode:'Одиночка',teeth:[11]}});
   const categoryButtons=telegramInternals.createOrderChoiceMarkup(categoryStep).inline_keyboard.flat();
