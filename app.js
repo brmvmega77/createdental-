@@ -375,7 +375,7 @@ function loginView(){
     :`<form id="portal-login-form" data-mode="${authMode}">${form}</form>`;
   $('#app').innerHTML=`<main class="portal-login"><div class="portal-login-tools">${themeToggleMarkup()}</div><section><img class="portal-logo" src="${logo}" alt="Create Dental"><h1>${authMode==='register'?'Регистрация клиники':'Личный кабинет Create Dental'}</h1><p>Заказы, производство и связь с лабораторией.</p>${content}${links}${authNotice?`<p class="portal-login-success">${escapeHtml(authNotice)}</p>`:''}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
 }
-function render(){if(!portalReady){loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
+function render(){if(!portalReady){if(portalToken()){$('#app').innerHTML='<div class="startup-notice">Загрузка кабинета...</div>';return}loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
 function syncRoute(){
   const route=routeFromPath(location.pathname);
   if(!portalReady){authMode=route.mode||'login';render();return}
