@@ -40,7 +40,7 @@ const welcomeText=`👋 Добро пожаловать в чат Create Dental!
 Пример: «Перенеси срок заказа Иванова на 25 октября».
 
 📎 Добавить файл
-После того, как главный техник примет заказ, нажмите «📎 Загрузить файл», выберите заказ и откройте безопасную ссылку. За один раз можно загрузить до 10 файлов, каждый — до 200 МБ.
+После создания заказа нажмите «📎 Загрузить файлы» в сообщении о подтверждении или выберите загрузку через меню. За один раз можно загрузить до 10 файлов, каждый — до 200 МБ.
 
 ❌ Отменить заказ
 Пример: «Отмени заказ Иванова. Пациент перенёс лечение».
@@ -860,10 +860,9 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       const optional=[];
       if(!item.analysis.fields.birthDate)optional.push('дата рождения');
       if(!item.analysis.fields.comment)optional.push('комментарий');
-      if(!attachmentList(item).length)optional.push('файлы');
       if(optional.length)lines.push('',`Не указано, но необязательно: ${optional.join(', ')}.`);
     }
-    const files=attachmentList(item);
+    const files=item.analysis.intent==='create_order'?[]:attachmentList(item);
     if(files.length)lines.push('',`Файлы (${files.length}):`,...files.map(file=>`• ${file.name}`));
     const needsChiefApproval=['update_order','cancel_order'].includes(item.analysis.intent);
     lines.push('',`Запросил: ${item.actor}`,needsChiefApproval?'Отправить запрос главному технику?':'Выполнить это действие в CRM?');
@@ -940,7 +939,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     const callbackUser=cleanText([callback.from?.first_name,callback.from?.last_name].filter(Boolean).join(' ')||callback.from?.username||'',120);
     const actor={role:'telegram',name:`Telegram · ${callbackUser||item.actor}`};
     const attach=async(orderId)=>{
-      const files=attachmentList(item).filter(file=>file.orderEligible);if(!files.length)return '';
+      const files=analysis.intent==='create_order'?[]:attachmentList(item).filter(file=>file.orderEligible);if(!files.length)return '';
       let attached=0;
       for(const file of files){try{await attachOrderFile(orderId,item.clinicId,file,item.id);attached+=1}catch(error){console.error('Telegram order attachment failed:',error.message)}}
       return attached===files.length?` Прикреплено файлов: ${attached}.`:` Прикреплено файлов: ${attached} из ${files.length}.`;
@@ -1322,7 +1321,10 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     }
     await answerCallback(callback.id,'Выполняю');
     try{
-      const result=await executePending(item,callback);rememberContext(item.chatId,item.userId,item.clinicId,item.orderId||item.targetOrderId);state.completed[id]={at:new Date().toISOString(),result};delete state.pending[id];for(const [key,done] of Object.entries(state.completed))if(Date.parse(done.at)<Date.now()-30*24*60*60*1000)delete state.completed[key];await saveState();await send(item.chatId,`${result}\n${['update_order','cancel_order'].includes(item.analysis.intent)?'Запрос отправил':'Подтвердил'}: ${actorName({from:callback.from})}`);
+      const result=await executePending(item,callback);rememberContext(item.chatId,item.userId,item.clinicId,item.orderId||item.targetOrderId);state.completed[id]={at:new Date().toISOString(),result};delete state.pending[id];for(const [key,done] of Object.entries(state.completed))if(Date.parse(done.at)<Date.now()-30*24*60*60*1000)delete state.completed[key];await saveState();
+      const uploadMarkup=item.analysis.intent==='create_order'&&item.targetOrderId?{reply_markup:{inline_keyboard:[[{text:'📎 Загрузить файлы',callback_data:`tglarge:${item.targetOrderId}`}]]}}:{};
+      const uploadHint=item.analysis.intent==='create_order'?'\n\nТеперь можно прикрепить файлы к созданному заказу: нажмите «📎 Загрузить файлы».':'';
+      await send(item.chatId,`${result}${uploadHint}\n${['update_order','cancel_order'].includes(item.analysis.intent)?'Запрос отправил':'Подтвердил'}: ${actorName({from:callback.from})}`,uploadMarkup);
     }catch(error){await send(item.chatId,`Не удалось выполнить действие: ${cleanText(error.message,500)}. Данные CRM не изменены.`)}
   }
 
@@ -1365,9 +1367,8 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         if(pending){pending.attachments=[...attachmentList(pending),storedAttachment].slice(-20);await saveState();await send(message.chat.id,`Файл «${storedAttachment.name}» добавлен. Всего файлов в действии: ${pending.attachments.length}.`);return}
         const guidedDraft=currentGuidedAction(message.chat.id,message.from?.id,clinic.id);
         if(guidedDraft?.mode==='new'){
-          guidedDraft.attachments=[...attachmentList(guidedDraft),storedAttachment].slice(-20);
           await saveState();
-          return send(message.chat.id,`Файл «${storedAttachment.name}» добавлен к будущему заказу. Всего файлов: ${guidedDraft.attachments.length}.`);
+          return send(message.chat.id,'Сначала подтвердите и создайте заказ. После этого появится кнопка «📎 Загрузить файлы», и файл можно будет прикрепить к уже созданному заказу.');
         }
         const context=currentContext(message.chat.id,message.from?.id,clinic.id);
         if(context){const analysis=normalizeAnalysis({intent:'update_order',orderId:context.orderId,summary:`Прикрепить файл «${storedAttachment.name}»`,fields:{}});return propose(message,clinic,analysis,storedAttachment)}
