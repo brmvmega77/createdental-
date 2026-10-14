@@ -6,7 +6,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createRequire} from 'node:module';
 import {portalSnapshot,portalClient,replacePortalCollection,recordPortalEvent} from './portal-data.js';
-import {catalogForPrompt,resolveWorkSelection,estimateWork,rubles,earliestDueDateForOrder,isWorkingDay,isoDateLocal,addWorkingDays} from './work-catalog.js';
+import {catalogForPrompt,resolveWorkSelection,estimateWork,rubles,earliestDueDateForOrder,productionDaysForOrder,isWorkingDay,isoDateLocal,addWorkingDays} from './work-catalog.js';
 
 const require=createRequire(import.meta.url);
 const execFileAsync=promisify(execFile);
@@ -99,14 +99,27 @@ function telegramDueDateForAnalysis(analysis,acceptedAt=new Date()){
   const minimum=earliestDueDateForOrder({work:fields.work,workOption:fields.material,material:fields.material,variants},acceptedAt);
   return minimum?isoDateLocal(minimum):isoDateLocal(addWorkingDays(new Date(`${moscowDate()}T12:00:00`),14));
 }
+function russianWorkingDaysLabel(days){
+  const value=Math.abs(Number(days));
+  if(value%10===1&&value%100!==11)return 'рабочий день';
+  if([2,3,4].includes(value%10)&&![12,13,14].includes(value%100))return 'рабочих дня';
+  return 'рабочих дней';
+}
 function telegramDeadlineError(order,dueIso,acceptedAt=new Date()){
   const match=String(dueIso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if(!match)return 'Укажите срок в формате даты';
   const due=new Date(Number(match[1]),Number(match[2])-1,Number(match[3]));
   if(Number.isNaN(due.getTime())||due.getFullYear()!==Number(match[1])||due.getMonth()!==Number(match[2])-1||due.getDate()!==Number(match[3]))return 'Укажите корректную дату';
-  if(!isWorkingDay(due))return 'Срок должен приходиться на рабочий день: суббота и воскресенье не считаются';
   const minimum=earliestDueDateForOrder(order,acceptedAt);
-  if(minimum&&isoDateLocal(due)<isoDateLocal(minimum))return `Минимальный срок для выбранной услуги — ${displayDate(isoDateLocal(minimum))}`;
+  if(!isWorkingDay(due)){
+    const nextWorking=addWorkingDays(due,0),nearest=minimum&&isoDateLocal(nextWorking)<isoDateLocal(minimum)?minimum:nextWorking;
+    return `Эту дату выбрать нельзя: ${displayDate(dueIso)} — выходной день. Производство работает с понедельника по пятницу, поэтому суббота и воскресенье не учитываются. Ближайшая доступная дата — ${displayDate(isoDateLocal(nearest))}.`;
+  }
+  if(minimum&&isoDateLocal(due)<isoDateLocal(minimum)){
+    const days=productionDaysForOrder(order);
+    const reason=Number.isFinite(days)?`Для выбранной услуги требуется ${days} ${russianWorkingDaysLabel(days)} изготовления + 1 рабочий день на приём заказа.`:'Для выбранной услуги действует установленный минимальный срок изготовления.';
+    return `Эту дату выбрать нельзя: ${displayDate(dueIso)} раньше минимального срока. ${reason} Суббота и воскресенье не учитываются. Ближайшая доступная дата — ${displayDate(isoDateLocal(minimum))}.`;
+  }
   return '';
 }
 function isoDateFromDisplay(value){const match=String(value||'').match(/^(\d{2})\.(\d{2})\.(\d{4})$/);return match?`${match[3]}-${match[2]}-${match[1]}`:''}

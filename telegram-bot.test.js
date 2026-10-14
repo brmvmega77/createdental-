@@ -254,6 +254,18 @@ test('requires a month when a client enters a new deadline',()=>{
   assert.equal(telegramInternals.hasExplicitDueMonth('завтра'),true);
 });
 
+test('explains why an unsuitable Telegram deadline is rejected',()=>{
+  const acceptedAt=new Date('2026-10-14T12:00:00+03:00');
+  const order={work:'Каппы',workOption:'Каппа для отбеливания'};
+  const tooEarly=telegramInternals.telegramDeadlineError(order,'2026-10-20',acceptedAt);
+  assert.match(tooEarly,/20\.10\.2026 раньше минимального срока/);
+  assert.match(tooEarly,/5 рабочих дней изготовления \+ 1 рабочий день на приём заказа/);
+  assert.match(tooEarly,/Ближайшая доступная дата — 22\.10\.2026/);
+  const weekend=telegramInternals.telegramDeadlineError(order,'2026-10-17',acceptedAt);
+  assert.match(weekend,/выходной день/);
+  assert.match(weekend,/Ближайшая доступная дата — 22\.10\.2026/);
+});
+
 test('routes existing order changes through chief approval',()=>{
   assert.equal(telegramInternals.clientRequestType('update_order',{date:'20.10.2026'}),'deadline');
   assert.equal(telegramInternals.clientRequestType('update_order',{date:'20.10.2026',quantity:2,sum:'24 000 ₽'}),'deadline');
