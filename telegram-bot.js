@@ -1528,6 +1528,10 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
           rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:guided.draftAnalysis,awaitingInput:'files'});
           await saveState();
           return send(message.chat.id,'Отправьте файл документом или фотографией. Когда закончите, нажмите «Файлы загружены, продолжить».',{reply_markup:fileUploadMarkup()});
+        }else if(guided.mode==='new'&&guided.readyForConfirmation){
+          rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:guided.draftAnalysis,awaitingInput:'',readyForConfirmation:true});
+          await saveState();
+          return send(message.chat.id,guidedReadyPrompt(),{reply_markup:guidedReadyMarkup()});
         }else if(guided.mode==='new'&&guided.awaitingInput==='patientConfirm'){
           rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:guided.draftAnalysis,awaitingInput:'patientConfirm'});
           await saveState();
