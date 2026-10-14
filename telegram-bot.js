@@ -472,6 +472,7 @@ function guidedPatientPrompt(patient=''){
 }
 
 function guidedNavigationMarkup(){return {inline_keyboard:[[{text:'◀️ Назад',callback_data:'tgnew:back'},{text:'❌ Отменить заказ',callback_data:'tgnew:cancel'}]]}}
+function guidedStartNavigationMarkup(){return {inline_keyboard:[[{text:'◀️ В меню',callback_data:'tgnew:back'},{text:'❌ Отменить заказ',callback_data:'tgnew:cancel'}]]}}
 function patientConfirmationMarkup(){return {inline_keyboard:[[{text:'✅ Верно, продолжить',callback_data:'tgnew:patientconfirm:yes'},{text:'✏️ Исправить',callback_data:'tgnew:patientconfirm:edit'}],...guidedNavigationMarkup().inline_keyboard]}}
 function patientConfirmationPrompt(patient){return `Проверьте распознанное ФИО: «${patient||'—'}». Нажмите «Верно, продолжить» или «Исправить».`}
 function productionTypeMarkup(){return {inline_keyboard:[[{text:'Цифровой',callback_data:'tgnew:type:digital'},{text:'Аналоговый',callback_data:'tgnew:type:analog'}],...guidedNavigationMarkup().inline_keyboard]}}
@@ -1080,7 +1081,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,'','new',{draftAnalysis:normalizeAnalysis({intent:'create_order',fields:{}}),awaitingInput:'patient'});
         await saveState();
         await answerCallback(callback.id,'Начинаем с данных пациента');
-        return send(callback.message.chat.id,guidedPatientPrompt(),{reply_markup:guidedNavigationMarkup()});
+        return send(callback.message.chat.id,guidedPatientPrompt(),{reply_markup:guidedStartNavigationMarkup()});
       }
       await answerCallback(callback.id,'Готово');
       return send(callback.message.chat.id,prompts[id]||'Опишите, что нужно сделать с заказом.');
@@ -1134,7 +1135,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
           delete state.guided[contextKey(message.chat.id,callback.from?.id)];
           await saveState();
           await answerCallback(callback.id,'Возврат из создания заказа');
-          return editMessage(message.chat.id,message.message_id,'Создание заказа остановлено. Чтобы начать заново, выберите «Новый заказ» в меню.');
+          return editMessage(message.chat.id,message.message_id,'Создание заказа остановлено. Выберите действие в меню.',quickMenuMarkup());
         }
         rememberGuidedAction(message.chat.id,callback.from?.id,clinic.id,'','new',{draftAnalysis:previous.analysis,wizardStep:previous.wizardStep,awaitingInput:previous.awaitingInput,readyForConfirmation:previous.readyForConfirmation});
         await saveState();
@@ -1431,7 +1432,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       if(quickCommand==='new'){
         rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:normalizeAnalysis({intent:'create_order',fields:{}}),awaitingInput:'patient'});
         await saveState();
-        return send(message.chat.id,guidedPatientPrompt(),{reply_markup:guidedNavigationMarkup()});
+        return send(message.chat.id,guidedPatientPrompt(),{reply_markup:guidedStartNavigationMarkup()});
       }
       if(quickCommand==='human')return send(message.chat.id,'@CreateDental_io, вас зовут в этот чат.');
       return sendOrderPicker(message.chat.id,clinic,quickCommand);
