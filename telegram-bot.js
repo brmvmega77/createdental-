@@ -913,6 +913,9 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         await saveState();
         return send(message.chat.id,createOrderWizardPrompt(analysis),{reply_markup:createOrderChoiceMarkup(analysis)});
       }
+      rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:analysis,wizardStep:'',awaitingInput:'fileChoice',readyForConfirmation:true,attachments:incomingAttachments});
+      await saveState();
+      return send(message.chat.id,'Перед отправкой главному технику выберите, как поступить с файлами пациента:',{reply_markup:fileChoiceMarkup()});
     }
     if(analysis.intent==='update_order'&&analysis.fields.work){
       const selection=resolveWorkSelection(analysis.fields.work,analysis.fields.material);
