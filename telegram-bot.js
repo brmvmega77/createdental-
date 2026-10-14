@@ -23,14 +23,7 @@ function isJawSplitSelection(work,option){return jawSplitCategories.has(String(w
 function isNoTeethSelection(work,option){return String(work||'')==='Протетика'&&prostheticNoTeethOptions.has(String(option||''))}
 const allowedIntents=new Set(['create_order','update_order','cancel_order','status_request','accept_order','rework_order','general_message','clarify']);
 const botCommands=[
-  {command:'menu',description:'Открыть меню действий'},
-  {command:'new',description:'Создать новый заказ'},
-  {command:'status',description:'Узнать статус заказа'},
-  {command:'edit',description:'Изменить данные заказа'},
-  {command:'file',description:'Загрузить файлы'},
-  {command:'due',description:'Изменить срок заказа'},
-  {command:'cancel',description:'Отменить заказ'},
-  {command:'human',description:'Позвать сотрудника Create Dental'}
+  {command:'menu',description:'Открыть меню действий'}
 ];
 const welcomeText=`👋 Добро пожаловать в чат Create Dental!
 
