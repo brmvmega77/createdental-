@@ -112,8 +112,8 @@ function telegramDeadlineError(order,dueIso,acceptedAt=new Date()){
   if(Number.isNaN(due.getTime())||due.getFullYear()!==Number(match[1])||due.getMonth()!==Number(match[2])-1||due.getDate()!==Number(match[3]))return 'Укажите корректную дату';
   const minimum=earliestDueDateForOrder(order,acceptedAt);
   if(!isWorkingDay(due)){
-    const nextWorking=addWorkingDays(due,0),nearest=minimum&&isoDateLocal(nextWorking)<isoDateLocal(minimum)?minimum:nextWorking;
-    return `Эту дату выбрать нельзя: ${displayDate(dueIso)} — выходной день. Производство работает с понедельника по пятницу, поэтому суббота и воскресенье не учитываются. Ближайший рабочий день — ${displayDate(isoDateLocal(nearest))}.`;
+    const minimumText=minimum?` Минимально допустимая дата по сроку — ${displayDate(isoDateLocal(minimum))}.`:'';
+    return `Эту дату выбрать нельзя: ${displayDate(dueIso)} — выходной день. Производство работает с понедельника по пятницу, поэтому суббота и воскресенье не учитываются.${minimumText}`;
   }
   if(minimum&&isoDateLocal(due)<isoDateLocal(minimum)){
     const days=productionDaysForOrder(order);

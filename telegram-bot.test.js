@@ -274,7 +274,7 @@ test('explains why an unsuitable Telegram deadline is rejected',()=>{
   assert.match(tooEarly,/Минимально допустимая дата — 22\.10\.2026/);
   const weekend=telegramInternals.telegramDeadlineError(order,'2026-10-17',acceptedAt);
   assert.match(weekend,/выходной день/);
-  assert.match(weekend,/Ближайший рабочий день — 22\.10\.2026/);
+  assert.match(weekend,/Минимально допустимая дата по сроку — 22\.10\.2026/);
 });
 
 test('does not reveal the recommended deadline before a custom date is entered',()=>{
