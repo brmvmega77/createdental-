@@ -122,6 +122,15 @@ test('shows the recognized patient name for confirmation before services',()=>{
   assert.ok(markup.some(button=>button.callback_data==='tgnew:back'));
 });
 
+test('asks for production type after patient confirmation and files before final check',()=>{
+  const typeButtons=telegramInternals.productionTypeMarkup().inline_keyboard.flat();
+  assert.ok(typeButtons.some(button=>button.callback_data==='tgnew:type:digital'));
+  assert.ok(typeButtons.some(button=>button.callback_data==='tgnew:type:analog'));
+  const fileButtons=telegramInternals.fileChoiceMarkup().inline_keyboard.flat();
+  assert.ok(fileButtons.some(button=>button.callback_data==='tgnew:files:now'));
+  assert.ok(fileButtons.some(button=>button.callback_data==='tgnew:files:later'));
+});
+
 test('shows catalog categories first and services as the next button level',()=>{
   const categoryStep=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',toothMode:'Одиночка',teeth:[11]}});
   const categoryButtons=telegramInternals.createOrderChoiceMarkup(categoryStep).inline_keyboard.flat();
