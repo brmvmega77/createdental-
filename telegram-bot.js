@@ -567,6 +567,11 @@ function createOrderWizardPrompt(analysis,wizardStep=''){
   return 'Проверьте данные заказа.';
 }
 
+function guidedDuePrompt(analysis){
+  const recommended=telegramDueDateForAnalysis(analysis);
+  return `Напишите желаемую дату готовности текстом или отправьте голосовое сообщение.\n\nНапример: «20 октября 2026».\nРекомендуемая дата — ${displayDate(recommended)}. Дату раньше выбрать нельзя.`;
+}
+
 function backGuidedOrder(analysis,guided={}){
   const next=canonicalizeCatalogSelection(normalizeAnalysis(analysis||{intent:'create_order',fields:{}}));
   const fields=next.fields;
@@ -1216,7 +1221,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         else if(value==='custom'){
           rememberGuidedAction(message.chat.id,callback.from?.id,clinic.id,'','new',{draftAnalysis:analysis,wizardStep:'',awaitingInput:'due'});await saveState();
           await answerCallback(callback.id,'Жду дату');
-          return editMessage(message.chat.id,message.message_id,'Напишите желаемую дату готовности текстом или отправьте голосовое сообщение.\n\nНапример: «20 октября 2026».',guidedNavigationMarkup());
+          return editMessage(message.chat.id,message.message_id,guidedDuePrompt(analysis),guidedNavigationMarkup());
         }else return answerCallback(callback.id,'Неизвестный срок');
       }else if(id==='shade'){
         if(value==='custom'){
@@ -1589,7 +1594,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
           }
         }else if(guided.mode==='new'&&guided.awaitingInput==='due'&&!hasExplicitDueMonth(sourceText)){
           rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:guided.draftAnalysis,wizardStep:'',awaitingInput:'due'});await saveState();
-          return send(message.chat.id,'Укажите день и месяц срока. Например: «10 ноября» или «10.11.2026».');
+          return send(message.chat.id,`Укажите день и месяц срока. Например: «10 ноября» или «10.11.2026».\n${guidedDuePrompt(guided.draftAnalysis)}`,{reply_markup:guidedNavigationMarkup()});
         }else if(guided.mode==='new'&&guided.awaitingInput==='shade'){
           directCreateAnalysis=mergeCreateAnalysis(guided.draftAnalysis,normalizeAnalysis({intent:'create_order',fields:{shade:cleanText(sourceText,40)}}));
         }else if(guided.mode==='new'&&guided.awaitingInput==='comment'){
@@ -1617,6 +1622,15 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       if(guided?.mode==='new'&&!directCreateAnalysis){
         analysis=mergeCreateAnalysis(guided.draftAnalysis,analysis);
         analysis=enforcePatientNameRequirement(analysis,sourceText,guided.draftAnalysis);
+      }
+      if(guided?.mode==='new'&&guided.awaitingInput==='due'){
+        const dueOrder={work:analysis.fields.work,workOption:analysis.fields.material,material:analysis.fields.material,variants:analysisVariants(analysis).map(item=>({...item,workOption:item.workOption||item.material}))};
+        const deadlineError=telegramDeadlineError(dueOrder,analysis.fields.dueDate,new Date());
+        if(deadlineError){
+          const draft=normalizeAnalysis(analysis);draft.fields.dueDate='';
+          rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,'','new',{draftAnalysis:draft,wizardStep:'',awaitingInput:'due'});await saveState();
+          return send(message.chat.id,`${deadlineError}\n\n${guidedDuePrompt(draft)}`,{reply_markup:guidedNavigationMarkup()});
+        }
       }
       await propose(message,clinic,analysis,attachment||guided?.attachments||null);
     }
