@@ -317,6 +317,18 @@ function hasFullPatientName(value){
   return (String(value||'').match(/[A-Za-zА-Яа-яЁё]+/g)||[]).length>=2;
 }
 
+function enforcePatientNameRequirement(analysis,sourceText,previousAnalysis=null){
+  const previousPatient=previousAnalysis?.fields?.patient||'';
+  if(hasFullPatientName(previousPatient))return analysis;
+  const words=(String(sourceText||'').match(/[A-Za-zА-Яа-яЁё-]+/g)||[])
+    .filter(word=>!['создай','новый','заказ','пациент'].includes(normalize(word)));
+  if(words.length!==1)return analysis;
+  const next=normalizeAnalysis(analysis);
+  next.fields.patient=titleCasePatientName(words[0]);
+  next.patientSurname='';
+  return next;
+}
+
 function titleCasePatientName(value){
   return String(value||'').trim().split(/\s+/).filter(Boolean).map(word=>word.slice(0,1).toLocaleUpperCase('ru-RU')+word.slice(1).toLocaleLowerCase('ru-RU')).join(' ');
 }
@@ -1374,7 +1386,10 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     const context=currentContext(message.chat.id,message.from?.id,clinic.id);
     try{
       let analysis=directCreateAnalysis||await analyze(sourceText,clinic,attachment,guided?.orderId||context?.orderId||'');
-      if(guided?.mode==='new'&&!directCreateAnalysis)analysis=mergeCreateAnalysis(guided.draftAnalysis,analysis);
+      if(guided?.mode==='new'&&!directCreateAnalysis){
+        analysis=mergeCreateAnalysis(guided.draftAnalysis,analysis);
+        analysis=enforcePatientNameRequirement(analysis,sourceText,guided.draftAnalysis);
+      }
       await propose(message,clinic,analysis,attachment||guided?.attachments||null);
     }
     catch(error){
@@ -1497,4 +1512,4 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   return {start,stop,status,reloadSecrets,sendClinicMessage,sendAutomatedMessage,syncClinicChatPhoto,notifyOrderStage,approveBinding,rejectBinding,unbindClinic};
 }
 
-export const telegramInternals={codeFromText,parseJson,normalizeVariant,normalizeAnalysis,canonicalizeCatalogSelection,analysisVariants,isNoTeethSelection,isJawSplitSelection,priceEstimate,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,hasFullPatientName,extractExplicitPatientName,repairPatientName,missingCreateFields,mergeCreateAnalysis,createOrderMissingPrompt,createOrderChoiceMarkup,createOrderWizardPrompt,parseGuidedTeethInput,displayDate,isoDateFromDisplay,hasExplicitDueMonth,orderCanReceiveFiles,orderPickerLabel,clientRequestType,telegramDueDateForAnalysis,telegramDeadlineError};
+export const telegramInternals={codeFromText,parseJson,normalizeVariant,normalizeAnalysis,canonicalizeCatalogSelection,analysisVariants,isNoTeethSelection,isJawSplitSelection,priceEstimate,findOrder,surnameStem,surnameMatches,patientMatchesReference,attachmentCommandAnalysis,isSupportUsername,supportLabel,telegramMedia,messageAddsBot,welcomeText,hasFullPatientName,enforcePatientNameRequirement,extractExplicitPatientName,repairPatientName,missingCreateFields,mergeCreateAnalysis,createOrderMissingPrompt,createOrderChoiceMarkup,createOrderWizardPrompt,parseGuidedTeethInput,displayDate,isoDateFromDisplay,hasExplicitDueMonth,orderCanReceiveFiles,orderPickerLabel,clientRequestType,telegramDueDateForAnalysis,telegramDeadlineError};
