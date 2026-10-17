@@ -199,9 +199,9 @@ h1 em { color: var(--landing-accent); font-style: normal; }
 .stage-crosshair::after { top: -5px; left: 6px; width: 1px; height: 22px; }
 .stage-crosshair-a { top: 24%; left: 22%; }
 .stage-crosshair-b { right: 9%; bottom: 27%; transform: scale(.62); opacity: .55; }
-.process-readout { position: absolute; top: 58%; left: 50%; translate: -50% 0; z-index: 4; display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center; column-gap: 11px; width: min(340px, 75%); color: var(--landing-ink); transition: opacity .35s ease; }
+.process-readout { position: absolute; top: 65%; left: 50%; translate: -50% 0; z-index: 4; display: grid; grid-template-columns: 1fr; justify-items: center; row-gap: 4px; width: min(340px, 75%); color: var(--landing-ink); transition: opacity .35s ease; }
 .process-readout.is-changing { opacity: .45; }
-.process-readout-copy { display: grid; justify-items: start; gap: 4px; min-width: 0; }
+.process-readout-copy { display: grid; justify-items: center; gap: 4px; min-width: 0; text-align: center; }
 .process-vignette-index { color: var(--landing-faint); font-size: 9px; font-weight: 800; letter-spacing: .14em; }
 .process-glyphs { display: block; width: 42px; height: 38px; overflow: visible; }
 .process-glyph { display: none; transform-origin: 60px 36px; }
@@ -219,7 +219,7 @@ h1 em { color: var(--landing-accent); font-style: normal; }
 .process-glyph[data-scene="delivery"].is-active .glyph-route { animation: glyph-route 1s ease-in-out infinite alternate; }
 .process-vignette-title { display: block; max-width: 100%; color: var(--landing-ink); font-size: 17px; font-weight: 740; line-height: 1.15; letter-spacing: -.025em; white-space: nowrap; transition: opacity .3s ease, transform .45s var(--landing-ease); }
 .process-readout.is-changing .process-vignette-title { opacity: .35; transform: translateY(3px); }
-.process-vignette-progress { grid-column: 1 / -1; display: flex; gap: 5px; margin-top: 11px; }
+.process-vignette-progress { display: flex; gap: 5px; width: 100%; margin-top: 11px; }
 .process-vignette-progress i { display: block; flex: 1 1 0; height: 3px; border-radius: 999px; background: var(--landing-line); transition: background .45s ease, transform .45s var(--landing-ease); }
 .process-vignette-progress i.is-done { background: var(--landing-muted); }
 .process-vignette-progress i.is-current { background: var(--landing-ink); transform: scaleY(1.5); }
@@ -287,7 +287,7 @@ h1 em { color: var(--landing-accent); font-style: normal; }
   .hero-stage { min-height: 410px; margin-top: 31px; }
   .stage-frame { inset: 9% -3% 3% 2%; }
   .team-figure { top: -2%; right: 10%; left: 10%; }
-  .process-readout { top: 56%; width: min(310px, 84%); grid-template-columns: 36px minmax(0, 1fr); column-gap: 9px; }
+  .process-readout { top: 59%; width: min(310px, 84%); }
   .process-glyphs { width: 36px; height: 34px; }
   .process-vignette-title { font-size: 15px; }
   .process-vignette-progress { gap: 4px; margin-top: 10px; }
