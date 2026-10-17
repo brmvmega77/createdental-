@@ -13,38 +13,52 @@
       catch (_) { document.documentElement.dataset.theme = 'light'; }
     }());
   </script>
-  <link rel="stylesheet" href="/landing.css?v=landing-122">
+  <link rel="stylesheet" href="/landing.css?v=landing-123">
   <script src="/assets/landing-portal.js?v=portal-13" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
-  <script src="/landing.js?v=landing-46" defer></script>
+  <script src="/landing.js?v=landing-47" defer></script>
 </head>
 <body>
   <div class="landing-shell">
-    <nav class="landing-nav" aria-label="Основная навигация">
+    <nav class="landing-nav" aria-label="Основная навигация" data-i18n-aria="navLabel">
       <a class="landing-brand" href="/" aria-label="Create Dental — главная">
         <img src="/assets/create-dental-logo-transparent.png" alt="Create Dental">
       </a>
-      <a class="landing-login" href="/login"><span>Войти в кабинет</span><b aria-hidden="true">↗</b></a>
+      <div class="landing-nav-actions">
+        <div class="language-switcher">
+          <button class="language-trigger" id="language-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Язык сайта: Русский" data-i18n-aria="languageButton">
+            <span data-current-language>RU</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2 4.5 4 4 4-4"/></svg>
+          </button>
+          <div class="language-menu" id="language-menu" role="listbox" aria-labelledby="language-trigger" hidden>
+            <button type="button" role="option" data-language-choice="ru" aria-selected="true">Русский</button>
+            <button type="button" role="option" data-language-choice="hy" aria-selected="false">Հայերեն</button>
+            <button type="button" role="option" data-language-choice="uz" aria-selected="false">O‘zbekcha</button>
+            <button type="button" role="option" data-language-choice="kk" aria-selected="false">Қазақша</button>
+            <button type="button" role="option" data-language-choice="ar" aria-selected="false">العربية</button>
+          </div>
+        </div>
+        <a class="landing-login" href="/login"><span data-i18n="navLogin">Войти в кабинет</span><b aria-hidden="true">↗</b></a>
+      </div>
     </nav>
 
     <main class="landing-main">
       <section class="landing-hero" aria-labelledby="landing-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span>CREATE DENTAL</span><i></i><span>AI-ЗУБОТЕХНИЧЕСКАЯ ЛАБОРАТОРИЯ</span></p>
-          <h1 id="landing-title">Точность<br><em>начинается</em><br>с процесса.</h1>
-          <p class="hero-lede">Соединяем клинику и лабораторию в один спокойный рабочий поток — от первого файла до готовой работы.</p>
+          <p class="eyebrow"><span>CREATE DENTAL</span><i></i><span data-i18n="eyebrow">AI-ЗУБОТЕХНИЧЕСКАЯ ЛАБОРАТОРИЯ</span></p>
+          <h1 id="landing-title" data-i18n-html="heroTitle">Точность<br><em>начинается</em><br>с процесса.</h1>
+          <p class="hero-lede" data-i18n="heroLede">Соединяем клинику и лабораторию в один спокойный рабочий поток — от первого файла до готовой работы.</p>
           <div class="hero-actions">
-            <a class="action-primary" href="/register">Зарегистрировать клинику <span aria-hidden="true">↗</span></a>
-            <button class="action-secondary" type="button" aria-haspopup="dialog" aria-controls="project-dialog">Как это работает <span aria-hidden="true">↓</span></button>
+            <a class="action-primary" href="/register"><span data-i18n="register">Зарегистрировать клинику</span><b aria-hidden="true">↗</b></a>
+            <button class="action-secondary" type="button" aria-haspopup="dialog" aria-controls="project-dialog"><span data-i18n="howItWorks">Как это работает</span><b aria-hidden="true">↓</b></button>
           </div>
-          <div class="hero-meta" id="quality" aria-label="Особенности Create Dental">
-            <div><strong>01</strong><span>Один поток<br>для всей команды</span></div>
-            <div><strong>02</strong><span>Статус<br>на каждом этапе</span></div>
-            <div><strong>03</strong><span>Контроль<br>до передачи</span></div>
+          <div class="hero-meta" id="quality" aria-label="Особенности Create Dental" data-i18n-aria="featuresLabel">
+            <div><strong>01</strong><span data-i18n-html="featureOne">Один поток<br>для всей команды</span></div>
+            <div><strong>02</strong><span data-i18n-html="featureTwo">Статус<br>на каждом этапе</span></div>
+            <div><strong>03</strong><span data-i18n-html="featureThree">Контроль<br>до передачи</span></div>
           </div>
         </div>
 
-        <div class="hero-stage" id="process" aria-label="Цифровой процесс заказа">
+        <div class="hero-stage" id="process" aria-label="Цифровой процесс заказа" data-i18n-aria="processLabel">
           <div class="stage-ambience" aria-hidden="true">
             <div class="stage-side stage-side--clinic">
               <img class="stage-prop stage-prop--chair" src="/assets/landing-ambience/dental-chair.png" alt="" loading="lazy">
@@ -55,7 +69,7 @@
             </div>
             <img class="stage-prop stage-prop--cad-screen" src="/assets/landing-ambience/cad-monitor.png" alt="" loading="lazy">
           </div>
-          <div class="process-readout" data-scene="create" aria-label="Текущий этап заказа">
+          <div class="process-readout" data-scene="create" aria-label="Текущий этап заказа" data-i18n-aria="currentStageLabel">
             <svg class="process-glyphs" viewBox="0 0 120 72" aria-hidden="true">
               <g class="process-glyph is-active" data-scene="create">
                 <path class="glyph-line glyph-draw" d="M39 12h30l13 13v35H39z"></path><path class="glyph-line" d="M69 12v14h13M49 38h22M49 47h16"></path><path class="glyph-accent" d="M90 42v18M81 51h18"></path>
@@ -85,7 +99,7 @@
             </div>
             <div class="process-vignette-progress" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
           </div>
-          <figure class="team-figure" role="img" aria-label="Стоматолог и специалист лаборатории Create Dental передают цифровой заказ">
+          <figure class="team-figure" role="img" aria-label="Стоматолог и специалист лаборатории Create Dental передают цифровой заказ" data-i18n-aria="teamLabel">
             <img class="team-piece team-piece--clinic" src="/assets/landing-team-branded.png?v=logo-centered-1" alt="" aria-hidden="true" loading="eager">
             <img class="team-piece team-piece--lab" src="/assets/landing-team-branded.png?v=logo-centered-1" alt="" aria-hidden="true" loading="eager">
             <div class="team-portal">
@@ -102,49 +116,49 @@
 
     <footer class="landing-footer">
       <span>CREATE DENTAL / 2026</span>
-      <span>Для клиник, которым важен результат</span>
+      <span data-i18n="footerLine">Для клиник, которым важен результат</span>
       <a href="mailto:orders@createdental.io">orders@createdental.io</a>
     </footer>
 
     <dialog class="project-dialog" id="project-dialog" aria-labelledby="project-dialog-title" aria-describedby="project-dialog-description">
-      <button class="project-dialog-close" type="button" aria-label="Закрыть описание">
+      <button class="project-dialog-close" type="button" aria-label="Закрыть описание" data-i18n-aria="closeDescription">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
       </button>
-      <h2 id="project-dialog-title">Мы строим лабораторию, которая должна быть лучше 99% привычных вариантов.</h2>
-      <p class="project-dialog-lead" id="project-dialog-description">Не за счет громких обещаний, а благодаря системе, где у каждого заказа есть понятный маршрут, у клиники — видимость процесса, а у команды — общая картина работы.</p>
+      <h2 id="project-dialog-title" data-i18n="dialogTitle">Мы строим лабораторию, которая должна быть лучше 99% привычных вариантов.</h2>
+      <p class="project-dialog-lead" id="project-dialog-description" data-i18n="dialogLead">Не за счет громких обещаний, а благодаря системе, где у каждого заказа есть понятный маршрут, у клиники — видимость процесса, а у команды — общая картина работы.</p>
 
       <div class="project-presentation">
         <section>
-          <h3>Заказ не исчезает после отправки</h3>
-          <p>Работа проходит в едином цифровом потоке. Клиника может открыть заказ и увидеть его актуальный этап — без догадок, где он сейчас и что происходит дальше. Важные детали собраны вокруг самого заказа, поэтому командам проще говорить об одной и той же задаче. Когда нужно уточнить статус, не приходится восстанавливать путь работы по разрозненным сообщениям: отправная точка — сам заказ и его текущий этап.</p>
+          <h3 data-i18n="dialogH1">Заказ не исчезает после отправки</h3>
+          <p data-i18n="dialogP1">Работа проходит в едином цифровом потоке. Клиника может открыть заказ и увидеть его актуальный этап — без догадок, где он сейчас и что происходит дальше. Важные детали собраны вокруг самого заказа, поэтому командам проще говорить об одной и той же задаче. Когда нужно уточнить статус, не приходится восстанавливать путь работы по разрозненным сообщениям: отправная точка — сам заказ и его текущий этап.</p>
         </section>
         <section>
-          <h3>Путь работы виден от начала до доставки</h3>
-          <p>У каждого этапа есть свое место в производственном маршруте. Это помогает клинике понимать ход работы, а лабораторной команде — последовательно передавать заказ дальше. Согласование вынесено в отдельную точку до фрезеровки: клиника и лаборатория могут сверить детали, прежде чем работа перейдет к следующей производственной операции.</p>
-          <ol class="project-flow" aria-label="Этапы работы над заказом">
-            <li>Создание заказа</li>
-            <li>CAD-моделирование</li>
-            <li>Согласование</li>
-            <li>Фрезеровка</li>
-            <li>Эстетика</li>
-            <li>Контроль качества</li>
-            <li>Доставка</li>
+          <h3 data-i18n="dialogH2">Путь работы виден от начала до доставки</h3>
+          <p data-i18n="dialogP2">У каждого этапа есть свое место в производственном маршруте. Это помогает клинике понимать ход работы, а лабораторной команде — последовательно передавать заказ дальше. Согласование вынесено в отдельную точку до фрезеровки: клиника и лаборатория могут сверить детали, прежде чем работа перейдет к следующей производственной операции.</p>
+          <ol class="project-flow" aria-label="Этапы работы над заказом" data-i18n-aria="stagesLabel">
+            <li data-stage="0">Создание заказа</li>
+            <li data-stage="1">CAD-моделирование</li>
+            <li data-stage="2">Согласование</li>
+            <li data-stage="3">Фрезеровка</li>
+            <li data-stage="4">Эстетика</li>
+            <li data-stage="5">Контроль качества</li>
+            <li data-stage="6">Доставка</li>
           </ol>
         </section>
         <section>
-          <h3>Качество — отдельная часть процесса</h3>
-          <p>Контроль качества стоит перед доставкой как самостоятельный этап. Это принципиально: готовую работу важно проверить до передачи клинике, а не вспоминать о проверке в последний момент. Такой этап не заменяет мастерство техника — он добавляет отдельную контрольную точку в общий маршрут и помогает команде не терять качество в потоке заказов.</p>
+          <h3 data-i18n="dialogH3">Качество — отдельная часть процесса</h3>
+          <p data-i18n="dialogP3">Контроль качества стоит перед доставкой как самостоятельный этап. Это принципиально: готовую работу важно проверить до передачи клинике, а не вспоминать о проверке в последний момент. Такой этап не заменяет мастерство техника — он добавляет отдельную контрольную точку в общий маршрут и помогает команде не терять качество в потоке заказов.</p>
         </section>
         <section>
-          <h3>Цифровая точность и работа специалистов</h3>
-          <p>Create Dental — AI-зуботехническая лаборатория. Мы соединяем цифровой подход с профессиональной работой техников: технология помогает выстроить последовательный процесс, а внимание к конкретному заказу остается в руках команды. AI-направление для нас — способ постепенно убирать рутину и давать специалистам больше времени на точные технические решения, а не обещание заменить их опыт автоматикой.</p>
+          <h3 data-i18n="dialogH4">Цифровая точность и работа специалистов</h3>
+          <p data-i18n="dialogP4">Create Dental — AI-зуботехническая лаборатория. Мы соединяем цифровой подход с профессиональной работой техников: технология помогает выстроить последовательный процесс, а внимание к конкретному заказу остается в руках команды. AI-направление для нас — способ постепенно убирать рутину и давать специалистам больше времени на точные технические решения, а не обещание заменить их опыт автоматикой.</p>
         </section>
         <section>
-          <h3>Система, которая помогает расти без потери внимания</h3>
-          <p>Когда заказов становится больше, особенно важно не полагаться только на память и переписки. Общие этапы и видимый статус помогают держать поток организованным и уделять внимание каждой работе. Мы строим Create Dental именно вокруг этой идеи — понятного процесса, в котором клиника и лаборатория действуют как одна команда.</p>
+          <h3 data-i18n="dialogH5">Система, которая помогает расти без потери внимания</h3>
+          <p data-i18n="dialogP5">Когда заказов становится больше, особенно важно не полагаться только на память и переписки. Общие этапы и видимый статус помогают держать поток организованным и уделять внимание каждой работе. Мы строим Create Dental именно вокруг этой идеи — понятного процесса, в котором клиника и лаборатория действуют как одна команда.</p>
         </section>
       </div>
-      <a class="project-dialog-cta" href="/register">Зарегистрировать клинику <span aria-hidden="true">↗</span></a>
+      <a class="project-dialog-cta" href="/register"><span data-i18n="register">Зарегистрировать клинику</span><b aria-hidden="true">↗</b></a>
     </dialog>
   </div>
 </body>
