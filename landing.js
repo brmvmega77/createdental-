@@ -34,6 +34,7 @@
       'Контроль качества',
       'Доставка'
     ];
+    const beat = 3200;
     const showStage = index => {
       const scene = ['create', 'cad', 'approval', 'milling', 'aesthetic', 'quality', 'delivery'][index];
       processVignette.classList.remove('is-changing');
@@ -48,12 +49,12 @@
         dot.classList.toggle('is-done', dotIndex < index);
         dot.classList.toggle('is-current', dotIndex === index);
       });
+      window.dispatchEvent(new CustomEvent('landing:stage', {detail: {index, duration: beat}}));
     };
     if (reduce) {
       showStage(1);
       return;
     }
-    const beat = 3200;
     let activeIndex = -1;
     const tick = now => {
       const index = Math.floor(now / beat) % stages.length;

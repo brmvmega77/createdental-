@@ -161,7 +161,8 @@
   });
 
   let program, locations, ringMesh, crownMesh;
-  let visible=true, paused=false, lost=false, frame=0, previous=0, elapsed=900;
+  let visible=true, paused=false, lost=false, frame=0, previous=0;
+  let stageDuration=3200, segmentElapsed=0, pendingStageSync=false;
   let dark=document.documentElement.dataset.theme==='dark';
   function compile(type, source) {
     const shader=gl.createShader(type); gl.shaderSource(shader,source); gl.compileShader(shader);
@@ -211,11 +212,11 @@
     const f=1/Math.tan(28*Math.PI/360), near=.1, far=30;
     const projection=new Float32Array([f/(w/h),0,0,0, 0,f,0,0, 0,0,(far+near)/(near-far),-1, 0,0,2*far*near/(near-far),0]);
     gl.uniformMatrix4fv(locations.uViewProjection,false,multiply(projection,view)); gl.uniform1f(locations.uDark,dark?1:0);
-    // A slow, one-directional pass; the invisible reset happens after the exit fade.
-    const phase=motion.matches ? .47 : (elapsed%6400)/6400;
-    const progress=Math.max(0,Math.min(1,(phase-.08)/.78));
+    // Each crown pass follows the same beat as the production stage readout.
+    const phase=motion.matches ? .47 : Math.max(0,Math.min(1,segmentElapsed/stageDuration));
+    const progress=phase;
     const position=-1.45+2.9*progress;
-    const opacity=Math.min(1,phase/.09,Math.max(0,(.96-phase)/.1));
+    const opacity=motion.matches ? 1 : Math.min(1,phase/.04,Math.max(0,(1-phase)/.04));
     gl.uniform1f(locations.uEnergy,Math.max(0,1-Math.abs(position)));
     drawMesh(ringMesh,identity(),0,1);
     const angle=.45+progress*.55, c=Math.cos(angle), s=Math.sin(angle), tilt=.08;
@@ -231,7 +232,7 @@
   }
   function tick(now) {
     frame=0;
-    if (previous) elapsed+=Math.min(now-previous,80);
+    if (previous) segmentElapsed=Math.min(stageDuration,segmentElapsed+Math.min(now-previous,80));
     previous=now; render();
     if (visible && !paused && !motion.matches && !document.hidden && !lost) frame=requestAnimationFrame(tick);
   }
@@ -239,8 +240,16 @@
     cancelAnimationFrame(frame); frame=0; previous=0; render();
     if (visible && !paused && !motion.matches && !document.hidden && !lost) frame=requestAnimationFrame(tick);
   }
+  window.addEventListener('landing:stage',event=>{
+    stageDuration=event.detail?.duration||3200;
+    if (paused) { pendingStageSync=true; return; }
+    segmentElapsed=0;
+    refresh();
+  });
   toggle.addEventListener('click',()=>{
-    paused=!paused; toggle.setAttribute('aria-pressed',String(paused));
+    paused=!paused;
+    if (!paused && pendingStageSync) { segmentElapsed=0; pendingStageSync=false; }
+    toggle.setAttribute('aria-pressed',String(paused));
     toggle.setAttribute('aria-label',paused?'Продолжить анимацию портала':'Приостановить анимацию портала'); refresh();
   });
   new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;refresh();},{threshold:.05}).observe(host);
