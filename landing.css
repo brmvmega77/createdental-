@@ -53,6 +53,8 @@ a, button { -webkit-tap-highlight-color: transparent; }
 .landing-main,
 .landing-footer { width: min(100% - 72px, 1500px); margin-inline: auto; }
 .landing-nav {
+  position: relative;
+  z-index: 50;
   min-height: 99px;
   padding-block: 12px;
   display: flex;

@@ -3,9 +3,9 @@ import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal,authRe
 import {routeFromPath,pathFor,navigate} from './routes.js?v=worker-salary-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=dashboard-layout-4';
 import {workCatalog,rubles} from './work-catalog.js?v=work-prices-5';
-import {themeToggleMarkup} from './theme.js?v=theme-toggle-1';
-import {productionStages} from './technician.js?v=progress-stage-23';
-import './location-assist.js?v=phone-mask-2';
+import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=portal-language-1';
+import {productionStages} from './technician.js?v=portal-language-1';
+import './location-assist.js?v=portal-language-2';
 
 const $ = (selector) => document.querySelector(selector);
 const icons = {
@@ -71,7 +71,7 @@ const displayClientStatus = status => ({'На согласовании':'CAD н�
 const badge = s => `<span class="badge ${statusClass(s)}">${s}</span>`;
 const button = (label,action,kind='primary',extra='') => `<button class="btn ${kind}" data-action="${action}" ${extra}>${label}</button>`;
 function sidebar(){return `<aside class="sidebar" id="sidebar"><button class="brand brand-home" data-page="home" aria-label="На главную"><img class="portal-logo" src="${logo}" alt="Create Dental"></button><div class="tech-side-label">КАБИНЕТ КЛИНИКИ</div><nav class="sidebar-nav">${nav.map(([id,label,ico])=>`<button class="nav-link ${state.page===id||(state.page==='detail'&&id==='orders')?'active':''}" data-page="${id}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav><button class="help-box" data-page="messages">${icon('message',20)}<span><strong>Нужна помощь?</strong><small>Напишите нам</small></span></button></aside>`}
-function header(){const clinic=clinicRecord();return `<header class="topbar"><button class="mobile-menu" data-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div>${themeToggleMarkup()}<button class="role-toggle" data-auth-logout>Выйти</button><span class="topbar-clinic-name">${escapeHtml(clinic?.name||'Клиника')}</span>${notificationCenterMarkup()}<button class="profile" data-page="clinic"><span class="avatar">${clinic?.logo?`<img src="${escapeHtml(clinic.logo)}" alt="Логотип ${escapeHtml(clinic.name||'клиники')}">`:'К'}</span><span><strong>${escapeHtml(clinic?.contact||clinic?.name||'Клиника')}</strong><small>Стоматологическая клиника</small></span>${icon('chevron',13)}</button></header>`}
+function header(){const clinic=clinicRecord();return `<header class="topbar"><button class="mobile-menu" data-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div>${languageSwitcherMarkup()}${themeToggleMarkup()}<button class="role-toggle" data-auth-logout>Выйти</button><span class="topbar-clinic-name">${escapeHtml(clinic?.name||'Клиника')}</span>${notificationCenterMarkup()}<button class="profile" data-page="clinic"><span class="avatar">${clinic?.logo?`<img src="${escapeHtml(clinic.logo)}" alt="Логотип ${escapeHtml(clinic.name||'клиники')}">`:'К'}</span><span><strong>${escapeHtml(clinic?.contact||clinic?.name||'Клиника')}</strong><small>Стоматологическая клиника</small></span>${icon('chevron',13)}</button></header>`}
 function shell(content){$('#app').innerHTML=`${sidebar()}<div class="shell">${header()}<main class="content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${escapeHtml(state.toast)}</div>`;}
 function title(text,sub='',right=''){return `<div class="page-title"><div><h1>${text}</h1>${sub?`<p>${sub}</p>`:''}</div>${right}</div>`}
 function tabs(items,selected,action='filter',className=''){return `<div class="tabs ${className}">${items.map(([label,count,key=label])=>`<button class="tab ${selected===key?'active':''}" data-action="${action}" data-value="${key}">${label}${count!==undefined?` <span class="count">${count}</span>`:''}</button>`).join('')}</div>`}
@@ -344,7 +344,7 @@ function clinicPage(){
   const area=(name,value,placeholder='')=>`<textarea name="${name}" rows="4" ${placeholder?`placeholder="${escapeHtml(placeholder)}"`:''}>${escapeHtml(value||'')}</textarea>`;
   const tabsList=[['Основная информация'],['Контактные лица'],['Настройки'],['Безопасность']];
   const fields={
-    'Основная информация':`${field('Название клиники',input('name',clinic.name))}${field('ИНН',input('inn',clinic.inn))}${field('Город',input('city',clinic.city))}${field('Адрес',input('address',clinic.address))}${field('Телефон',input('phone',clinic.phone,'tel','+7 (___) ___-__-__'))}${field('Email',input('email',clinic.email,'email'))}`,
+    'Основная информация':`${field('Название клиники',input('name',clinic.name))}${field('Страна',`<select name="country" required>${[['RU','Россия'],['BY','Беларусь'],['AM','Армения'],['KZ','Казахстан'],['UZ','Узбекистан'],['AE','Дубай, ОАЭ']].map(([code,name])=>`<option value="${code}" ${(clinic.country||'RU')===code?'selected':''}>${name}</option>`).join('')}</select>`)}${field('ИНН',input('inn',clinic.inn))}${field('Город',input('city',clinic.city))}${field('Адрес',input('address',clinic.address))}${field('Телефон',input('phone',clinic.phone,'tel','+7 (___) ___-__-__'))}${field('Email',input('email',clinic.email,'email'))}`,
     'Контактные лица':`${field('Контактное лицо',input('contact',clinic.contact||''))}${field('Должность',input('contactPosition',clinic.contactPosition||''))}${field('Телефон контакта',input('contactPhone',clinic.contactPhone||clinic.phone||'','tel','+7 (___) ___-__-__'))}${field('Email контакта',input('contactEmail',clinic.contactEmail||clinic.email||'','email'))}`,
     'Настройки':`${field('График работы',input('workHours',clinic.workHours||'','text','Пн-Пт 09:00–18:00'))}${field('Предпочтительный способ доставки',input('deliveryPreference',clinic.deliveryPreference||''))}${field('Условия оплаты',input('paymentTerms',clinic.paymentTerms||''))}${field('Комментарий для лаборатории',area('labNotes',clinic.labNotes||''))}`,
     'Безопасность':`${field('Email для входа',input('loginEmail',clinic.loginEmail||clinic.email||'','email'))}${field('Ответственный за доступ',input('accessManager',clinic.accessManager||clinic.contact||''))}${field('Телефон для подтверждений',input('securityPhone',clinic.securityPhone||clinic.phone||'','tel'))}${field('Заметка по доступу',area('securityNotes',clinic.securityNotes||''))}`
@@ -361,11 +361,11 @@ let portalUser=null;
 let authMode=initialRoute.mode||'login';
 let portalError='';
 let authNotice='';
-let authDraft={name:'',phone:'',email:'',city:'',address:'',password:''};
+let authDraft={name:'',phone:'',email:'',country:'RU',city:'',address:'',password:''};
 function loginView(){
   const field=(label,name,type='text',minimum='',value='')=>`<label>${label}<input name="${name}" type="${type}" value="${escapeHtml(value)}" ${minimum?`minlength="${minimum}"`:''} required></label>`;
   const form=authMode==='register'
-    ?`${field('Название клиники','name','text','',authDraft.name)}${field('Телефон','phone','tel','',authDraft.phone)}${field('Email','email','email','',authDraft.email)}${field('Город','city','text','',authDraft.city)}${field('Адрес','address','text','',authDraft.address)}${field('Пароль от 8 символов','password','password',8,authDraft.password)}<button class="btn primary">Зарегистрироваться</button>`
+    ?`${field('Название клиники','name','text','',authDraft.name)}${field('Телефон','phone','tel','',authDraft.phone)}${field('Email','email','email','',authDraft.email)}<label>Страна<select name="country" required>${[['RU','Россия'],['BY','Беларусь'],['AM','Армения'],['KZ','Казахстан'],['UZ','Узбекистан'],['AE','Дубай, ОАЭ']].map(([code,name])=>`<option value="${code}" ${authDraft.country===code?'selected':''}>${name}</option>`).join('')}</select></label>${field('Город','city','text','',authDraft.city)}${field('Адрес','address','text','',authDraft.address)}${field('Пароль от 8 символов','password','password',8,authDraft.password)}<button class="btn primary">Зарегистрироваться</button>`
     :`${field('Email или логин','email')}${field('Пароль','password','password')}<button class="btn primary">Войти</button>`;
   const links=authMode==='login'
     ?'<div class="auth-links"><button type="button" data-auth-mode="register">Регистрация</button><button type="button" data-auth-mode="recover">Забыли пароль?</button></div>'
@@ -373,7 +373,7 @@ function loginView(){
   let content=authMode==='recover'
     ?'<div class="auth-recovery"><h2>Восстановление пароля</h2><p>Обратитесь по почте <a href="mailto:ceo@createdental.ai">ceo@createdental.ai</a>, чтобы получить новый пароль.</p></div>'
     :`<form id="portal-login-form" data-mode="${authMode}">${form}</form>`;
-  $('#app').innerHTML=`<main class="portal-login"><div class="portal-login-tools">${themeToggleMarkup()}</div><section><img class="portal-logo" src="${logo}" alt="Create Dental"><h1>${authMode==='register'?'Регистрация клиники':'Личный кабинет Create Dental'}</h1><p>Заказы, производство и связь с лабораторией.</p>${content}${links}${authNotice?`<p class="portal-login-success">${escapeHtml(authNotice)}</p>`:''}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
+  $('#app').innerHTML=`<main class="portal-login"><div class="portal-login-tools">${languageSwitcherMarkup()}${themeToggleMarkup()}</div><section><img class="portal-logo" src="${logo}" alt="Create Dental"><h1>${authMode==='register'?'Регистрация клиники':'Личный кабинет Create Dental'}</h1><p>Заказы, производство и связь с лабораторией.</p>${content}${links}${authNotice?`<p class="portal-login-success">${escapeHtml(authNotice)}</p>`:''}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
 }
 function render(){if(!portalReady){if(portalToken()){$('#app').innerHTML='<div class="startup-notice">Загрузка кабинета...</div>';return}loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
 function syncRoute(){
@@ -386,11 +386,11 @@ function syncRoute(){
 async function hydratePortal(){
   const data=await loadPortal();
   if(data.user.role==='technician'&&!technicianCabinet){
-    const {createTechnicianCabinet}=await import('./technician.js?v=progress-stage-23');
+    const {createTechnicianCabinet}=await import('./technician.js?v=portal-language-1');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=workflow-analog-cad-1');
+    const {createWorkerCabinet}=await import('./worker.js?v=portal-language-1');
     workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,orderHistory:()=>portalHistory,onUserUpdate:user=>{portalUser=user}});
   }
   if(portalUser?.subjectId!==data.user.subjectId)state.messages=[];
@@ -651,7 +651,7 @@ document.addEventListener('submit',async event=>{
   const body=Object.fromEntries(new FormData(form));
   const action=form.dataset.mode==='register'?'register':'login';
   if(action==='register')authDraft={...authDraft,...body};
-  try{const data=await authRequest(action,body);if(data.pendingApproval){clearPortalToken();authDraft={name:'',phone:'',email:'',city:'',address:'',password:''};authNotice='Спасибо за регистрация. Мы с вами свяжемся в ближайшее время.';authMode='login';navigate('/login',{replace:true});render();return}await hydratePortal()}
+  try{const data=await authRequest(action,body);if(data.pendingApproval){clearPortalToken();authDraft={name:'',phone:'',email:'',country:'RU',city:'',address:'',password:''};authNotice='Спасибо за регистрация. Мы с вами свяжемся в ближайшее время.';authMode='login';navigate('/login',{replace:true});render();return}await hydratePortal()}
   catch(error){clearPortalToken();portalError=error.message;render()}
 });
 window.addEventListener('popstate',syncRoute);

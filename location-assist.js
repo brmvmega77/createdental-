@@ -19,11 +19,18 @@ function formatPhone(value){
 
 function enhancePhoneInput(input){
   if(!input?.matches('input[type="tel"]'))return;
-  input.placeholder=input.placeholder||'+7 (999) 123-45-67';
   input.inputMode='tel';
-  input.maxLength=18;
-  input.pattern='\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}';
-  if(input.value)input.value=formatPhone(input.value);
+  const country=input.form?.elements.namedItem('country')?.value||'RU';
+  const examples={RU:'+7 (999) 123-45-67',BY:'+375 29 123-45-67',AM:'+374 10 123456',KZ:'+7 701 123-45-67',UZ:'+998 90 123-45-67',AE:'+971 50 123 4567'};
+  input.placeholder=examples[country]||examples.RU;
+  if(country==='RU'){
+    input.maxLength=18;
+    input.pattern='\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}';
+    if(input.value)input.value=formatPhone(input.value);
+  }else{
+    input.maxLength=25;
+    input.removeAttribute('pattern');
+  }
 }
 
 window.createDentalFormatPhone=formatPhone;
@@ -67,7 +74,14 @@ document.addEventListener('input',event=>{
 });
 
 document.addEventListener('focusin',event=>enhancePhoneInput(event.target));
-document.addEventListener('change',event=>enhancePhoneInput(event.target));
+document.addEventListener('change',event=>{
+  if(event.target.matches('select[name="country"]')){
+    const phone=event.target.form?.querySelector('input[type="tel"]');
+    if(phone){phone.setCustomValidity('');enhancePhoneInput(phone)}
+    return;
+  }
+  enhancePhoneInput(event.target);
+});
 const enhanceAllPhoneInputs=()=>document.querySelectorAll('input[type="tel"]').forEach(enhancePhoneInput);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',enhanceAllPhoneInputs,{once:true});
 else enhanceAllPhoneInputs();
@@ -81,6 +95,6 @@ document.addEventListener('click',event=>{
 document.addEventListener('blur',event=>{
   const input=event.target;
   if(input.matches('input[type="email"]'))input.value=input.value.trim().toLowerCase();
-  if(input.matches('input[type="tel"]')&&input.value&&input.value.replace(/\D/g,'').length!==11)input.setCustomValidity('Введите российский номер полностью');
+  if(input.matches('input[type="tel"]')&&input.value&&!/^\+[1-9]\d{7,14}$/.test(input.value.replace(/[\s()-]/g,'')))input.setCustomValidity('Введите номер в международном формате, например +374 10 123456');
   else if(input.matches('input[type="tel"]'))input.setCustomValidity('');
 },true);
