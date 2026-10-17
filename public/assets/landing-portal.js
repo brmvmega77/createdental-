@@ -215,7 +215,7 @@
     // The crown arrives exactly as stage 7 begins, then stays at the destination.
     const phase=motion.matches ? .47 : Math.max(0,Math.min(1,(activeStageIndex+segmentElapsed/stageDuration)/6));
     const progress=phase;
-    const position=-1.45+2.9*progress;
+    const position=1.45-2.9*progress;
     const opacity=motion.matches ? 1 : Math.min(1,phase/.035);
     gl.uniform1f(locations.uEnergy,Math.max(0,1-Math.abs(position)));
     drawMesh(ringMesh,identity(),0,1);
