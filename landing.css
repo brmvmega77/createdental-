@@ -62,7 +62,8 @@ a, button { -webkit-tap-highlight-color: transparent; }
 .landing-main,
 .landing-footer { width: min(100% - 72px, 1500px); margin-inline: auto; }
 .landing-nav {
-  min-height: 88px;
+  min-height: 102px;
+  padding-top: 14px;
   display: flex;
   align-items: center;
   gap: 30px;
@@ -269,7 +270,7 @@ h1 em { color: var(--landing-accent); font-style: normal; }
   .landing-shell { min-height: 100svh; }
   .landing-shell::before { display: none; }
   .landing-nav, .landing-main, .landing-footer { width: min(100% - 32px, 560px); }
-  .landing-nav { min-height: 72px; gap: 16px; }
+  .landing-nav { min-height: 86px; gap: 16px; }
   .landing-brand img { width: 165px; height: 66px; }
   .landing-nav-center { display: none; }
   .landing-login { margin-left: auto; }
