@@ -28,7 +28,6 @@
     uniform float uKind;
     uniform float uOpacity;
     uniform float uDark;
-    uniform float uEnergy;
     varying vec3 vPosition;
     varying vec3 vNormal;
     varying vec3 vLocal;
@@ -55,12 +54,7 @@
           ceramic += vec3(.18) * (1.0 - smoothstep(0.0, .035, -vPosition.x));
           gl_FragColor = vec4(ceramic, uOpacity);
         }
-      } else {
-        float reflection = pow(abs(dot(n, normalize(vec3(.2, 1.0, 1.3)))), 10.0);
-        vec3 metal = vec3(.31, .34, .36) + vec3(.4) * diffuse + vec3(.3) * reflection;
-        metal += vec3(.17 * rim + .25 * spec + .12 * uEnergy);
-        gl_FragColor = vec4(metal, 1.0);
-      }
+      } else gl_FragColor = vec4(0.0);
     }`;
 
   const normalize = v => { const n = Math.hypot(...v); return v.map(x => x / n); };
@@ -91,11 +85,6 @@
     }
     return { vertices, normals, triangles, wires };
   }
-  const ring = geometry(120,16,(u,v) => {
-    const a=u*Math.PI*2, b=v*Math.PI*2, radius=1.02, tube=.052;
-    const n=[Math.sin(b), Math.cos(b)*Math.cos(a), Math.cos(b)*Math.sin(a)];
-    return [[tube*n[0], radius*Math.cos(a)+tube*n[1], radius*Math.sin(a)+tube*n[2]], n];
-  });
   const crown = { vertices:[], normals:[], triangles:[], wires:[] };
   const gaussian = (x,z,cx,cz,sx,sz) => Math.exp(-(((x-cx)/sx)**2+((z-cz)/sz)**2));
   // Rounded molar outline, four unequal cusps and a central occlusal fossa.
@@ -160,7 +149,7 @@
     return [edge[0]*scale,-.49+.54*Math.sin(v*Math.PI/2),edge[2]*scale];
   });
 
-  let program, locations, ringMesh, crownMesh;
+  let program, locations, crownMesh;
   let visible=true, paused=false, lost=false, frame=0;
   let stageDuration=3200, activeStageIndex=0, stageStartedAt=performance.now();
   let dark=document.documentElement.dataset.theme==='dark';
@@ -185,9 +174,9 @@
       gl.deleteShader(vs); gl.deleteShader(fs);
       if (!gl.getProgramParameter(program,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
       locations={};
-      for (const name of ['uModel','uViewProjection','uKind','uOpacity','uDark','uEnergy']) locations[name]=gl.getUniformLocation(program,name);
+      for (const name of ['uModel','uViewProjection','uKind','uOpacity','uDark']) locations[name]=gl.getUniformLocation(program,name);
       locations.position=gl.getAttribLocation(program,'aPosition'); locations.normal=gl.getAttribLocation(program,'aNormal');
-      ringMesh=upload(ring); crownMesh=upload(crown);
+      crownMesh=upload(crown);
       gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
       gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
       gl.clearColor(0,0,0,0); host.dataset.ready='true'; toggle.hidden=false; lost=false;
@@ -221,8 +210,6 @@
     const position=1.45-2.9*progress;
     const deliveryFade=activeStageIndex>=6 ? 1-easeInOut((stageProgress-.78)/.22) : 1;
     const opacity=motion.matches ? 1 : easeInOut(phase/.025)*deliveryFade;
-    gl.uniform1f(locations.uEnergy,Math.max(0,1-Math.abs(position)));
-    drawMesh(ringMesh,identity(),0,1);
     const angle=.45+progress*.55, c=Math.cos(angle), s=Math.sin(angle), tilt=.08;
     const rotation=new Float32Array([c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]);
     const rz=new Float32Array([Math.cos(tilt),Math.sin(tilt),0,0,-Math.sin(tilt),Math.cos(tilt),0,0,0,0,1,0,0,0,0,1]);
@@ -247,7 +234,6 @@
     stageDuration=event.detail?.duration||3200;
     activeStageIndex=event.detail?.index||0;
     stageStartedAt=event.detail?.startedAt??performance.now();
-    refresh();
   });
   toggle.addEventListener('click',()=>{
     paused=!paused;

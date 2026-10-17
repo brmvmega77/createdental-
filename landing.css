@@ -229,7 +229,7 @@ h1 em { color: var(--landing-accent); font-style: normal; }
 .team-portal { position: absolute; top: 29%; left: 50%; width: 34%; aspect-ratio: 3 / 2; transform: translate(-50%, -50%) rotate(1deg); }
 .portal-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; opacity: 0; transition: opacity .5s var(--landing-ease); }
 .team-portal[data-ready="true"] .portal-canvas { opacity: 1; }
-.portal-fallback { position: absolute; inset: 18% 39%; border: 2px solid var(--landing-muted); border-radius: 50%; transform: rotate(-12deg); opacity: .6; }
+.portal-fallback { position: absolute; inset: 18% 39%; transform: rotate(-12deg); opacity: .6; }
 .portal-fallback span { position: absolute; inset: 32% -26%; border: 0; border-radius: 20% 20% 28% 28%; clip-path: polygon(0 30%, 10% 10%, 24% 4%, 38% 20%, 55% 0, 71% 17%, 86% 9%, 100% 31%, 96% 86%, 80% 100%, 20% 100%, 4% 86%); background: linear-gradient(90deg, var(--landing-muted) 49%, #eee8dc 50%); }
 .team-portal[data-ready="true"] .portal-fallback { display: none; }
 .portal-toggle { position: absolute; right: 6%; bottom: 6%; z-index: 5; display: grid; place-items: center; width: 28px; height: 28px; padding: 4px; border: 1px solid var(--landing-line); border-radius: 50%; background: var(--landing-bg); color: var(--landing-muted); cursor: pointer; transition: color .2s ease, border-color .2s ease; }
