@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fbfbfb">
+  <meta name="description" content="Create Dental — цифровая зуботехническая лаборатория для клиник.">
+  <title>Create Dental — точность начинается с прозрачного процесса</title>
+  <link rel="icon" href="/assets/favicon.ico?v=brand-1" sizes="16x16 32x32 48x48 256x256">
+  <script>
+    (function () {
+      try { document.documentElement.dataset.theme = localStorage.getItem('create-dental-theme') === 'dark' ? 'dark' : 'light'; }
+      catch (_) { document.documentElement.dataset.theme = 'light'; }
+    }());
+  </script>
+  <link rel="stylesheet" href="/landing.css?v=landing-43">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="/landing.js?v=landing-43" defer></script>
+</head>
+<body>
+  <div class="landing-shell">
+    <nav class="landing-nav" aria-label="Основная навигация">
+      <a class="landing-brand" href="/" aria-label="Create Dental — главная">
+        <img src="/assets/create-dental-logo-transparent.png" alt="Create Dental">
+      </a>
+      <div class="landing-nav-center" aria-label="Разделы лендинга">
+        <a href="#process">Процесс</a>
+        <span aria-hidden="true">/</span>
+        <a href="#quality">Контроль</a>
+      </div>
+      <a class="landing-login" href="/login"><span>Войти в кабинет</span><b aria-hidden="true">↗</b></a>
+    </nav>
+
+    <main class="landing-main">
+      <section class="landing-hero" aria-labelledby="landing-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span>CREATE DENTAL</span><i></i><span>ЦИФРОВАЯ ЛАБОРАТОРИЯ</span></p>
+          <h1 id="landing-title">Точность<br><em>начинается</em><br>с процесса.</h1>
+          <p class="hero-lede">Соединяем клинику и лабораторию в один спокойный рабочий поток — от первого файла до готовой работы.</p>
+          <div class="hero-actions">
+            <a class="action-primary" href="/register">Открыть кабинет <span aria-hidden="true">↗</span></a>
+            <a class="action-secondary" href="#process">Как это работает <span aria-hidden="true">↓</span></a>
+          </div>
+          <div class="hero-meta" id="quality" aria-label="Особенности Create Dental">
+            <div><strong>01</strong><span>Один поток<br>для всей команды</span></div>
+            <div><strong>02</strong><span>Статус<br>на каждом этапе</span></div>
+            <div><strong>03</strong><span>Контроль<br>до передачи</span></div>
+          </div>
+        </div>
+
+        <div class="hero-stage" id="process" aria-label="Цифровой процесс заказа">
+          <div class="stage-frame" aria-hidden="true"></div>
+          <div class="stage-crosshair stage-crosshair-a" aria-hidden="true"></div>
+          <div class="process-readout" data-scene="create" aria-label="Текущий этап заказа">
+            <svg class="process-glyphs" viewBox="0 0 120 72" aria-hidden="true">
+              <g class="process-glyph is-active" data-scene="create">
+                <path class="glyph-line glyph-draw" d="M39 12h30l13 13v35H39z"></path><path class="glyph-line" d="M69 12v14h13M49 38h22M49 47h16"></path><path class="glyph-accent" d="M90 42v18M81 51h18"></path>
+              </g>
+              <g class="process-glyph" data-scene="cad">
+                <path class="glyph-line glyph-crown" d="M33 25l13 7 10-15 10 15 15-7-5 31H39z"></path><path class="glyph-line glyph-mesh" d="M38 34l39 0M40 43l36 0M43 51l30 0M47 30l5 25M57 29v28M67 30l-5 25"></path><ellipse class="glyph-orbit" cx="58" cy="39" rx="34" ry="25"></ellipse>
+              </g>
+              <g class="process-glyph" data-scene="approval">
+                <rect class="glyph-line glyph-paper" x="34" y="13" width="47" height="47" rx="5"></rect><path class="glyph-line" d="M44 25h24M44 32h18"></path><circle class="glyph-accent glyph-seal" cx="73" cy="48" r="12"></circle><path class="glyph-check" d="M67 48l4 4 8-9"></path>
+              </g>
+              <g class="process-glyph" data-scene="milling">
+                <path class="glyph-line" d="M34 52h52M43 52V27h34v25M51 27v-9h18v9"></path><path class="glyph-line glyph-tool" d="M59 15v21l-5 7h10l-5-7"></path><path class="glyph-accent glyph-cut" d="M50 45h18"></path><circle class="glyph-spark" cx="77" cy="39" r="2"></circle><circle class="glyph-spark" cx="46" cy="41" r="1.5"></circle>
+              </g>
+              <g class="process-glyph" data-scene="aesthetic">
+                <path class="glyph-line glyph-crown" d="M33 27l13 6 11-15 10 15 15-6-6 29H39z"></path><path class="glyph-shine" d="M85 18v13M78.5 24.5h13M31 15v8M27 19h8"></path><path class="glyph-gloss" d="M43 46c8 5 20 6 31 1"></path>
+              </g>
+              <g class="process-glyph" data-scene="quality">
+                <path class="glyph-line" d="M34 26V16h14M72 16h14v10M86 46v12H72M48 58H34V46"></path><path class="glyph-line glyph-crown" d="M42 29l8 4 8-10 8 10 12-4-5 22H47z"></path><path class="glyph-scan" d="M31 41h59"></path><path class="glyph-accent glyph-checkmark" d="M82 54l4 4 8-10"></path>
+              </g>
+              <g class="process-glyph" data-scene="delivery">
+                <path class="glyph-line glyph-box" d="M35 28l24-13 25 13v29L59 70 35 57z"></path><path class="glyph-line" d="M35 28l24 14 25-14M59 42v28M48 21l24 14"></path><path class="glyph-accent glyph-route" d="M16 37h15M24 30l7 7-7 7"></path>
+              </g>
+            </svg>
+            <div class="process-readout-copy">
+              <span class="process-vignette-index">01 / 07</span>
+              <strong class="process-vignette-title" aria-live="polite">Создание заказа</strong>
+            </div>
+            <div class="process-vignette-progress" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <figure class="team-figure">
+            <img src="/assets/landing-team-clean.png?v=fullheight-33" alt="Стоматолог и специалист лаборатории передают цифровой заказ" loading="eager">
+          </figure>
+        </div>
+      </section>
+    </main>
+
+    <footer class="landing-footer">
+      <span>CREATE DENTAL / 2026</span>
+      <span>Для клиник, которым важен результат</span>
+      <a href="mailto:hello@createdental.ai">hello@createdental.ai</a>
+    </footer>
+  </div>
+</body>
+</html>
