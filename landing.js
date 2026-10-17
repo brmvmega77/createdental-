@@ -49,7 +49,12 @@
         dot.classList.toggle('is-done', dotIndex < index);
         dot.classList.toggle('is-current', dotIndex === index);
       });
-      window.dispatchEvent(new CustomEvent('landing:stage', {detail: {index, duration: beat, startedAt}}));
+      window.dispatchEvent(new CustomEvent('landing:stage', {detail: {
+        index,
+        duration: beat,
+        startedAt,
+        cycleStartedAt: Math.floor(startedAt / (beat * stages.length)) * beat * stages.length
+      }}));
     };
     if (reduce) {
       showStage(1);

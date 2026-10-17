@@ -151,7 +151,7 @@
 
   let program, locations, crownMesh;
   let visible=true, paused=false, lost=false, frame=0;
-  let stageDuration=3200, activeStageIndex=0, stageStartedAt=performance.now();
+  let stageDuration=3200, cycleStartedAt=performance.now();
   let dark=document.documentElement.dataset.theme==='dark';
   function compile(type, source) {
     const shader=gl.createShader(type); gl.shaderSource(shader,source); gl.compileShader(shader);
@@ -201,14 +201,15 @@
     const f=1/Math.tan(28*Math.PI/360), near=.1, far=30;
     const projection=new Float32Array([f/(w/h),0,0,0, 0,f,0,0, 0,0,(far+near)/(near-far),-1, 0,0,2*far*near/(near-far),0]);
     gl.uniformMatrix4fv(locations.uViewProjection,false,multiply(projection,view)); gl.uniform1f(locations.uDark,dark?1:0);
-    // Travel eases continuously from the technician to the dentist, arriving as stage 7 begins.
-    const stageProgress=Math.max(0,Math.min(1,(now-stageStartedAt)/stageDuration));
-    const linearProgress=activeStageIndex>=6 ? 1 : (activeStageIndex+stageProgress)/6;
+    // A single cycle clock drives the entire flight; stage events never restart it.
+    const cycleElapsed=Math.max(0,now-cycleStartedAt);
+    const linearProgress=Math.max(0,Math.min(1,cycleElapsed/(stageDuration*6)));
     const easeInOut=value=>{const t=Math.max(0,Math.min(1,value));return t*t*(3-2*t);};
     const phase=motion.matches ? .47 : easeInOut(linearProgress);
     const progress=phase;
     const position=1.45-2.9*progress;
-    const deliveryFade=activeStageIndex>=6 ? 1-easeInOut((stageProgress-.78)/.22) : 1;
+    const deliveryProgress=Math.max(0,Math.min(1,(cycleElapsed-stageDuration*6)/stageDuration));
+    const deliveryFade=cycleElapsed<stageDuration*6 ? 1 : 1-easeInOut((deliveryProgress-.78)/.22);
     const opacity=motion.matches ? 1 : easeInOut(phase/.025)*deliveryFade;
     const angle=.45+progress*.55, c=Math.cos(angle), s=Math.sin(angle), tilt=.08;
     const rotation=new Float32Array([c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]);
@@ -232,8 +233,7 @@
   }
   window.addEventListener('landing:stage',event=>{
     stageDuration=event.detail?.duration||3200;
-    activeStageIndex=event.detail?.index||0;
-    stageStartedAt=event.detail?.startedAt??performance.now();
+    cycleStartedAt=event.detail?.cycleStartedAt ?? ((event.detail?.startedAt??performance.now())-(event.detail?.index||0)*stageDuration);
   });
   toggle.addEventListener('click',()=>{
     paused=!paused;
