@@ -335,7 +335,7 @@ h1 em { color: var(--landing-accent); font-style: normal; }
   .hero-meta { gap: 10px; margin-top: 38px; }
   .hero-meta div { grid-template-columns: 1fr; gap: 5px; }
   .hero-meta span { font-size: 10px; }
-  .hero-stage { width: 110%; min-height: 0; height: auto; aspect-ratio: 1756 / 430; margin: 31px -5% 50px; container-type: inline-size; }
+  .hero-stage { width: 126.5%; min-height: 0; height: auto; aspect-ratio: 1756 / 430; margin: 31px -13.25% 50px; container-type: inline-size; }
   .stage-ambience { display: block; }
   .stage-side { inset: 0; width: 100%; height: 100%; }
   .stage-prop { object-fit: fill; animation-name: reference-prop-drift; }
