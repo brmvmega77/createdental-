@@ -15,9 +15,11 @@
     uniform mat4 uViewProjection;
     varying vec3 vPosition;
     varying vec3 vNormal;
+    varying vec3 vLocal;
     void main() {
       vec4 world = uModel * vec4(aPosition, 1.0);
       vPosition = world.xyz;
+      vLocal = aPosition;
       vNormal = (uModel * vec4(aNormal, 0.0)).xyz;
       gl_Position = uViewProjection * world;
     }`;
@@ -29,6 +31,7 @@
     uniform float uEnergy;
     varying vec3 vPosition;
     varying vec3 vNormal;
+    varying vec3 vLocal;
     void main() {
       vec3 n = normalize(vNormal);
       vec3 eye = normalize(vec3(3.8, 1.6, 7.0) - vPosition);
@@ -44,7 +47,9 @@
         if (vPosition.x < 0.0) {
           gl_FragColor = vec4(mix(vec3(.65), vec3(.8), uDark), .035 * uOpacity);
         } else {
-          vec3 ceramic = vec3(.93, .92, .89) * (.78 + .22 * diffuse);
+          float fossa = smoothstep(.10,.17,vLocal.y) * (1.0-smoothstep(.23,.43,vLocal.y));
+          vec3 ivory = mix(vec3(.98,.955,.89),vec3(.90,.82,.66),.12*fossa);
+          vec3 ceramic = ivory * (.75 + .25 * diffuse);
           ceramic += vec3(.16 * spec + .12 * rim);
           // A narrow polished edge marks the exact plane of material conversion.
           ceramic += vec3(.18) * (1.0 - smoothstep(0.0, .035, vPosition.x));
@@ -91,21 +96,71 @@
     const n=[Math.sin(b), Math.cos(b)*Math.cos(a), Math.cos(b)*Math.sin(a)];
     return [[tube*n[0], radius*Math.cos(a)+tube*n[1], radius*Math.sin(a)+tube*n[2]], n];
   });
-  const blank = { vertices:[], normals:[], triangles:[], wires:[] };
-  // Six rounded faces share one shape in both materials; the shader clips at x=0.
-  for (let axis=0; axis<3; axis++) for (const sign of [-1,1]) {
-    const face=geometry(16,16,(u,v) => {
-      const p=[0,0,0]; p[axis]=sign; p[(axis+1)%3]=u*2-1; p[(axis+2)%3]=v*2-1;
-      const inner=p.map(k=>Math.max(-.64,Math.min(.64,k)));
-      const n=normalize(p.map((k,i)=>k-inner[i]));
-      return [inner.map((k,i)=>(k+n[i]*.36)*.5),n];
+  const crown = { vertices:[], normals:[], triangles:[], wires:[] };
+  const gaussian = (x,z,cx,cz,sx,sz) => Math.exp(-(((x-cx)/sx)**2+((z-cz)/sz)**2));
+  // Rounded molar outline, four unequal cusps and a central occlusal fossa.
+  const outline = angle => .52 / (Math.abs(Math.cos(angle))**2.8 + Math.abs(Math.sin(angle))**2.8)**(1/2.8);
+  const chewingSurface = (x,z,r) => .145 + .025*r
+    + .30*gaussian(x,z,-.26,-.23,.22,.21)
+    + .36*gaussian(x,z,.25,-.22,.21,.22)
+    + .27*gaussian(x,z,-.27,.24,.22,.20)
+    + .30*gaussian(x,z,.26,.23,.21,.21)
+    + .075*Math.exp(-(((r-.88)/.14)**2))
+    - .025*Math.exp(-(((x+.035*Math.sin(z*9))/.035)**2))*Math.exp(-((z/.32)**4));
+  const topPoint = (u,v) => {
+    const angle=u*Math.PI*2, radius=outline(angle)*v;
+    const x=radius*Math.cos(angle), z=radius*Math.sin(angle)*.92;
+    return [x,chewingSurface(x,z,v),z];
+  };
+  const sidePoint = (u,v) => {
+    const angle=u*Math.PI*2, edge=topPoint(u,1);
+    const width=1-.12*(1-v)**4+.055*Math.sin(Math.PI*v);
+    return [edge[0]*width, -.49+(edge[1]+.49)*v, edge[2]*width];
+  };
+  function surface(rows,cols,point,inward=false) {
+    const result=geometry(rows,cols,(u,v) => {
+      const step=.0001;
+      const a=point(u+step,v), b=point(u-step,v);
+      const c=point(u,Math.min(1,v+step)), d=point(u,Math.max(.00001,v-step));
+      const tangent=a.map((n,i)=>n-b[i]), radial=c.map((n,i)=>n-d[i]);
+      let normal=cross(tangent,radial);
+      if (Math.hypot(...normal)<1e-8) normal=[0,1,0];
+      else normal=normalize(normal);
+      if (inward) normal=normal.map(n=>-n);
+      return [point(u,v),normal];
     });
-    const offset=blank.vertices.length/3;
-    blank.vertices.push(...face.vertices); blank.normals.push(...face.normals);
-    blank.triangles.push(...face.triangles.map(i=>i+offset)); blank.wires.push(...face.wires.map(i=>i+offset));
+    const offset=crown.vertices.length/3;
+    crown.vertices.push(...result.vertices); crown.normals.push(...result.normals);
+    crown.triangles.push(...result.triangles.map(i=>i+offset));
+    crown.wires.push(...result.wires.map(i=>i+offset));
+    return {offset,rows,cols};
   }
+  const chewingMesh=surface(96,32,topPoint);
+  const wallMesh=surface(96,24,sidePoint,true);
+  // Share the normals at the shoulder so polished enamel has no artificial seam.
+  for (let row=0; row<=96; row++) {
+    const normalIndex=mesh=>(mesh.offset+row*(mesh.cols+1)+mesh.cols)*3;
+    const a=normalIndex(chewingMesh), b=normalIndex(wallMesh);
+    const average=normalize([0,1,2].map(k=>crown.normals[a+k]+crown.normals[b+k]));
+    for (const mesh of [chewingMesh,wallMesh]) {
+      for (let col=mesh.cols-3; col<=mesh.cols; col++) {
+        const index=(mesh.offset+row*(mesh.cols+1)+col)*3, blend=(col-mesh.cols+3)/3;
+        const n=normalize(average.map((k,i)=>crown.normals[index+i]*(1-blend)+k*blend));
+        crown.normals.splice(index,3,...n);
+      }
+    }
+  }
+  // A crown is a hollow restoration: retain a thin cervical rim and inner cavity.
+  surface(96,6,(u,v)=>{
+    const edge=sidePoint(u,0), scale=1-.23*v;
+    return [edge[0]*scale,-.49,edge[2]*scale];
+  });
+  surface(96,20,(u,v)=>{
+    const edge=sidePoint(u,0), scale=.77*Math.cos(v*Math.PI/2);
+    return [edge[0]*scale,-.49+.54*Math.sin(v*Math.PI/2),edge[2]*scale];
+  });
 
-  let program, locations, ringMesh, blankMesh;
+  let program, locations, ringMesh, crownMesh;
   let visible=true, paused=false, lost=false, frame=0, previous=0, elapsed=900;
   let dark=document.documentElement.dataset.theme==='dark';
   function compile(type, source) {
@@ -131,7 +186,7 @@
       locations={};
       for (const name of ['uModel','uViewProjection','uKind','uOpacity','uDark','uEnergy']) locations[name]=gl.getUniformLocation(program,name);
       locations.position=gl.getAttribLocation(program,'aPosition'); locations.normal=gl.getAttribLocation(program,'aNormal');
-      ringMesh=upload(ring); blankMesh=upload(blank);
+      ringMesh=upload(ring); crownMesh=upload(crown);
       gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
       gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
       gl.clearColor(0,0,0,0); host.dataset.ready='true'; toggle.hidden=false; lost=false;
@@ -159,17 +214,20 @@
     // A slow, one-directional pass; the invisible reset happens after the exit fade.
     const phase=motion.matches ? .47 : (elapsed%6400)/6400;
     const progress=Math.max(0,Math.min(1,(phase-.08)/.78));
-    const position=-1.72+3.44*progress;
+    const position=-1.45+2.9*progress;
     const opacity=Math.min(1,phase/.09,Math.max(0,(.96-phase)/.1));
     gl.uniform1f(locations.uEnergy,Math.max(0,1-Math.abs(position)));
     drawMesh(ringMesh,identity(),0,1);
-    const angle=.45+progress*.55, c=Math.cos(angle), s=Math.sin(angle), tilt=.18;
+    const angle=.45+progress*.55, c=Math.cos(angle), s=Math.sin(angle), tilt=.08;
     const rotation=new Float32Array([c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]);
     const rz=new Float32Array([Math.cos(tilt),Math.sin(tilt),0,0,-Math.sin(tilt),Math.cos(tilt),0,0,0,0,1,0,0,0,0,1]);
-    const model=multiply(rz,rotation); model[12]=position;
+    // Tip the occlusal face toward the viewer so the cusps remain legible at hero size.
+    const pitch=.38, cp=Math.cos(pitch), sp=Math.sin(pitch);
+    const rx=new Float32Array([1,0,0,0, 0,cp,sp,0, 0,-sp,cp,0, 0,0,0,1]);
+    const model=multiply(rx,multiply(rz,rotation)); model[12]=position;
     gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1,1);
-    drawMesh(blankMesh,model,1,opacity); gl.disable(gl.POLYGON_OFFSET_FILL);
-    drawMesh(blankMesh,model,2,opacity,true);
+    drawMesh(crownMesh,model,1,opacity); gl.disable(gl.POLYGON_OFFSET_FILL);
+    drawMesh(crownMesh,model,2,opacity,true);
   }
   function tick(now) {
     frame=0;
