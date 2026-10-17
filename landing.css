@@ -226,6 +226,19 @@ h1 em { color: var(--landing-accent); font-style: normal; }
 .process-vignette-progress i.is-current { background: var(--landing-ink); transform: scaleY(1.5); }
 .team-figure { position: absolute; top: 2%; right: 9%; left: 8%; z-index: 1; margin: 0; transform: rotate(-1deg); }
 .team-figure img { display: block; width: 100%; opacity: 1; filter: drop-shadow(0 28px 26px rgba(0,0,0,.14)); animation: team-breathe 7s ease-in-out infinite; }
+.team-portal { position: absolute; top: 29%; left: 50%; width: 34%; aspect-ratio: 3 / 2; transform: translate(-50%, -50%) rotate(1deg); }
+.portal-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; opacity: 0; transition: opacity .5s var(--landing-ease); }
+.team-portal[data-ready="true"] .portal-canvas { opacity: 1; }
+.portal-fallback { position: absolute; inset: 18% 39%; border: 2px solid var(--landing-muted); border-radius: 50%; transform: rotate(-12deg); opacity: .6; }
+.portal-fallback span { position: absolute; inset: 32% -26%; border: 1px solid var(--landing-muted); border-radius: 18%; background: linear-gradient(90deg, transparent 50%, var(--landing-surface) 50%); }
+.team-portal[data-ready="true"] .portal-fallback { display: none; }
+.portal-toggle { position: absolute; right: 6%; bottom: 6%; z-index: 5; display: grid; place-items: center; width: 28px; height: 28px; padding: 4px; border: 1px solid var(--landing-line); border-radius: 50%; background: var(--landing-bg); color: var(--landing-muted); cursor: pointer; transition: color .2s ease, border-color .2s ease; }
+.portal-toggle[hidden] { display: none; }
+.portal-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.portal-play, .portal-toggle[aria-pressed="true"] .portal-pause { display: none; }
+.portal-toggle[aria-pressed="true"] .portal-play { display: block; }
+.portal-toggle:focus-visible { outline: 2px solid var(--landing-accent); outline-offset: 3px; }
+@media (hover: hover) and (pointer: fine) { .portal-toggle:hover { color: var(--landing-ink); border-color: var(--landing-muted); } }
 @keyframes team-breathe {
   0%, 100% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-7px) scale(1.008); }
@@ -300,4 +313,5 @@ h1 em { color: var(--landing-accent); font-style: normal; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
   .js-reveal { opacity: 1; transform: none; }
   .team-figure img { animation: none; }
+  .portal-toggle { display: none; }
 }

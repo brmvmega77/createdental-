@@ -13,7 +13,8 @@
       catch (_) { document.documentElement.dataset.theme = 'light'; }
     }());
   </script>
-  <link rel="stylesheet" href="/landing.css?v=landing-47">
+  <link rel="stylesheet" href="/landing.css?v=landing-48">
+  <script src="/assets/landing-portal.js?v=portal-1" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
   <script src="/landing.js?v=landing-43" defer></script>
 </head>
@@ -83,7 +84,14 @@
           </div>
           <figure class="team-figure">
             <img src="/assets/landing-team-clean.png?v=fullheight-33" alt="Стоматолог и специалист лаборатории передают цифровой заказ" loading="eager">
+            <div class="team-portal">
+              <div class="portal-fallback" aria-hidden="true"><span></span></div>
+              <canvas class="portal-canvas" aria-hidden="true"></canvas>
+            </div>
           </figure>
+          <button class="portal-toggle" type="button" aria-label="Приостановить анимацию портала" aria-pressed="false" hidden>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path class="portal-pause" d="M7 5v10M13 5v10"/><path class="portal-play" d="m7 5 8 5-8 5Z"/></svg>
+          </button>
         </div>
       </section>
     </main>
