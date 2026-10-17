@@ -151,7 +151,7 @@
 
   let program, locations, crownMesh;
   let visible=true, paused=false, lost=false, frame=0;
-  let stageDuration=3200, cycleStartedAt=performance.now();
+  let stageDuration=2240, cycleStartedAt=performance.now();
   let dark=document.documentElement.dataset.theme==='dark';
   function compile(type, source) {
     const shader=gl.createShader(type); gl.shaderSource(shader,source); gl.compileShader(shader);

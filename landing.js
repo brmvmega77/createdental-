@@ -34,13 +34,13 @@
       'Контроль качества',
       'Доставка'
     ];
-    const beat = 3200;
+    const beat = 2240;
     const showStage = (index, startedAt = performance.now()) => {
       const scene = ['create', 'cad', 'approval', 'milling', 'aesthetic', 'quality', 'delivery'][index];
       processVignette.classList.remove('is-changing');
       void processVignette.offsetWidth;
       processVignette.classList.add('is-changing');
-      window.setTimeout(() => processVignette.classList.remove('is-changing'), 260);
+      window.setTimeout(() => processVignette.classList.remove('is-changing'), 182);
       processVignette.dataset.scene = scene;
       if (processTitle) processTitle.textContent = stages[index];
       if (processIndex) processIndex.textContent = `${String(index + 1).padStart(2, '0')} / 07`;
