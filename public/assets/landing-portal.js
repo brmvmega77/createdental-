@@ -162,7 +162,7 @@
 
   let program, locations, ringMesh, crownMesh;
   let visible=true, paused=false, lost=false, frame=0, previous=0;
-  let stageDuration=3200, segmentElapsed=0, pendingStageSync=false;
+  let stageDuration=3200, segmentElapsed=0, activeStageIndex=0, pendingStageSync=false;
   let dark=document.documentElement.dataset.theme==='dark';
   function compile(type, source) {
     const shader=gl.createShader(type); gl.shaderSource(shader,source); gl.compileShader(shader);
@@ -212,11 +212,11 @@
     const f=1/Math.tan(28*Math.PI/360), near=.1, far=30;
     const projection=new Float32Array([f/(w/h),0,0,0, 0,f,0,0, 0,0,(far+near)/(near-far),-1, 0,0,2*far*near/(near-far),0]);
     gl.uniformMatrix4fv(locations.uViewProjection,false,multiply(projection,view)); gl.uniform1f(locations.uDark,dark?1:0);
-    // Each crown pass follows the same beat as the production stage readout.
-    const phase=motion.matches ? .47 : Math.max(0,Math.min(1,segmentElapsed/stageDuration));
+    // One full crown pass spans the complete seven-stage production cycle.
+    const phase=motion.matches ? .47 : Math.max(0,Math.min(1,(activeStageIndex+segmentElapsed/stageDuration)/7));
     const progress=phase;
     const position=-1.45+2.9*progress;
-    const opacity=motion.matches ? 1 : Math.min(1,phase/.04,Math.max(0,(1-phase)/.04));
+    const opacity=motion.matches ? 1 : Math.min(1,phase/.035,Math.max(0,(1-phase)/.035));
     gl.uniform1f(locations.uEnergy,Math.max(0,1-Math.abs(position)));
     drawMesh(ringMesh,identity(),0,1);
     const angle=.45+progress*.55, c=Math.cos(angle), s=Math.sin(angle), tilt=.08;
@@ -242,7 +242,8 @@
   }
   window.addEventListener('landing:stage',event=>{
     stageDuration=event.detail?.duration||3200;
-    if (paused) { pendingStageSync=true; return; }
+    if (paused) { activeStageIndex=event.detail?.index||0; pendingStageSync=true; return; }
+    activeStageIndex=event.detail?.index||0;
     segmentElapsed=0;
     refresh();
   });
