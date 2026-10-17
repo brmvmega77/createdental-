@@ -203,7 +203,7 @@ h1 em { color: var(--landing-accent); font-style: normal; }
 .process-readout.is-changing { opacity: .45; }
 .process-readout-copy { display: grid; justify-items: center; gap: 4px; min-width: 0; text-align: center; }
 .process-vignette-index { color: var(--landing-faint); font-size: 9px; font-weight: 800; letter-spacing: .14em; }
-.process-glyphs { display: block; width: 42px; height: 38px; overflow: visible; }
+.process-glyphs { display: block; width: 63px; height: 57px; overflow: visible; }
 .process-glyph { display: none; transform-origin: 60px 36px; }
 .process-glyph.is-active { display: block; animation: glyph-arrive .5s var(--landing-ease) both; }
 .glyph-draw { stroke-dasharray: 180; stroke-dashoffset: 180; animation: glyph-draw .8s ease-out .1s forwards; }
@@ -288,7 +288,7 @@ h1 em { color: var(--landing-accent); font-style: normal; }
   .stage-frame { inset: 9% -3% 3% 2%; }
   .team-figure { top: -2%; right: 10%; left: 10%; }
   .process-readout { top: 59%; width: min(310px, 84%); }
-  .process-glyphs { width: 36px; height: 34px; }
+  .process-glyphs { width: 54px; height: 51px; }
   .process-vignette-title { font-size: 15px; }
   .process-vignette-progress { gap: 4px; margin-top: 10px; }
   .landing-footer { min-height: 78px; align-items: flex-start; flex-wrap: wrap; padding: 16px 0; }
