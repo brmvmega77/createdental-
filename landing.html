@@ -13,8 +13,8 @@
       catch (_) { document.documentElement.dataset.theme = 'light'; }
     }());
   </script>
-  <link rel="stylesheet" href="/landing.css?v=landing-51">
-  <script src="/assets/landing-portal.js?v=portal-10" defer></script>
+  <link rel="stylesheet" href="/landing.css?v=landing-112">
+  <script src="/assets/landing-portal.js?v=portal-13" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
   <script src="/landing.js?v=landing-45" defer></script>
 </head>
@@ -50,8 +50,16 @@
         </div>
 
         <div class="hero-stage" id="process" aria-label="Цифровой процесс заказа">
-          <div class="stage-frame" aria-hidden="true"></div>
-          <div class="stage-crosshair stage-crosshair-a" aria-hidden="true"></div>
+          <div class="stage-ambience" aria-hidden="true">
+            <div class="stage-side stage-side--clinic">
+              <img class="stage-prop stage-prop--chair" src="/assets/landing-ambience/dental-chair.png" alt="" loading="lazy">
+            </div>
+            <img class="stage-prop stage-prop--clinic-screen" src="/assets/landing-ambience/clinic-scan-monitor.png" alt="" loading="lazy">
+            <div class="stage-side stage-side--lab">
+              <img class="stage-prop stage-prop--milling" src="/assets/landing-ambience/milling-machine.png" alt="" loading="lazy">
+            </div>
+            <img class="stage-prop stage-prop--cad-screen" src="/assets/landing-ambience/cad-monitor.png" alt="" loading="lazy">
+          </div>
           <div class="process-readout" data-scene="create" aria-label="Текущий этап заказа">
             <svg class="process-glyphs" viewBox="0 0 120 72" aria-hidden="true">
               <g class="process-glyph is-active" data-scene="create">
@@ -82,8 +90,9 @@
             </div>
             <div class="process-vignette-progress" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
           </div>
-          <figure class="team-figure">
-            <img src="/assets/landing-team-clean.png?v=fullheight-33" alt="Стоматолог и специалист лаборатории передают цифровой заказ" loading="eager">
+          <figure class="team-figure" role="img" aria-label="Стоматолог и специалист лаборатории Create Dental передают цифровой заказ">
+            <img class="team-piece team-piece--clinic" src="/assets/landing-team-branded.png?v=logo-centered-1" alt="" aria-hidden="true" loading="eager">
+            <img class="team-piece team-piece--lab" src="/assets/landing-team-branded.png?v=logo-centered-1" alt="" aria-hidden="true" loading="eager">
             <div class="team-portal">
               <div class="portal-fallback" aria-hidden="true"><span></span></div>
               <canvas class="portal-canvas" aria-hidden="true"></canvas>

@@ -217,7 +217,8 @@
     // Tip the occlusal face toward the viewer so the cusps remain legible at hero size.
     const pitch=.38, cp=Math.cos(pitch), sp=Math.sin(pitch);
     const rx=new Float32Array([1,0,0,0, 0,cp,sp,0, 0,-sp,cp,0, 0,0,0,1]);
-    const model=multiply(rx,multiply(rz,rotation)); model[12]=position;
+    const scale=new Float32Array([.525,0,0,0, 0,.525,0,0, 0,0,.525,0, 0,0,0,1]);
+    const model=multiply(rx,multiply(rz,multiply(rotation,scale))); model[12]=position;
     gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1,1);
     drawMesh(crownMesh,model,1,opacity); gl.disable(gl.POLYGON_OFFSET_FILL);
     drawMesh(crownMesh,model,2,opacity,true);
