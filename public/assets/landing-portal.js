@@ -40,11 +40,11 @@
       float rim = pow(1.0 - abs(dot(n, eye)), 3.0);
       float spec = pow(max(dot(n, normalize(light + eye)), 0.0), 60.0);
       if (uKind > 1.5) {
-        if (vPosition.x > 0.0) discard;
+        if (vPosition.x < 0.0) discard;
         vec3 ink = mix(vec3(.32, .36, .38), vec3(.72, .77, .79), uDark);
         gl_FragColor = vec4(ink, .78 * uOpacity);
       } else if (uKind > .5) {
-        if (vPosition.x < 0.0) {
+        if (vPosition.x > 0.0) {
           gl_FragColor = vec4(mix(vec3(.65), vec3(.8), uDark), .035 * uOpacity);
         } else {
           float fossa = smoothstep(.10,.17,vLocal.y) * (1.0-smoothstep(.23,.43,vLocal.y));
@@ -52,7 +52,7 @@
           vec3 ceramic = ivory * (.75 + .25 * diffuse);
           ceramic += vec3(.16 * spec + .12 * rim);
           // A narrow polished edge marks the exact plane of material conversion.
-          ceramic += vec3(.18) * (1.0 - smoothstep(0.0, .035, vPosition.x));
+          ceramic += vec3(.18) * (1.0 - smoothstep(0.0, .035, -vPosition.x));
           gl_FragColor = vec4(ceramic, uOpacity);
         }
       } else {
@@ -161,8 +161,8 @@
   });
 
   let program, locations, ringMesh, crownMesh;
-  let visible=true, paused=false, lost=false, frame=0, previous=0;
-  let stageDuration=3200, segmentElapsed=0, activeStageIndex=0, pendingStageSync=false;
+  let visible=true, paused=false, lost=false, frame=0;
+  let stageDuration=3200, activeStageIndex=0, stageStartedAt=performance.now();
   let dark=document.documentElement.dataset.theme==='dark';
   function compile(type, source) {
     const shader=gl.createShader(type); gl.shaderSource(shader,source); gl.compileShader(shader);
@@ -204,7 +204,7 @@
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,wire?mesh.wires:mesh.triangles);
     gl.drawElements(wire?gl.LINES:gl.TRIANGLES,wire?mesh.wireCount:mesh.triangleCount,gl.UNSIGNED_SHORT,0);
   }
-  function render() {
+  function render(now=performance.now()) {
     if (lost) return;
     const dpr=Math.min(devicePixelRatio||1,2), w=Math.max(1,Math.round(canvas.clientWidth*dpr)), h=Math.max(1,Math.round(canvas.clientHeight*dpr));
     if (canvas.width!==w || canvas.height!==h) { canvas.width=w; canvas.height=h; }
@@ -212,11 +212,15 @@
     const f=1/Math.tan(28*Math.PI/360), near=.1, far=30;
     const projection=new Float32Array([f/(w/h),0,0,0, 0,f,0,0, 0,0,(far+near)/(near-far),-1, 0,0,2*far*near/(near-far),0]);
     gl.uniformMatrix4fv(locations.uViewProjection,false,multiply(projection,view)); gl.uniform1f(locations.uDark,dark?1:0);
-    // The crown arrives exactly as stage 7 begins, then stays at the destination.
-    const phase=motion.matches ? .47 : Math.max(0,Math.min(1,(activeStageIndex+segmentElapsed/stageDuration)/6));
+    // Travel eases continuously from the technician to the dentist, arriving as stage 7 begins.
+    const stageProgress=Math.max(0,Math.min(1,(now-stageStartedAt)/stageDuration));
+    const linearProgress=activeStageIndex>=6 ? 1 : (activeStageIndex+stageProgress)/6;
+    const easeInOut=value=>{const t=Math.max(0,Math.min(1,value));return t*t*(3-2*t);};
+    const phase=motion.matches ? .47 : easeInOut(linearProgress);
     const progress=phase;
     const position=1.45-2.9*progress;
-    const opacity=motion.matches ? 1 : Math.min(1,phase/.035);
+    const deliveryFade=activeStageIndex>=6 ? 1-easeInOut((stageProgress-.78)/.22) : 1;
+    const opacity=motion.matches ? 1 : easeInOut(phase/.025)*deliveryFade;
     gl.uniform1f(locations.uEnergy,Math.max(0,1-Math.abs(position)));
     drawMesh(ringMesh,identity(),0,1);
     const angle=.45+progress*.55, c=Math.cos(angle), s=Math.sin(angle), tilt=.08;
@@ -232,24 +236,21 @@
   }
   function tick(now) {
     frame=0;
-    if (previous) segmentElapsed=Math.min(stageDuration,segmentElapsed+Math.min(now-previous,80));
-    previous=now; render();
+    render(now);
     if (visible && !paused && !motion.matches && !document.hidden && !lost) frame=requestAnimationFrame(tick);
   }
   function refresh() {
-    cancelAnimationFrame(frame); frame=0; previous=0; render();
+    cancelAnimationFrame(frame); frame=0; render();
     if (visible && !paused && !motion.matches && !document.hidden && !lost) frame=requestAnimationFrame(tick);
   }
   window.addEventListener('landing:stage',event=>{
     stageDuration=event.detail?.duration||3200;
-    if (paused) { activeStageIndex=event.detail?.index||0; pendingStageSync=true; return; }
     activeStageIndex=event.detail?.index||0;
-    segmentElapsed=0;
+    stageStartedAt=event.detail?.startedAt??performance.now();
     refresh();
   });
   toggle.addEventListener('click',()=>{
     paused=!paused;
-    if (!paused && pendingStageSync) { segmentElapsed=0; pendingStageSync=false; }
     toggle.setAttribute('aria-pressed',String(paused));
     toggle.setAttribute('aria-label',paused?'Продолжить анимацию портала':'Приостановить анимацию портала'); refresh();
   });

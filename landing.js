@@ -35,7 +35,7 @@
       'Доставка'
     ];
     const beat = 3200;
-    const showStage = index => {
+    const showStage = (index, startedAt = performance.now()) => {
       const scene = ['create', 'cad', 'approval', 'milling', 'aesthetic', 'quality', 'delivery'][index];
       processVignette.classList.remove('is-changing');
       void processVignette.offsetWidth;
@@ -49,7 +49,7 @@
         dot.classList.toggle('is-done', dotIndex < index);
         dot.classList.toggle('is-current', dotIndex === index);
       });
-      window.dispatchEvent(new CustomEvent('landing:stage', {detail: {index, duration: beat}}));
+      window.dispatchEvent(new CustomEvent('landing:stage', {detail: {index, duration: beat, startedAt}}));
     };
     if (reduce) {
       showStage(1);
@@ -60,7 +60,7 @@
       const index = Math.floor(now / beat) % stages.length;
       if (index !== activeIndex) {
         activeIndex = index;
-        showStage(index);
+        showStage(index, now);
       }
       requestAnimationFrame(tick);
     };
