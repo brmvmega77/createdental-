@@ -263,9 +263,9 @@ h1 em { color: var(--landing-accent); font-style: normal; }
   .process-glyphs { width: 7cqw; height: 4.2cqw; }
   .process-vignette-progress { gap: .5cqw; margin-top: .3cqw; }
   .process-vignette-progress i { height: max(1px, .23cqw); }
-  .process-readout-copy { position: absolute; top: calc(100% + 8px); gap: 3px; }
-  .process-vignette-title { font-size: 11px; }
-  .process-vignette-index { font-size: 9px; }
+  .process-readout-copy { position: absolute; top: calc(100% + 1.5cqw); gap: .55cqw; }
+  .process-vignette-title { font-size: 2.15cqw; }
+  .process-vignette-index { font-size: 1.75cqw; }
   .portal-toggle { right: 0; bottom: -35px; width: 24px; height: 24px; }
 }
 @media (min-width: 1101px) {
@@ -335,20 +335,26 @@ h1 em { color: var(--landing-accent); font-style: normal; }
   .hero-meta { gap: 10px; margin-top: 38px; }
   .hero-meta div { grid-template-columns: 1fr; gap: 5px; }
   .hero-meta span { font-size: 10px; }
-  .hero-stage { min-height: 0; height: auto; aspect-ratio: 1.05; margin-top: 31px; }
+  .hero-stage { width: 100%; min-height: 0; height: auto; aspect-ratio: 1756 / 430; margin-top: 31px; container-type: inline-size; }
   .stage-ambience { display: block; }
   .stage-side { inset: 0; width: 100%; height: 100%; }
-  .stage-prop { object-fit: contain; animation-name: reference-prop-drift; }
-  .stage-prop--clinic-screen { top: 1%; left: 1%; width: 20%; height: 20%; }
-  .stage-prop--cad-screen { top: 2%; right: 1%; left: auto; width: 20%; height: 20%; }
-  .stage-prop--chair { top: 53%; left: 0; bottom: auto; width: 24%; height: 26%; }
-  .stage-prop--milling { top: 53%; right: 0; bottom: auto; width: 24%; height: 26%; }
-  .team-figure { top: 4%; right: 0; left: 0; width: 100%; height: 55%; aspect-ratio: auto; }
-  .team-piece { width: 100%; height: 100%; animation-name: reference-team-breathe; }
-  .process-readout { top: 67%; width: min(300px, 76%); }
-  .process-glyphs { width: 54px; height: 51px; }
-  .process-vignette-title { font-size: 15px; }
-  .process-vignette-progress { gap: 4px; margin-top: 10px; }
+  .stage-prop { object-fit: fill; animation-name: reference-prop-drift; }
+  .stage-prop--chair { left: 9.13%; top: 42.59%; bottom: auto; width: 16.32%; height: 50.16%; }
+  .stage-prop--clinic-screen { left: 16.01%; top: .28%; width: 12.56%; height: 33.1%; }
+  .stage-prop--cad-screen { left: 71.55%; top: 6.41%; right: auto; width: 13.17%; height: 34.9%; }
+  .stage-prop--milling { left: 75.15%; top: 54.35%; right: auto; bottom: auto; width: 15.96%; height: 40.1%; }
+  .team-figure { inset: 0; width: 100%; height: 100%; aspect-ratio: auto; }
+  .team-piece { inset: auto; animation-name: reference-team-breathe; }
+  .team-piece--clinic { left: 20.62%; top: 7.53%; width: 51.06%; height: 90.06%; }
+  .team-piece--lab { left: 28.29%; top: 6.78%; width: 51.58%; height: 91.12%; }
+  .team-portal { left: 50%; top: 35.5%; width: 33%; }
+  .process-readout { top: 73%; left: 50%; width: 22.55%; row-gap: 0; }
+  .process-glyphs { width: 7cqw; height: 4.2cqw; }
+  .process-vignette-progress { gap: .5cqw; margin-top: .3cqw; }
+  .process-vignette-progress i { height: max(1px, .23cqw); }
+  .process-readout-copy { position: absolute; top: calc(100% + 8px); gap: 3px; }
+  .process-vignette-title { font-size: 11px; }
+  .process-vignette-index { font-size: 9px; }
   .portal-toggle { display: none; }
   .landing-footer { min-height: 78px; align-items: flex-start; flex-wrap: wrap; padding: 16px 0; }
   .landing-footer span:nth-child(2) { order: 3; width: 100%; }
