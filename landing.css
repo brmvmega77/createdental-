@@ -343,9 +343,13 @@ h1 em { color: var(--landing-accent); font-style: normal; }
 .project-dialog-close:hover { color: var(--landing-ink); border-color: var(--landing-muted); }
 .project-dialog-close svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 .project-dialog-close:focus-visible, .project-dialog-cta:focus-visible { outline: 2px solid var(--landing-accent); outline-offset: 4px; }
-.project-dialog h2 { max-width: 11ch; margin: 0; font-size: clamp(30px, 5vw, 42px); line-height: .98; letter-spacing: -.055em; }
-.project-dialog > p { max-width: 56ch; margin: 20px 0 0; color: var(--landing-muted); font-size: 15px; line-height: 1.65; }
-.project-flow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; margin: 28px 0 30px; padding: 0; list-style: none; counter-reset: project-step; }
+.project-dialog h2 { max-width: 20ch; margin: 0; font-size: clamp(24px, 3.2vw, 32px); line-height: 1.04; letter-spacing: -.04em; }
+.project-dialog-lead { max-width: 58ch; margin: 18px 0 0; color: var(--landing-muted); font-size: 15px; line-height: 1.65; }
+.project-presentation { margin-top: 30px; }
+.project-presentation section { padding: 20px 0; border-top: 1px solid var(--landing-line); }
+.project-presentation h3 { margin: 0; color: var(--landing-ink); font-size: 17px; line-height: 1.3; letter-spacing: -.02em; }
+.project-presentation p { max-width: 68ch; margin: 9px 0 0; color: var(--landing-muted); font-size: 14px; line-height: 1.65; }
+.project-flow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; margin: 18px 0 0; padding: 0; list-style: none; counter-reset: project-step; }
 .project-flow li { display: flex; align-items: baseline; gap: 12px; min-width: 0; padding: 11px 0; border-top: 1px solid var(--landing-line); color: var(--landing-ink); font-size: 13px; line-height: 1.35; counter-increment: project-step; }
 .project-flow li::before { content: counter(project-step, decimal-leading-zero); flex: 0 0 auto; color: var(--landing-faint); font-size: 10px; font-weight: 750; letter-spacing: .08em; }
 .project-dialog-cta { display: inline-flex; align-items: center; justify-content: space-between; gap: 22px; min-height: 48px; padding: 0 18px; border-radius: 7px; background: #808080; color: #fff; font-size: 12px; font-weight: 750; transition: background-color .2s ease, transform .2s var(--landing-ease); }
