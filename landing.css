@@ -85,6 +85,7 @@ html[data-theme="dark"] .landing-brand img { content: url('/assets/create-dental
   display: inline-flex;
   align-items: center;
   gap: 11px;
+  margin-left: auto;
   color: var(--landing-ink);
   font-size: 12px;
   font-weight: 700;
@@ -192,7 +193,7 @@ h1 em { color: var(--landing-accent); font-style: normal; }
 .process-readout { position: absolute; top: 65%; left: 50%; translate: -50% 0; z-index: 4; display: grid; grid-template-columns: 1fr; justify-items: center; row-gap: 4px; width: min(340px, 75%); color: var(--landing-ink); transition: opacity .245s ease; }
 .process-readout.is-changing { opacity: .45; }
 .process-readout-copy { display: grid; justify-items: center; gap: 4px; min-width: 0; text-align: center; }
-.process-vignette-index { color: var(--landing-faint); font-size: 9px; font-weight: 800; letter-spacing: .14em; }
+.process-vignette-index { color: var(--landing-faint); font-size: 8px; font-weight: 800; letter-spacing: .14em; }
 .process-glyphs { display: block; width: 63px; height: 57px; overflow: visible; }
 .process-glyph { display: none; transform-origin: 60px 36px; }
 .process-glyph.is-active { display: block; animation: glyph-arrive .35s var(--landing-ease) both; }
@@ -207,7 +208,7 @@ h1 em { color: var(--landing-accent); font-style: normal; }
 .process-glyph[data-scene="milling"].is-active .glyph-tool { animation: glyph-mill .8s ease-in-out infinite alternate; transform-origin: 59px 32px; }
 .process-glyph[data-scene="aesthetic"].is-active .glyph-shine { animation: glyph-shine 1.4s ease-in-out infinite; }
 .process-glyph[data-scene="delivery"].is-active .glyph-route { animation: glyph-route 1s ease-in-out infinite alternate; }
-.process-vignette-title { display: block; max-width: 100%; color: var(--landing-ink); font-size: 17px; font-weight: 740; line-height: 1.15; letter-spacing: -.025em; white-space: nowrap; transition: opacity .21s ease, transform .315s var(--landing-ease); }
+.process-vignette-title { display: block; max-width: 100%; color: var(--landing-ink); font-size: 14px; font-weight: 740; line-height: 1.15; letter-spacing: -.025em; white-space: nowrap; transition: opacity .21s ease, transform .315s var(--landing-ease); }
 .process-readout.is-changing .process-vignette-title { opacity: .35; transform: translateY(3px); }
 .process-vignette-progress { display: flex; gap: 5px; width: 100%; margin-top: 11px; }
 .process-vignette-progress i { display: block; flex: 1 1 0; height: 3px; border-radius: 999px; background: var(--landing-line); transition: background .315s ease, transform .315s var(--landing-ease); }
@@ -264,8 +265,8 @@ h1 em { color: var(--landing-accent); font-style: normal; }
   .process-vignette-progress { gap: .5cqw; margin-top: .3cqw; }
   .process-vignette-progress i { height: max(1px, .23cqw); }
   .process-readout-copy { position: absolute; top: calc(100% + 1.5cqw); gap: .55cqw; }
-  .process-vignette-title { font-size: 2.15cqw; }
-  .process-vignette-index { font-size: 1.75cqw; }
+  .process-vignette-title { font-size: 1.7cqw; }
+  .process-vignette-index { font-size: 1.4cqw; }
   .portal-toggle { right: 0; bottom: -35px; width: 24px; height: 24px; }
 }
 @media (min-width: 1101px) {
@@ -400,8 +401,8 @@ h1 em { color: var(--landing-accent); font-style: normal; }
   .process-vignette-progress { gap: .5cqw; margin-top: .3cqw; }
   .process-vignette-progress i { height: max(1px, .23cqw); }
   .process-readout-copy { position: absolute; top: calc(100% + 8px); gap: 3px; }
-  .process-vignette-title { font-size: 11px; }
-  .process-vignette-index { font-size: 9px; }
+  .process-vignette-title { font-size: 10px; }
+  .process-vignette-index { font-size: 8px; }
   .portal-toggle { display: none; }
   .landing-footer { min-height: 78px; align-items: flex-start; flex-wrap: wrap; padding: 16px 0; }
   .landing-footer span:nth-child(2) { order: 3; width: 100%; }
