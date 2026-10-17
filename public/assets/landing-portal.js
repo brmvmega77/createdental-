@@ -212,11 +212,11 @@
     const f=1/Math.tan(28*Math.PI/360), near=.1, far=30;
     const projection=new Float32Array([f/(w/h),0,0,0, 0,f,0,0, 0,0,(far+near)/(near-far),-1, 0,0,2*far*near/(near-far),0]);
     gl.uniformMatrix4fv(locations.uViewProjection,false,multiply(projection,view)); gl.uniform1f(locations.uDark,dark?1:0);
-    // One full crown pass spans the complete seven-stage production cycle.
-    const phase=motion.matches ? .47 : Math.max(0,Math.min(1,(activeStageIndex+segmentElapsed/stageDuration)/7));
+    // The crown arrives exactly as stage 7 begins, then stays at the destination.
+    const phase=motion.matches ? .47 : Math.max(0,Math.min(1,(activeStageIndex+segmentElapsed/stageDuration)/6));
     const progress=phase;
     const position=-1.45+2.9*progress;
-    const opacity=motion.matches ? 1 : Math.min(1,phase/.035,Math.max(0,(1-phase)/.035));
+    const opacity=motion.matches ? 1 : Math.min(1,phase/.035);
     gl.uniform1f(locations.uEnergy,Math.max(0,1-Math.abs(position)));
     drawMesh(ringMesh,identity(),0,1);
     const angle=.45+progress*.55, c=Math.cos(angle), s=Math.sin(angle), tilt=.08;
