@@ -326,16 +326,16 @@ h1 em { color: var(--landing-accent); font-style: normal; }
   .landing-login { margin-left: auto; }
   .landing-main { display: block; }
   .landing-hero { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 38px 0 22px; }
-  .hero-copy { padding: 0; }
-  .eyebrow { margin-bottom: 22px; font-size: 9px; }
-  h1 { max-width: 8.5ch; font-size: clamp(3.6rem, 15vw, 5.4rem); }
-  .hero-lede { max-width: 39ch; margin-top: 24px; font-size: 15px; }
-  .hero-actions { align-items: stretch; flex-direction: column; gap: 9px; margin-top: 25px; }
+  .hero-copy { display: contents; }
+  .eyebrow { order: 1; margin-bottom: 22px; font-size: 9px; }
+  h1 { order: 2; max-width: 8.5ch; font-size: clamp(3.6rem, 15vw, 5.4rem); }
+  .hero-lede { order: 3; max-width: 39ch; margin-top: 24px; font-size: 15px; }
+  .hero-actions { order: 4; align-items: stretch; flex-direction: column; gap: 9px; margin-top: 25px; }
   .action-primary, .action-secondary { width: 100%; }
-  .hero-meta { gap: 10px; margin-top: 38px; }
+  .hero-meta { order: 6; gap: 10px; margin-top: 0; }
   .hero-meta div { grid-template-columns: 1fr; gap: 5px; }
   .hero-meta span { font-size: 10px; }
-  .hero-stage { width: 126.5%; min-height: 0; height: auto; aspect-ratio: 1756 / 430; margin: 31px 0 50px; left: 52%; translate: -50% 0; container-type: inline-size; }
+  .hero-stage { order: 5; width: 126.5%; min-height: 0; height: auto; aspect-ratio: 1756 / 430; margin: 20px 0 50px; left: 52%; translate: -50% 0; container-type: inline-size; }
   .stage-ambience { display: block; }
   .stage-side { inset: 0; width: 100%; height: 100%; }
   .stage-prop { object-fit: fill; animation-name: reference-prop-drift; }
