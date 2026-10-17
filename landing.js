@@ -82,4 +82,13 @@
     }, {passive: true});
     stage.addEventListener('pointerleave', () => { moveSpecimen(0); }, {passive: true});
   }
+
+  const projectDialog = document.querySelector('#project-dialog');
+  const projectDialogTrigger = document.querySelector('.action-secondary[aria-controls="project-dialog"]');
+  const projectDialogClose = projectDialog?.querySelector('.project-dialog-close');
+  projectDialogTrigger?.addEventListener('click', () => projectDialog?.showModal());
+  projectDialogClose?.addEventListener('click', () => projectDialog?.close());
+  projectDialog?.addEventListener('click', event => {
+    if (event.target === projectDialog) projectDialog.close();
+  });
 })();

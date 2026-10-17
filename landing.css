@@ -148,7 +148,7 @@ h1 em { color: var(--landing-accent); font-style: normal; }
 }
 .action-primary { color: #fff; background: #808080; box-shadow: 0 9px 24px var(--landing-shadow); }
 .action-primary span, .action-secondary span { font-size: 17px; font-weight: 400; line-height: 1; transition: transform .22s var(--landing-ease); }
-.action-secondary { color: var(--landing-ink); border-color: var(--landing-line); background: var(--landing-surface); }
+.action-secondary { color: var(--landing-ink); border-color: var(--landing-line); background: var(--landing-surface); font-family: inherit; cursor: pointer; }
 .action-primary:hover, .action-secondary:hover { transform: translateY(-3px); }
 .action-primary:hover { background: var(--landing-ink); }
 .action-secondary:hover { border-color: var(--landing-accent); }
@@ -306,7 +306,54 @@ h1 em { color: var(--landing-accent); font-style: normal; }
 .landing-footer a { color: var(--landing-muted); letter-spacing: 0; text-transform: none; transition: color .2s ease; }
 .landing-footer a:hover { color: var(--landing-ink); }
 
-.landing-nav, .hero-copy, .hero-stage, .landing-footer { will-change: transform, opacity; }
+.project-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(620px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(760px, calc(100dvh - 32px));
+  margin: auto;
+  padding: clamp(28px, 5vw, 48px);
+  overflow: auto;
+  border: 1px solid var(--landing-line);
+  border-radius: 16px;
+  background: var(--landing-surface);
+  color: var(--landing-ink);
+  box-shadow: 0 24px 80px var(--landing-shadow);
+}
+.project-dialog[open] { animation: project-dialog-in .24s var(--landing-ease) both; }
+.project-dialog::backdrop { background: rgba(20, 22, 24, .48); animation: project-backdrop-in .24s ease both; }
+.project-dialog-close {
+  position: absolute;
+  top: 17px;
+  right: 17px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--landing-line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--landing-muted);
+  cursor: pointer;
+  transition: color .2s ease, border-color .2s ease;
+}
+.project-dialog-close:hover { color: var(--landing-ink); border-color: var(--landing-muted); }
+.project-dialog-close svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.project-dialog-close:focus-visible, .project-dialog-cta:focus-visible { outline: 2px solid var(--landing-accent); outline-offset: 4px; }
+.project-dialog h2 { max-width: 11ch; margin: 0; font-size: clamp(30px, 5vw, 42px); line-height: .98; letter-spacing: -.055em; }
+.project-dialog > p { max-width: 56ch; margin: 20px 0 0; color: var(--landing-muted); font-size: 15px; line-height: 1.65; }
+.project-flow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; margin: 28px 0 30px; padding: 0; list-style: none; counter-reset: project-step; }
+.project-flow li { display: flex; align-items: baseline; gap: 12px; min-width: 0; padding: 11px 0; border-top: 1px solid var(--landing-line); color: var(--landing-ink); font-size: 13px; line-height: 1.35; counter-increment: project-step; }
+.project-flow li::before { content: counter(project-step, decimal-leading-zero); flex: 0 0 auto; color: var(--landing-faint); font-size: 10px; font-weight: 750; letter-spacing: .08em; }
+.project-dialog-cta { display: inline-flex; align-items: center; justify-content: space-between; gap: 22px; min-height: 48px; padding: 0 18px; border-radius: 7px; background: #808080; color: #fff; font-size: 12px; font-weight: 750; transition: background-color .2s ease, transform .2s var(--landing-ease); }
+.project-dialog-cta:hover { transform: translateY(-2px); background: var(--landing-ink); }
+.project-dialog-cta span { font-size: 17px; font-weight: 400; }
+@keyframes project-dialog-in { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes project-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+
+  .landing-nav, .hero-copy, .hero-stage, .landing-footer { will-change: transform, opacity; }
 .js-reveal { opacity: 0; transform: translateY(16px); }
 
 @media (max-width: 1100px) {

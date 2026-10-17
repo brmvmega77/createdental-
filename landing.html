@@ -13,10 +13,10 @@
       catch (_) { document.documentElement.dataset.theme = 'light'; }
     }());
   </script>
-  <link rel="stylesheet" href="/landing.css?v=landing-119">
+  <link rel="stylesheet" href="/landing.css?v=landing-120">
   <script src="/assets/landing-portal.js?v=portal-13" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
-  <script src="/landing.js?v=landing-45" defer></script>
+  <script src="/landing.js?v=landing-46" defer></script>
 </head>
 <body>
   <div class="landing-shell">
@@ -24,23 +24,18 @@
       <a class="landing-brand" href="/" aria-label="Create Dental — главная">
         <img src="/assets/create-dental-logo-transparent.png" alt="Create Dental">
       </a>
-      <div class="landing-nav-center" aria-label="Разделы лендинга">
-        <a href="#process">Процесс</a>
-        <span aria-hidden="true">/</span>
-        <a href="#quality">Контроль</a>
-      </div>
       <a class="landing-login" href="/login"><span>Войти в кабинет</span><b aria-hidden="true">↗</b></a>
     </nav>
 
     <main class="landing-main">
       <section class="landing-hero" aria-labelledby="landing-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span>CREATE DENTAL</span><i></i><span>ЦИФРОВАЯ ЛАБОРАТОРИЯ</span></p>
+          <p class="eyebrow"><span>CREATE DENTAL</span><i></i><span>AI-ЗУБОТЕХНИЧЕСКАЯ ЛАБОРАТОРИЯ</span></p>
           <h1 id="landing-title">Точность<br><em>начинается</em><br>с процесса.</h1>
           <p class="hero-lede">Соединяем клинику и лабораторию в один спокойный рабочий поток — от первого файла до готовой работы.</p>
           <div class="hero-actions">
-            <a class="action-primary" href="/register">Открыть кабинет <span aria-hidden="true">↗</span></a>
-            <a class="action-secondary" href="#process">Как это работает <span aria-hidden="true">↓</span></a>
+            <a class="action-primary" href="/register">Зарегистрировать клинику <span aria-hidden="true">↗</span></a>
+            <button class="action-secondary" type="button" aria-haspopup="dialog" aria-controls="project-dialog">Как это работает <span aria-hidden="true">↓</span></button>
           </div>
           <div class="hero-meta" id="quality" aria-label="Особенности Create Dental">
             <div><strong>01</strong><span>Один поток<br>для всей команды</span></div>
@@ -108,8 +103,26 @@
     <footer class="landing-footer">
       <span>CREATE DENTAL / 2026</span>
       <span>Для клиник, которым важен результат</span>
-      <a href="mailto:hello@createdental.ai">hello@createdental.ai</a>
+      <a href="mailto:orders@createdental.io">orders@createdental.io</a>
     </footer>
+
+    <dialog class="project-dialog" id="project-dialog" aria-labelledby="project-dialog-title" aria-describedby="project-dialog-description">
+      <button class="project-dialog-close" type="button" aria-label="Закрыть описание">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+      <h2 id="project-dialog-title">Заказ прозрачен на каждом этапе.</h2>
+      <p id="project-dialog-description">Create Dental — AI-зуботехническая лаборатория для клиник. Мы объединяем заказ, цифровое моделирование и производство в одном процессе, чтобы клиника видела, где находится работа и что будет дальше.</p>
+      <ol class="project-flow" aria-label="Этапы работы над заказом">
+        <li>Создание заказа</li>
+        <li>CAD-моделирование</li>
+        <li>Согласование</li>
+        <li>Фрезеровка</li>
+        <li>Эстетика</li>
+        <li>Контроль качества</li>
+        <li>Доставка</li>
+      </ol>
+      <a class="project-dialog-cta" href="/register">Зарегистрировать клинику <span aria-hidden="true">↗</span></a>
+    </dialog>
   </div>
 </body>
 </html>
