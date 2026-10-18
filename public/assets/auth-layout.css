@@ -51,3 +51,17 @@ html[data-theme="dark"] .portal-footer-legal a:hover, html[data-theme="dark"] .p
   .portal-footer-legal { flex-direction: column; gap: 4px; }
   .portal-footer-legal a { max-width: 100%; padding-block: 5px; }
 }
+
+/* Keep short portal pages bottom-aligned while the sign-in card stays centered. */
+.shell { display: flex; flex-direction: column; }
+.shell > .content { flex: 1 0 auto; }
+.shell > .portal-footer { margin-top: auto; }
+.portal-login { min-height: 100vh; min-height: 100svh; justify-content: flex-start; padding: 24px 24px 0; }
+.portal-login > section { margin-block: auto; }
+.portal-login > .portal-footer { flex: 0 0 auto; width: 100%; margin: 0 auto; }
+.tooth-chart { width: min(300px, 100%); }
+.tooth-chart svg { width: 100%; height: auto; aspect-ratio: 509 / 772; object-fit: contain; }
+@media(max-width:760px) {
+  .portal-login { padding: 76px 14px 0; }
+  .portal-login > section { margin-block: auto; }
+}
