@@ -1,0 +1,15 @@
+.prosthetic-addons{display:grid;gap:11px;margin-top:4px;padding-top:18px;border-top:1px solid #eeeeee}
+.prosthetic-addons h3{margin:0;color:#333333;font-size:14px;line-height:1.3}
+.prosthetic-addons p{margin:4px 0 0;color:#808080;font-size:11px;line-height:1.45}
+.prosthetic-addon-list{display:grid;gap:7px}
+.prosthetic-addon-list button{min-width:0;min-height:45px;padding:9px 11px;border:1px solid #eeeeee;border-radius:8px;background:#fbfbfb;color:#333333;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;font:inherit;font-size:11px;line-height:1.35;cursor:pointer}
+.prosthetic-addon-list button:hover:not(:disabled){background:#fff;border-color:#808080;box-shadow:0 0 0 1px #808080 inset}
+.prosthetic-addon-list button:disabled{cursor:not-allowed;opacity:.58}
+.prosthetic-addon-list button b{flex:0 0 auto;color:#808080;font-size:11px;white-space:nowrap}
+.prosthetic-addons-note{color:#808080;font-size:10px;line-height:1.4}
+html[data-theme="dark"] .prosthetic-addons{border-color:#343a41}
+html[data-theme="dark"] .prosthetic-addons h3{color:#eef0f2}
+html[data-theme="dark"] .prosthetic-addons p,html[data-theme="dark"] .prosthetic-addons-note{color:#9da4ad}
+html[data-theme="dark"] .prosthetic-addon-list button{background:#1b1e22;border-color:#3a4047;color:#eef0f2}
+html[data-theme="dark"] .prosthetic-addon-list button:hover:not(:disabled){background:#292e34;border-color:#8a949f}
+html[data-theme="dark"] .prosthetic-addon-list button b{color:#aeb6bf}
