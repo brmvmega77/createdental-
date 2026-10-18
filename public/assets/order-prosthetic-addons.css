@@ -25,3 +25,10 @@ html[data-theme="dark"] .prosthetic-addon-name svg{border-color:#666;stroke:#c8c
 html[data-theme="dark"] .prosthetic-addon-cta b,html[data-theme="dark"] .prosthetic-addon-cta small{color:#c8c8c8}
 html[data-theme="dark"] .prosthetic-addon-list button:hover:not(:disabled) .prosthetic-addon-name svg{background:#808080;border-color:#808080;stroke:#fff}
 @media(max-width:600px){.prosthetic-addons{padding:14px}.prosthetic-addon-list button{align-items:flex-start}.prosthetic-addon-cta{padding-top:2px}}
+.surgical-socket-quantity{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.surgical-socket-quantity button{width:28px;height:28px;min-height:28px;padding:0!important;justify-content:center!important;border:1px solid #c8c8c8!important;border-radius:50%!important;background:#fff!important;color:#555!important;font-size:17px!important;line-height:1!important}
+.surgical-socket-quantity button:disabled{opacity:.4;cursor:not-allowed}
+.surgical-socket-quantity strong{min-width:42px;text-align:center;color:#555;font-size:12px}
+html[data-theme="dark"] .surgical-socket-quantity button{background:#1b1b1b!important;border-color:#555!important;color:#eee!important}
+html[data-theme="dark"] .surgical-socket-quantity strong{color:#eee}
+@media(max-width:600px){.surgical-socket-quantity{gap:5px}.surgical-socket-quantity button{width:25px;height:25px;min-height:25px}}
