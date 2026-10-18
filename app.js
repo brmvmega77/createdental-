@@ -1,17 +1,21 @@
 import { seedOrders } from './seed-orders.js?v=mobile-fast-1';
 import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadReviewHtml} from './portal-client.js?v=yandex-upload-11';
-import {routeFromPath,pathFor,navigate} from './routes.js?v=worker-salary-1';
+import {routeFromPath,pathFor,navigate} from './routes.js?v=ru-only-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=dashboard-layout-4';
-import {workCatalog,rubles} from './work-catalog.js?v=work-prices-5';
-import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=portal-language-2';
-import {productionStages} from './technician.js?v=portal-language-2';
-import './location-assist.js?v=portal-language-2';
+import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal} from './work-catalog.js?v=work-prices-9';
+import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=ru-only-1';
+import {openOrderPrint} from './order-print.js?v=order-print-8';
+import {orderWorkTypes,orderWorkLabel,orderEventSummary} from './order-list-utils.js?v=service-label-4';
+import {productionStages,compactStageLabel} from './technician.js?v=ru-only-1';
+import './location-assist.js?v=country-cities-1';
 
 const $ = (selector) => document.querySelector(selector);
 const icons = {
   home:'<path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21v-7h6v7"/>',
   plus:'<path d="M12 5v14M5 12h14"/>',
   orders:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6M8.5 10h7M8.5 14h7M8.5 18h4"/>',
+  grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  pulse:'<path d="M2 12h4l2.4-5 3.3 10 2.5-5H22"/>',
   file:'<path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v6h5M9 13h6M9 17h6"/>',
   message:'<path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3a2 2 0 0 1-1-2V6a2 2 0 0 1 2-2z"/><path d="M8 9h8M8 13h5"/>',
   book:'<path d="M12 6c-2.4-1.5-5.4-1.7-9-.8v14c3.6-.9 6.6-.7 9 .8 2.4-1.5 5.4-1.7 9-.8v-14c-3.6-.9-6.6-.7-9 .8zM12 6v14"/>',
@@ -36,6 +40,7 @@ const escapeHtml = (value) => String(value).replace(/[&<>"']/g, c => ({'&':'&amp
 const displayActor = (event) => event?.actorRole === 'clinic' ? 'Клиент' : 'Create Dental Team';
 const assets = '/assets/';
 const logo = `${assets}create-dental-logo.png`;
+const sidebarMark = '<span class="sidebar-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9c3-3.2 7.4-3.5 12-1 4.6-2.5 9-2.2 12 1 2.6 2.8 1.6 8.2.6 12.9-.9 4.5-2 10.6-4.6 15-.9 1.5-3.1 1.4-4-.2l-3.9-8.1c-.8-1.6-3.3-1.6-4.1 0l-3.9 8.1c-.9 1.6-3.1 1.7-4 .2-2.6-4.4-3.7-10.5-4.6-15C10.4 17.2 9.4 11.8 12 9Z"/><path d="M18 10.5c.3 3.1.5 5.6 1.6 7.2M30 10.5c-.3 3.1-.5 5.6-1.6 7.2"/></svg></span>';
 const orders = seedOrders.map(order=>({...order}));
 const nav = [['home','Главная','home'],['new','Новый заказ','plus'],['orders','Мои заказы','orders'],['messages','Сообщения','message'],['clinic','Моя клиника','clinic']];
 const steps = ['Пациент','Зубы и работа','Дополнительно','Подтверждение'];
@@ -45,60 +50,583 @@ if(oldLink.has('role')||oldLink.has('page')){
   navigate(pathFor(oldRole,oldLink.get('page')|| (oldRole==='clinic'?'home':'overview'),oldLink.get('order')),{replace:true});
 }
 const initialRoute=routeFromPath(location.pathname);
-const state = {role:initialRoute.role||'clinic',page:initialRoute.role==='clinic'?initialRoute.page:'home',step:0,filter:'Все',query:'',dueDateFilter:'',orderMonthFilter:'',orderFilterOpen:false,sortKey:'',sortDirection:'asc',orderId:initialRoute.orderId||'',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',selectedTeeth:[],bridgeRanges:[],bridgeStart:null,dentition:'Постоянные зубы',toothMode:'Одиночка',work:'',workOption:'',orderVariants:[],cart:[],messages:[],chatText:'',chatAttachment:null,chatStatus:'Служба поддержки онлайн · отвечаем 10:00–21:00 МСК',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),uploaded:[],orderFiles:[],orderFolderUrl:'',filesFor:'',orderUpload:null,reworkOrderId:'',cadReturnOrderId:'',cadReturnComment:'',cadReturnAttachments:[],cadPreview:null,clientRequest:null,form:{surname:'',initials:'',birth:'',orderType:'',construction:'',material:'',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A2',comment:''},toast:''};
+if(location.pathname.split('/').filter(Boolean).length>0&&['ru','am','uz','kz','uea','uae'].includes(location.pathname.split('/').filter(Boolean)[0])){
+  const canonical=initialRoute.role?pathFor(initialRoute.role,initialRoute.page,initialRoute.orderId):pathFor(null,initialRoute.mode);
+  navigate(canonical,{replace:true});
+}
+const state = {role:initialRoute.role||'clinic',page:initialRoute.role==='clinic'?initialRoute.page:'home',step:0,filter:'Все',query:'',dueDateFilter:'',orderMonthFilter:'',orderWorkFilter:'',orderStatusFilter:'',orderFilterOpen:false,sortKey:'',sortDirection:'asc',orderId:initialRoute.orderId||'',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',selectedTeeth:[],bridgeRanges:[],bridgeStart:null,dentition:'Постоянные зубы',toothMode:'Одиночка',work:'',workOption:'',orderVariants:[],cart:[],messages:[],chatText:'',chatAttachment:null,chatStatus:'Служба поддержки онлайн · отвечаем 10:00–21:00 МСК',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),datePickerOpen:false,datePickerField:'due',datePickerMonth:'',datePickerYearOpen:false,uploaded:[],orderFiles:[],orderFolderUrl:'',filesFor:'',orderUpload:null,reworkOrderId:'',cadReturnOrderId:'',cadReturnComment:'',cadReturnAttachments:[],cadPreview:null,clientRequest:null,form:{surname:'',initials:'',birth:'',orderType:'',construction:'',material:'',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A2',comment:''},toast:''};
 let cadPreviewRequest=0;
 let portalHistory=[];
 let portalClientRequests=[];
+let portalTasks=[];
 const selectedWork=()=>workCatalog.find(item=>item.name===state.work);
 const workOptionName=option=>typeof option==='string'?option:option.name;
 const selectedWorkOption=()=>selectedWork()?.options.find(option=>workOptionName(option)===state.workOption);
-const orderUnits=()=>Math.max(1,state.selectedTeeth.length);
+const jawSplitCategories=new Set(['Ложки прикуса','Сплинты','Хирургические шаблоны']);
+const prostheticNoTeethOptions=new Set(['Титановое основание Geo Medi','Титановое основание Аналог']);
+const isJawSplitSelection=(work,option)=>jawSplitCategories.has(work)&&Boolean(option);
+const isNoTeethSelection=(work,option)=>work==='Протетика'&&prostheticNoTeethOptions.has(option);
+const currentUsesJawSplit=()=>isJawSplitSelection(state.work,state.workOption);
+const currentNeedsNoTeeth=()=>isNoTeethSelection(state.work,state.workOption);
+const variantUsesJawSplit=variant=>isJawSplitSelection(variant?.work,variant?.workOption);
+const variantNeedsNoTeeth=variant=>isNoTeethSelection(variant?.work,variant?.workOption);
+const variantJawCount=variant=>variantUsesJawSplit(variant)?[upperTeeth.every(tooth=>variant.selectedTeeth?.includes(tooth)),lowerTeeth.every(tooth=>variant.selectedTeeth?.includes(tooth))].filter(Boolean).length:0;
+const variantUnits=variant=>variantNeedsNoTeeth(variant)?1:variantUsesJawSplit(variant)?Math.max(1,variantJawCount(variant)):Math.max(1,variant?.selectedTeeth?.length||0);
+const orderUnits=()=>currentNeedsNoTeeth()?1:currentUsesJawSplit()?Math.max(1,variantJawCount(currentVariant())):Math.max(1,state.selectedTeeth.length);
 const orderEstimate = () => {
   const option=selectedWorkOption(),price=typeof option==='object'&&Number.isFinite(option.price)?option.price:selectedWork()?.price;
   return Number.isFinite(price)?price*orderUnits():null;
 };
 const orderEstimateText = () => orderEstimate()===null?'Стоимость уточняется':rubles(orderEstimate());
 const currentVariant = () => ({toothMode:state.toothMode,bridgeRanges:state.bridgeRanges.map(range=>[...range]),selectedTeeth:[...state.selectedTeeth],work:state.work,workOption:state.workOption});
-const variantIsComplete = variant => Boolean(variant?.selectedTeeth?.length&&variant.work&&(!workCatalog.find(item=>item.name===variant.work)?.options.length||variant.workOption));
-const variantEstimate = variant => {const work=workCatalog.find(item=>item.name===variant.work),option=work?.options.find(item=>workOptionName(item)===variant.workOption),price=typeof option==='object'&&Number.isFinite(option.price)?option.price:work?.price;return Number.isFinite(price)?price*Math.max(1,variant.selectedTeeth?.length||0):null};
+const variantIsComplete = variant => Boolean(variant?.work&&(!workCatalog.find(item=>item.name===variant.work)?.options.length||variant.workOption)&&(variantNeedsNoTeeth(variant)||variant?.selectedTeeth?.length));
+const variantEstimate = variant => {const work=workCatalog.find(item=>item.name===variant.work),option=work?.options.find(item=>workOptionName(item)===variant.workOption),price=typeof option==='object'&&Number.isFinite(option.price)?option.price:work?.price;return Number.isFinite(price)?price*variantUnits(variant):null};
 const allVariants = () => [...(state.orderVariants||[]),currentVariant()];
 const totalOrderEstimate = () => {const variants=allVariants().filter(variantIsComplete),values=variants.map(variantEstimate);return variants.length&&values.every(Number.isFinite)?values.reduce((sum,value)=>sum+value,0):null};
 const totalOrderEstimateText = () => totalOrderEstimate()===null?'Стоимость уточняется':rubles(totalOrderEstimate());
+const currentProductionOrder=()=>({variants:allVariants().filter(variantIsComplete)});
+const currentProductionDays=()=>productionDaysForOrder(currentProductionOrder());
+const currentEarliestDueDate=()=>earliestDueDateForOrder(currentProductionOrder(),new Date());
+const currentEarliestDueIso=()=>isoDateLocal(currentEarliestDueDate());
+const displayIsoDate=value=>{const date=dateValueParts(value);return date?`${String(date.getDate()).padStart(2,'0')}.${String(date.getMonth()+1).padStart(2,'0')}.${date.getFullYear()}`:''};
 const upperTeeth=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
 const lowerTeeth=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
 const statusClass = s => ['В работе','Работа принята','Принято','Принято доктором','Принято врачом','Завершен'].includes(s)?'green':s==='Новый'?'blue':'orange';
-const displayClientStatus = status => ({'На согласовании':'CAD на согласовании у врача','В пути к вам':'Доставка в клинику','Принято':'Принято врачом'}[status]||status);
+const displayClientStatus = status => ({'На согласовании':'Согласование врача','В пути к вам':'Доставка','Принято':'Готово'}[status]||status);
+const orderDateLabel = value => value || 'Без фиксированного срока';
 const badge = s => `<span class="badge ${statusClass(s)}">${s}</span>`;
 const button = (label,action,kind='primary',extra='') => `<button class="btn ${kind}" data-action="${action}" ${extra}>${label}</button>`;
-function sidebar(){return `<aside class="sidebar" id="sidebar"><button class="brand brand-home" data-page="home" aria-label="На главную"><img class="portal-logo" src="${logo}" alt="Create Dental"></button><div class="tech-side-label">КАБИНЕТ КЛИНИКИ</div><nav class="sidebar-nav">${nav.map(([id,label,ico])=>`<button class="nav-link ${state.page===id||(state.page==='detail'&&id==='orders')?'active':''}" data-page="${id}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav><button class="help-box" data-page="messages">${icon('message',20)}<span><strong>Нужна помощь?</strong><small>Напишите нам</small></span></button></aside>`}
+const sidebarCollapsed = () => { try { return localStorage.getItem('create-dental-sidebar-collapsed') === '1'; } catch { return false; } };
+const sidebarCollapseMarkup = () => `<button class="sidebar-collapse-toggle" data-action="sidebar-toggle" aria-label="${sidebarCollapsed()?'Развернуть':'Свернуть'} боковое меню" title="${sidebarCollapsed()?'Развернуть':'Свернуть'} боковое меню">${icon('chevron',16)}</button>`;
+function sidebar(){return `<aside class="sidebar ${sidebarCollapsed()?'sidebar-collapsed':''}" id="sidebar"><button class="brand brand-home" data-page="home" aria-label="На главную"><img class="portal-logo" src="${logo}" alt="Create Dental">${sidebarMark}</button>${sidebarCollapseMarkup()}<div class="tech-side-label">КАБИНЕТ КЛИНИКИ</div><nav class="sidebar-nav">${nav.map(([id,label,ico])=>`<button class="nav-link ${state.page===id||(state.page==='detail'&&id==='orders')?'active':''}" data-page="${id}" data-sidebar-label="${label}" title="${label}">${icon(ico,20)}<span>${label}</span></button>`).join('')}</nav><button class="help-box" data-page="messages">${icon('message',20)}<span><strong>Нужна помощь?</strong><small>Напишите нам</small></span></button></aside>`}
 function header(){const clinic=clinicRecord();return `<header class="topbar"><button class="mobile-menu" data-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div>${languageSwitcherMarkup()}${themeToggleMarkup()}<button class="role-toggle" data-auth-logout>Выйти</button><span class="topbar-clinic-name">${escapeHtml(clinic?.name||'Клиника')}</span>${notificationCenterMarkup()}<button class="profile" data-page="clinic"><span class="avatar">${clinic?.logo?`<img src="${escapeHtml(clinic.logo)}" alt="Логотип ${escapeHtml(clinic.name||'клиники')}">`:'К'}</span><span><strong>${escapeHtml(clinic?.contact||clinic?.name||'Клиника')}</strong><small>Стоматологическая клиника</small></span>${icon('chevron',13)}</button></header>`}
-function shell(content){$('#app').innerHTML=`${sidebar()}<div class="shell">${header()}<main class="content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${escapeHtml(state.toast)}</div>`;}
+const clinicLocaleOptions=['ru','am','uz','kk','ar'];
+function clinicIntlLocale(){const locale=(()=>{try{return localStorage.getItem('create-dental-locale')||'ru'}catch{return 'ru'}})();return ({ru:'ru-RU',am:'hy-AM',uz:'uz-UZ',kk:'kk-KZ',ar:'ar-AE'})[locale]||'ru-RU'}
+const clinicTranslations={
+'КАБИНЕТ КЛИНИКИ':['ԿԼԻՆԻԿԱՅԻ ԱՆՁՆԱԿԱՆ ԷՋ','KLINIKA KABINETI','КЛИНИКА КАБИНЕТІ','حساب العيادة'],
+'Главная':['Գլխավոր','Bosh sahifa','Басты бет','الرئيسية'],
+'Новый заказ':['Նոր պատվեր','Yangi buyurtma','Жаңа тапсырыс','طلب جديد'],
+'Мои заказы':['Իմ պատվերները','Buyurtmalarim','Менің тапсырыстарым','طلباتي'],
+'Сообщения':['Հաղորդագրություններ','Xabarlar','Хабарламалар','الرسائل'],
+'Моя клиника':['Իմ կլինիկան','Mening klinikam','Менің клиникам','عيادتي'],
+'Нужна помощь?':['Օգնությո՞ւն է պետք','Yordam kerakmi?','Көмек керек пе?','هل تحتاج إلى مساعدة؟'],
+'Напишите нам':['Գրեք մեզ','Bizga yozing','Бізге жазыңыз','راسلنا'],
+'Выйти':['Ելք','Chiqish','Шығу','تسجيل الخروج'],
+'Стоматологическая клиника':['Ատամնաբուժական կլինիկա','Stomatologiya klinikasi','Стоматологиялық клиника','عيادة أسنان'],
+'Заказы не найдены':['Պատվերներ չեն գտնվել','Buyurtmalar topilmadi','Тапсырыстар табылмады','لم يتم العثور على طلبات'],
+'Календарь сроков':['Վերջնաժամկետների օրացույց','Muddatlar taqvimi','Мерзімдер күнтізбесі','تقويم المواعيد النهائية'],
+'Все':['Բոլորը','Barchasi','Барлығы','الكل'],
+'Все заказы':['Բոլոր պատվերները','Barcha buyurtmalar','Барлық тапсырыс','كل الطلبات'],
+'В этот день нет сдачи':['Այս օրը հանձնում չկա','Bu kunda topshirish yo‘q','Бұл күні тапсыру жоқ','لا يوجد تسليم في هذا اليوم'],
+'Выберите дату':['Ընտրեք ամսաթիվը','Sanani tanlang','Күнді таңдаңыз','اختر تاريخًا'],
+'Сдачи на {…}':['Հանձնումներ՝ {…}','Topshirish sanasi: {…}','Тапсыру күні: {…}','التسليم في {…}'],
+'Последние сообщения':['Վերջին հաղորդագրությունները','So‘nggi xabarlar','Соңғы хабарламалар','أحدث الرسائل'],
+'Сообщений пока нет.':['Հաղորդագրություններ դեռ չկան։','Hozircha xabarlar yo‘q.','Әзірге хабарламалар жоқ.','لا توجد رسائل حتى الآن.'],
+'Написать в поддержку →':['Գրել աջակցման ծառայությանը →','Yordam xizmatiga yozish →','Қолдау қызметіне жазу →','مراسلة الدعم ←'],
+'Создать новый заказ':['Ստեղծել նոր պատվեր','Yangi buyurtma yaratish','Жаңа тапсырыс жасау','إنشاء طلب جديد'],
+'Создавайте заказы, отслеживайте статус и получайте готовые работы в срок.':['Ստեղծեք պատվերներ, հետևեք դրանց ընթացքին և ստացեք պատրաստի աշխատանքները ժամանակին։','Buyurtma yarating, holatini kuzating va tayyor ishlarni o‘z vaqtida oling.','Тапсырыс беріп, мәртебесін бақылаңыз және дайын жұмысты уақытында алыңыз.','أنشئ الطلبات وتابع حالتها واستلم الأعمال الجاهزة في موعدها.'],
+'Активных заказов':['Ակտիվ պատվերներ','Faol buyurtmalar','Белсенді тапсырыстар','طلبات نشطة'],
+'CAD на согласовании у врача':['CAD-ը բժշկի հաստատմանն է սպասում','CAD shifokor tasdig‘ida','CAD дәрігердің келісуінде','CAD بانتظار موافقة الطبيب'],
+'В работе':['Ընթացքում','Jarayonda','Жұмыста','قيد التنفيذ'],
+'После приемки':['Ընդունումից հետո','Qabul qilingandan so‘ng','Қабылданғаннан кейін','بعد الاستلام'],
+'Качество в каждой детали':['Որակ՝ յուրաքանչյուր մանրուքում','Har bir detalda sifat','Әр бөлшектегі сапа','الجودة في كل تفصيل'],
+'Современные технологии.':['Ժամանակակից տեխնոլոգիաներ։','Zamonaviy texnologiyalar.','Заманауи технологиялар.','تقنيات حديثة.'],
+'Индивидуальный подход.':['Անհատական մոտեցում։','Individual yondashuv.','Жеке тәсіл.','نهج فردي.'],
+'Надежные сроки.':['Հուսալի ժամկետներ։','Ishonchli muddatlar.','Сенімді мерзімдер.','مواعيد موثوقة.'],
+'Тип работы':['Աշխատանքի տեսակ','Ish turi','Жұмыс түрі','نوع العمل'],
+'Статус':['Կարգավիճակ','Holat','Мәртебе','الحالة'],
+'Месяц заказа':['Պատվերի ամիս','Buyurtma oyi','Тапсырыс айы','شهر الطلب'],
+'Фильтр':['Զտիչ','Filtr','Сүзгі','تصفية'],
+'Все типы работ':['Աշխատանքի բոլոր տեսակները','Barcha ish turlari','Жұмыстың барлық түрі','كل أنواع العمل'],
+'Все статусы':['Բոլոր կարգավիճակները','Barcha holatlar','Барлық мәртебелер','كل الحالات'],
+'Все месяцы':['Բոլոր ամիսները','Barcha oylar','Барлық айлар','كل الأشهر'],
+'Сбросить':['Մաքրել','Tozalash','Тазалау','إعادة ضبط'],
+'Готово':['Պատրաստ է','Tayyor','Дайын','تم'],
+'ПРОИЗВОДСТВО':['ԱՐՏԱԴՐՈՒԹՅՈՒՆ','ISHLAB CHIQARISH','ӨНДІРІС','الإنتاج'],
+'Срок сдачи:':['Հանձնման ժամկետը՝','Topshirish muddati:','Тапсыру мерзімі:','موعد التسليم:'],
+'Поиск по номеру заказа, пациенту или типу работы...':['Որոնել ըստ պատվերի համարի, հիվանդի կամ աշխատանքի տեսակի...','Buyurtma raqami, bemor yoki ish turi bo‘yicha qidirish...','Тапсырыс нөмірі, пациент немесе жұмыс түрі бойынша іздеу...','ابحث برقم الطلب أو المريض أو نوع العمل...'],
+'ID заказа':['Պատվերի ID','Buyurtma ID','Тапсырыс ID','رقم الطلب'],
+'Пациент':['Հիվանդ','Bemor','Пациент','المريض'],
+'Создан':['Ստեղծվել է','Yaratilgan','Құрылған','تاريخ الإنشاء'],
+'Срок':['Ժամկետ','Muddat','Мерзімі','الموعد النهائي'],
+'Сумма':['Գումար','Summa','Сома','المبلغ'],
+'Минимальная дата для выбранных услуг: {…}':['Ընտրված ծառայությունների նվազագույն ամսաթիվը՝ {…}','Tanlangan xizmatlar uchun eng erta sana: {…}','Таңдалған қызметтердің ең ерте күні: {…}','أقرب موعد للخدمات المحددة: {…}'],
+'Выберите год':['Ընտրեք տարին','Yilni tanlang','Жылды таңдаңыз','اختر السنة'],
+'‹ Раньше':['‹ Նախորդը','‹ Oldingi','‹ Алдыңғы','‹ السابق'],
+'Позже ›':['Հաջորդը ›','Keyingi ›','Келесі ›','التالي ›'],
+'Год: {…}':['Տարի՝ {…}','Yil: {…}','Жыл: {…}','السنة: {…}'],
+'← Вернуться к календарю':['← Վերադառնալ օրացույց','← Taqvimga qaytish','← Күнтізбеге оралу','→ العودة إلى التقويم'],
+'Очистить':['Մաքրել','Tozalash','Тазалау','مسح'],
+'Сегодня':['Այսօր','Bugun','Бүгін','اليوم'],
+'Данные пациента':['Հիվանդի տվյալներ','Bemor ma’lumotlari','Пациент деректері','بيانات المريض'],
+'Выберите, по какому маршруту пойдёт заказ.':['Ընտրեք պատվերի մշակման ուղին։','Buyurtma qaysi yo‘nalishda bajarilishini tanlang.','Тапсырыс жүретін бағытты таңдаңыз.','اختر مسار تنفيذ الطلب.'],
+'Цифровой':['Թվային','Raqamli','Цифрлық','رقمي'],
+'Цифровой заказ · нужны STL или сканы':['Թվային պատվեր · անհրաժեշտ են STL ֆայլեր կամ սկաներ','Raqamli buyurtma · STL fayllar yoki skanerlar kerak','Цифрлық тапсырыс · STL файлдары немесе скан қажет','طلب رقمي · يلزم STL أو مسح ضوئي'],
+'Аналоговый':['Անալոգային','Analog','Аналогтық','تقليدي'],
+'Аналоговый заказ · нужен гипсовый слепок':['Անալոգային պատվեր · անհրաժեշտ է գիպսե կաղապար','Analog buyurtma · gips qolip kerak','Аналогтық тапсырыс · гипс қалып қажет','طلب تقليدي · يلزم قالب جبسي'],
+'Фамилия пациента · обязательно':['Հիվանդի ազգանուն · պարտադիր','Bemor familiyasi · majburiy','Пациенттің тегі · міндетті','اسم عائلة المريض · مطلوب'],
+'Имя пациента · обязательно':['Հիվանդի անուն · պարտադիր','Bemor ismi · majburiy','Пациенттің аты · міндетті','اسم المريض · مطلوب'],
+'Дата рождения · необязательно':['Ծննդյան ամսաթիվ · պարտադիր չէ','Tug‘ilgan sana · ixtiyoriy','Туған күні · міндетті емес','تاريخ الميلاد · اختياري'],
+'Фамилия':['Ազգանուն','Familiya','Тегі','اسم العائلة'],
+'Имя · отчество по желанию':['Անուն · հայրանունը՝ ըստ ցանկության','Ism · otasining ismi ixtiyoriy','Аты · әкесінің аты қалауыңызша','الاسم · اسم الأب اختياري'],
+'Фамилия и имя обязательны. Отчество можно указать по желанию.':['Ազգանունն ու անունը պարտադիր են։ Հայրանունը կարելի է նշել ըստ ցանկության։','Familiya va ism majburiy. Otasining ismini ixtiyoriy kiritish mumkin.','Тегі мен аты міндетті. Әкесінің атын қалауыңызша көрсетуге болады.','اسم العائلة والاسم مطلوبان. يمكن إدخال اسم الأب اختياريًا.'],
+'← Все виды работ':['← Աշխատանքի բոլոր տեսակները','← Barcha ish turlari','← Барлық жұмыс түрлері','→ كل أنواع العمل'],
+'Категория выбрана':['Կատեգորիան ընտրված է','Turkum tanlandi','Санат таңдалды','تم اختيار الفئة'],
+'Выберите вариант исполнения':['Ընտրեք կատարման տարբերակը','Bajarish variantini tanlang','Орындау нұсқасын таңдаңыз','اختر خيار التنفيذ'],
+'Услуга {…}':['Ծառայություն {…}','Xizmat {…}','Қызмет {…}','الخدمة {…}'],
+'Количество':['Քանակ','Soni','Саны','الكمية'],
+'Предварительно':['Նախնական','Dastlabki','Алдын ала','مبدئي'],
+'Ваш заказ':['Ձեր պատվերը','Buyurtmangiz','Тапсырысыңыз','طلبك'],
+'Выберите нужные зубы и работу':['Ընտրեք անհրաժեշտ ատամներն ու աշխատանքը','Kerakli tishlar va ishni tanlang','Қажетті тістер мен жұмысты таңдаңыз','اختر الأسنان والعمل المطلوب'],
+'Здесь появится состав заказа и предварительная стоимость.':['Այստեղ կցուցադրվեն պատվերի կազմը և նախնական արժեքը։','Bu yerda buyurtma tarkibi va taxminiy narxi ko‘rinadi.','Мұнда тапсырыс құрамы мен алдын ала бағасы көрсетіледі.','سيظهر هنا محتوى الطلب والتكلفة التقديرية.'],
+'＋ Заказать ещё':['＋ Ավելացնել պատվեր','＋ Yana buyurtma berish','＋ Тағы тапсырыс беру','＋ إضافة طلب آخر'],
+'Итого предварительно':['Նախնական ընդհանուր գումար','Dastlabki jami','Алдын ала барлығы','الإجمالي المبدئي'],
+'Зубы':['Ատամներ','Tishlar','Тістер','الأسنان'],
+'Для этой услуги номера зубов не выбираются.':['Այս ծառայության համար ատամների համարներ չեն ընտրվում։','Bu xizmat uchun tish raqamlari tanlanmaydi.','Бұл қызмет үшін тіс нөмірлері таңдалмайды.','لا يتم تحديد أرقام الأسنان لهذه الخدمة.'],
+'Выберите челюсть':['Ընտրեք ծնոտը','Jag‘ni tanlang','Жақты таңдаңыз','اختر الفك'],
+'Выберите зуб(ы)':['Ընտրեք ատամ(ներ)','Tish(lar)ni tanlang','Тіс(терді) таңдаңыз','اختر السن/الأسنان'],
+'Верхняя челюсть':['Վերին ծնոտ','Yuqori jag‘','Жоғарғы жақ','الفك العلوي'],
+'Нижняя челюсть':['Ստորին ծնոտ','Pastki jag‘','Төменгі жақ','الفك السفلي'],
+'Одиночка':['Առանձին ատամ','Yakka tish','Жеке тіс','سن منفرد'],
+'Мост':['Կամուրջ','Ko‘prik','Көпір','جسر'],
+'Челюсть':['Ծնոտ','Jag‘','Жақ','الفك'],
+'Что нужно сделать?':['Ի՞նչ է պետք անել։','Nima qilish kerak?','Не істеу керек?','ما المطلوب؟'],
+'Добавить':['Ավելացնել','Qo‘shish','Қосу','إضافة'],
+'Дополнительная информация':['Լրացուցիչ տեղեկություններ','Qo‘shimcha ma’lumot','Қосымша ақпарат','معلومات إضافية'],
+'Файлы заказа — сканы, КТ и фото':['Պատվերի ֆայլեր՝ սկաներ, ԿՏ և լուսանկարներ','Buyurtma fayllari — skanerlar, KT va rasmlar','Тапсырыс файлдары — скан, КТ және фотосуреттер','ملفات الطلب — المسح والأشعة المقطعية والصور'],
+'Перетащите файлы сюда':['Քաշեք ֆայլերն այստեղ','Fayllarni shu yerga torting','Файлдарды осында сүйреңіз','اسحب الملفات إلى هنا'],
+'или нажмите, чтобы выбрать':['կամ սեղմեք՝ ընտրելու համար','yoki tanlash uchun bosing','немесе таңдау үшін басыңыз','أو انقر للاختيار'],
+'Изображения, PDF, 3D-файлы, архивы и документы — до 200 МБ на файл. Файлы прикрепятся к заказу.':['Պատկերներ, PDF, 3D ֆայլեր, արխիվներ և փաստաթղթեր՝ մինչև 200 ՄԲ յուրաքանչյուր ֆայլի համար։ Ֆայլերը կկցվեն պատվերին։','Rasm, PDF, 3D fayl, arxiv va hujjatlar — har bir fayl 200 MB gacha. Fayllar buyurtmaga biriktiriladi.','Суреттер, PDF, 3D файлдар, архивтер мен құжаттар — әр файл 200 МБ дейін. Файлдар тапсырысқа тіркеледі.','صور وPDF وملفات ثلاثية الأبعاد وأرشيفات ومستندات — حتى 200 ميغابايت للملف. ستُرفق الملفات بالطلب.'],
+'Комментарий к заказу':['Մեկնաբանություն պատվերի վերաբերյալ','Buyurtma izohi','Тапсырысқа түсініктеме','تعليق على الطلب'],
+'Напишите пожелания, особенности, дополнительные инструкции...':['Նշեք նախընտրությունները, առանձնահատկությունները կամ լրացուցիչ հրահանգները...','Istaklar, xususiyatlar va qo‘shimcha ko‘rsatmalarni yozing...','Тілектерді, ерекшеліктерді немесе қосымша нұсқауларды жазыңыз...','اكتب التفضيلات أو التفاصيل أو التعليمات الإضافية...'],
+'Проверьте данные заказа':['Ստուգեք պատվերի տվյալները','Buyurtma ma’lumotlarini tekshiring','Тапсырыс деректерін тексеріңіз','تحقق من بيانات الطلب'],
+'Номера зубов не требуются':['Ատամների համարներ պետք չեն','Tish raqamlari talab qilinmaydi','Тіс нөмірлері қажет емес','أرقام الأسنان غير مطلوبة'],
+'Заказы':['Պատվերներ','Buyurtmalar','Тапсырыстар','الطلبات'],
+'Услуги':['Ծառայություններ','Xizmatlar','Қызметтер','الخدمات'],
+'Желаемый срок':['Ցանկալի ժամկետ','Istalgan muddat','Қалаған мерзім','الموعد المطلوب'],
+'Предварительная сумма':['Նախնական գումար','Taxminiy summa','Алдын ала сома','المبلغ التقديري'],
+'Цвет':['Գույն','Rang','Түс','اللون'],
+'Комментарий':['Մեկնաբանություն','Izoh','Түсініктеме','تعليق'],
+'Файлы':['Ֆայլեր','Fayllar','Файлдар','الملفات'],
+'Корзина заказов':['Պատվերների զամբյուղ','Buyurtmalar savati','Тапсырыстар себеті','سلة الطلبات'],
+'Назад':['Հետ','Orqaga','Артқа','رجوع'],
+'Далее →':['Հաջորդը →','Keyingi →','Келесі →','التالي →'],
+'Создать заказ':['Ստեղծել պատվեր','Buyurtma yaratish','Тапсырыс жасау','إنشاء الطلب'],
+'Заказ отменится после подтверждения главным техником.':['Պատվերը կչեղարկվի գլխավոր տեխնիկի հաստատումից հետո։','Buyurtma bosh texnik tasdiqlagandan keyin bekor qilinadi.','Тапсырыс бас техник растағаннан кейін тоқтатылады.','سيتم إلغاء الطلب بعد موافقة كبير الفنيين.'],
+'Причина отмены':['Չեղարկման պատճառը','Bekor qilish sababi','Бас тарту себебі','سبب الإلغاء'],
+'Отправить запрос':['Ուղարկել հարցումը','So‘rov yuborish','Сұрау жіберу','إرسال الطلب'],
+'Запросить правку':['Պահանջել փոփոխություն','Tuzatish so‘rash','Түзету сұрау','طلب تعديل'],
+'Что изменить':['Ինչ փոխել','Nimani o‘zgartirish kerak','Нені өзгерту керек','ما الذي تريد تغييره'],
+'Сумма заказа':['Պատվերի գումարը','Buyurtma summasi','Тапсырыс сомасы','مبلغ الطلب'],
+'Исполнитель заказа':['Պատվերի կատարողը','Buyurtma ijrochisi','Тапсырысты орындаушы','منفذ الطلب'],
+'Исполнитель назначен':['Կատարողը նշանակված է','Ijrochi tayinlandi','Орындаушы тағайындалды','تم تعيين المنفذ'],
+'Пока не назначен':['Դեռ նշանակված չէ','Hali tayinlanmagan','Әзірге тағайындалмаған','لم يتم التعيين بعد'],
+'Услуги заказа':['Պատվերի ծառայությունները','Buyurtma xizmatlari','Тапсырыс қызметтері','خدمات الطلب'],
+'Режим':['Ռեժիմ','Rejim','Режим','الوضع'],
+'Мосты':['Կամուրջներ','Ko‘priklar','Көпірлер','الجسور'],
+'Исполнение':['Կատարում','Bajarilishi','Орындау','التنفيذ'],
+'Папка заказа на Яндекс Диске':['Պատվերի պանակը Yandex Disk-ում','Buyurtma papkasi Yandex Disk’da','Тапсырыс қалтасы Yandex Disk ішінде','مجلد الطلب على Yandex Disk'],
+'Все файлы хранятся только на Яндекс Диске':['Բոլոր ֆայլերը պահվում են միայն Yandex Disk-ում','Barcha fayllar faqat Yandex Disk’da saqlanadi','Барлық файлдар тек Yandex Disk ішінде сақталады','تُحفظ جميع الملفات على Yandex Disk فقط'],
+'Открыть папку':['Բացել պանակը','Papkani ochish','Қалтаны ашу','فتح المجلد'],
+'Папка создаётся…':['Պանակը ստեղծվում է…','Papka yaratilmoqda…','Қалта жасалуда…','جارٍ إنشاء المجلد…'],
+'Файлы заказа':['Պատվերի ֆայլերը','Buyurtma fayllari','Тапсырыс файлдары','ملفات الطلب'],
+'Загрузить файлы':['Վերբեռնել ֆայլեր','Fayllarni yuklash','Файлдарды жүктеу','رفع الملفات'],
+'Добавьте до 10 файлов в папку заказа на Яндекс Диске':['Ավելացրեք մինչև 10 ֆայլ պատվերի Yandex Disk պանակում','Buyurtma Yandex Disk papkasiga 10 tagacha fayl qo‘shing','Тапсырыстың Yandex Disk қалтасына 10 файлға дейін қосыңыз','أضف حتى 10 ملفات إلى مجلد الطلب على Yandex Disk'],
+'Выбрать файлы':['Ընտրել ֆայլեր','Fayllarni tanlash','Файлдарды таңдау','اختيار الملفات'],
+'Согласование CAD':['CAD-ի հաստատում','CAD tasdig‘i','CAD келісімі','موافقة CAD'],
+'Открыть CAD':['Բացել CAD-ը','CAD’ni ochish','CAD ашу','فتح CAD'],
+'Вернуть':['Վերադարձնել','Qaytarish','Қайтару','إرجاع'],
+'Подтвердить':['Հաստատել','Tasdiqlash','Растау','تأكيد'],
+'История появится после первого действия с заказом.':['Պատմությունը կհայտնվի պատվերի առաջին գործողությունից հետո։','Buyurtma bilan birinchi amal bajarilgandan so‘ng tarix ko‘rinadi.','Тапсырыспен алғашқы әрекеттен кейін тарих көрсетіледі.','سيظهر السجل بعد أول إجراء على الطلب.'],
+'←  Назад к заказам':['← Վերադառնալ պատվերներին','← Buyurtmalarga qaytish','← Тапсырыстарға оралу','→ العودة إلى الطلبات'],
+'Создан {…}':['Ստեղծվել է՝ {…}','Yaratilgan: {…}','Құрылған: {…}','تاريخ الإنشاء {…}'],
+'Распечатать наряд':['Տպել պատվերի թերթիկը','Buyurtma varag‘ini chop etish','Тапсырыс парағын басып шығару','طباعة أمر العمل'],
+'Сообщение':['Հաղորդագրություն','Xabar','Хабарлама','رسالة'],
+'Общая информация':['Ընդհանուր տեղեկություններ','Umumiy ma’lumot','Жалпы ақпарат','معلومات عامة'],
+'Статус заказа':['Պատվերի կարգավիճակը','Buyurtma holati','Тапсырыс мәртебесі','حالة الطلب'],
+'Прогресс заказа':['Պատվերի ընթացքը','Buyurtma jarayoni','Тапсырыс барысы','تقدم الطلب'],
+'Принять работу':['Ընդունել աշխատանքը','Ishni qabul qilish','Жұмысты қабылдау','قبول العمل'],
+'Отправить на доработку':['Ուղարկել վերամշակման','Qayta ishlashga yuborish','Қайта өңдеуге жіберу','إرسال لإعادة العمل'],
+'Комментарии к заказу пока отсутствуют.':['Պատվերի վերաբերյալ մեկնաբանություններ դեռ չկան։','Buyurtma bo‘yicha izohlar hozircha yo‘q.','Тапсырысқа қатысты әзірге пікір жоқ.','لا توجد تعليقات على الطلب حتى الآن.'],
+'Опишите, что нужно исправить. Запрос появится в истории заказа и кабинете исполнителя.':['Նկարագրեք, թե ինչն է պետք ուղղել։ Հարցումը կհայտնվի պատվերի պատմության և կատարողի էջում։','Nimani tuzatish kerakligini yozing. So‘rov buyurtma tarixi va ijrochi kabinetida ko‘rinadi.','Нені түзету керегін сипаттаңыз. Сұрау тапсырыс тарихында және орындаушы кабинетінде көрінеді.','صف ما يجب تصحيحه. سيظهر الطلب في سجل الطلب وحساب المنفذ.'],
+'Отмена':['Չեղարկել','Bekor qilish','Болдырмау','إلغاء'],
+'Отправить в лабораторию':['Ուղարկել լաբորատորիա','Laboratoriyaga yuborish','Зертханаға жіберу','إرسال إلى المختبر'],
+'Вернуть CAD моделировщику':['Վերադարձնել CAD-ը մոդելավորողին','CAD’ni modelchiga qaytarish','CAD-ты модельдеушіге қайтару','إعادة CAD إلى المصمم'],
+'Укажите конкретно, что нужно изменить.':['Հստակ նշեք, թե ինչն է պետք փոխել։','Nimani o‘zgartirish kerakligini aniq yozing.','Нені өзгерту керегін нақты көрсетіңіз.','حدد بدقة ما الذي يجب تغييره.'],
+'Добавить скриншоты или файлы':['Ավելացնել սքրինշոթեր կամ ֆայլեր','Skrinshot yoki fayllarni qo‘shish','Скриншоттар немесе файлдар қосу','إضافة لقطات شاشة أو ملفات'],
+'Вернуть на исправление':['Ուղարկել ուղղման','Tuzatishga qaytarish','Түзетуге қайтару','إعادة للتصحيح'],
+'Файлы':['Ֆայլեր','Fayllar','Файлдар','الملفات'],
+'Откройте нужный заказ, чтобы загрузить файлы прямо в его папку на Яндекс Диске.':['Բացեք անհրաժեշտ պատվերը՝ ֆայլերը անմիջապես դրա Yandex Disk պանակում վերբեռնելու համար։','Fayllarni to‘g‘ridan-to‘g‘ri Yandex Disk papkasiga yuklash uchun kerakli buyurtmani oching.','Файлдарды Yandex Disk қалтасына тікелей жүктеу үшін қажетті тапсырысты ашыңыз.','افتح الطلب المطلوب لرفع الملفات مباشرة إلى مجلده على Yandex Disk.'],
+'Все файлы':['Բոլոր ֆայլերը','Barcha fayllar','Барлық файлдар','كل الملفات'],
+'КТ/Рентген':['ԿՏ/Ռենտգեն','KT/Rentgen','КТ/Рентген','الأشعة المقطعية/السينية'],
+'Фото':['Լուսանկարներ','Rasmlar','Фотосуреттер','الصور'],
+'3D модели':['3D մոդելներ','3D modellar','3D модельдер','نماذج ثلاثية الأبعاد'],
+'Документы':['Փաստաթղթեր','Hujjatlar','Құжаттар','المستندات'],
+'Ваш диалог со службой поддержки':['Ձեր զրույցը աջակցության ծառայության հետ','Yordam xizmati bilan suhbatingiz','Қолдау қызметімен диалогыңыз','محادثتك مع الدعم'],
+'Служба поддержки онлайн · отвечаем 10:00–21:00 МСК':['Աջակցման ծառայությունը առցանց է · պատասխանում ենք 10:00–21:00 Մոսկվայի ժամանակով','Yordam xizmati onlayn · javob vaqti 10:00–21:00 Moskva vaqti','Қолдау қызметі желіде · жауап беру уақыты 10:00–21:00 Мәскеу уақыты','الدعم متصل · نرد من 10:00 إلى 21:00 بتوقيت موسكو'],
+'Напишите сообщение, и оператор увидит его в своей панели.':['Գրեք հաղորդագրություն, և օպերատորը կտեսնի այն իր վահանակում։','Xabar yozing, operator uni o‘z panelida ko‘radi.','Хабарлама жазыңыз, оператор оны өз панелінен көреді.','اكتب رسالة وسيظهر للمشغل في لوحته.'],
+'Напишите сообщение...':['Գրեք հաղորդագրություն...','Xabar yozing...','Хабарлама жазыңыз...','اكتب رسالة...'],
+'Отправить сообщение':['Ուղարկել հաղորդագրությունը','Xabar yuborish','Хабарлама жіберу','إرسال الرسالة'],
+'КЛИНИКА':['ԿԼԻՆԻԿԱ','KLINIKA','КЛИНИКА','العيادة'],
+'Логотип клиники':['Կլինիկայի լոգոն','Klinika logotipi','Клиника логотипі','شعار العيادة'],
+'Изменить логотип':['Փոխել լոգոն','Logotipni o‘zgartirish','Логотипті өзгерту','تغيير الشعار'],
+'Сохранить изменения':['Պահպանել փոփոխությունները','O‘zgarishlarni saqlash','Өзгерістерді сақтау','حفظ التغييرات'],
+'Основная информация':['Հիմնական տեղեկություններ','Asosiy ma’lumot','Негізгі ақпарат','المعلومات الأساسية'],
+'Контактные лица':['Կոնտակտային անձինք','Aloqa shaxslari','Байланыс тұлғалары','جهات الاتصال'],
+'Настройки':['Կարգավորումներ','Sozlamalar','Баптаулар','الإعدادات'],
+'Безопасность':['Անվտանգություն','Xavfsizlik','Қауіпсіздік','الأمان'],
+'Название клиники':['Կլինիկայի անվանումը','Klinika nomi','Клиника атауы','اسم العيادة'],
+'Страна':['Երկիր','Mamlakat','Ел','الدولة'],
+'Россия':['Ռուսաստան','Rossiya','Ресей','روسيا'],
+'Беларусь':['Բելառուս','Belarus','Беларусь','بيلاروس'],
+'Армения':['Հայաստան','Armaniston','Армения','أرمينيا'],
+'Казахстан':['Ղազախստան','Qozog‘iston','Қазақстан','كازاخستان'],
+'Узбекистан':['Ուզբեկստան','O‘zbekiston','Өзбекстан','أوزبكستان'],
+'ОАЭ':['ԱՄԷ','BAA','БАӘ','الإمارات'],
+'ИНН':['ՀՎՀՀ','STIR','БСН','الرقم الضريبي'],
+'Город':['Քաղաք','Shahar','Қала','المدينة'],
+'Адрес':['Հասցե','Manzil','Мекенжай','العنوان'],
+'Телефон':['Հեռախոս','Telefon','Телефон','الهاتف'],
+'Email':['Էլ․ փոստ','Email','Email','البريد الإلكتروني'],
+'Контактное лицо':['Կոնտակտային անձ','Aloqa shaxsi','Байланыс тұлғасы','جهة الاتصال'],
+'Должность':['Պաշտոն','Lavozim','Лауазымы','المنصب'],
+'Телефон контакта':['Կոնտակտային հեռախոս','Aloqa telefoni','Байланыс телефоны','هاتف جهة الاتصال'],
+'Email контакта':['Կոնտակտային էլ․ փոստ','Aloqa emaili','Байланыс email-ы','بريد جهة الاتصال'],
+'График работы':['Աշխատանքային ժամեր','Ish vaqti','Жұмыс кестесі','ساعات العمل'],
+'Предпочтительный способ доставки':['Նախընտրելի առաքման եղանակը','Afzal yetkazib berish usuli','Қалаулы жеткізу тәсілі','طريقة التسليم المفضلة'],
+'Условия оплаты':['Վճարման պայմաններ','To‘lov shartlari','Төлем шарттары','شروط الدفع'],
+'Комментарий для лаборатории':['Մեկնաբանություն լաբորատորիային','Laboratoriya uchun izoh','Зертханаға түсініктеме','ملاحظة للمختبر'],
+'Email для входа':['Մուտքի էլ․ փոստ','Kirish uchun email','Кіру email-ы','بريد تسجيل الدخول'],
+'Ответственный за доступ':['Մուտքի համար պատասխանատու','Kirish uchun mas’ul','Қолжетімділікке жауапты','المسؤول عن الوصول'],
+'Телефон для подтверждений':['Հաստատումների հեռախոսահամար','Tasdiqlash uchun telefon','Растау телефоны','هاتف التأكيدات'],
+'Заметка по доступу':['Մուտքի նշում','Kirish bo‘yicha eslatma','Қолжетімділік туралы ескертпе','ملاحظة الوصول'],
+'Введите город':['Մուտքագրեք քաղաքը','Shaharni kiriting','Қаланы енгізіңіз','أدخل المدينة'],
+'Введите адрес':['Մուտքագրите հասցեն','Manzilni kiriting','Мекенжайды енгізіңіз','أدخل العنوان'],
+'Информация о конструкциях, материалах и оформлении заказов.':['Տեղեկություններ կոնստրուկցիաների, նյութերի և պատվերների ձևակերպման մասին։','Konstruksiyalar, materiallar va buyurtma berish haqida ma’lumot.','Құрылымдар, материалдар және тапсырысты рәсімдеу туралы ақпарат.','معلومات عن التركيبات والمواد وتقديم الطلبات.'],
+'Эстетичные цельнокерамические реставрации.':['Էսթետիկ ամբողջական կերամիկական վերականգնումներ։','Estetik to‘liq keramik restavratsiyalar.','Эстетикалық тұтас керамикалық қалпына келтірулер.','ترميمات خزفية كاملة ذات مظهر جمالي.'],
+'Тонкие накладки для восстановления улыбки.':['Ժպիտը վերականգնելու բարակ ծածկույթներ։','Tabassumni tiklash uchun yupqa qoplamalar.','Күлкіні қалпына келтіруге арналған жұқа жапсырмалар.','قشور رقيقة لاستعادة الابتسامة.'],
+'Конструкции для замещения отсутствующих зубов.':['Բացակայող ատամները փոխարինող կոնստրուկցիաներ։','Yo‘qolgan tishlar o‘rnini bosuvchi konstruksiyalar.','Жоқ тістердің орнын толтыратын құрылымдар.','تركيبات لتعويض الأسنان المفقودة.'],
+'Цифровые слепки для точной работы.':['Թվային սկանավորումներ՝ ճշգրիտ աշխատանքի համար։','Aniq ish uchun raqamli qoliplar.','Дәл жұмысқа арналған цифрлық қалыптар.','مسح رقمي لعمل دقيق.'],
+'Коронки E.max':['E.max պսակներ','E.max qoplamalar','E.max сауыттары','تيجان E.max'],
+'Виниры':['Վինիրներ','Vinirlar','Винирлер','قشور تجميلية'],
+'Мостовидные протезы':['Կամրջաձև պրոթեզներ','Ko‘priksimon protezlar','Көпір тәрізді протездер','جسور سنية'],
+'3D сканирование':['3D սկանավորում','3D skanerlash','3D сканерлеу','المسح ثلاثي الأبعاد'],
+'Изменение заказа':['Պատվերի փոփոխություն','Buyurtmani o‘zgartirish','Тапсырысты өзгерту','تعديل الطلب'],
+'В пути к вам':['Ձեզ է ուղարկվել','Sizga yo‘lda','Сізге жеткізілуде','في الطريق إليك'],
+'На согласовании':['Հաստատման փուլում','Tasdiqlashda','Келісуде','بانتظار الموافقة'],
+'На доработке':['Վերամշակման փուլում','Qayta ishlashda','Қайта өңдеуде','قيد إعادة العمل'],
+'Новый':['Նոր','Yangi','Жаңа','جديد'],
+'Принято врачом':['Բժշկի կողմից ընդունված','Shifokor qabul qildi','Дәрігер қабылдады','قبله الطبيب'],
+'Принято доктором':['Բժշկի կողմից ընդունված','Shifokor qabul qildi','Дәрігер қабылдады','قبله الطبيب'],
+'Доставка в клинику':['Առաքում կլինիկա','Klinikaga yetkazish','Клиникаға жеткізу','التوصيل إلى العيادة'],
+'Приняты':['Ընդունված','Qabul qilingan','Қабылданған','مقبول'],
+'Новые':['Նոր','Yangi','Жаңа','جديد'],
+'Все заказы →':['Բոլոր պատվերները →','Barcha buyurtmalar →','Барлық тапсырыс →','كل الطلبات ←'],
+'Все ({…}) →':['Բոլորը ({…}) →','Barchasi ({…}) →','Барлығы ({…}) →','الكل ({…}) ←'],
+'Клиника не найдена':['Կլինիկան չի գտնվել','Klinika topilmadi','Клиника табылмады','لم يتم العثور على العيادة'],
+'Укажите название клиники':['Նշեք կլինիկայի անվանումը','Klinika nomini kiriting','Клиника атауын енгізіңіз','أدخل اسم العيادة'],
+'Данные клиники сохранены':['Կլինիկայի տվյալները պահպանվել են','Klinika ma’lumotlari saqlandi','Клиника деректері сақталды','تم حفظ بيانات العيادة'],
+'Справочник':['Տեղեկատու','Ma’lumotnoma','Анықтамалық','الدليل'],
+'Загрузка кабинета...':['Անձնական էջի բեռնում...','Kabinet yuklanmoqda...','Кабинет жүктелуде...','جارٍ تحميل الحساب...'],
+'Не удалось открыть изображение':['Չհաջողվեց բացել պատկերը','Rasmni ochib bo‘lmadi','Суретті ашу мүмкін болмады','تعذر فتح الصورة'],
+'Файл должен быть не больше 200 МБ':['Ֆայլի չափը չպետք է գերազանցի 200 ՄԲ-ը','Fayl hajmi 200 MB dan oshmasligi kerak','Файл өлшемі 200 МБ-тан аспауы керек','يجب ألا يتجاوز حجم الملف 200 ميغابايت'],
+'Выберите изображение, PDF, 3D-файл, архив, Word, Excel или текстовый документ':['Ընտրեք պատկեր, PDF, 3D ֆայլ, արխիվ, Word, Excel կամ տեքստային փաստաթուղթ','Rasm, PDF, 3D fayl, arxiv, Word, Excel yoki matnli hujjatni tanlang','Сурет, PDF, 3D файл, архив, Word, Excel немесе мәтіндік құжат таңдаңыз','اختر صورة أو PDF أو ملفًا ثلاثي الأبعاد أو أرشيفًا أو مستند Word أو Excel أو نصيًا'],
+'Выберите зуб или челюсть':['Ընտրեք ատամը կամ ծնոտը','Tish yoki jag‘ni tanlang','Тісті немесе жақты таңдаңыз','اختر السن أو الفك'],
+'Выберите вид работы':['Ընտրեք աշխատանքի տեսակը','Ish turini tanlang','Жұмыс түрін таңдаңыз','اختر نوع العمل'],
+'Выберите вариант услуги':['Ընտրեք ծառայության տարբերակը','Xizmat variantini tanlang','Қызмет нұсқасын таңдаңыз','اختر خيار الخدمة'],
+'Укажите желаемый срок готовности':['Նշեք պատրաստ լինելու ցանկալի ժամկետը','Tayyor bo‘lish muddatini kiriting','Дайын болу мерзімін көрсетіңіз','حدد الموعد المطلوب للإنجاز'],
+'Срок сдачи должен приходиться на рабочий день':['Հանձնման օրը պետք է աշխատանքային օր լինի','Topshirish sanasi ish kuniga to‘g‘ri kelishi kerak','Тапсыру күні жұмыс күні болуы керек','يجب أن يكون موعد التسليم يوم عمل'],
+'Введите сообщение, чтобы отправить его':['Հաղորդագրություն մուտքագրեք՝ ուղարկելու համար','Yuborish uchun xabar kiriting','Жіберу үшін хабарлама енгізіңіз','أدخل رسالة لإرسالها'],
+'Не удалось отправить сообщение':['Չհաջողվեց ուղարկել հաղորդագրությունը','Xabarni yuborib bo‘lmadi','Хабарламаны жіберу мүмкін болмады','تعذر إرسال الرسالة'],
+'Запрос отмены отправлен':['Չեղարկման հարցումն ուղարկվել է','Bekor qilish so‘rovi yuborildi','Бас тарту сұрауы жіберілді','تم إرسال طلب الإلغاء'],
+'Запрос на доработку отправлен':['Վերամշակման հարցումն ուղարկվել է','Qayta ishlash so‘rovi yuborildi','Қайта өңдеу сұрауы жіберілді','تم إرسال طلب إعادة العمل'],
+'Загрузка файлов заказа':['Պատվերի ֆայլերի վերբեռնում','Buyurtma fayllari yuklanmoqda','Тапсырыс файлдары жүктелуде','رفع ملفات الطلب'],
+'Выберите до 10 файлов. Они сразу загружаются в папку этого заказа на Яндекс Диске.':['Ընտրեք մինչև 10 ֆայլ։ Դրանք անմիջապես կվերբեռնվեն պատվերի Yandex Disk պանակ։','10 tagacha fayl tanlang. Ular darhol buyurtmaning Yandex Disk papkasiga yuklanadi.','10 файлға дейін таңдаңыз. Олар бірден тапсырыстың Yandex Disk қалтасына жүктеледі.','اختر حتى 10 ملفات. سيتم رفعها مباشرة إلى مجلد الطلب على Yandex Disk.'],
+'Общий прогресс':['Ընդհանուր առաջընթաց','Umumiy jarayon','Жалпы барысы','التقدم الإجمالي'],
+'Отправить на согласование':['Ուղարկել հաստատման','Tasdiqlash uchun yuborish','Келісуге жіберу','إرسال للموافقة'],
+'Новая клиника':['Նոր կլինիկա','Yangi klinika','Жаңа клиника','عيادة جديدة'],
+'Клиника':['Կլինիկա','Klinika','Клиника','عيادة'],
+'Открыть меню':['Բացել ընտրացանկը','Menyuni ochish','Мәзірді ашу','فتح القائمة'],
+'Включить ночную тему':['Միացնել գիշերային թեման','Tungi mavzuni yoqish','Түнгі режимді қосу','تفعيل الوضع الليلي'],
+'Включить дневную тему':['Միացնել ցերեկային թեման','Kunduzgi mavzuni yoqish','Күндізгі режимді қосу','تفعيل الوضع النهاري'],
+'Ночная тема':['Գիշերային թեմա','Tungi mavzu','Түнгі режим','الوضع الليلي'],
+'Дневная тема':['Ցերեկային թեմա','Kunduzgi mavzu','Күндізгі режим','الوضع النهاري'],
+'Добавить файлы':['Ավելացնել ֆայլեր','Fayllarni qo‘shish','Файлдарды қосу','إضافة ملفات'],
+'Логотип клиники':['Կլինիկայի լոգոն','Klinika logotipi','Клиника логотипі','شعار العيادة'],
+'Открыть папку заказа':['Բացել պատվերի պանակը','Buyurtma papkasini ochish','Тапсырыс қалтасын ашу','فتح مجلد الطلب'],
+'Перейти на главную':['Անցնել գլխավոր էջ','Bosh sahifaga o‘tish','Басты бетке өту','الانتقال إلى الرئيسية'],
+'Свернуть боковое меню':['Փակել կողային ընտրացանկը','Yon menyuni yig‘ish','Бүйірлік мәзірді жинау','طي القائمة الجانبية'],
+'Развернуть боковое меню':['Բացել կողային ընտրացանկը','Yon menyuni yoyish','Бүйірлік мәзірді ашу','توسيع القائمة الجانبية'],
+'Имя клиники':['Կլինիկայի անունը','Klinika nomi','Клиника атауы','اسم العيادة'],
+'Введите пожелания, особенности или инструкции':['Մուտքագրեք ցանկությունները, առանձնահատկությունները կամ հրահանգները','Istaklar, xususiyatlar yoki ko‘rsatmalarni kiriting','Тілектерді, ерекшеліктерді немесе нұсқауларды енгізіңіз','أدخل التفضيلات أو التفاصيل أو التعليمات'],
+'Принято':['Ընդունված է','Qabul qilindi','Қабылданды','مقبول'],
+'Готово':['Պատրաստ է','Tayyor','Дайын','جاهز'],
+'В доставке':['Առաքման մեջ է','Yetkazilmoqda','Жеткізілуде','قيد التوصيل'],
+'Выполнено':['Կատարված է','Bajarildi','Орындалды','مكتمل'],
+'Работа принята':['Աշխատանքն ընդունված է','Ish qabul qilindi','Жұмыс қабылданды','تم قبول العمل'],
+'Согласование врача':['Բժշկի հաստատում','Shifokor tasdig‘i','Дәрігердің келісімі','موافقة الطبيب'],
+'Доставка':['Առաքում','Yetkazib berish','Жеткізу','التوصيل'],
+'Доработка и эстетика':['Վերամշակում և էսթետիկա','Qayta ishlash va estetika','Қайта өңдеу және эстетика','إعادة العمل والجماليات'],
+'Срок сдачи':['Հանձնման ժամկետ','Topshirish muddati','Тапсыру мерзімі','موعد التسليم'],
+'Файлы не найдены':['Ֆայլեր չեն գտնվել','Fayllar topilmadi','Файлдар табылмады','لم يتم العثور على ملفات'],
+'Работа':['Աշխատանք','Ish','Жұмыс','العمل'],
+'Пока нет заказов':['Պատվերներ դեռ չկան','Hozircha buyurtmalar yo‘q','Әзірге тапсырыс жоқ','لا توجد طلبات بعد'],
+'Выберите нужный заказ':['Ընտրեք անհրաժեշտ պատվերը','Kerakli buyurtmani tanlang','Қажетті тапсырысты таңдаңыз','اختر الطلب المطلوب'],
+'Лаборатория':['Լաբորատորիա','Laboratoriya','Зертхана','المختبر'],
+'Загрузить':['Վերբեռնել','Yuklash','Жүктеу','رفع'],
+'Удалить':['Ջնջել','O‘chirish','Жою','حذف'],
+'Отправить':['Ուղարկել','Yuborish','Жіберу','إرسال'],
+'Сохранить':['Պահպանել','Saqlash','Сақтау','حفظ'],
+'Выберите врача':['Ընտրեք բժշկին','Shifokorni tanlang','Дәрігерді таңдаңыз','اختر الطبيب'],
+'Проверьте обязательные поля':['Ստուգեք պարտադիր դաշտերը','Majburiy maydonlarni tekshiring','Міндетті өрістерді тексеріңіз','تحقق من الحقول المطلوبة'],
+'Зубы и работа':['Ատամներ և աշխատանք','Tishlar va ish','Тістер мен жұмыс','الأسنان والعمل'],
+'Дополнительно':['Լրացուցիչ','Qo‘shimcha','Қосымша','إضافات'],
+'Подтверждение':['Հաստատում','Tasdiqlash','Растау','التأكيد'],
+'Все заказы':['Բոլոր պատվերները','Barcha buyurtmalar','Барлық тапсырыстар','كل الطلبات'],
+'Работа принята':['Աշխատանքն ընդունված է','Ish qabul qilindi','Жұмыс қабылданды','تم قبول العمل'],
+'На согласовании':['Հաստատման փուլում','Tasdiqlashda','Келісуде','بانتظار الموافقة'],
+'Согласование врача':['Բժշկի հաստատում','Shifokor tasdig‘i','Дәрігердің келісімі','موافقة الطبيب'],
+'Доставка в клинику':['Առաքում կլինիկա','Klinikaga yetkazish','Клиникаға жеткізу','التوصيل إلى العيادة'],
+'Запросить отмену заказа':['Պահանջել պատվերի չեղարկում','Buyurtmani bekor qilishni so‘rash','Тапсырысты тоқтатуды сұрау','طلب إلغاء الطلب'],
+'Отмена заказа':['Պատվերի չեղարկում','Buyurtmani bekor qilish','Тапсырыстан бас тарту','إلغاء الطلب'],
+'Услуга добавлена':['Ծառայությունն ավելացվել է','Xizmat qo‘shildi','Қызмет қосылды','تمت إضافة الخدمة'],
+'Предварительная стоимость':['Նախնական արժեք','Taxminiy narx','Алдын ала құны','التكلفة التقديرية'],
+'Стоимость уточняется':['Արժեքը կհստակեցվի','Narxi aniqlanadi','Құны нақтыланады','سيتم تحديد التكلفة'],
+'Выберите вариант исполнения':['Ընտրեք կատարման տարբերակը','Bajarish variantini tanlang','Орындау нұсқасын таңдаңыз','اختر خيار التنفيذ'],
+'Желаемый срок готовности':['Ցանկալի պատրաստման ժամկետ','Istalgan tayyor bo‘lish muddati','Қалаған дайын болу мерзімі','موعد الإنجاز المطلوب'],
+'Цвет/оттенок (например, Vita)':['Գույն/երանգ (օրինակ՝ Vita)','Rang/ton (masalan, Vita)','Түс/реңк (мысалы, Vita)','اللون/الدرجة (مثل Vita)'],
+'Нажмите на нужные зубы':['Սեղմեք անհրաժեշտ ատամների վրա','Kerakli tishlarni bosing','Қажетті тістерді басыңыз','انقر على الأسنان المطلوبة'],
+'Выберите первый и последний зуб моста':['Ընտրեք կամրջի առաջին և վերջին ատամները','Ko‘prikning birinchi va oxirgi tishini tanlang','Көпірдің бірінші және соңғы тісін таңдаңыз','اختر أول وآخر سن في الجسر'],
+'Выберите последний зуб на этой челюсти':['Ընտրեք այս ծնոտի վերջին ատամը','Bu jag‘dagi oxirgi tishni tanlang','Осы жақтағы соңғы тісті таңдаңыз','اختر آخر سن في هذا الفك'],
+'Выберите верхнюю или нижнюю челюсть':['Ընտրեք վերին կամ ստորին ծնոտը','Yuqori yoki pastki jag‘ni tanlang','Жоғарғы немесе төменгі жақты таңдаңыз','اختر الفك العلوي أو السفلي'],
+'Верхняя челюсть выбрана автоматически':['Վերին ծնոտն ընտրվել է ավտոմատ կերպով','Yuqori jag‘ avtomatik tanlandi','Жоғарғы жақ автоматты түрде таңдалды','تم اختيار الفك العلوي تلقائيًا'],
+'Нижняя челюсть':['Ստորին ծնոտ','Pastki jag‘','Төменгі жақ','الفك السفلي'],
+'Выбраны верхняя и нижняя челюсти':['Ընտրված են վերին և ստորին ծնոտները','Yuqori va pastki jag‘lar tanlandi','Жоғарғы және төменгі жақтар таңдалды','تم اختيار الفكين العلوي والسفلي'],
+'Очистить выбор':['Մաքրել ընտրությունը','Tanlovni tozalash','Таңдауды тазалау','مسح الاختيار'],
+'Файлы заказа добавлены':['Պատվերի ֆայլերն ավելացվել են','Buyurtma fayllari qo‘shildi','Тапсырыс файлдары қосылды','تمت إضافة ملفات الطلب'],
+'Подтвердите получение работы':['Հաստատեք աշխատանքի ստացումը','Ish qabul qilinganini tasdiqlang','Жұмысты алғаныңызды растаңыз','أكد استلام العمل'],
+'Пожалуйста, опишите, что нужно исправить':['Նկարագրեք, խնդրում ենք, թե ինչն է պետք ուղղել','Nimani tuzatish kerakligini yozing','Нені түзету керегін сипаттаңыз','يرجى وصف ما يجب تصحيحه'],
+'Номер заказа':['Պատվերի համար','Buyurtma raqami','Тапсырыс нөмірі','رقم الطلب'],
+'Общая информация':['Ընդհանուր տեղեկություններ','Umumiy ma’lumot','Жалпы ақпарат','معلومات عامة'],
+'Основная информация':['Հիմնական տեղեկություններ','Asosiy ma’lumot','Негізгі ақпарат','المعلومات الأساسية'],
+'Контакты':['Կոնտակտներ','Aloqalar','Байланыс','جهات الاتصال'],
+'Комментарии':['Մեկնաբանություններ','Izohlar','Пікірлер','التعليقات'],
+'Обзор':['Տեսություն','Ko‘rib chiqish','Шолу','نظرة عامة'],
+'Текущая стадия производства':['Արտադրության ընթացիկ փուլը','Joriy ishlab chiqarish bosqichi','Өндірістің ағымдағы кезеңі','مرحلة الإنتاج الحالية'],
+'Данные заказа':['Պատվերի տվյալներ','Buyurtma ma’lumotlari','Тапсырыс деректері','بيانات الطلب'],
+'Отправлено на согласование':['Ուղարկվել է հաստատման','Tasdiqlash uchun yuborildi','Келісуге жіберілді','أُرسل للموافقة'],
+'Ожидает вашего решения':['Սպասում է ձեր որոշմանը','Qaroringizni kutmoqda','Сіздің шешіміңізді күтуде','بانتظار قرارك'],
+'CAD подтверждён':['CAD-ը հաստատված է','CAD tasdiqlandi','CAD расталды','تمت الموافقة على CAD'],
+'CAD возвращён моделировщику':['CAD-ը վերադարձվել է մոդելավորողին','CAD modelchiga qaytarildi','CAD модельдеушіге қайтарылды','أُعيد CAD إلى المصمم'],
+'Нужно внести изменения':['Պետք է փոփոխություններ կատարել','O‘zgartirishlar kiritish kerak','Өзгерістер енгізу керек','يجب إجراء تعديلات'],
+'Исполнитель пока не назначен':['Կատարողը դեռ նշանակված չէ','Ijrochi hali tayinlanmagan','Орындаушы әлі тағайындалмаған','لم يتم تعيين المنفذ بعد'],
+'Открыть файл':['Բացել ֆայլը','Faylni ochish','Файлды ашу','فتح الملف'],
+'Добавить комментарий':['Ավելացնել մեկնաբանություն','Izoh qo‘shish','Пікір қосу','إضافة تعليق'],
+'ИСТОРИЯ ЗАКАЗА':['ՊԱՏՎԵՐԻ ՊԱՏՄՈՒԹՅՈՒՆ','BUYURTMA TARIXI','ТАПСЫРЫС ТАРИХЫ','سجل الطلب'],
+'Все этапы':['Բոլոր փուլերը','Barcha bosqichlar','Барлық кезеңдер','كل المراحل'],
+'Предыдущий месяц':['Նախորդ ամիս','O‘tgan oy','Алдыңғы ай','الشهر السابق'],
+'Следующий месяц':['Հաջորդ ամիս','Keyingi oy','Келесі ай','الشهر التالي'],
+'Все файлы заказа':['Պատվերի բոլոր ֆայլերը','Buyurtmaning barcha fayllari','Тапсырыстың барлық файлдары','كل ملفات الطلب'],
+'Получить консультацию':['Ստանալ խորհրդատվություն','Maslahat olish','Кеңес алу','طلب استشارة'],
+'Скачать файл':['Ներբեռնել ֆայլը','Faylni yuklab olish','Файлды жүктеп алу','تنزيل الملف'],
+'Открыть изображение':['Բացել պատկերը','Rasmni ochish','Суретті ашу','فتح الصورة'],
+'Уведомления':['Ծանուցումներ','Bildirishnomalar','Хабарландырулар','الإشعارات'],
+'Пока нет новых событий':['Նոր իրադարձություններ դեռ չկան','Hozircha yangi hodisalar yo‘q','Әзірге жаңа оқиғалар жоқ','لا توجد أحداث جديدة'],
+'Новое':['Նոր','Yangi','Жаңа','جديد'],
+'Закрыть':['Փակել','Yopish','Жабу','إغلاق'],
+'Уведомления, непрочитанных: {…}':['Ծանուցումներ, չկարդացված՝ {…}','Bildirishnomalar, o‘qilmagan: {…}','Хабарландырулар, оқылмаған: {…}','الإشعارات، غير المقروءة: {…}'],
+'Клиент':['Հաճախորդ','Mijoz','Клиент','العميل'],
+'Ответ AI':['AI-ի պատասխան','AI javobi','AI жауабы','رد الذكاء الاصطناعي'],
+'Уведомление':['Ծանուցում','Bildirishnoma','Хабарландыру','إشعار'],
+'Главная страница':['Գլխավոր էջ','Bosh sahifa','Басты бет','الصفحة الرئيسية'],
+'Войти':['Մուտք գործել','Kirish','Кіру','دخول'],
+'Дополнительно':['Լրացուցիչ','Qo‘shimcha','Қосымша','إضافات'],
+'В работе':['Ընթացքում','Jarayonda','Жұмыста','قيد التنفيذ'],
+'Принято доктором':['Բժշկի կողմից ընդունված','Shifokor qabul qildi','Дәрігер қабылдады','قبله الطبيب'],
+'Проверка качества':['Որակի ստուգում','Sifat nazorati','Сапаны тексеру','فحص الجودة'],
+'Материал':['Նյութ','Material','Материал','المادة'],
+'Срок изготовления':['Պատրաստման ժամկետ','Ishlab chiqarish muddati','Өндіру мерзімі','مدة التصنيع'],
+'Оформить заказ':['Տեղադրել պատվերը','Buyurtma berish','Тапсырысты рәсімдеу','تقديم الطلب'],
+'Состав заказа':['Պատվերի կազմը','Buyurtma tarkibi','Тапсырыс құрамы','محتوى الطلب'],
+'Отправлено на доработку':['Ուղարկվել է վերամշակման','Qayta ishlashga yuborildi','Қайта өңдеуге жіберілді','أُرسل لإعادة العمل'],
+'Изготовление':['Արտադրություն','Ishlab chiqarish','Өндіру','التصنيع'],
+'Моделирование':['Մոդելավորում','Modellashtirish','Модельдеу','النمذجة'],
+'Эстетика':['Էսթետիկա','Estetika','Эстетика','الجماليات'],
+'Контроль качества':['Որակի վերահսկում','Sifat nazorati','Сапаны бақылау','مراقبة الجودة'],
+'Доставка в клинику':['Առաքում կլինիկա','Klinikaga yetkazish','Клиникаға жеткізу','التوصيل إلى العيادة'],
+'Работа принята':['Աշխատանքն ընդունված է','Ish qabul qilindi','Жұмыс қабылданды','تم قبول العمل'],
+'На доработке':['Վերամշակման փուլում','Qayta ishlashda','Қайта өңдеуде','قيد إعادة العمل'],
+'Сумма заказа':['Պատվերի գումարը','Buyurtma summasi','Тапсырыс сомасы','مبلغ الطلب'],
+'Заказ успешно создан':['Պատվերը հաջողությամբ ստեղծվել է','Buyurtma muvaffaqiyatli yaratildi','Тапсырыс сәтті жасалды','تم إنشاء الطلب بنجاح'],
+'Заказы успешно созданы':['Պատվերները հաջողությամբ ստեղծվել են','Buyurtmalar muvaffaqiyatli yaratildi','Тапсырыстар сәтті жасалды','تم إنشاء الطلبات بنجاح'],
+'Пожалуйста, заполните все обязательные поля':['Լրացրեք բոլոր պարտադիր դաշտերը','Barcha majburiy maydonlarni to‘ldiring','Барлық міндетті өрістерді толтырыңыз','يرجى ملء جميع الحقول المطلوبة'],
+'Выберите страну':['Ընտրեք երկիրը','Mamlakatni tanlang','Елді таңдаңыз','اختر الدولة'],
+'На главную':['Գլխավոր էջ','Bosh sahifa','Басты бет','الرئيسية'],
+'Язык интерфейса':['Ինտերֆեյսի լեզուն','Interfeys tili','Интерфейс тілі','لغة الواجهة'],
+'Выберите язык':['Ընտրեք լեզուն','Tilni tanlang','Тілді таңдаңыз','اختر اللغة'],
+'Все →':['Բոլորը →','Barchasi →','Барлығы →','الكل ←'],
+'+ Добавить ещё один заказ в корзину':['+ Ավելացնել ևս մեկ պատվեր զամբյուղում','+ Savatga yana bir buyurtma qo‘shish','+ Себетке тағы бір тапсырыс қосу','+ إضافة طلب آخر إلى السلة'],
+'Дата рождения':['Ծննդյան ամսաթիվ','Tug‘ilgan sana','Туған күні','تاريخ الميلاد'],
+'Новое ФИО':['Նոր անուն-ազգանուն','Yangi F.I.Sh.','Жаңа аты-жөні','الاسم الكامل الجديد'],
+'Новая дата рождения':['Նոր ծննդյան ամսաթիվ','Yangi tug‘ilgan sana','Жаңа туған күні','تاريخ الميلاد الجديد'],
+'Номера зубов':['Ատամների համարներ','Tish raqamlari','Тіс нөмірлері','أرقام الأسنان'],
+'Новый режим':['Նոր ռեժիմ','Yangi rejim','Жаңа режим','الوضع الجديد'],
+'Новая услуга':['Նոր ծառայություն','Yangi xizmat','Жаңа қызмет','خدمة جديدة'],
+'Новый срок':['Նոր ժամկետ','Yangi muddat','Жаңа мерзім','الموعد الجديد'],
+'Новый цвет':['Նոր գույն','Yangi rang','Жаңа түс','اللون الجديد'],
+'Новый комментарий':['Նոր մեկնաբանություն','Yangi izoh','Жаңа түсініктеме','تعليق جديد'],
+'Выберите один пункт. Изменение применится после подтверждения главным техником.':['Ընտրեք մեկ կետ։ Փոփոխությունը կկիրառվի գլխավոր տեխնիկի հաստատումից հետո։','Bitta bandni tanlang. O‘zgarish bosh texnik tasdiqlaganidan keyin qo‘llanadi.','Бір тармақты таңдаңыз. Өзгеріс бас техник растағаннан кейін қолданылады.','اختر عنصرًا واحدًا. سيُطبّق التغيير بعد موافقة كبير الفنيين.'],
+'ФИО пациента':['Հիվանդի անուն-ազգանունը','Bemorning F.I.Sh.','Пациенттің аты-жөні','الاسم الكامل للمريض'],
+'Режим / челюсть':['Ռեժիմ / ծնոտ','Rejim / jag‘','Режим / жақ','الوضع / الفك'],
+'Услуга':['Ծառայություն','Xizmat','Қызмет','الخدمة'],
+'ЯНДЕКС ДИСК':['YANDEX DISK','YANDEX DISK','YANDEX DISK','YANDEX DISK'],
+'Отправить заказ на доработку':['Ուղարկել պատվերը վերամշակման','Buyurtmani qayta ishlashga yuborish','Тапсырысты қайта өңдеуге жіберу','إرسال الطلب لإعادة العمل'],
+'До 10 файлов, каждый до 200 МБ':['Մինչև 10 ֆայլ, յուրաքանչյուրը մինչև 200 ՄԲ','10 tagacha fayl, har biri 200 MB gacha','10 файлға дейін, әрқайсысы 200 МБ дейін','حتى 10 ملفات، كل ملف حتى 200 ميغابايت'],
+'Интерактивный предпросмотр из HTML-файла':['HTML ֆայլի ինտերակտիվ նախադիտում','HTML faylidan interaktiv ko‘rib chiqish','HTML файлынан интерактивті алдын ала қарау','معاينة تفاعلية من ملف HTML'],
+'Пн':['Երկ','Du','Дс','الإثنين'],
+'Вт':['Երք','Se','Сс','الثلاثاء'],
+'Ср':['Չոր','Chor','Ср','الأربعاء'],
+'Чт':['Հնգ','Pay','Бс','الخميس'],
+'Пт':['Ուրբ','Jum','Жм','الجمعة'],
+'Сб':['Շբթ','Shan','Сб','السبت'],
+'Вс':['Կիր','Yak','Жс','الأحد'],
+'Планирование и диагностика':['Պլանավորում և ախտորոշում','Rejalashtirish va diagnostika','Жоспарлау және диагностика','التخطيط والتشخيص'],
+'Вкладки':['Ներդիրներ','Inleylar','Қоймалар','الحشوات'],
+'Реставрации':['Վերականգնումներ','Restavratsiyalar','Қалпына келтірулер','الترميمات'],
+'Протетика':['Պրոթեզավորում','Protezlash','Протездеу','التعويضات السنية'],
+'Балочные конструкции':['Балային կոնստրուկցիաներ','Balkali konstruksiyalar','Балкалы құрылымдар','تركيبات القضبان'],
+'Каппы':['Կապպաներ','Kappalar','Каппалар','الواقيات السنية'],
+'Сплинты':['Սպլինտներ','Splintlar','Сплинттер','الجبائر'],
+'Ложки прикуса':['Կծվածքի գդալներ','Tish qoliplari','Тістем қасықтары','قوالب العضة'],
+'Хирургические шаблоны':['Վիրաբուժական ձևանմուշներ','Jarrohlik shablonlari','Хирургиялық үлгілер','قوالب جراحية'],
+'Дополнительные работы':['Լրացուցիչ աշխատանքներ','Qo‘shimcha ishlar','Қосымша жұмыстар','أعمال إضافية'],
+'Wax up цифровой':['Թվային Wax up','Raqamli Wax up','Цифрлық Wax up','Wax up رقمي'],
+'Wax up аналоговый':['Անալոգային Wax up','Analog Wax up','Аналогтық Wax up','Wax up تقليدي'],
+'Wax up по Славичеку':['Wax up՝ ըստ Սլավիչեկի','Slavichek usuli bo‘yicha Wax up','Славичек әдісімен Wax up','Wax up وفق سلافيتشيك'],
+'Вкладка культевая':['Կուլտային ներդիր','Shtiftli inley','Түбірлік салма','حشوة دعامة'],
+'Вкладка культевая ZrO2/Дисиликат лития':['ZrO2/լիթիումի դիսիլիկատ կուլտային ներդիր','ZrO2/litiy disilikat shtiftli inley','ZrO2/литий дисиликат түбірлік салма','حشوة دعامة من ZrO2/ثنائي سيليكات الليثيوم'],
+'PMMA коронка CAD/CAM':['PMMA CAD/CAM պսակ','PMMA CAD/CAM qoplama','PMMA CAD/CAM сауыты','تاج PMMA بتقنية CAD/CAM'],
+'Композитная коронка CAD/CAM':['Կոմպոզիտային CAD/CAM պսակ','Kompozit CAD/CAM qoplama','Композит CAD/CAM сауыты','تاج مركب بتقنية CAD/CAM'],
+'Коронка дисиликат лития':['Լիթիումի դիսիլիկատե պսակ','Litiy disilikat qoplama','Литий дисиликат сауыты','تاج من ثنائي سيليكات الليثيوم'],
+'Дисиликат лития по Славичеку':['Լիթիումի դիսիլիկատ՝ ըստ Սլավիչեկի','Slavichek usuli bo‘yicha litiy disilikat','Славичек әдісімен литий дисиликат','ثنائي سيليكات الليثيوم وفق سلافيتشيك'],
+'Коронка, винир на рефракторе':['Պսակ, վինիր հրակայուն մոդելի վրա','Refraktor ustida qoplama yoki vinir','Отқа төзімді модельдегі сауыт немесе винир','تاج أو قشرة على نموذج حراري'],
+'Одиночная реставрация OPTISHADE/MATISSE':['Մեկ ատամի վերականգնում OPTISHADE/MATISSE','Yakka restavratsiya OPTISHADE/MATISSE','Жеке тіс реставрациясы OPTISHADE/MATISSE','ترميم سن واحد OPTISHADE/MATISSE'],
+'Индивидуальный Ti абатмент (Ti-включая вине)':['Անհատական Ti աբաթմենտ (Ti ներառյալ)','Individual Ti abutment (Ti bilan)','Жеке Ti абатменті (Ti қоса)','دعامة Ti مخصصة (تشمل Ti)'],
+'Индивидуальный ZrO2 абатмент (Без Ti-Base)':['Անհատական ZrO2 աբաթմենտ (առանց Ti-Base)','Individual ZrO2 abutment (Ti-Base siz)','Жеке ZrO2 абатменті (Ti-Base жоқ)','دعامة ZrO2 مخصصة (من دون Ti-Base)'],
+'Титановое основание Geo Medi':['Geo Medi տիտանե հիմք','Geo Medi titan asosi','Geo Medi титан негізі','قاعدة تيتانيوم Geo Medi'],
+'Титановое основание Аналог':['Անալոգային տիտանե հիմք','Analog titan asosi','Аналогтық титан негізі','قاعدة تيتانيوم تقليدية'],
+'Цельнофрезерованная балка CoCr за единицу':['Ամբողջությամբ ֆրեզավորված CoCr բալկա՝ մեկ միավորի համար','Yaxlit frezalangan CoCr balkasi — dona uchun','Тұтас фрезерленген CoCr балкасы — бір данаға','عارضة CoCr مفرزة بالكامل للوحدة'],
+'Цельнофрезерованная балка Ti за единицу':['Ամբողջությամբ ֆրեզավորված Ti բալկա՝ մեկ միավորի համար','Yaxlit frezalangan Ti balkasi — dona uchun','Тұтас фрезерленген Ti балкасы — бір данаға','عارضة Ti مفرزة بالكامل للوحدة'],
+'Бруксчекер':['Բրուքսչեքեր','Brukscheker','Бруксчекер','واقي صرير الأسنان'],
+'Каппа для отбеливания':['Սպիտակեցման կապպա','Oqartirish kappasi','Ағартуға арналған каппа','واقي تبييض الأسنان'],
+'Каппа ретенционная':['Ռետենցիոն կապպա','Retension kappasi','Ретенциялық каппа','واقي تثبيت'],
+'Каппа разобщающая':['Ապաբաժանող կապպա','Ajratuvchi kappa','Ажыратқыш каппа','واقي فصل'],
+'Релаксационная шина':['Ռելաքսացիոն շինա','Relaksatsion shina','Релаксациялық шина','جبيرة استرخاء'],
+'Депрограмматор Койса':['Կոյսի դեփրոգրամատոր','Koys depressogrammasi','Койс депрограмматоры','جهاز كويز لإزالة البرمجة'],
+'Каппа-сплинт для завышения прикуса (ORTHOTIC)':['Կապպա-սպլինտ՝ կծվածքի բարձրացման համար (ORTHOTIC)','Tishlashni ko‘tarish uchun kappa-splint (ORTHOTIC)','Тістемді көтеруге арналған каппа-сплинт (ORTHOTIC)','واقي جبيرة لرفع العضة (ORTHOTIC)'],
+'Сплинт с функциональными буграми':['Սպլինտ՝ ֆունկցիոնալ թմբիկներով','Funksional do‘mboqli splint','Функционалдық төмпешіктері бар сплинт','جبيرة ذات حدبات وظيفية'],
+'Индивидуальная ложка':['Անհատական գդալ','Individual qolip qoshig‘i','Жеке қасық','قالب مخصص'],
+'Прикусной шаблон':['Կծվածքի ձևանմուշ','Tishlash shabloni','Тістем үлгісі','قالب العضة'],
+'Прикусной шаблон на жёстком базисе':['Կծվածքի ձևանմուշ՝ կոշտ հիմքով','Qattiq asosli tishlash shabloni','Қатты негіздегі тістем үлгісі','قالب عضة بقاعدة صلبة'],
+'Прикусной шаблон на жёстком базисе с фиксацией к имплантатам на магнитах':['Կծվածքի ձևանմուշ՝ կոշտ հիմքով և մագնիսական ամրացմամբ իմպլանտներին','Qattiq asosli, implantlarga magnit bilan mahkamlanadigan tishlash shabloni','Импланттарға магнитпен бекітілетін қатты негізді тістем үлгісі','قالب عضة بقاعدة صلبة مع تثبيت مغناطيسي على الزرعات'],
+'Хирургический навигационный шаблон на 1 имплантант':['Վիրաբուժական ուղեցույց՝ 1 իմպլանտի համար','1 ta implant uchun jarrohlik yo‘riqnomasi','1 имплантқа арналған хирургиялық үлгі','قالب توجيه جراحي لزرعة واحدة'],
+'Дополнительное гнездо под имплантант в хирургическом шаблоне':['Լրացուցիչ տեղ իմպլանտի համար վիրաբուժական ձևանմուշում','Jarrohlik shablonida implant uchun qo‘shimcha uyacha','Хирургиялық үлгіде имплантқа арналған қосымша ұяшық','موضع إضافي للزرعة في القالب الجراحي'],
+'Маркировочный шаблон':['Նշագրման ձևանմուշ','Belgilash shabloni','Таңбалау үлгісі','قالب تحديد'],
+'Шаблон под КТ рентгеноконтрастный':['Ռենտգենակոնտրաստ ձևանմուշ՝ ԿՏ-ի համար','KT uchun rentgen-kontrast shablon','КТ-ға арналған рентгенконтраст үлгі','قالب ظليل للأشعة للتصوير المقطعي'],
+'Ожидает подтверждения':['Սպասում է հաստատման','Tasdiqni kutmoqda','Растауды күтуде','بانتظار التأكيد'],
+'Ожидает распределения':['Սպասում է բաշխման','Taqsimlanishni kutmoqda','Бөлуді күтуде','بانتظار التوزيع'],
+'Приём / Доставка':['Ընդունում / առաքում','Qabul / Yetkazib berish','Қабылдау / жеткізу','الاستلام / التوصيل'],
+'CAD на согласовании у врача':['CAD-ը բժշկի հաստատման փուլում է','CAD shifokor tasdig‘ida','CAD дәрігердің келісуінде','CAD بانتظار موافقة الطبيب'],
+'Препрод':['Նախապատրաստում','Dastlabki tayyorgarlik','Алдын ала өңдеу','التحضير الأولي'],
+'Аналоговая подготовка':['Անալոգային նախապատրաստում','Analog tayyorgarlik','Аналогтық дайындау','التحضير التقليدي'],
+'Изготовление':['Արտադրություն','Ishlab chiqarish','Өндіру','التصنيع'],
+'Доработка и эстетика':['Վերամշակում և էսթետիկա','Qayta ishlash va estetika','Қайта өңдеу және эстетика','إعادة العمل والجماليات'],
+'Контроль качества':['Որակի վերահսկում','Sifat nazorati','Сапаны бақылау','مراقبة الجودة'],
+'Завершен':['Ավարտված է','Yakunlandi','Аяқталды','مكتمل'],
+'Коротко укажите причину':['Հակիրճ նշեք պատճառը','Sababni qisqacha yozing','Себебін қысқаша көрсетіңіз','اذكر السبب باختصار'],
+'Загружен на Яндекс Диск':['Վերբեռնվել է Yandex Disk','Yandex Disk’ka yuklandi','Yandex Disk-ке жүктелді','تم الرفع إلى Yandex Disk'],
+'Не удалось загрузить':['Չհաջողվեց վերբեռնել','Yuklab bo‘lmadi','Жүктеу мүмкін болмады','تعذر الرفع'],
+'Ожидает загрузки':['Սպասում է վերբեռնման','Yuklash kutilmoqda','Жүктеуді күтуде','بانتظار الرفع'],
+'Загрузка':['Վերբեռնում','Yuklanmoqda','Жүктелуде','جارٍ الرفع'],
+'Добавить другие файлы':['Ավելացնել այլ ֆայլեր','Boshqa fayllarni qo‘shish','Басқа файлдарды қосу','إضافة ملفات أخرى'],
+'Введите новый комментарий':['Մուտքագրեք նոր մեկնաբանություն','Yangi izohni kiriting','Жаңа түсініктеме енгізіңіз','أدخل تعليقًا جديدًا'],
+'Причина':['Պատճառ','Sabab','Себеп','السبب'],
+'Комментарий:':['Մեկնաբանություն՝','Izoh:','Түсініктеме:','تعليق:'],
+'Все события':['Բոլոր իրադարձությունները','Barcha hodisalar','Барлық оқиғалар','كل الأحداث']
+};
+function clinicTranslate(value){
+  const locale=(()=>{try{return localStorage.getItem('create-dental-locale')||'ru'}catch{return 'ru'}})();
+  if(locale==='ru')return value;
+  const index=clinicLocaleOptions.indexOf(locale)-1;
+  if(clinicTranslations[value])return clinicTranslations[value][index]||value;
+  for(const [source,translations] of Object.entries(clinicTranslations)){
+    if(!source.includes('{…}'))continue;
+    const [before,after]=source.split('{…}');
+    if(value.startsWith(before)&&value.endsWith(after)&&value.length>=before.length+after.length){
+      const dynamic=value.slice(before.length,value.length-after.length);
+      return (translations[index]||source).replace('{…}',dynamic);
+    }
+  }
+  return value;
+}
+let clinicTranslationObserver=null;
+function clinicTranslateDom(root=document.querySelector('#app')){
+  if(!root)return;
+  const locale=(()=>{try{return localStorage.getItem('create-dental-locale')||'ru'}catch{return 'ru'}})();
+  if(locale==='am')root.lang='hy';else root.lang=locale;
+  root.dir=locale==='ar'?'rtl':'ltr';
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+  const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+  for(const node of nodes){
+    const parent=node.parentElement;if(!parent||parent.closest('.bubble,.file-card strong,.recent-message small,[data-user-content]'))continue;
+    const raw=node.nodeValue,trimmed=raw.trim();if(!trimmed)continue;
+    const translated=clinicTranslate(trimmed);
+    if(translated!==trimmed)node.nodeValue=raw.replace(trimmed,translated);
+    else {
+      const prefix=trimmed.match(/^(Услуга|Файл|Создан|Сдачи на|Загрузка)\s+(.+)$/);
+      if(prefix){const label=clinicTranslate(prefix[1]);if(label!==prefix[1])node.nodeValue=raw.replace(trimmed,`${label} ${prefix[2]}`)}
+      const welcome=trimmed.match(/^Добро пожаловать,\s*(.+)!$/);if(welcome&&locale!=='ru'){const labels={am:'Բարի գալուստ,',uz:'Xush kelibsiz,',kk:'Қош келдіңіз,',ar:'مرحبًا،'};node.nodeValue=raw.replace(trimmed,`${labels[locale]||'Welcome,'} ${welcome[1]}!`)}
+    }
+  }
+  root.querySelectorAll('[placeholder],[title],[aria-label]').forEach(element=>{
+    for(const attribute of ['placeholder','title','aria-label']){
+      const value=element.getAttribute(attribute);if(!value)continue;const translated=clinicTranslate(value);if(translated!==value)element.setAttribute(attribute,translated);
+    }
+  });
+  root.querySelectorAll('select option').forEach(option=>{
+    const raw=option.textContent.trim();const translated=clinicTranslate(raw);if(translated!==raw){if(!option.hasAttribute('value'))option.value=raw;option.textContent=translated}
+  });
+  root.querySelectorAll('[alt]').forEach(element=>{const value=element.getAttribute('alt');if(value){const translated=clinicTranslate(value);if(translated!==value)element.setAttribute('alt',translated)}});
+  if(!clinicTranslationObserver){clinicTranslationObserver=new MutationObserver(()=>{if(portalUser?.role==='clinic')clinicTranslateDom(root)});clinicTranslationObserver.observe(root,{subtree:true,childList:true,characterData:true,attributes:false})}
+}
+
+function shell(content){$('#app').innerHTML=`${sidebar()}<div class="shell ${sidebarCollapsed()?'sidebar-shell-collapsed':''}">${header()}<main class="content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${escapeHtml(state.toast)}</div>`;if(portalUser?.role==='clinic')clinicTranslateDom($('#app'));}
 function title(text,sub='',right=''){return `<div class="page-title"><div><h1>${text}</h1>${sub?`<p>${sub}</p>`:''}</div>${right}</div>`}
 function tabs(items,selected,action='filter',className=''){return `<div class="tabs ${className}">${items.map(([label,count,key=label])=>`<button class="tab ${selected===key?'active':''}" data-action="${action}" data-value="${key}">${label}${count!==undefined?` <span class="count">${count}</span>`:''}</button>`).join('')}</div>`}
-function orderTable(list){const heading=(key,label)=>`<th aria-sort="${state.sortKey===key?(state.sortDirection==='asc'?'ascending':'descending'):'none'}"><button class="order-sort" data-order-sort="${key}">${label}<span aria-hidden="true">${state.sortKey===key?(state.sortDirection==='asc'?'↑':'↓'):'↕'}</span></button></th>`;return `<div class="table-wrap"><table class="orders-table"><thead><tr><th>ID заказа</th><th>Пациент</th>${heading('work','Тип работы')}${heading('createdAt','Создан')}${heading('date','Срок')}${heading('status','Статус')}${heading('sum','Сумма')}</tr></thead><tbody>${list.map(o=>`<tr data-order="${escapeHtml(o.id)}" tabindex="0"><td><strong>${escapeHtml(o.id)}</strong></td><td>${escapeHtml(o.patient)}</td><td>${escapeHtml(o.work)}</td><td>${o.createdAt?new Date(o.createdAt).toLocaleDateString('ru-RU'):'—'}</td><td>${escapeHtml(o.date)}</td><td>${badge(escapeHtml(displayClientStatus(o.status)))}</td><td><strong>${escapeHtml(o.sum)}</strong></td></tr>`).join('')||'<tr><td colspan="7" class="empty">Заказы не найдены</td></tr>'}</tbody></table></div>`}
-function orderDate(order){const [day,month,year]=order.date.split('.').map(Number);return new Date(year,month-1,day)}
+function orderTable(list){const heading=(key,label)=>`<th aria-sort="${state.sortKey===key?(state.sortDirection==='asc'?'ascending':'descending'):'none'}"><button class="order-sort" data-order-sort="${key}">${label}<span aria-hidden="true">${state.sortKey===key?(state.sortDirection==='asc'?'↑':'↓'):'↕'}</span></button></th>`;return `<div class="table-wrap"><table class="orders-table"><thead><tr><th>ID заказа</th><th>Пациент</th>${heading('work','Тип работы')}${heading('createdAt','Создан')}${heading('date','Срок')}${heading('status','Статус')}${heading('sum','Сумма')}</tr></thead><tbody>${list.map(o=>`<tr data-order="${escapeHtml(o.id)}" tabindex="0"><td><strong>${escapeHtml(o.id)}</strong></td><td>${escapeHtml(o.patient)}</td><td>${escapeHtml(orderWorkLabel(o))}</td><td>${o.createdAt?new Date(o.createdAt).toLocaleDateString(clinicIntlLocale()):'—'}</td><td>${escapeHtml(orderDateLabel(o.date))}</td><td>${badge(escapeHtml(displayClientStatus(o.status)))}</td><td><strong>${escapeHtml(o.sum)}</strong></td></tr>`).join('')||'<tr><td colspan="7" class="empty">Заказы не найдены</td></tr>'}</tbody></table></div>`}
+function orderDate(order){if(!/^\d{2}\.\d{2}\.\d{4}$/.test(String(order.date||'')))return new Date(Number.NaN);const [day,month,year]=order.date.split('.').map(Number);return new Date(year,month-1,day)}
 function deadlineCalendar(){
   const month=state.calendarMonth;
   const year=month.getFullYear(),monthNumber=month.getMonth();
   const daysInMonth=new Date(year,monthNumber+1,0).getDate();
   const leading=(new Date(year,monthNumber,1).getDay()+6)%7;
-  const monthName=new Intl.DateTimeFormat('ru-RU',{month:'long'}).format(month);
+  const monthName=new Intl.DateTimeFormat(clinicIntlLocale(),{month:'long'}).format(month);
   const label=monthName.charAt(0).toUpperCase()+monthName.slice(1)+' '+year;
   const due=currentOrders().filter(order=>{const date=orderDate(order);return date.getFullYear()===year&&date.getMonth()===monthNumber});
   const cells=Array.from({length:leading},()=>'<span class="calendar-blank"></span>');
   for(let day=1;day<=daysInMonth;day++){
     const statuses=due.filter(order=>orderDate(order).getDate()===day).map(order=>statusClass(order.status));
-    const dayLabel=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long'}).format(new Date(year,monthNumber,day));
+    const dayLabel=new Intl.DateTimeFormat(clinicIntlLocale(),{day:'numeric',month:'long'}).format(new Date(year,monthNumber,day));
     cells.push(`<button class="calendar-day ${state.calendarDay===day?'selected':''}" data-action="calendar-day" data-value="${day}" aria-label="${dayLabel}, заказов: ${statuses.length}"><span>${day}</span><i class="calendar-markers">${statuses.length?'<b></b>':''}</i></button>`);
   }
   const selected=Number.isInteger(state.calendarDay)?due.filter(order=>orderDate(order).getDate()===state.calendarDay):[];
   const selectedDate=Number.isInteger(state.calendarDay)?`${String(state.calendarDay).padStart(2,'0')}.${String(monthNumber+1).padStart(2,'0')}.${year}`:'';
-  const selectedTitle=Number.isInteger(state.calendarDay)?`Сдачи на ${new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long'}).format(new Date(year,monthNumber,state.calendarDay))}`:'Выберите дату';
+  const selectedTitle=Number.isInteger(state.calendarDay)?`Сдачи на ${new Intl.DateTimeFormat(clinicIntlLocale(),{day:'numeric',month:'long'}).format(new Date(year,monthNumber,state.calendarDay))}`:'Выберите дату';
   return `<section class="dashboard-card deadline-card"><h2>Календарь сроков</h2><div class="calendar-head"><strong>${label}</strong><div><button data-action="calendar-prev" aria-label="Предыдущий месяц">‹</button><button data-action="calendar-next" aria-label="Следующий месяц">›</button></div></div><div class="calendar-grid">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day=>`<span class="calendar-weekday">${day}</span>`).join('')}${cells.join('')}</div><div class="dashboard-card-heading"><h3>${selectedTitle}</h3>${selected.length?`<button data-action="calendar-show-all" data-value="${selectedDate}">Все (${selected.length}) →</button>`:''}</div><div class="upcoming-list">${selected.length?selected.slice(0,3).map(order=>`<button class="upcoming-order" data-order="${escapeHtml(order.id)}"><i class="deadline-status ${statusClass(order.status)}"></i><span><strong>${escapeHtml(order.id)}</strong></span></button>`).join(''):'<p class="dashboard-empty">В этот день нет сдачи</p>'}</div></section>`;
 }
 function recentMessagesMarkup(){
   const recent=state.messages.slice(-3).reverse();
-  return recent.length?recent.map(message=>{const bot=message.from==='bot',support=message.from==='support',clientName=message.source==='telegram'&&message.sender?'Клиент':'Вы',supportName='Create Dental Team';return `<button class="recent-message" data-page="messages"><span class="recent-avatar ${support||bot?'support':''}">${bot?'AI':support?'CD':'Я'}</span><span><strong>${bot?'Ответ AI':support?escapeHtml(supportName):escapeHtml(clientName)}</strong><small>${escapeHtml(message.text)}</small></span><time>${new Date(message.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</time></button>`}).join(''):'<div class="dashboard-empty">Сообщений пока нет. <button data-page="messages">Написать в поддержку →</button></div>';
+  return recent.length?recent.map(message=>{const bot=message.from==='bot',support=message.from==='support',clientName=message.source==='telegram'&&message.sender?'Клиент':'Вы',supportName='Create Dental Team';return `<button class="recent-message" data-page="messages"><span class="recent-avatar ${support||bot?'support':''}">${bot?'AI':support?'CD':'Я'}</span><span><strong>${bot?'Ответ AI':support?escapeHtml(supportName):escapeHtml(clientName)}</strong><small>${escapeHtml(message.text)}</small></span><time>${new Date(message.time).toLocaleTimeString(clinicIntlLocale(),{hour:'2-digit',minute:'2-digit'})}</time></button>`}).join(''):'<div class="dashboard-empty">Сообщений пока нет. <button data-page="messages">Написать в поддержку →</button></div>';
 }
 function recentMessagesCard(){return `<section class="dashboard-card recent-card"><div class="dashboard-card-heading"><h2>Последние сообщения</h2><button data-page="messages">Все →</button></div><div id="recent-messages">${recentMessagesMarkup()}</div></section>`}
 function currentOrders(){
@@ -119,9 +647,10 @@ function dashboard(){
   shell(`${title('Добро пожаловать, '+escapeHtml(clinicRecord()?.name||'клиника')+'!','Создавайте заказы, отслеживайте статус и получайте готовые работы в срок.',button(`${icon('plus',16)} Создать новый заказ`,'new'))}<div class="stats">${stats.map(([ico,n,label,color])=>`<div class="stat card"><span class="stat-icon ${color}">${icon(ico,25)}</span><div><strong>${n}</strong><span>${label}</span></div></div>`).join('')}</div><div class="dashboard-grid"><div class="dashboard-main"><section class="hero"><div><h2>Качество в каждой детали</h2><p>Современные технологии.<br>Индивидуальный подход.<br>Надежные сроки.</p></div><img src="${assets}banner-restoration.webp" alt="Керамические зубные конструкции"></section><div class="section-heading"><h2>Мои заказы</h2><button class="text-link" data-page="orders">Все заказы →</button></div>${tabs(orderTabs(),state.filter)}${orderTable(filteredOrders().slice(0,4))}</div><aside class="dashboard-aside">${deadlineCalendar()}${recentMessagesCard()}</aside></div>`);
 }
 function clinicOrderMonthKey(order){const date=new Date(order.createdAt||0);return Number.isNaN(date.getTime())?'':`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`}
-function clinicOrderMonthLabel(key){const [year,month]=key.split('-').map(Number),name=new Intl.DateTimeFormat('ru-RU',{month:'long'}).format(new Date(year,month-1,1));return `${name.charAt(0).toUpperCase()+name.slice(1)} ${year}`}
-function filteredOrders(){let list=currentOrders();if(state.filter==='Новые')list=list.filter(o=>o.status==='Новый');else if(state.filter==='В работе')list=list.filter(o=>o.status==='В работе');else if(state.filter==='На согласовании')list=list.filter(o=>['На согласовании','Согласование'].includes(o.status));else if(state.filter==='Приняты')list=list.filter(o=>o.status==='Работа принята');else if(state.filter==='В пути к вам')list=list.filter(o=>o.status==='В пути к вам');else if(state.filter==='На доработке')list=list.filter(o=>o.status==='На доработке');else if(state.filter==='Принято')list=list.filter(o=>o.status==='Принято');if(state.dueDateFilter)list=list.filter(o=>o.date===state.dueDateFilter);if(state.orderMonthFilter)list=list.filter(o=>clinicOrderMonthKey(o)===state.orderMonthFilter);if(state.query)list=list.filter(o=>Object.values(o).some(v=>String(v).toLowerCase().includes(state.query.toLowerCase())));if(['work','createdAt','date','status','sum'].includes(state.sortKey)){const key=state.sortKey,sign=state.sortDirection==='asc'?1:-1;list.sort((a,b)=>{let x=a[key]??'',y=b[key]??'';if(key==='sum'){x=Number(String(x).replace(/\D/g,''));y=Number(String(y).replace(/\D/g,''));return (x-y)*sign}if(key==='date'){x=String(x).split('.').reverse().join('-');y=String(y).split('.').reverse().join('-')}return String(x).localeCompare(String(y),'ru',{numeric:true})*sign})}return list}
-function clinicOrderFilter(){const months=[...new Set(currentOrders().map(clinicOrderMonthKey).filter(Boolean))].sort().reverse(),active=state.orderMonthFilter?1:0;return `<div class="clinic-filter-wrap"><button class="btn outline ${active?'active':''}" data-action="filters">${icon('filter',15)} Фильтр${active?' · 1':''}</button>${state.orderFilterOpen?`<div class="clinic-order-filter"><label>Месяц заказа<select id="clinic-order-month"><option value="">Все месяцы</option>${months.map(month=>`<option value="${month}" ${state.orderMonthFilter===month?'selected':''}>${clinicOrderMonthLabel(month)}</option>`).join('')}</select></label><div><button class="btn outline" data-action="filter-reset">Сбросить</button><button class="btn primary" data-action="filter-close">Готово</button></div></div>`:''}</div>`}
+function clinicOrderMonthLabel(key){const [year,month]=key.split('-').map(Number),name=new Intl.DateTimeFormat(clinicIntlLocale(),{month:'long'}).format(new Date(year,month-1,1));return `${name.charAt(0).toUpperCase()+name.slice(1)} ${year}`}
+function clinicOrderWorkTypes(order){return orderWorkTypes(order).filter(type=>!/^Несколько услуг(?:\s*\(\d+\))?$/i.test(type))}
+function filteredOrders(){let list=currentOrders();if(state.filter==='Новые')list=list.filter(o=>o.status==='Новый');else if(state.filter==='В работе')list=list.filter(o=>o.status==='В работе');else if(state.filter==='На согласовании')list=list.filter(o=>['На согласовании','Согласование'].includes(o.status));else if(state.filter==='Приняты')list=list.filter(o=>o.status==='Работа принята');else if(state.filter==='В пути к вам')list=list.filter(o=>o.status==='В пути к вам');else if(state.filter==='На доработке')list=list.filter(o=>o.status==='На доработке');else if(state.filter==='Принято')list=list.filter(o=>o.status==='Принято');if(state.dueDateFilter)list=list.filter(o=>o.date===state.dueDateFilter);if(state.orderMonthFilter)list=list.filter(o=>clinicOrderMonthKey(o)===state.orderMonthFilter);if(state.orderWorkFilter)list=list.filter(o=>clinicOrderWorkTypes(o).includes(state.orderWorkFilter));if(state.orderStatusFilter)list=list.filter(o=>displayClientStatus(o.status)===state.orderStatusFilter);if(state.query)list=list.filter(o=>Object.values(o).some(v=>String(v).toLowerCase().includes(state.query.toLowerCase())));if(['work','createdAt','date','status','sum'].includes(state.sortKey)){const key=state.sortKey,sign=state.sortDirection==='asc'?1:-1;list.sort((a,b)=>{let x=a[key]??'',y=b[key]??'';if(key==='sum'){x=Number(String(x).replace(/\D/g,''));y=Number(String(y).replace(/\D/g,''));return (x-y)*sign}if(key==='date'){x=String(x).split('.').reverse().join('-');y=String(y).split('.').reverse().join('-')}return String(x).localeCompare(String(y),'ru',{numeric:true})*sign})}return list}
+function clinicOrderFilter(){const all=currentOrders(),months=[...new Set(all.map(clinicOrderMonthKey).filter(Boolean))].sort().reverse(),works=[...new Set(all.flatMap(clinicOrderWorkTypes))].sort((a,b)=>a.localeCompare(b,'ru')),statuses=[...new Set(all.map(o=>displayClientStatus(o.status)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru')),active=[state.orderMonthFilter,state.orderWorkFilter,state.orderStatusFilter].filter(Boolean).length;return `<div class="clinic-filter-wrap"><button class="btn outline ${active?'active':''}" data-action="filters">${icon('filter',15)} Фильтр${active?` · ${active}`:''}</button>${state.orderFilterOpen?`<div class="clinic-order-filter"><label>Тип работы<select id="clinic-order-work"><option value="">Все типы работ</option>${works.map(work=>`<option value="${escapeHtml(work)}" ${state.orderWorkFilter===work?'selected':''}>${escapeHtml(work)}</option>`).join('')}</select></label><label>Статус<select id="clinic-order-status"><option value="">Все статусы</option>${statuses.map(status=>`<option value="${escapeHtml(status)}" ${state.orderStatusFilter===status?'selected':''}>${escapeHtml(status)}</option>`).join('')}</select></label><label>Месяц заказа<select id="clinic-order-month"><option value="">Все месяцы</option>${months.map(month=>`<option value="${month}" ${state.orderMonthFilter===month?'selected':''}>${clinicOrderMonthLabel(month)}</option>`).join('')}</select></label><div><button class="btn outline" data-action="filter-reset">Сбросить</button><button class="btn primary" data-action="filter-close">Готово</button></div></div>`:''}</div>`}
 function ordersPage(){const statusTabs=`<div class="tech-segment clinic-status-segment">${orderTabs().map(([label,,key=label])=>`<button data-action="filter" data-value="${escapeHtml(key)}" class="${state.filter===key?'active':''}">${escapeHtml(label)}</button>`).join('')}</div>`;shell(`<div class="tech-heading clinic-orders-heading"><div><span class="tech-eyebrow">ПРОИЗВОДСТВО</span><h1>Мои заказы</h1></div></div><section class="clinic-orders-panel">${statusTabs}${state.dueDateFilter?`<div class="active-date-filter"><span>Срок сдачи: <strong>${escapeHtml(state.dueDateFilter)}</strong></span><button data-action="clear-date-filter" aria-label="Сбросить фильтр по дате">×</button></div>`:''}<div class="toolbar"><label class="search">${icon('search',17)}<input id="order-search" value="${escapeHtml(state.query)}" placeholder="Поиск по номеру заказа, пациенту или типу работы..."></label>${clinicOrderFilter()}</div>${orderTable(filteredOrders())}</section>`)}
 function toothChart(interactive=true, selectedTeeth=state.selectedTeeth, bridgeRanges=[]){
   const teeth=[
@@ -156,9 +685,21 @@ function toothChart(interactive=true, selectedTeeth=state.selectedTeeth, bridgeR
 }
 function stepper(){return `<div class="stepper">${steps.map((s,i)=>`<button class="step ${state.step===i?'active':''} ${state.step>i?'done':''}" data-step="${i}"><b>${state.step>i?icon('check',13):i+1}</b>${s}</button>${i<steps.length-1?'<span class="step-line">→</span>':''}`).join('')}</div>`}
 function field(label,control){return `<label class="field"><span>${label}</span>${control}</label>`}
+function dateValueParts(value){const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!match)return null;const date=new Date(Number(match[1]),Number(match[2])-1,Number(match[3]));return Number.isNaN(date.getTime())?null:date}
+function datePickerControl(field='due'){
+  const value=state.form[field]||'',selected=dateValueParts(value)||new Date(),viewKey=state.datePickerMonth||`${selected.getFullYear()}-${String(selected.getMonth()+1).padStart(2,'0')}`,viewParts=viewKey.split('-').map(Number),view=new Date(viewParts[0],viewParts[1]-1,1),year=view.getFullYear(),month=view.getMonth(),days=new Date(year,month+1,0).getDate(),leading=(new Date(year,month,1).getDay()+6)%7,monthName=new Intl.DateTimeFormat(clinicIntlLocale(),{month:'long'}).format(view),display=value?`${String(selected.getDate()).padStart(2,'0')}.${String(selected.getMonth()+1).padStart(2,'0')}.${selected.getFullYear()}`:'ДД.ММ.ГГГГ';
+  const cells=Array.from({length:leading},()=>'<span class="date-picker-empty"></span>');
+  const minimumDue=field==='due'?currentEarliestDueIso():'';
+  for(let day=1;day<=days;day++){const dateKey=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`,isSelected=dateKey===value,isToday=dateKey===new Date().toISOString().slice(0,10),date=dateValueParts(dateKey),blocked=field==='due'&&(!isWorkingDay(date)||(minimumDue&&dateKey<minimumDue));cells.push(`<button type="button" class="date-picker-day ${isSelected?'selected':''} ${isToday?'today':''} ${blocked?'disabled':''}" ${blocked?'disabled title="Недоступно для выбранной услуги"':`data-action="date-select" data-value="${dateKey}"`}>${day}</button>`)}
+  const open=state.datePickerOpen&&state.datePickerField===field,yearOpen=open&&state.datePickerYearOpen,currentYear=new Date().getFullYear(),yearRangeEnd=field==='birth'?Math.min(year+6,currentYear):year+6,yearRangeStart=yearRangeEnd-11;
+  const years=Array.from({length:12},(_,index)=>yearRangeStart+index).map(item=>`<button type="button" class="date-picker-year ${item===year?'selected':''}" data-action="date-year-select" data-value="${item}">${item}</button>`).join('');
+  const dueHint=field==='due'&&minimumDue?`<small class="date-picker-hint">Минимальная дата для выбранных услуг: ${displayIsoDate(minimumDue)}</small>`:'';
+  return `<div class="date-picker"><button type="button" class="date-picker-trigger ${value?'has-value':''}" data-action="date-open" data-value="${field}"><span>${display}</span><span class="date-picker-icon" aria-hidden="true"></span></button>${open?`<div class="date-picker-popover"><div class="date-picker-head">${yearOpen?`<div class="date-picker-year-mode-head"><strong class="date-picker-year-mode-title">Выберите год</strong><div class="date-picker-year-nav"><button type="button" data-action="date-year-nav" data-value="-12" aria-label="Предыдущие годы">‹ Раньше</button><button type="button" data-action="date-year-nav" data-value="12" aria-label="Следующие годы">Позже ›</button></div></div>`:`<div class="date-picker-title"><strong>${monthName.charAt(0).toUpperCase()+monthName.slice(1)}</strong><button type="button" class="date-picker-year-trigger" data-action="date-year-toggle" data-value="${field}">Год: ${year}</button></div>`}${yearOpen?'':`<div class="date-picker-month-nav"><button type="button" data-action="date-nav" data-value="-1" aria-label="Предыдущий месяц">‹</button><button type="button" data-action="date-nav" data-value="1" aria-label="Следующий месяц">›</button></div>`}</div>${yearOpen?`<div class="date-picker-years">${years}</div><button type="button" class="date-picker-back" data-action="date-year-toggle" data-value="${field}">← Вернуться к календарю</button>`:`<div class="date-picker-weekdays">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day=>`<span>${day}</span>`).join('')}</div><div class="date-picker-days">${cells.join('')}</div>`}<div class="date-picker-foot"><button type="button" data-action="date-clear" data-value="${field}">Очистить</button><button type="button" data-action="date-today" data-value="${field}">Сегодня</button>${dueHint}</div></div>`:''}</div>`;
+}
+function positionDatePicker(){const pop=document.querySelector('.date-picker-popover'),trigger=document.querySelector('.date-picker-trigger');if(!pop||!trigger)return;const rect=trigger.getBoundingClientRect(),spaceBelow=window.innerHeight-rect.bottom,spaceAbove=rect.top;pop.classList.toggle('above',spaceBelow<pop.offsetHeight+12&&spaceAbove>spaceBelow)}
 function textInput(value='',placeholder='',key=''){return `<input ${key?`data-field="${key}"`:''} value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}">`}
 function selectInput(options,key=''){const choices=key&&state.form[key]&&!options.includes(state.form[key])?[state.form[key],...options]:options;return `<select ${key?`data-field="${key}"`:''}>${choices.map(o=>`<option ${state.form[key]===o?'selected':''}>${o}</option>`).join('')}</select>`}
-function patientStep(){return `<h2>Данные пациента</h2><div class="order-type-choice"><div><h3>Тип работы</h3><p>Выберите, по какому маршруту пойдёт заказ.</p></div><div class="order-type-options"><button type="button" class="${state.form.orderType==='digital'?'selected':''}" data-action="order-type" data-value="digital"><strong>Цифровой</strong><small>Цифровой заказ · нужны STL или сканы</small></button><button type="button" class="${state.form.orderType==='analog'?'selected':''}" data-action="order-type" data-value="analog"><strong>Аналоговый</strong><small>Аналоговый заказ · нужен гипсовый слепок</small></button></div></div><div class="form-grid patient-fields">${field('Фамилия пациента · обязательно',textInput(state.form.surname,'Фамилия','surname'))}${field('Имя пациента · обязательно',textInput(state.form.initials,'Имя · отчество по желанию','initials'))}${field('Дата рождения · необязательно',`<input type="date" data-field="birth" value="${state.form.birth}">`)}</div><div class="info-note">Фамилия и имя обязательны. Отчество можно указать по желанию.</div>`}
+function patientStep(){return `<h2>Данные пациента</h2><div class="order-type-choice"><div><h3>Тип работы</h3><p>Выберите, по какому маршруту пойдёт заказ.</p></div><div class="order-type-options"><button type="button" class="${state.form.orderType==='digital'?'selected':''}" data-action="order-type" data-value="digital"><strong>Цифровой</strong><small>Цифровой заказ · нужны STL или сканы</small></button><button type="button" class="${state.form.orderType==='analog'?'selected':''}" data-action="order-type" data-value="analog"><strong>Аналоговый</strong><small>Аналоговый заказ · нужен гипсовый слепок</small></button></div></div><div class="form-grid patient-fields">${field('Фамилия пациента · обязательно',textInput(state.form.surname,'Фамилия','surname'))}${field('Имя пациента · обязательно',textInput(state.form.initials,'Имя · отчество по желанию','initials'))}${field('Дата рождения · необязательно',datePickerControl('birth'))}</div><div class="info-note">Фамилия и имя обязательны. Отчество можно указать по желанию.</div>`}
 function workChooser(){
   const work=selectedWork();
   if(!work)return `<div class="order-work-grid">${workCatalog.map(item=>`<button data-action="work" data-value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</button>`).join('')}</div>`;
@@ -167,15 +708,18 @@ function workChooser(){
 }
 function variantCard(variant,index,removable=true){
   const estimate=variantEstimate(variant);
-  return `<article class="order-variant-card"><div class="order-variant-head"><span>Услуга ${index+1}</span>${removable?`<button class="order-variant-remove" data-action="remove-variant" data-value="${index}" aria-label="Удалить услугу">×</button>`:''}</div><div class="order-variant-mode">${escapeHtml(variant.toothMode||'Одиночка')}</div><strong>Зубы: ${escapeHtml((variant.selectedTeeth||[]).join(', '))}</strong><h3>${escapeHtml(variant.work||'')}</h3>${variant.workOption?`<p>${escapeHtml(variant.workOption)}</p>`:''}<dl><div><dt>Количество</dt><dd>${Math.max(1,variant.selectedTeeth?.length||0)}</dd></div><div><dt>Предварительно</dt><dd>${estimate===null?'Стоимость уточняется':rubles(estimate)}</dd></div></dl></article>`;
+  const teethLabel=variantNeedsNoTeeth(variant)?'Не требуется':variantUsesJawSplit(variant)?(variantJawCount(variant)>1?'Верхняя и нижняя челюсти':variant.selectedTeeth?.some(tooth=>tooth<30)?'Верхняя челюсть':'Нижняя челюсть'):(variant.selectedTeeth||[]).join(', ');
+  return `<article class="order-variant-card"><div class="order-variant-head"><span>Услуга ${index+1}</span>${removable?`<button class="order-variant-remove" data-action="remove-variant" data-value="${index}" aria-label="Удалить услугу">×</button>`:''}</div><div class="order-variant-mode">${escapeHtml(variant.toothMode||'Одиночка')}</div><strong>${variantNeedsNoTeeth(variant)?'Зубы не выбираются':'Зубы'}: ${escapeHtml(teethLabel)}</strong><h3>${escapeHtml(variant.work||'')}</h3>${variant.workOption?`<p>${escapeHtml(variant.workOption)}</p>`:''}<dl><div><dt>Количество</dt><dd>${variantUnits(variant)}</dd></div><div><dt>Предварительно</dt><dd>${estimate===null?'Стоимость уточняется':rubles(estimate)}</dd></div></dl></article>`;
 }
 function orderDraft(){
   const saved=state.orderVariants||[],current=currentVariant(),complete=variantIsComplete(current),cards=[...saved,...(complete?[current]:[])];
   if(!cards.length)return `<aside class="order-draft"><h2>Ваш заказ</h2><div class="order-draft-empty">${icon('orders',24)}<strong>Выберите нужные зубы и работу</strong><span>Здесь появится состав заказа и предварительная стоимость.</span></div></aside>`;
-  return `<aside class="order-draft"><div class="order-draft-title"><h2>Ваш заказ</h2><span>${cards.length}/10 услуг</span></div><div class="order-variants">${cards.map((variant,index)=>variantCard(variant,index,index<saved.length)).join('')}</div>${complete&&cards.length<10?`<button class="order-variant-add" data-action="add-variant">＋ Заказать ещё</button>`:''}<div class="order-total"><span>Итого предварительно</span><strong>${totalOrderEstimateText()}</strong></div><small class="order-total-note">Все услуги будут оформлены одним заказом для этого пациента.</small></aside>`;
+  const jawOrders=complete&&currentUsesJawSplit()&&variantJawCount(current)>1?2:1;
+  return `<aside class="order-draft"><div class="order-draft-title"><h2>Ваш заказ</h2><span>${cards.length}/10 услуг</span></div><div class="order-variants">${cards.map((variant,index)=>variantCard(variant,index,index<saved.length)).join('')}</div>${complete&&cards.length<10?`<button class="order-variant-add" data-action="add-variant">＋ Заказать ещё</button>`:''}<div class="order-total"><span>Итого предварительно</span><strong>${totalOrderEstimateText()}</strong></div><small class="order-total-note">${jawOrders>1?`Будут созданы ${jawOrders} отдельных заказа: по одному на каждую челюсть.`:'Все услуги будут оформлены одним заказом для этого пациента.'}</small></aside>`;
 }
 function bridgeSelectionText(){if(state.toothMode!=='Мост')return state.selectedTeeth.length?`Выбрано: ${state.selectedTeeth.join(', ')}`:'Нажмите на нужные зубы';if(state.bridgeStart)return `Начало моста: ${state.bridgeStart}. Выберите последний зуб на этой челюсти`;if(state.bridgeRanges.length)return `Мосты: ${state.bridgeRanges.map(range=>`${range[0]}–${range.at(-1)}`).join(', ')}`;return 'Выберите первый и последний зуб моста'}
-function teethStep(){const work=selectedWork();return `<div class="order-builder"><section class="tooth-picker"><h2>Выберите зуб(ы)</h2><div class="tooth-mode">${['Одиночка','Мост','Челюсть'].map(mode=>`<button class="${state.toothMode===mode?'selected':''}" data-action="tooth-mode" data-value="${mode}">${mode}</button>`).join('')}</div>${toothChart(true,state.selectedTeeth,state.bridgeRanges)}<div class="selected-teeth"><strong>${bridgeSelectionText()}</strong>${state.selectedTeeth.length?'<button class="clear" data-action="clear-teeth">Очистить</button>':''}</div></section><section class="work-picker"><div class="work-picker-title"><div><h2>Что нужно сделать?</h2><p>${work?.options.length?'Уточните вариант исполнения':state.work?'Категория выбрана':'Выберите вид работы из списка'}</p></div>${state.work?'<button data-action="work-back" aria-label="Вернуться к списку">⌕</button>':''}</div>${workChooser()}</section>${orderDraft()}</div>`}
+function jawSelectionText(){const upper=upperTeeth.every(tooth=>state.selectedTeeth.includes(tooth)),lower=lowerTeeth.every(tooth=>state.selectedTeeth.includes(tooth));return upper&&lower?'Выбраны верхняя и нижняя челюсти':upper?'Верхняя челюсть выбрана автоматически':lower?'Нижняя челюсть':'Выберите челюсть'}
+function teethStep(){const work=selectedWork(),noTeeth=currentNeedsNoTeeth(),jawWork=currentUsesJawSplit(),toothPicker=noTeeth?`<section class="tooth-picker tooth-picker-no-teeth"><h2>Зубы</h2><div class="no-teeth-note">Для этой услуги номера зубов не выбираются.</div></section>`:`<section class="tooth-picker"><h2>${jawWork?'Выберите челюсть':'Выберите зуб(ы)'}</h2>${jawWork?`<div class="jaw-choice"><button type="button" class="${upperTeeth.every(tooth=>state.selectedTeeth.includes(tooth))?'selected':''}" data-action="jaw-toggle" data-value="upper">Верхняя челюсть</button><button type="button" class="${lowerTeeth.every(tooth=>state.selectedTeeth.includes(tooth))?'selected':''}" data-action="jaw-toggle" data-value="lower">Нижняя челюсть</button></div>`:`<div class="tooth-mode">${['Одиночка','Мост','Челюсть'].map(mode=>`<button class="${state.toothMode===mode?'selected':''}" data-action="tooth-mode" data-value="${mode}">${mode}</button>`).join('')}</div>`}${toothChart(true,state.selectedTeeth,state.bridgeRanges)}<div class="selected-teeth"><strong>${jawWork?jawSelectionText():bridgeSelectionText()}</strong>${state.selectedTeeth.length?'<button class="clear" data-action="clear-teeth">Очистить</button>':''}</div></section>`;return `<div class="order-builder">${toothPicker}<section class="work-picker"><div class="work-picker-title"><div><h2>Что нужно сделать?</h2><p>${work?.options.length?'Уточните вариант исполнения':state.work?'Категория выбрана':'Выберите вид работы из списка'}</p></div>${state.work?'<button data-action="work-back" aria-label="Вернуться к списку">⌕</button>':''}</div>${workChooser()}</section>${orderDraft()}</div>`}
 const uploadPreviewUrls=new WeakMap();
 function uploadPreview(file){
   if(!file?.type?.startsWith('image/')&&!/\.(?:jpg|jpeg|png)$/i.test(file?.name||''))return '';
@@ -183,9 +727,9 @@ function uploadPreview(file){
   return uploadPreviewUrls.get(file);
 }
 function releaseUploadPreview(file){const url=uploadPreviewUrls.get(file);if(url)URL.revokeObjectURL(url);uploadPreviewUrls.delete(file)}
-function attachmentTiles(){return `<div class="attachment-grid">${state.uploaded.map(file=>{const preview=uploadPreview(file),extension=(file.name.split('.').pop()||'FILE').toUpperCase().slice(0,5),size=file.size>=1024*1024?`${(file.size/1024/1024).toFixed(1)} МБ`:`${Math.max(1,Math.ceil(file.size/1024))} КБ`;return `<div class="attachment">${preview?`<img src="${preview}" alt="Миниатюра ${escapeHtml(file.name)}">`:`<span class="attachment-file-icon">${escapeHtml(extension)}</span>`}<span class="attachment-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span><small>${size}</small><button aria-label="Удалить файл ${escapeHtml(file.name)}" data-action="remove-file" data-value="${escapeHtml(file.name)}">×</button></div>`}).join('')}<label class="attachment-add" title="Добавить файлы">${icon('plus',26)}<span>Добавить</span><input type="file" id="upload-input" accept=".jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.rtf" multiple hidden></label></div>`}
-function extraStep(){return `<h2>Дополнительная информация</h2><div class="form-grid">${field('Желаемый срок готовности',`<input type="date" data-field="due" value="${state.form.due}">`)}${field('Цвет/оттенок (например, Vita)',selectInput(['A2','A1','A3','B1','B2'],'shade'))}</div><div class="form-grid extra-fields"><div class="field"><span>Файлы заказа — сканы, КТ и фото</span><label class="upload-zone">${icon('upload',26)}<span>Перетащите файлы сюда<br>или нажмите, чтобы выбрать</span><input type="file" id="upload-input" accept=".jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.rtf" multiple hidden></label><small class="hint">Изображения, PDF, 3D-файлы, архивы и документы — до 200 МБ на файл. Файлы прикрепятся к заказу.</small>${attachmentTiles()}</div>${field('Комментарий к заказу',`<textarea rows="5" data-field="comment" placeholder="Напишите пожелания, особенности, дополнительные инструкции...">${escapeHtml(state.form.comment)}</textarea>`)}</div>`}
-function confirmStep(){const variants=allVariants().filter(variantIsComplete),teeth=[...new Set(variants.flatMap(variant=>variant.selectedTeeth||[]))].sort((a,b)=>a-b);return `<h2>Проверьте данные заказа</h2><div class="confirmation"><div>${toothChart(false,teeth,[])}</div><div class="summary-list"><div><span>Пациент</span><strong>${escapeHtml(`${state.form.surname} ${state.form.initials}`)}</strong></div>${state.form.birth?`<div><span>Дата рождения</span><strong>${escapeHtml(state.form.birth.split('-').reverse().join('.'))}</strong></div>`:''}<div><span>Тип работы</span><strong>${state.form.orderType==='analog'?'Аналоговый':'Цифровой'}</strong></div><div><span>Услуги</span><strong>${variants.length}</strong></div><div><span>Зубы</span><strong>${escapeHtml(teeth.join(', '))}</strong></div>${variants.map((variant,index)=>`<div><span>Услуга ${index+1}</span><strong>${escapeHtml(`${variant.work}${variant.workOption?` · ${variant.workOption}`:''} · ${variant.toothMode} · зубы ${variant.selectedTeeth.join(', ')} · сумма ${variantEstimate(variant)===null?'уточняется':rubles(variantEstimate(variant))}`)}</strong></div>`).join('')}<div><span>Желаемый срок</span><strong>${escapeHtml(state.form.due.split('-').reverse().join('.'))}</strong></div><div><span>Предварительная сумма</span><strong>${escapeHtml(totalOrderEstimateText())}</strong></div><div><span>Цвет</span><strong>${escapeHtml(state.form.shade)}</strong></div><div><span>Комментарий</span><strong>${escapeHtml(state.form.comment||'—')}</strong></div><div><span>Файлы</span><strong>${state.uploaded.length} файла</strong></div>${attachmentTiles()}</div></div>`}
+function attachmentTiles(){return `<div class="attachment-grid">${state.uploaded.map(file=>{const preview=uploadPreview(file),extension=(file.name.split('.').pop()||'FILE').toUpperCase().slice(0,5),size=file.size>=1024*1024?`${(file.size/1024/1024).toFixed(1)} МБ`:`${Math.max(1,Math.ceil(file.size/1024))} КБ`;return `<div class="attachment">${preview?`<img src="${preview}" alt="Миниатюра ${escapeHtml(file.name)}">`:`<span class="attachment-file-icon">${escapeHtml(extension)}</span>`}<span class="attachment-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span><small>${size}</small><button aria-label="Удалить файл ${escapeHtml(file.name)}" data-action="remove-file" data-value="${escapeHtml(file.name)}">×</button></div>`}).join('')}<label class="attachment-add" title="Добавить файлы">${icon('plus',26)}<span>Добавить</span><input type="file" id="upload-input" accept="*/*" multiple hidden></label></div>`}
+function extraStep(){return `<h2>Дополнительная информация</h2><div class="form-grid">${field('Желаемый срок готовности',datePickerControl('due'))}${field('Цвет/оттенок (например, Vita)',selectInput(['A2','A1','A3','B1','B2','Не требуется'],'shade'))}</div><div class="form-grid extra-fields"><div class="field"><span>Файлы заказа — сканы, КТ и фото</span><label class="upload-zone">${icon('upload',26)}<span>Перетащите файлы сюда<br>или нажмите, чтобы выбрать</span><input type="file" id="upload-input" accept="*/*" multiple hidden></label><small class="hint">Изображения, PDF, 3D-файлы, архивы и документы — до 200 МБ на файл. Файлы прикрепятся к заказу.</small>${attachmentTiles()}</div>${field('Комментарий к заказу',`<textarea rows="5" data-field="comment" placeholder="Напишите пожелания, особенности, дополнительные инструкции...">${escapeHtml(state.form.comment)}</textarea>`)}</div>`}
+function confirmStep(){const variants=allVariants().filter(variantIsComplete),teeth=[...new Set(variants.flatMap(variant=>variant.selectedTeeth||[]))].sort((a,b)=>a-b),orderCount=splitDraftsByJaw(currentOrderDraft()).length;return `<h2>Проверьте данные заказа</h2><div class="confirmation"><div>${teeth.length?toothChart(false,teeth,[]):`<div class="no-teeth-confirmation">Номера зубов не требуются</div>`}</div><div class="summary-list"><div><span>Пациент</span><strong>${escapeHtml(`${state.form.surname} ${state.form.initials}`)}</strong></div>${state.form.birth?`<div><span>Дата рождения</span><strong>${escapeHtml(state.form.birth.split('-').reverse().join('.'))}</strong></div>`:''}<div><span>Тип работы</span><strong>${state.form.orderType==='analog'?'Аналоговый':'Цифровой'}</strong></div><div><span>Заказы</span><strong>${orderCount}</strong></div><div><span>Услуги</span><strong>${variants.length}</strong></div><div><span>Зубы</span><strong>${escapeHtml(teeth.join(', ')||'Не выбираются')}</strong></div>${variants.map((variant,index)=>`<div><span>Услуга ${index+1}</span><strong>${escapeHtml(`${variant.work}${variant.workOption?` · ${variant.workOption}`:''} · ${variantNeedsNoTeeth(variant)?'без выбора зубов':variantUsesJawSplit(variant)?(variantJawCount(variant)>1?'верхняя и нижняя челюсти':variant.selectedTeeth.some(tooth=>tooth<30)?'верхняя челюсть':'нижняя челюсть'):`зубы ${variant.selectedTeeth.join(', ')}`} · сумма ${variantEstimate(variant)===null?'уточняется':rubles(variantEstimate(variant))}`)}</strong></div>`).join('')}<div><span>Желаемый срок</span><strong>${escapeHtml(state.form.due?state.form.due.split('-').reverse().join('.'):orderDateLabel(''))}</strong></div><div><span>Предварительная сумма</span><strong>${escapeHtml(totalOrderEstimateText())}</strong></div><div><span>Цвет</span><strong>${escapeHtml(state.form.shade)}</strong></div><div><span>Комментарий</span><strong>${escapeHtml(state.form.comment||'—')}</strong></div><div><span>Файлы</span><strong>${state.uploaded.length} файла</strong></div>${attachmentTiles()}</div></div>`}
 function cartSummary(){return state.cart.length?`<section class="order-cart"><div class="order-cart-heading"><strong>Корзина заказов</strong><span>${state.cart.length}</span></div>${state.cart.map((draft,index)=>`<article><span>${escapeHtml(`${draft.form.surname} ${draft.form.initials}`.trim())}</span><small>${escapeHtml(draft.form.material||draft.form.construction)} · ${draft.selectedTeeth.join(', ')}</small><button data-action="remove-cart" data-value="${index}" aria-label="Убрать заказ из корзины">×</button></article>`).join('')}<button class="order-cart-add" data-action="new-cart-order">+ Добавить ещё один заказ в корзину</button></section>`:''}
 function newOrder(){const body=[patientStep,teethStep,extraStep,confirmStep][state.step](),final=state.step===3,subtitle=state.orderVariants.length?`Добавлено услуг: ${state.orderVariants.length}. Можно добавить до 10 услуг для одного пациента.`:'';shell(`${title(state.step===1?'Зубы и работа':state.step===2?'Дополнительные параметры':state.step===3?'Подтверждение':'Новый заказ',subtitle)}${stepper()}<section class="wizard ${state.step===1?'order-builder-wizard':''}">${body}<div class="wizard-actions">${state.step>0?button('Назад','previous','outline'):''}${button(final?'Создать заказ':'Далее →','next')}</div></section>`)}
 function isoDate(value){const match=String(value||'').match(/^(\d{2})\.(\d{2})\.(\d{4})$/);return match?`${match[3]}-${match[2]}-${match[1]}`:''}
@@ -205,7 +749,7 @@ function clientRequestDialog(order){
   const field=state.clientRequest.field||'patient';
   return `<div class="tech-dialog-backdrop"><section class="tech-dialog client-request-dialog" role="dialog" aria-modal="true"><h2>Запросить правку</h2><p>Выберите один пункт. Изменение применится после подтверждения главным техником.</p><form id="clinic-client-request-form"><input type="hidden" name="type" value="edit"><label>Что изменить<select id="client-request-field" name="field"><option value="patient" ${field==='patient'?'selected':''}>ФИО пациента</option><option value="birth" ${field==='birth'?'selected':''}>Дата рождения</option><option value="teeth" ${field==='teeth'?'selected':''}>Зубы</option><option value="mode" ${field==='mode'?'selected':''}>Режим / челюсть</option><option value="service" ${field==='service'?'selected':''}>Услуга</option><option value="date" ${field==='date'?'selected':''}>Срок</option><option value="shade" ${field==='shade'?'selected':''}>Цвет</option><option value="comment" ${field==='comment'?'selected':''}>Комментарий</option></select></label>${clientRequestControl(order,field)}<div class="order-rework-actions"><button type="button" class="btn outline" data-action="client-request-close">Назад</button><button type="submit" class="btn primary">Отправить запрос</button></div></form></section></div>`;
 }
-const orderUploadAccept='.jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.rtf';
+const orderUploadAccept='*/*';
 function orderUploadDialog(){
   const dialog=state.orderUpload;
   if(!dialog||dialog.orderId!==state.orderId)return '';
@@ -227,7 +771,7 @@ function syncOrderUploadProgress(index){
   if(totalBar)totalBar.style.width=`${total}%`;
 }
 async function startOrderUpload(selected){
-  const allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf)$/i;
+  const allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|constructionInfo|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf)$/i;
   const files=Array.from(selected||[]).filter(file=>allowed.test(file.name)&&file.size<=200*1024*1024).slice(0,10);
   if(!files.length)return notify('Выберите поддерживаемые файлы размером до 200 МБ');
   if(Array.from(selected||[]).length>files.length)notify('Можно загрузить до 10 файлов поддерживаемых форматов, каждый до 200 МБ');
@@ -255,26 +799,26 @@ function detail(){
   const teeth=Array.isArray(o.teeth)?o.teeth:details.teeth||[];
   const bridgeRanges=Array.isArray(o.bridgeRanges)?o.bridgeRanges:[];
   const variants=Array.isArray(o.variants)&&o.variants.length?o.variants:[{toothMode:o.toothMode||'Одиночка',bridgeRanges,selectedTeeth:teeth,work:o.work,workOption:o.material}];
-  const facts=[['Тип работы',o.productionType==='analog'?'Аналоговый':'Цифровой'],['Пациент',o.patient],...(o.birth?[['Дата рождения',String(o.birth).split('-').reverse().join('.')]]:[]),['Желаемый срок',o.date],['Сумма заказа',o.sum],['Цвет',o.shade||'—'],['Комментарий',o.comment||'—'],['Исполнитель заказа',details.assigned?'Исполнитель назначен':'Пока не назначен']];
+  const facts=[['Тип работы',o.productionType==='analog'?'Аналоговый':'Цифровой'],['Пациент',o.patient],...(o.birth?[['Дата рождения',String(o.birth).split('-').reverse().join('.')]]:[]),['Желаемый срок',orderDateLabel(o.date)],['Сумма заказа',o.sum],['Цвет',o.shade||'—'],['Комментарий',o.comment||'—'],['Исполнитель заказа',details.assigned?'Исполнитель назначен':'Пока не назначен']];
   const serviceMarkup=`<section class="order-services"><h3>Услуги заказа</h3><div class="order-service-list">${variants.map((variant,index)=>{const serviceTeeth=Array.isArray(variant.selectedTeeth)?variant.selectedTeeth:[],serviceRanges=Array.isArray(variant.bridgeRanges)?variant.bridgeRanges:[],serviceAmount=variantEstimate(variant);return `<article class="order-service-card"><header><span>Услуга ${index+1}</span><strong>${escapeHtml(variant.work||'Работа')}</strong></header><div class="order-service-body"><div class="order-service-chart">${toothChart(false,serviceTeeth,serviceRanges)}</div><dl><div><dt>Зубы</dt><dd>${escapeHtml(serviceTeeth.join(', ')||'—')}</dd></div><div><dt>Режим</dt><dd>${escapeHtml(variant.toothMode||'Одиночка')}</dd></div>${serviceRanges.length?`<div><dt>Мосты</dt><dd>${escapeHtml(serviceRanges.map(range=>`${range[0]}–${range.at(-1)}`).join(', '))}</dd></div>`:''}${variant.workOption?`<div><dt>Исполнение</dt><dd>${escapeHtml(variant.workOption)}</dd></div>`:''}<div><dt>Количество</dt><dd>${Math.max(1,serviceTeeth.length)}</dd></div><div><dt>Сумма</dt><dd>${serviceAmount===null?'Стоимость уточняется':escapeHtml(rubles(serviceAmount))}</dd></div></dl></div></article>`}).join('')}</div></section>`;
-  const created=o.createdAt?new Date(o.createdAt).toLocaleDateString('ru-RU'):'—';
+  const created=o.createdAt?new Date(o.createdAt).toLocaleDateString(clinicIntlLocale()):'—';
   const history=portalHistory.filter(event=>event.orderId===o.id).slice().reverse();
   const folderCard=`<div class="order-folder-link"><div><strong>Папка заказа на Яндекс Диске</strong><small>Все файлы хранятся только на Яндекс Диске</small></div><div class="order-folder-actions">${state.orderFolderUrl?`<a class="btn outline" href="${escapeHtml(state.orderFolderUrl)}" target="_blank" rel="noopener noreferrer">Открыть папку</a>`:'<span class="muted">Папка создаётся…</span>'}</div></div>`;
   const fileMarkup=`<section class="order-files-panel"><div class="order-file-toolbar"><h3>Файлы заказа</h3></div><div class="order-files-layout"><div class="order-upload-card"><strong>Загрузить файлы</strong><small>Добавьте до 10 файлов в папку заказа на Яндекс Диске</small><button class="btn primary" data-action="add-order-file">Выбрать файлы</button></div>${folderCard}</div></section>`;
 
   const cad=details.cadReview||{};
-  const cadReviewMarkup=cad.status?`<div class="cad-review-card compact ${escapeHtml(cad.status)}"><div><span class="cad-review-label">Согласование CAD · версия ${Number(cad.revision)||1}</span><h3>${cad.status==='pending'?'CAD ожидает вашего решения':cad.status==='approved'?'CAD подтверждён':'CAD возвращён моделировщику'}</h3><p>${cad.status==='pending'?(cad.sentAt?`Отправлено ${new Date(cad.sentAt).toLocaleString('ru-RU')}`:'Отправлено на согласование'):cad.status==='approved'?`Подтвердил ${escapeHtml(cad.reviewedBy||'врач')}`:`Комментарий: ${escapeHtml(cad.comment||'Нужно внести изменения')}`}</p></div><div class="cad-review-actions"><button class="btn outline" data-action="cad-open" data-value="${escapeHtml(cad.fileId||'')}">Открыть CAD</button>${cad.status==='pending'?`<button class="btn outline" data-action="cad-return" data-value="${escapeHtml(o.id)}">Вернуть</button><button class="btn primary" data-action="cad-approve" data-value="${escapeHtml(o.id)}">Подтвердить</button>`:''}</div></div>`:'';
-  const historyMarkup=history.length?`<ol class="order-history">${history.map(event=>`<li><time>${new Date(event.at).toLocaleString('ru-RU')}</time><strong>${escapeHtml(displayActor(event))}</strong><span>${event.action==='stage_changed'?`${escapeHtml(event.from)} → ${escapeHtml(event.to)}${event.reason?`: ${escapeHtml(event.reason)}`:''}`:event.action==='assignee_changed'?(event.assigned?'Исполнитель назначен':'Исполнитель пока не назначен'):event.action==='rework_requested'?`Запрошена доработка: ${escapeHtml(event.reason)}`:escapeHtml(event.summary||'Изменение заказа')}</span></li>`).join('')}</ol>`:'<div class="info-note">История появится после первого действия с заказом.</div>';
+  const cadReviewMarkup=cad.status?`<div class="cad-review-card compact ${escapeHtml(cad.status)}"><div><span class="cad-review-label">Согласование CAD · версия ${Number(cad.revision)||1}</span><h3>${cad.status==='pending'?'CAD ожидает вашего решения':cad.status==='approved'?'CAD подтверждён':'CAD возвращён моделировщику'}</h3><p>${cad.status==='pending'?(cad.sentAt?`Отправлено ${new Date(cad.sentAt).toLocaleString(clinicIntlLocale())}`:'Отправлено на согласование'):cad.status==='approved'?`Подтвердил ${escapeHtml(cad.reviewedBy||'врач')}`:`Комментарий: ${escapeHtml(cad.comment||'Нужно внести изменения')}`}</p></div><div class="cad-review-actions"><button class="btn outline" data-action="cad-open" data-value="${escapeHtml(cad.fileId||'')}">Открыть CAD</button>${cad.status==='pending'?`<button class="btn outline" data-action="cad-return" data-value="${escapeHtml(o.id)}">Вернуть</button><button class="btn primary" data-action="cad-approve" data-value="${escapeHtml(o.id)}">Подтвердить</button>`:''}</div></div>`:'';
+  const historyMarkup=history.length?`<ol class="order-history">${history.map(event=>`<li><time>${new Date(event.at).toLocaleString(clinicIntlLocale())}</time><strong>${escapeHtml(displayActor(event))}</strong><span>${event.action==='stage_changed'?`${escapeHtml(event.from)} → ${escapeHtml(event.to)}${event.reason?`: ${escapeHtml(event.reason)}`:''}`:event.action==='assignee_changed'?(event.assigned?'Исполнитель назначен':'Исполнитель пока не назначен'):event.action==='rework_requested'?`Запрошена доработка: ${escapeHtml(event.reason)}`:escapeHtml(orderEventSummary(o,event)||'Изменение заказа')}</span></li>`).join('')}</ol>`:'<div class="info-note">История появится после первого действия с заказом.</div>';
   const visibleStage=details.stage==="Препрод"?"Аналоговая подготовка":details.stage==="Моделирование"?"Моделирование":details.stage==="Согласование CAD"||details.stage==="На согласовании"?"CAD на согласовании у врача":details.stage==="В доставке"||details.stage==="В пути к вам"?"Доставка в клинику":details.stage==="Принято доктором"||details.stage==="Принято"?"Принято врачом":details.stage==="На доработке"?"Доработка и эстетика":details.stage||"";
   const clinicStages=clinicVisibleProductionStages(details),clinicCurrentIndex=Math.max(0,clinicStages.findIndex(item=>item.matches.includes(details.stage)));
   const clinicQualityKind=details.qualityRequest?.kind,clinicQualityTimeline=details.stage==='Контроль качества'&&clinicQualityKind,clinicFinalQualityActive=details.stage==='Работа принята';
-  const clinicQualityTitle={cad:'ОТК — CAD оператор',preprod:'ОТК — препрод техник',cam:'ОТК — CAM оператор',esthetic:'ОТК — эстетист'}[clinicQualityKind]||'ОТК';
+  const clinicQualityTitle={cad:'ОТК CAD',preprod:'ОТК препрода',cam:'ОТК CAM',esthetic:'ОТК эстетики'}[clinicQualityKind]||'ОТК';
   const clinicQualityAfter={cad:'Моделирование',preprod:'Аналоговая подготовка',cam:'Изготовление',esthetic:'Доработка и эстетика'}[clinicQualityKind];
   const clinicTimelineStages=clinicQualityTimeline?clinicStages.flatMap(item=>item.label===clinicQualityAfter?[item,{label:clinicQualityTitle,qualityMarker:true}]:[item]):clinicStages;
   const clinicTimelineCurrent=clinicQualityTimeline?clinicTimelineStages.findIndex(item=>item.qualityMarker):clinicFinalQualityActive?clinicStages.findIndex(item=>item.label==='Контроль качества'):clinicCurrentIndex;
   const progress=clinicQualityTimeline||clinicFinalQualityActive?Math.round(clinicTimelineCurrent/Math.max(1,clinicTimelineStages.length-1)*100):clinicOrderProgress(details);
-  const clinicTimeline=clinicTimelineStages.map((item,index)=>{const done=clinicQualityTimeline?(item.qualityMarker?false:index<clinicTimelineCurrent):clinicFinalQualityActive?(index<clinicTimelineCurrent):index<clinicCurrentIndex,current=clinicQualityTimeline?item.qualityMarker===true:clinicFinalQualityActive?item.label==='Контроль качества':index===clinicCurrentIndex;return `<div class="${done?'complete ':''}${current?'current':''}"><i></i><strong>${escapeHtml(item.label)}</strong></div>`}).join('');
-  shell(`<button class="back-link" data-page="orders">← &nbsp; Назад к заказам</button><div class="detail-heading">${title(`Заказ ${escapeHtml(o.id)}`,badge(escapeHtml(displayClientStatus(o.status)))+` <span class="muted">Создан ${created}</span>`,`<div class="detail-actions">${button(`${icon('message',16)} Сообщение`,'open-messages','outline')}${button('Запросить правку','request-edit','outline')}${button('Запросить отмену','request-cancel','outline')}</div>`)}</div>${tabs([['Обзор'],['Файлы'],['Комментарии'],['История']],state.detailTab,'detail-tab','segmented-tabs clinic-detail-tabs')}${state.detailTab==='Обзор'?`<div class="detail-grid"><div class="detail-main-column"><section><h3>Общая информация</h3><div class="facts">${facts.map(([k,v])=>`<div><span>${k}</span><strong>${escapeHtml(v)}</strong></div>`).join('')}</div></section>${serviceMarkup}</div><aside class="detail-side-column"><section><h3>Статус заказа</h3><div class="timeline clinic-production-timeline">${clinicTimeline}</div><div class="tech-stage-progress clinic-stage-progress" aria-label="Прогресс заказа ${progress}%"><div class="tech-progress-head"><span>Прогресс заказа</span><b>${progress}%</b></div><div class="tech-progress-track"><i style="width:${progress}%"></i></div></div>${details.stage==='В доставке'?`<div class="clinic-accept-actions"><button class="btn primary" data-action="doctor-accept" data-value="${escapeHtml(o.id)}">Принять работу</button><button class="btn outline" data-action="doctor-rework" data-value="${escapeHtml(o.id)}">Отправить на доработку</button></div>`:''}${cadReviewMarkup?`<div class="order-side-stack">${cadReviewMarkup}</div>`:''}</section></aside></div>`:state.detailTab==='Файлы'?fileMarkup:state.detailTab==='Комментарии'?'<div class="info-note">Комментарии к заказу пока отсутствуют.</div>':historyMarkup}${clientRequestDialog(o)}${state.reworkOrderId===o.id?`<div class="tech-dialog-backdrop" data-action="cancel-rework"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="rework-title"><h2 id="rework-title">Отправить заказ на доработку</h2><p>Опишите, что нужно исправить. Запрос появится в истории заказа и кабинете исполнителя.</p><form id="order-rework-form"><textarea name="reason" minlength="5" maxlength="2000" rows="5" required placeholder="Что нужно поправить в работе?" aria-label="Причина доработки"></textarea><div class="order-rework-actions"><button type="button" class="btn outline" data-action="cancel-rework">Отмена</button><button type="submit" class="btn primary">Отправить в лабораторию</button></div></form></section></div>`:''}${state.cadReturnOrderId===o.id?`<div class="tech-dialog-backdrop cad-return-backdrop"><section class="tech-dialog cad-return-dialog" role="dialog" aria-modal="true" aria-labelledby="cad-return-title"><h2 id="cad-return-title">Вернуть CAD моделировщику</h2><p>Укажите конкретно, что нужно изменить.</p><form id="cad-return-form"><textarea name="comment" minlength="5" maxlength="2000" rows="5" required placeholder="Комментарий для моделировщика">${escapeHtml(state.cadReturnComment||'')}</textarea><div class="cad-return-files">${cadReturnAttachmentMarkup()}</div><label class="chat-attach-button cad-return-file-picker" title="Прикрепить скриншоты или файлы">${icon('paperclip',18)}<span>Добавить скриншоты или файлы</span><input id="cad-return-files" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.rtf,.html" multiple hidden></label><small class="cad-return-file-hint">До 10 файлов, каждый до 200 МБ</small><div class="order-rework-actions"><button type="button" class="btn outline" data-action="cad-return-cancel">Отмена</button><button type="submit" class="btn primary">Вернуть на исправление</button></div></form></section></div>`:''}${orderUploadDialog()}${state.cadPreview?.orderId===o.id?`<div class="cad-preview-backdrop"><section class="cad-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="cad-preview-title"><header><div><h2 id="cad-preview-title">${escapeHtml(state.cadPreview.name||'CAD')}</h2><p>Интерактивный предпросмотр из HTML-файла</p></div><button data-action="cad-close" aria-label="Закрыть">×</button></header><iframe id="cad-preview-frame" src="${escapeHtml(state.cadPreview.url||'')}" sandbox="allow-scripts allow-pointer-lock" referrerpolicy="no-referrer" title="Предпросмотр CAD"></iframe></section></div>`:''}`);
+  const clinicTimeline=clinicTimelineStages.map((item,index)=>{const done=clinicQualityTimeline?(item.qualityMarker?false:index<clinicTimelineCurrent):clinicFinalQualityActive?(index<clinicTimelineCurrent):index<clinicCurrentIndex,current=clinicQualityTimeline?item.qualityMarker===true:clinicFinalQualityActive?item.label==='Контроль качества':index===clinicCurrentIndex;return `<div class="${done?'complete ':''}${current?'current':''}"><i></i><strong>${escapeHtml(compactStageLabel(item.label))}</strong></div>`}).join('');
+  shell(`<button class="back-link" data-page="orders">← &nbsp; Назад к заказам</button><div class="detail-heading">${title(`Заказ ${escapeHtml(o.id)}`,badge(escapeHtml(displayClientStatus(o.status)))+` <span class="muted">Создан ${created}</span>`,`<div class="detail-actions"><button type="button" class="btn outline" data-action="print-order">Распечатать наряд</button>${button(`${icon('message',16)} Сообщение`,'open-messages','outline')}${button('Запросить правку','request-edit','outline')}${button('Запросить отмену','request-cancel','outline')}</div>`)}</div>${tabs([['Обзор'],['Файлы'],['Комментарии'],['История']],state.detailTab,'detail-tab','segmented-tabs clinic-detail-tabs')}${state.detailTab==='Обзор'?`<div class="detail-grid"><div class="detail-main-column"><section><h3>Общая информация</h3><div class="facts">${facts.map(([k,v])=>`<div><span>${k}</span><strong>${escapeHtml(v)}</strong></div>`).join('')}</div></section>${serviceMarkup}</div><aside class="detail-side-column"><section><h3>Статус заказа</h3><div class="timeline clinic-production-timeline">${clinicTimeline}</div><div class="tech-stage-progress clinic-stage-progress" aria-label="Прогресс заказа ${progress}%"><div class="tech-progress-head"><span>Прогресс заказа</span><b>${progress}%</b></div><div class="tech-progress-track"><i style="width:${progress}%"></i></div></div>${details.stage==='В доставке'?`<div class="clinic-accept-actions"><button class="btn primary" data-action="doctor-accept" data-value="${escapeHtml(o.id)}">Принять работу</button><button class="btn outline" data-action="doctor-rework" data-value="${escapeHtml(o.id)}">Отправить на доработку</button></div>`:''}${cadReviewMarkup?`<div class="order-side-stack">${cadReviewMarkup}</div>`:''}</section></aside></div>`:state.detailTab==='Файлы'?fileMarkup:state.detailTab==='Комментарии'?'<div class="info-note">Комментарии к заказу пока отсутствуют.</div>':historyMarkup}${clientRequestDialog(o)}${state.reworkOrderId===o.id?`<div class="tech-dialog-backdrop" data-action="cancel-rework"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="rework-title"><h2 id="rework-title">Отправить заказ на доработку</h2><p>Опишите, что нужно исправить. Запрос появится в истории заказа и кабинете исполнителя.</p><form id="order-rework-form"><textarea name="reason" minlength="5" maxlength="2000" rows="5" required placeholder="Что нужно поправить в работе?" aria-label="Причина доработки"></textarea><div class="order-rework-actions"><button type="button" class="btn outline" data-action="cancel-rework">Отмена</button><button type="submit" class="btn primary">Отправить в лабораторию</button></div></form></section></div>`:''}${state.cadReturnOrderId===o.id?`<div class="tech-dialog-backdrop cad-return-backdrop"><section class="tech-dialog cad-return-dialog" role="dialog" aria-modal="true" aria-labelledby="cad-return-title"><h2 id="cad-return-title">Вернуть CAD моделировщику</h2><p>Укажите конкретно, что нужно изменить.</p><form id="cad-return-form"><textarea name="comment" minlength="5" maxlength="2000" rows="5" required placeholder="Комментарий для моделировщика">${escapeHtml(state.cadReturnComment||'')}</textarea><div class="cad-return-files">${cadReturnAttachmentMarkup()}</div><label class="chat-attach-button cad-return-file-picker" title="Прикрепить скриншоты или файлы">${icon('paperclip',18)}<span>Добавить скриншоты или файлы</span><input id="cad-return-files" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.constructionInfo,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.rtf,.html" multiple hidden></label><small class="cad-return-file-hint">До 10 файлов, каждый до 200 МБ</small><div class="order-rework-actions"><button type="button" class="btn outline" data-action="cad-return-cancel">Отмена</button><button type="submit" class="btn primary">Вернуть на исправление</button></div></form></section></div>`:''}${orderUploadDialog()}${state.cadPreview?.orderId===o.id?`<div class="cad-preview-backdrop"><section class="cad-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="cad-preview-title"><header><div><h2 id="cad-preview-title">${escapeHtml(state.cadPreview.name||'CAD')}</h2><p>Интерактивный предпросмотр из HTML-файла</p></div><button data-action="cad-close" aria-label="Закрыть">×</button></header><iframe id="cad-preview-frame" src="${escapeHtml(state.cadPreview.url||'')}" sandbox="allow-scripts allow-pointer-lock" referrerpolicy="no-referrer" title="Предпросмотр CAD"></iframe></section></div>`:''}`);
   const cadFrame=$('#cad-preview-frame');if(cadFrame&&state.cadPreview?.url)cadFrame.src=state.cadPreview.url;
 }
 function filesPage(){const files=[['xray.png','КТ_верхняя.jpg','12.03.2024','КТ/Рентген'],['tooth.png','Фото_16.jpg','12.03.2024','Фото'],['scan.png','Скан_верхняя.stl','10.03.2024','3D модели'],['smile.png','Прикус.jpg','10.03.2024','Фото'],['tooth.png','Фото_26.jpg','06.03.2024','Фото'],['file.png','План_лечения.pdf','08.03.2024','Документы'],['scan.png','Скан_нижняя.stl','05.03.2024','3D модели'],['xray.png','КТ_панорама.jpg','05.03.2024','КТ/Рентген'],['smile.png','Фото_улыбка.jpg','04.03.2024','Фото'],['tooth.png','Другое.jpg','04.03.2024','Фото']];shell(`${title('Файлы','Откройте нужный заказ, чтобы загрузить файлы прямо в его папку на Яндекс Диске.')}${tabs([['Все файлы'],['КТ/Рентген'],['Фото'],['3D модели'],['Документы']],state.fileTab,'file-tab','segmented-tabs')}<div class="file-grid">${files.filter(f=>state.fileTab==='Все файлы'||f[3]===state.fileTab).map(([src,name,date])=>`<button class="file-card" data-action="file-preview" data-value="${name}"><img src="${assets+src}" alt=""><strong>${name}</strong><small>${date}</small></button>`).join('')}</div>`)}
@@ -282,10 +826,10 @@ const chatFileSize=size=>size>=1024*1024?`${(size/1024/1024).toFixed(1)} МБ`:`
 function chatAttachmentMarkup(attachment,pending=false){if(!attachment)return '';const preview=attachment.preview?`<img src="${escapeHtml(attachment.preview)}" alt="">`:`<span class="chat-file-icon">📄</span>`;return `<${pending?'div':'button'} class="chat-attachment ${pending?'pending':''}" ${pending?'':`type="button" data-chat-file="${escapeHtml(attachment.id)}"`}>${preview}<span><strong>${escapeHtml(attachment.name)}</strong><small>${chatFileSize(attachment.size)}</small></span>${pending?'<button type="button" data-action="remove-chat-attachment" aria-label="Убрать файл">×</button>':''}</${pending?'div':'button'}>`}
 function cadReturnAttachmentMarkup(){return (state.cadReturnAttachments||[]).map((attachment,index)=>`<div class="cad-return-file"><div>${attachment.preview?`<img src="${escapeHtml(attachment.preview)}" alt="">`:'<span class="chat-file-icon">📄</span>'}<span><strong>${escapeHtml(attachment.name)}</strong><small>${chatFileSize(attachment.size)}</small></span></div><button type="button" data-action="remove-cad-return-attachment" data-value="${index}" aria-label="Убрать файл">×</button></div>`).join('')}
 function formattedChatText(value){return escapeHtml(value).replace(/\s+(?=(?:Клиника|Заказ|Пациент|Работа|Исполнение|Зубы|Режим|Челюсть|Срок|Цвет|Причина|Содержание|Запросил|Выполнить это действие в CRM)\s*:)/g,'\n')}
-function chatMessageMarkup(message){const bot=message.from==='bot',author=bot?'Ответ AI':message.source==='telegram'&&message.from==='support'?'Create Dental Team':message.source==='telegram'&&message.sender?'Клиент':'';return `<div class="bubble ${message.from==='client'?'me':'them'} ${bot?'bot':''}">${author?`<small class="message-author">${escapeHtml(author)}</small>`:''}${message.text?`<p>${formattedChatText(message.text)}</p>`:''}${chatAttachmentMarkup(message.attachment)}<time>${new Date(message.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</time></div>`}
-function messagesPage(){shell(`${title('Сообщения')}<div class="messages-layout"><div class="contacts"><button class="contact active"><span class="contact-avatar">CD</span><span><strong>Поддержка Create Dental</strong><small>Ваш диалог со службой поддержки</small></span></button></div><div class="conversation"><div class="conversation-head"><span class="contact-avatar">CD</span><span><strong>Поддержка Create Dental</strong><small id="chat-status">${escapeHtml(state.chatStatus)}</small></span></div><div class="chat-bubbles" id="chat-bubbles">${state.messages.length?state.messages.map(chatMessageMarkup).join(''):'<p class="chat-empty">Напишите сообщение, и оператор увидит его в своей панели.</p>'}</div><form id="chat-form" class="chat-compose chat-compose-files">${state.chatAttachment?`<div class="chat-pending-file">${chatAttachmentMarkup(state.chatAttachment,true)}</div>`:''}<label class="chat-attach-button" title="Прикрепить файл">📎<input id="clinic-chat-file" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.rtf" hidden></label><input id="chat-input" maxlength="2000" placeholder="Напишите сообщение..." value="${escapeHtml(state.chatText)}" autocomplete="off"><button class="send-btn" aria-label="Отправить сообщение">➤</button></form></div></div>`)}
+function chatMessageMarkup(message){const bot=message.from==='bot',author=bot?'Ответ AI':message.source==='telegram'&&message.from==='support'?'Create Dental Team':message.source==='telegram'&&message.sender?'Клиент':'';return `<div class="bubble ${message.from==='client'?'me':'them'} ${bot?'bot':''}">${author?`<small class="message-author">${escapeHtml(author)}</small>`:''}${message.text?`<p>${formattedChatText(message.text)}</p>`:''}${chatAttachmentMarkup(message.attachment)}<time>${new Date(message.time).toLocaleTimeString(clinicIntlLocale(),{hour:'2-digit',minute:'2-digit'})}</time></div>`}
+function messagesPage(){shell(`${title('Сообщения')}<div class="messages-layout"><div class="contacts"><button class="contact active"><span class="contact-avatar">CD</span><span><strong>Поддержка Create Dental</strong><small>Ваш диалог со службой поддержки</small></span></button></div><div class="conversation"><div class="conversation-head"><span class="contact-avatar">CD</span><span><strong>Поддержка Create Dental</strong><small id="chat-status">${escapeHtml(state.chatStatus)}</small></span></div><div class="chat-bubbles" id="chat-bubbles">${state.messages.length?state.messages.map(chatMessageMarkup).join(''):'<p class="chat-empty">Напишите сообщение, и оператор увидит его в своей панели.</p>'}</div><form id="chat-form" class="chat-compose chat-compose-files">${state.chatAttachment?`<div class="chat-pending-file">${chatAttachmentMarkup(state.chatAttachment,true)}</div>`:''}<label class="chat-attach-button" title="Прикрепить файл">📎<input id="clinic-chat-file" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.constructionInfo,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.rtf" hidden></label><input id="chat-input" maxlength="2000" placeholder="Напишите сообщение..." value="${escapeHtml(state.chatText)}" autocomplete="off"><button class="send-btn" aria-label="Отправить сообщение">➤</button></form></div></div>`)}
 function imageChatPreview(file){return new Promise((resolve,reject)=>{if(!file.type.startsWith('image/'))return resolve('');const image=new Image(),url=URL.createObjectURL(file);image.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Не удалось открыть изображение'))};image.onload=()=>{const scale=Math.min(1,240/image.width,180/image.height),canvas=document.createElement('canvas'),context=canvas.getContext('2d');canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));context.drawImage(image,0,0,canvas.width,canvas.height);URL.revokeObjectURL(url);resolve(canvas.toDataURL('image/jpeg',.72))};image.src=url})}
-async function selectChatAttachment(file){if(!file)return;const allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf)$/i;if(!allowed.test(file.name))return notify('Выберите изображение, PDF, 3D-файл, архив, Word, Excel или текстовый документ');if(file.size>200*1024*1024)return notify('Файл должен быть не больше 200 МБ');try{state.chatAttachment={file,name:file.name,size:file.size,type:file.type||'application/octet-stream',preview:await imageChatPreview(file)};messagesPage()}catch(error){notify(error.message)}}
+async function selectChatAttachment(file){if(!file)return;const allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|constructionInfo|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf)$/i;if(!allowed.test(file.name))return notify('Выберите изображение, PDF, 3D-файл, архив, Word, Excel или текстовый документ');if(file.size>200*1024*1024)return notify('Файл должен быть не больше 200 МБ');try{state.chatAttachment={file,name:file.name,size:file.size,type:file.type||'application/octet-stream',preview:await imageChatPreview(file)};messagesPage()}catch(error){notify(error.message)}}
 async function loadMessages(){
   if(!portalReady||state.role!=='clinic') return;
   if(state.page!=='messages'&&state.page!=='home') return;
@@ -363,40 +907,52 @@ let portalError='';
 let authNotice='';
 let authDraft={name:'',phone:'',email:'',country:'RU',city:'',address:'',password:''};
 const authTranslations={
-  ru:{login:'Личный кабинет Create Dental',register:'Регистрация клиники',subtitle:'Заказы, производство и связь с лабораторией.',clinic:'Название клиники',phone:'Телефон',email:'Email',country:'Страна',city:'Город',address:'Адрес',password:'Пароль от 8 символов',emailLogin:'Email или логин',loginButton:'Войти',registerButton:'Зарегистрироваться',registerLink:'Регистрация',forgot:'Забыли пароль?',back:'← Вернуться ко входу',recover:'Восстановление пароля',recoverText:'Обратитесь по почте, чтобы получить новый пароль.',countries:['Россия','Беларусь','Армения','Казахстан','Узбекистан','ОАЭ']},
-  am:{login:'Create Dental-ի անձնական էջ',register:'Կլինիկայի գրանցում',subtitle:'Պատվերներ, արտադրություն և կապ լաբորատորիայի հետ։',clinic:'Կլինիկայի անվանումը',phone:'Հեռախոս',email:'Էլ․ փոստ',country:'Երկիր',city:'Քաղաք',address:'Հասցե',password:'Գաղտնաբառ՝ առնվազն 8 նիշ',emailLogin:'Էլ․ փոստ կամ մուտքանուն',loginButton:'Մուտք գործել',registerButton:'Գրանցել կլինիկան',registerLink:'Գրանցում',forgot:'Մոռացե՞լ եք գաղտնաբառը',back:'← Վերադառնալ մուտքին',recover:'Գաղտնաբառի վերականգնում',recoverText:'Նոր գաղտնաբառ ստանալու համար գրեք մեզ։',countries:['Ռուսաստան','Բելառուս','Հայաստան','Ղազախստան','Ուզբեկստան','ԱՄԷ']},
-  uz:{login:'Create Dental shaxsiy kabineti',register:'Klinikani ro‘yxatdan o‘tkazish',subtitle:'Buyurtmalar, ishlab chiqarish va laboratoriya bilan aloqa.',clinic:'Klinika nomi',phone:'Telefon',email:'Email',country:'Mamlakat',city:'Shahar',address:'Manzil',password:'Parol — kamida 8 belgi',emailLogin:'Email yoki login',loginButton:'Kirish',registerButton:'Klinikani ro‘yxatdan o‘tkazish',registerLink:'Ro‘yxatdan o‘tish',forgot:'Parolni unutdingizmi?',back:'← Kirishga qaytish',recover:'Parolni tiklash',recoverText:'Yangi parol olish uchun bizga yozing.',countries:['Rossiya','Belarus','Armaniston','Qozog‘iston','O‘zbekiston','BAA']},
-  kk:{login:'Create Dental жеке кабинеті',register:'Клиниканы тіркеу',subtitle:'Тапсырыстар, өндіріс және зертханамен байланыс.',clinic:'Клиника атауы',phone:'Телефон',email:'Email',country:'Ел',city:'Қала',address:'Мекенжай',password:'Құпиясөз — кемінде 8 таңба',emailLogin:'Email немесе логин',loginButton:'Кіру',registerButton:'Клиниканы тіркеу',registerLink:'Тіркелу',forgot:'Құпиясөзді ұмыттыңыз ба?',back:'← Кіруге оралу',recover:'Құпиясөзді қалпына келтіру',recoverText:'Жаңа құпиясөз алу үшін бізге жазыңыз.',countries:['Ресей','Беларусь','Армения','Қазақстан','Өзбекстан','БАӘ']},
-  ar:{login:'الحساب الشخصي — Create Dental',register:'تسجيل العيادة',subtitle:'الطلبات والإنتاج والتواصل مع المختبر.',clinic:'اسم العيادة',phone:'الهاتف',email:'البريد الإلكتروني',country:'الدولة',city:'المدينة',address:'العنوان',password:'كلمة المرور — 8 أحرف على الأقل',emailLogin:'البريد الإلكتروني أو اسم المستخدم',loginButton:'دخول',registerButton:'تسجيل العيادة',registerLink:'التسجيل',forgot:'هل نسيت كلمة المرور؟',back:'العودة إلى تسجيل الدخول ←',recover:'استعادة كلمة المرور',recoverText:'راسلنا للحصول على كلمة مرور جديدة.',countries:['روسيا','بيلاروس','أرمينيا','كازاخستان','أوزبكستان','الإمارات']}
+  ru:{login:'Личный кабинет Create Dental',register:'Регистрация клиники',subtitle:'Заказы, производство и связь с лабораторией.',clinic:'Название клиники',phone:'Телефон',email:'Email',country:'Страна',city:'Город',address:'Адрес',password:'Пароль от 8 символов',emailLogin:'Email или логин',loginButton:'Войти',registerButton:'Зарегистрироваться',registerLink:'Регистрация',forgot:'Забыли пароль?',back:'← Вернуться ко входу',recover:'Восстановление пароля',recoverText:'Напишите нам, чтобы получить новый пароль:',countries:['Россия','Беларусь','Армения','Казахстан','Узбекистан','ОАЭ']},
+  am:{login:'Create Dental-ի անձնական էջ',register:'Կլինիկայի գրանցում',subtitle:'Պատվերներ, արտադրություն և կապ լաբորատորիայի հետ։',clinic:'Կլինիկայի անվանումը',phone:'Հեռախոս',email:'Էլ․ փոստ',country:'Երկիր',city:'Քաղաք',address:'Հասցե',password:'Գաղտնաբառ՝ առնվազն 8 նիշ',emailLogin:'Էլ․ փոստ կամ մուտքանուն',loginButton:'Մուտք գործել',registerButton:'Գրանցել կլինիկան',registerLink:'Գրանցում',forgot:'Մոռացե՞լ եք գաղտնաբառը',back:'← Վերադառնալ մուտքին',recover:'Գաղտնաբառի վերականգնում',recoverText:'Նոր գաղտնաբառ ստանալու համար գրեք մեզ՝',countries:['Ռուսաստան','Բելառուս','Հայաստան','Ղազախստան','Ուզբեկստան','ԱՄԷ']},
+  uz:{login:'Create Dental shaxsiy kabineti',register:'Klinikani ro‘yxatdan o‘tkazish',subtitle:'Buyurtmalar, ishlab chiqarish va laboratoriya bilan aloqa.',clinic:'Klinika nomi',phone:'Telefon',email:'Email',country:'Mamlakat',city:'Shahar',address:'Manzil',password:'Parol — kamida 8 belgi',emailLogin:'Email yoki login',loginButton:'Kirish',registerButton:'Klinikani ro‘yxatdan o‘tkazish',registerLink:'Ro‘yxatdan o‘tish',forgot:'Parolni unutdingizmi?',back:'← Kirishga qaytish',recover:'Parolni tiklash',recoverText:'Yangi parol olish uchun bizga yozing:',countries:['Rossiya','Belarus','Armaniston','Qozog‘iston','O‘zbekiston','BAA']},
+  kk:{login:'Create Dental жеке кабинеті',register:'Клиниканы тіркеу',subtitle:'Тапсырыстар, өндіріс және зертханамен байланыс.',clinic:'Клиника атауы',phone:'Телефон',email:'Email',country:'Ел',city:'Қала',address:'Мекенжай',password:'Құпиясөз — кемінде 8 таңба',emailLogin:'Email немесе логин',loginButton:'Кіру',registerButton:'Клиниканы тіркеу',registerLink:'Тіркелу',forgot:'Құпиясөзді ұмыттыңыз ба?',back:'← Кіруге оралу',recover:'Құпиясөзді қалпына келтіру',recoverText:'Жаңа құпиясөз алу үшін бізге жазыңыз:',countries:['Ресей','Беларусь','Армения','Қазақстан','Өзбекстан','БАӘ']},
+  ar:{login:'الحساب الشخصي — Create Dental',register:'تسجيل العيادة',subtitle:'الطلبات والإنتاج والتواصل مع المختبر.',clinic:'اسم العيادة',phone:'الهاتف',email:'البريد الإلكتروني',country:'الدولة',city:'المدينة',address:'العنوان',password:'كلمة المرور — 8 أحرف على الأقل',emailLogin:'البريد الإلكتروني أو اسم المستخدم',loginButton:'دخول',registerButton:'تسجيل العيادة',registerLink:'التسجيل',forgot:'هل نسيت كلمة المرور؟',back:'العودة إلى تسجيل الدخول ←',recover:'استعادة كلمة المرور',recoverText:'راسلنا للحصول على كلمة مرور جديدة:',countries:['روسيا','بيلاروس','أرمينيا','كازاخستان','أوزبكستان','الإمارات']}
 };
 function localizeAuth(){
   const page=document.querySelector('.portal-login');if(!page)return;
-  let locale='ru';try{locale=localStorage.getItem('create-dental-locale')||'ru'}catch{}
-  if(locale==='hy')locale='am';const t=authTranslations[locale]||authTranslations.ru;page.dir=locale==='ar'?'rtl':'ltr';
+  const route=routeFromPath(location.pathname);let locale=route.locale||document.documentElement.dataset.locale||'ru';try{if(!route.locale)locale=localStorage.getItem('create-dental-locale')||locale}catch{}
+  if(locale==='hy')locale='am';const t=authTranslations[locale]||authTranslations.ru;page.dir=locale==='ar'?'rtl':'ltr';page.lang=locale==='am'?'hy':locale==='kk'?'kk':locale;
   const title=page.querySelector('h1');if(title)title.textContent=authMode==='register'?t.register:authMode==='recover'?t.recover:t.login;
   const subtitle=page.querySelector('section>p');if(subtitle)subtitle.textContent=authMode==='recover'?t.recoverText:t.subtitle;
   const labels=[t.clinic,t.phone,t.email,t.city,t.address,t.password];
-  page.querySelectorAll('#portal-login-form label').forEach((label,index)=>{if(label.querySelector('select')){label.childNodes[0].textContent=t.country;label.querySelectorAll('option').forEach((option,i)=>{option.textContent=t.countries[i]||option.textContent});return}if(label.firstChild?.nodeType===Node.TEXT_NODE){const name=label.querySelector('input')?.name;const byName={name:t.clinic,phone:t.phone,email:t.email,city:t.city,address:t.address,password:t.password};label.firstChild.textContent=byName[name]||t.emailLogin}});
+  page.querySelectorAll('#portal-login-form label').forEach(label=>{if(label.dataset.authField==='country'){const country=label.querySelector('input[name=country]')?.value||'RU',index=['RU','BY','AM','KZ','UZ','AE'].indexOf(country);label.querySelector('[data-auth-label]').textContent=t.country;label.querySelector('[data-auth-country]').textContent=t.countries[index]||country;return}if(label.querySelector('select')){label.childNodes[0].textContent=t.country;label.querySelectorAll('option').forEach((option,i)=>{option.textContent=t.countries[i]||option.textContent});return}if(label.firstChild?.nodeType===Node.TEXT_NODE){const name=label.querySelector('input')?.name;const byName={name:t.clinic,phone:t.phone,email:t.email,city:t.city,address:t.address,password:t.password};label.firstChild.textContent=byName[name]||t.emailLogin}});
+  const recoveryCopy=page.querySelector('.auth-recovery p');if(recoveryCopy)recoveryCopy.innerHTML=`${t.recoverText} <a href="mailto:ceo@createdental.ai"><bdi dir="ltr">ceo@createdental.ai</bdi></a>`;
   const submit=page.querySelector('#portal-login-form .btn.primary');if(submit)submit.textContent=authMode==='register'?t.registerButton:t.loginButton;
   const links=page.querySelectorAll('.auth-links button');links.forEach(button=>{if(button.dataset.authMode==='register')button.textContent=t.registerLink;else if(button.dataset.authMode==='recover')button.textContent=t.forgot;else button.textContent=t.back});
   const recovery=page.querySelector('.auth-recovery h2');if(recovery)recovery.textContent=t.recover;
 }
-document.addEventListener('create-dental:locale-changed',localizeAuth);
+document.addEventListener('create-dental:locale-changed',()=>{if(portalReady&&portalUser?.role==='clinic'){render();return}localizeAuth()});
+function currentAuthLocale(){return 'ru'}
+const authLocaleMeta={ru:{slug:'ru',country:'RU'},am:{slug:'am',country:'AM'},uz:{slug:'uz',country:'UZ'},kk:{slug:'kz',country:'KZ'},ar:{slug:'uae',country:'AE'}};
 function loginView(){
+  const locale='ru',meta=authLocaleMeta.ru;
+  if(authMode==='register'){
+    const canonical=pathFor(null,'register');
+    if(location.pathname!==canonical)navigate(canonical,{replace:true});
+  }
   const field=(label,name,type='text',minimum='',value='')=>`<label>${label}<input name="${name}" type="${type}" value="${escapeHtml(value)}" ${minimum?`minlength="${minimum}"`:''} required></label>`;
+  const labels=authTranslations[locale]||authTranslations.ru;
+  const countryIndex=['RU','BY','AM','KZ','UZ','AE'].indexOf(meta.country);
+  const countryCodes=['RU','BY','AM','KZ','UZ','AE'];
+  const fixedCountry=`<label><span>${labels.country}</span><select name="country" required>${countryCodes.map((code,index)=>`<option value="${code}" ${authDraft.country===code?'selected':''}>${escapeHtml(labels.countries[index])}</option>`).join('')}</select></label>`;
   const form=authMode==='register'
-    ?`${field('Название клиники','name','text','',authDraft.name)}${field('Телефон','phone','tel','',authDraft.phone)}${field('Email','email','email','',authDraft.email)}<label>Страна<select name="country" required>${[['RU','Россия'],['BY','Беларусь'],['AM','Армения'],['KZ','Казахстан'],['UZ','Узбекистан'],['AE','ОАЭ']].map(([code,name])=>`<option value="${code}" ${authDraft.country===code?'selected':''}>${name}</option>`).join('')}</select></label>${field('Город','city','text','',authDraft.city)}${field('Адрес','address','text','',authDraft.address)}${field('Пароль от 8 символов','password','password',8,authDraft.password)}<button class="btn primary">Зарегистрироваться</button>`
-    :`${field('Email или логин','email')}${field('Пароль','password','password')}<button class="btn primary">Войти</button>`;
+    ?`${field(labels.clinic,'name','text','',authDraft.name)}${field(labels.phone,'phone','tel','',authDraft.phone)}${field(labels.email,'email','email','',authDraft.email)}${fixedCountry}${field(labels.city,'city','text','',authDraft.city)}${field(labels.address,'address','text','',authDraft.address)}${field(labels.password,'password','password',8,authDraft.password)}<button class="btn primary">${labels.registerButton}</button>`
+    :`${field(labels.emailLogin,'email')}${field(labels.password,'password','password')}<button class="btn primary">${labels.loginButton}</button>`;
   const links=authMode==='login'
     ?'<div class="auth-links"><button type="button" data-auth-mode="register">Регистрация</button><button type="button" data-auth-mode="recover">Забыли пароль?</button></div>'
     :'<div class="auth-links"><button type="button" data-auth-mode="login">← Вернуться ко входу</button></div>';
-  let content=authMode==='recover'
-    ?'<div class="auth-recovery"><h2>Восстановление пароля</h2><p>Обратитесь по почте <a href="mailto:ceo@createdental.ai">ceo@createdental.ai</a>, чтобы получить новый пароль.</p></div>'
+  const content=authMode==='recover'
+    ?'<div class="auth-recovery"><p></p></div>'
     :`<form id="portal-login-form" data-mode="${authMode}">${form}</form>`;
-  $('#app').innerHTML=`<main class="portal-login"><div class="portal-login-tools">${languageSwitcherMarkup()}${themeToggleMarkup()}</div><section><img class="portal-logo" src="${logo}" alt="Create Dental"><h1>${authMode==='register'?'Регистрация клиники':'Личный кабинет Create Dental'}</h1><p>Заказы, производство и связь с лабораторией.</p>${content}${links}${authNotice?`<p class="portal-login-success">${escapeHtml(authNotice)}</p>`:''}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
+  $('#app').innerHTML=`<main class="portal-login"><div class="portal-login-tools">${languageSwitcherMarkup()}${themeToggleMarkup()}</div><section><img class="portal-logo" src="${logo}" alt="Create Dental"><h1>${authMode==='register'?labels.register:authMode==='recover'?labels.recover:labels.login}</h1>${authMode==='recover'?'':`<p>${labels.subtitle}</p>`}${content}${links}${authNotice?`<p class="portal-login-success">${escapeHtml(authNotice)}</p>`:''}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
   localizeAuth();
 }
-function render(){if(!portalReady){if(portalToken()){$('#app').innerHTML='<div class="startup-notice">Загрузка кабинета...</div>';return}loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
+function render(){if(!portalReady){if(portalToken()){$('#app').innerHTML='<div class="startup-notice">Загрузка кабинета...</div>';return}loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(state.datePickerOpen)queueMicrotask(positionDatePicker);if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
 function syncRoute(){
   const route=routeFromPath(location.pathname);
   if(!portalReady){authMode=route.mode||'login';render();return}
@@ -407,18 +963,20 @@ function syncRoute(){
 async function hydratePortal(){
   const data=await loadPortal();
   if(data.user.role==='technician'&&!technicianCabinet){
-    const {createTechnicianCabinet}=await import('./technician.js?v=portal-language-2');
-    technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,onUserUpdate:user=>{portalUser=user}});
+      const {createTechnicianCabinet}=await import('./technician.js?v=ru-only-1');
+    technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=portal-language-2');
-    workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,orderHistory:()=>portalHistory,onUserUpdate:user=>{portalUser=user}});
+    const {createWorkerCabinet}=await import('./worker.js?v=ru-only-1');
+    workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,orderHistory:()=>portalHistory,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   if(portalUser?.subjectId!==data.user.subjectId)state.messages=[];
   portalUser=data.user;
+  if(Array.isArray(data.workCatalog))workCatalog.splice(0,workCatalog.length,...structuredClone(data.workCatalog));
   orders.splice(0,orders.length,...data.orders);
   portalHistory=data.orderHistory||[];
   portalClientRequests=data.clientRequests||[];
+  portalTasks.splice(0,portalTasks.length,...(data.tasks||[]));
   localStorage.setItem('create-dental-tech-orders',JSON.stringify(data.orderOverrides));
   localStorage.setItem('create-dental-tech-clients',JSON.stringify(data.clients));
   localStorage.setItem('create-dental-employees',JSON.stringify(data.employees));
@@ -428,6 +986,11 @@ async function hydratePortal(){
   syncRoute();
 }
 function currentOrderDraft(){return {form:{...state.form},variants:allVariants().filter(variantIsComplete).map(variant=>({...variant,bridgeRanges:variant.bridgeRanges.map(range=>[...range]),selectedTeeth:[...variant.selectedTeeth]})),uploaded:[...state.uploaded],estimate:totalOrderEstimateText()}}
+function splitDraftsByJaw(draft){
+  const jawVariants=(draft.variants||[]).filter(variantUsesJawSplit),hasUpper=jawVariants.some(variant=>upperTeeth.every(tooth=>variant.selectedTeeth?.includes(tooth))),hasLower=jawVariants.some(variant=>lowerTeeth.every(tooth=>variant.selectedTeeth?.includes(tooth)));
+  if(!hasUpper||!hasLower)return [draft];
+  return ['upper','lower'].map(jaw=>({...draft,variants:(draft.variants||[]).map(variant=>variantUsesJawSplit(variant)?{...variant,selectedTeeth:jaw==='upper'?[...upperTeeth]:[...lowerTeeth],toothMode:'Челюсть',bridgeRanges:[]}:variant)}));
+}
 function resetCurrentVariant(){state.toothMode='Одиночка';state.bridgeRanges=[];state.bridgeStart=null;state.selectedTeeth=[];state.work='';state.workOption='';state.form.construction='';state.form.material=''}
 function resetOrderDraft(){const due=new Date(Date.now()+14*86400000).toISOString().slice(0,10);state.form={surname:'',initials:'',birth:'',orderType:'',construction:'',material:'',quantity:'1',due,shade:'A2',comment:''};state.orderVariants=[];resetCurrentVariant();state.uploaded=[];state.step=0}
 function addOrderVariant(){const variant=currentVariant();if(!variantIsComplete(variant))return notify('Сначала выберите зубы и услугу для текущей позиции');if((state.orderVariants||[]).length>=9)return notify('В одном заказе можно добавить до 10 услуг');state.orderVariants=[...(state.orderVariants||[]),variant];resetCurrentVariant();notify(`Услуга добавлена · ${state.orderVariants.length}/10`);render()}
@@ -436,9 +999,9 @@ function startAnotherCartOrder(){
   if(state.step!==0||state.selectedTeeth.length||state.work||state.form.surname||state.form.initials||state.uploaded.length)return notify('Сначала завершите текущий заказ или добавьте его в корзину');
   state.step=0;render();
 }
-function orderFromDraft(draft,index=0){const id=`CD-${(Date.now()+index).toString(36).toUpperCase()}-${crypto.randomUUID().slice(0,4).toUpperCase()}`,variants=draft.variants?.length?draft.variants:[{toothMode:draft.toothMode,bridgeRanges:draft.bridgeRanges||[],selectedTeeth:draft.selectedTeeth||[],work:draft.form.construction,workOption:draft.form.material}],teeth=[...new Set(variants.flatMap(variant=>variant.selectedTeeth||[]))].sort((a,b)=>a-b),estimate=variants.map(variant=>variantEstimate(variant)).every(Number.isFinite)?variants.reduce((sum,variant)=>sum+(variantEstimate(variant)||0),0):null;return {id,patient:`${draft.form.surname} ${draft.form.initials}`.trim(),birth:draft.form.birth||'',work:variants.length>1?`Несколько услуг (${variants.length})`:variants[0]?.work||draft.form.construction,material:variants.length>1?variants.map(variant=>variant.workOption||variant.work).join(' · '):(variants[0]?.workOption||draft.form.material),toothMode:variants.length>1?'Несколько услуг':variants[0]?.toothMode||'Одиночка',bridgeRanges:variants.flatMap(variant=>variant.bridgeRanges||[]).map(range=>[...range]),quantity:Math.max(1,teeth.length),date:draft.form.due.split('-').reverse().join('.'),status:'Новый',productionType:draft.form.orderType==='analog'?'analog':'digital',sum:estimate===null?'Стоимость уточняется':rubles(estimate),image:'tooth.png',clinicId:portalUser.subjectId,clinic:clinicRecord()?.name||'Клиника',teeth,shade:draft.form.shade,comment:draft.form.comment,variants,createdAt:new Date(Date.now()+index).toISOString(),pendingFiles:draft.uploaded||[]}}
+function orderFromDraft(draft,index=0){const id=`CD-${(Date.now()+index).toString(36).toUpperCase()}-${crypto.randomUUID().slice(0,4).toUpperCase()}`,variants=draft.variants?.length?draft.variants:[{toothMode:draft.toothMode,bridgeRanges:draft.bridgeRanges||[],selectedTeeth:draft.selectedTeeth||[],work:draft.form.construction,workOption:draft.form.material}],teeth=[...new Set(variants.flatMap(variant=>variant.selectedTeeth||[]))].sort((a,b)=>a-b),estimate=variants.map(variant=>variantEstimate(variant)).every(Number.isFinite)?variants.reduce((sum,variant)=>sum+(variantEstimate(variant)||0),0):null,quantity=variants.reduce((sum,variant)=>sum+variantUnits(variant),0);return {id,patient:`${draft.form.surname} ${draft.form.initials}`.trim(),birth:draft.form.birth||'',work:variants.length>1?`Несколько услуг (${variants.length})`:variants[0]?.work||draft.form.construction,material:variants.length>1?variants.map(variant=>variant.workOption||variant.work).join(' · '):(variants[0]?.workOption||draft.form.material),toothMode:variants.length>1?'Несколько услуг':variants[0]?.toothMode||'Одиночка',bridgeRanges:variants.flatMap(variant=>variant.bridgeRanges||[]).map(range=>[...range]),quantity:Math.max(1,quantity),date:draft.form.due.split('-').reverse().join('.'),status:'Новый',productionType:draft.form.orderType==='analog'?'analog':'digital',sum:estimate===null?'Стоимость уточняется':rubles(estimate),image:'tooth.png',clinicId:portalUser.subjectId,clinic:clinicRecord()?.name||'Клиника',teeth,shade:draft.form.shade,comment:draft.form.comment,variants,createdAt:new Date(Date.now()+index).toISOString(),pendingFiles:draft.uploaded||[]}}
 async function createOrder(){
-  const drafts=currentOrderDraft(),created=[orderFromDraft(drafts)];
+  const drafts=splitDraftsByJaw(currentOrderDraft()),created=drafts.map((draft,index)=>orderFromDraft(draft,index));
   try {
     await savePortal('orders',[...created.map(({pendingFiles,...order})=>order),...orders]);
     orders.unshift(...created.map(({pendingFiles,...order})=>order));
@@ -447,7 +1010,7 @@ async function createOrder(){
     state.cart=[];resetOrderDraft();state.page='detail';state.orderId=created[0].id;
     state.filesFor='';state.orderFiles=[];
     navigate(pathFor('clinic','detail',created[0].id));
-    notify(failed.length?`Заказ создан, но не загружены файлы: ${failed.join('; ')}`:'Заказ создан и доступен лаборатории');
+    notify(failed.length?`Заказ создан, но не загружены файлы: ${failed.join('; ')}`:created.length>1?`Созданы ${created.length} заказа и доступны лаборатории`:'Заказ создан и доступен лаборатории');
   } catch(error){notify('Не удалось создать заказ: '+error.message)}
 }
 
@@ -502,6 +1065,7 @@ function selectOrderTooth(number){
   if(state.toothMode==='Челюсть'){
     const arch=number<30?upperTeeth:lowerTeeth;
     const alreadySelected=arch.every(tooth=>state.selectedTeeth.includes(tooth));
+    if(currentUsesJawSplit()&&arch===upperTeeth&&alreadySelected)return;
     state.selectedTeeth=alreadySelected?state.selectedTeeth.filter(tooth=>!arch.includes(tooth)):[...new Set([...state.selectedTeeth,...arch])].sort((a,b)=>a-b);
     return;
   }
@@ -511,14 +1075,20 @@ function selectOrderTooth(number){
 function advanceOrderStep(){
   if(state.step===0&&(!state.form.surname.trim()||!state.form.initials.trim())){notify('Укажите фамилию и имя пациента. Отчество — по желанию');return false}
   if(state.step===0&&!state.form.orderType){notify('Выберите тип работы: цифровой или аналоговый');return false}
-  const currentComplete=variantIsComplete(currentVariant()),hasSavedVariants=Boolean(state.orderVariants?.length),currentBlank=!state.selectedTeeth.length&&!state.work&&!state.workOption&&!state.bridgeStart&&!state.bridgeRanges.length;
-  if(state.step===1&&!currentComplete&&!hasSavedVariants){notify('Выберите зуб или челюсть');return false}
+  const noTeeth=currentNeedsNoTeeth(),currentComplete=variantIsComplete(currentVariant()),hasSavedVariants=Boolean(state.orderVariants?.length),currentBlank=!state.selectedTeeth.length&&!state.work&&!state.workOption&&!state.bridgeStart&&!state.bridgeRanges.length;
+  if(state.step===1&&!currentComplete&&!hasSavedVariants){notify(noTeeth?'Выберите вариант услуги':'Выберите зуб или челюсть');return false}
   if(state.step===1&&!currentComplete&&hasSavedVariants&&currentBlank){state.step=2;return true}
-  if(state.step===1&&state.toothMode==='Мост'&&state.bridgeStart){notify('Выберите последний зуб моста');return false}
-  if(state.step===1&&state.toothMode==='Мост'&&!state.bridgeRanges.length){notify('Выберите первый и последний зуб моста');return false}
-  if(state.step===1&&!state.selectedTeeth.length){notify('Выберите зуб или челюсть');return false}
+  if(state.step===1&&!noTeeth&&state.toothMode==='Мост'&&state.bridgeStart){notify('Выберите последний зуб моста');return false}
+  if(state.step===1&&!noTeeth&&state.toothMode==='Мост'&&!state.bridgeRanges.length){notify('Выберите первый и последний зуб моста');return false}
+  if(state.step===1&&!noTeeth&&!state.selectedTeeth.length){notify('Выберите зуб или челюсть');return false}
   if(state.step===1&&!state.work){notify('Выберите вид работы');return false}
   if(state.step===1&&selectedWork()?.options.length&&!state.workOption){notify('Выберите вариант исполнения');return false}
+  if(state.step===2){
+    const due=dateValueParts(state.form.due),dueIso=isoDateLocal(due),minimumDue=currentEarliestDueIso();
+    if(!due&&minimumDue){notify('Укажите желаемый срок готовности');return false}
+    if(!isWorkingDay(due)){notify('Срок сдачи должен приходиться на рабочий день');return false}
+    if(minimumDue&&dueIso<minimumDue){notify(`Для выбранных услуг минимальный срок — ${displayIsoDate(minimumDue)}`);return false}
+  }
   if(state.step<steps.length-1){state.step++;return true}
   createOrder();return false;
 }
@@ -531,7 +1101,7 @@ async function updateClinicStage(orderId,stage){
   try{await savePortal('orderOverrides',overrides);notify(stage==='Принято доктором'?'Заказ принят':'Статус обновлён');await hydratePortal()}catch(error){notify('Не удалось сохранить статус: '+error.message)}
 }
 function notify(message){state.toast=message;render();clearTimeout(notify.timer);notify.timer=setTimeout(()=>{state.toast='';$('.toast')?.classList.remove('visible')},3000)}
-document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';authNotice='';navigate(pathFor(null,authMode));loginView();if(authMode==='register')import('./location-assist.js?v=portal-language-2').catch(()=>{})});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';authNotice='';navigate(pathFor(null,authMode,null,currentAuthLocale()));loginView();if(authMode==='register')import('./location-assist.js?v=country-cities-1').catch(()=>{})});
 document.addEventListener('click',async event=>{if(!event.target.closest('[data-auth-logout]'))return;try{await authRequest('logout',{})}catch{}clearPortalToken();portalReady=false;portalUser=null;state.messages=[];state.chatText='';state.role='clinic';authMode='login';navigate('/login',{replace:true});render()});
 document.addEventListener('click',event=>{const sort=event.target.closest('[data-order-sort]');if(!sort||state.role!=='clinic')return;const key=sort.dataset.orderSort;state.sortDirection=state.sortKey===key&&state.sortDirection==='asc'?'desc':'asc';state.sortKey=key;const table=$('.table-wrap');if(table)table.outerHTML=orderTable(filteredOrders().slice(0,state.page==='home'?4:Infinity))});
 document.addEventListener('click',async event=>{
@@ -542,6 +1112,7 @@ document.addEventListener('click',async event=>{
   if(cadBackdrop&&event.target===cadBackdrop){state.cadReturnOrderId='';state.cadReturnComment='';state.cadReturnAttachments=[];render();return}
   if(document.querySelector('.notification-panel')&&!event.target.closest('.notification-center')){closeNotificationCenter();document.querySelector('.notification-panel')?.remove()}
   if(state.orderFilterOpen&&!event.target.closest('.clinic-filter-wrap')){state.orderFilterOpen=false;document.querySelector('.clinic-order-filter')?.remove()}
+  if(state.datePickerOpen&&!event.target.closest('.date-picker')){state.datePickerOpen=false;state.datePickerYearOpen=false;render();return}
   const notificationToggle=event.target.closest('[data-notification-toggle]');
   if(notificationToggle){await toggleNotificationCenter();render();return}
   const notificationClose=event.target.closest('[data-notification-close]');
@@ -553,7 +1124,7 @@ document.addEventListener('click',async event=>{
   if(event.target.closest('[data-action="remove-chat-attachment"]')){state.chatAttachment=null;messagesPage();return}
   const cadAttachment=event.target.closest('[data-action="remove-cad-return-attachment"]');
   if(cadAttachment){state.cadReturnAttachments.splice(Number(cadAttachment.dataset.value),1);render();return}
-  const el=event.target.closest('[data-page],[data-order],[data-tooth],[data-step],[data-action]');if(!el)return;if(el.dataset.page){state.page=el.dataset.page;if(state.page==='orders')state.dueDateFilter='';if(state.page==='new')resetOrderDraft();document.querySelector('#sidebar')?.classList.remove('open');navigate(pathFor('clinic',state.page));render();return}if(el.dataset.order){state.orderId=el.dataset.order;state.page='detail';state.filesFor='';navigate(pathFor('clinic','detail',state.orderId));render();return}if(el.dataset.tooth){selectOrderTooth(Number(el.dataset.tooth));render();return}if(el.dataset.step!==undefined){const target=Number(el.dataset.step);if(target<=state.step)state.step=target;render();return}const a=el.dataset.action,v=el.dataset.value;if(a==='new'){state.page='new';resetOrderDraft()}else if(a==='next'){if(!advanceOrderStep())return}else if(a==='add-variant'){addOrderVariant();return}else if(a==='remove-variant'){const index=Number(v);if(Number.isInteger(index)&&index>=0&&index<(state.orderVariants||[]).length)state.orderVariants.splice(index,1)}else if(a==='previous')state.step=Math.max(0,state.step-1);else if(a==='filter')state.filter=v;else if(a==='calendar-show-all'){state.dueDateFilter=v;state.filter='Все';state.query='';state.page='orders';navigate(pathFor('clinic','orders'));render();return}else if(a==='clear-date-filter'){state.dueDateFilter='';ordersPage();return}else if(a==='filter-reset'){state.orderMonthFilter='';state.orderFilterOpen=false}else if(a==='filter-close')state.orderFilterOpen=false;else if(a==='file-tab')state.fileTab=v;else if(a==='detail-tab')state.detailTab=v;else if(a==='clinic-tab')state.clinicTab=v;else if(a==='dentition')state.dentition=v;else if(a==='tooth-mode'){state.toothMode=v;state.selectedTeeth=[];state.bridgeRanges=[];state.bridgeStart=null}else if(a==='order-type'){state.form.orderType=v==='analog'?'analog':'digital'}else if(a==='work'){state.work=v;state.workOption='';state.form.construction=v;state.form.material=''}else if(a==='work-option'){state.workOption=v;state.form.material=v}else if(a==='work-back'){state.work='';state.workOption='';state.form.construction='';state.form.material=''}else if(a==='clear-teeth'){state.selectedTeeth=[];state.bridgeRanges=[];state.bridgeStart=null}else if(a==='open-messages')state.page='messages';else if(a==='repeat-order'){repeatOrder(state.orderId);return}else if(a==='request-edit'){state.clientRequest={orderId:state.orderId,type:'edit',field:'patient'}}else if(a==='request-cancel'){state.clientRequest={orderId:state.orderId,type:'cancel'}}else if(a==='client-request-close'){state.clientRequest=null}else if(a==='cad-open'){const requestId=++cadPreviewRequest;try{state.cadPreview={orderId:state.orderId,fileId:v,name:'Загрузка CAD…',html:'',url:''};render();const file=state.orderFiles.find(item=>item.id===v),html=await loadCadReviewHtml(v);if(requestId!==cadPreviewRequest||!state.cadPreview||state.cadPreview.fileId!==v)return;const url=URL.createObjectURL(new Blob([html],{type:'text/html'}));state.cadPreview={orderId:state.orderId,fileId:v,name:file?.name||'CAD',html:'',url};render()}catch(error){if(requestId!==cadPreviewRequest)return;state.cadPreview=null;notify(error.message)}return}else if(a==='cad-close'){cadPreviewRequest++;if(state.cadPreview?.url)URL.revokeObjectURL(state.cadPreview.url);state.cadPreview=null;render();return}else if(a==='cad-approve'){try{await decideCadReview(v,'approve');if(state.cadPreview?.url)URL.revokeObjectURL(state.cadPreview.url);state.cadPreview=null;await hydratePortal();notify('CAD подтверждён и передан в изготовление')}catch(error){notify(error.message)}return}else if(a==='cad-return'){state.cadReturnOrderId=v;state.cadReturnComment='';state.cadReturnAttachments=[];render();return}else if(a==='cad-return-cancel'){state.cadReturnOrderId='';state.cadReturnComment='';state.cadReturnAttachments=[];render();return}else if(a==='doctor-accept'){updateClinicStage(v,'Принято доктором');return}else if(a==='doctor-rework'){state.reworkOrderId=v;render();return}else if(a==='cancel-rework'){state.reworkOrderId='';render();return}else if(a==='add-order-file'){state.orderUpload={orderId:state.orderId,uploading:false,files:[]};render();return}else if(a==='order-upload-close'){if(!state.orderUpload?.uploading){state.orderUpload=null;render()}return}else if(a==='remove-file'){const removed=state.uploaded.filter(file=>file.name===v);removed.forEach(releaseUploadPreview);state.uploaded=state.uploaded.filter(file=>file.name!==v)}else if(a==='menu'){$('#sidebar').classList.toggle('open');return}else if(a==='save-clinic'){notify('Изменения сохранены локально');return}else if(a==='file-preview'){notify(v);return}else if(a==='filters'){state.orderFilterOpen=!state.orderFilterOpen}else if(a==='more'){notify('Дополнительные действия появятся после подключения сервера');return}else if(a==='change-logo'){$('#clinic-logo-input')?.click();return}else if(a==='attach'){notify('Прикрепление файлов доступно в разделе «Файлы»');return}else if(a==='contact'){notify('Демонстрационный диалог');return}else return;if(['new','open-messages'].includes(a))navigate(pathFor('clinic',state.page));render()});
+  const el=event.target.closest('[data-page],[data-order],[data-tooth],[data-step],[data-action]');if(!el)return;if(el.dataset.page){state.page=el.dataset.page;if(state.page==='orders')state.dueDateFilter='';if(state.page==='new')resetOrderDraft();document.querySelector('#sidebar')?.classList.remove('open');navigate(pathFor('clinic',state.page));render();return}if(el.dataset.order){state.orderId=el.dataset.order;state.page='detail';state.filesFor='';navigate(pathFor('clinic','detail',state.orderId));render();return}if(el.dataset.tooth){selectOrderTooth(Number(el.dataset.tooth));render();return}if(el.dataset.step!==undefined){const target=Number(el.dataset.step);if(target<=state.step)state.step=target;render();return}const a=el.dataset.action,v=el.dataset.value;if(a==='print-order'){let order=currentOrders().find(item=>item.id===state.orderId);try{const overrides=JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{};if(order)order={...order,...(overrides[order.id]||{})}}catch{}if(order)openOrderPrint({order,toothChart,logo});return}else if(a==='new'){state.page='new';resetOrderDraft()}else if(a==='next'){if(!advanceOrderStep())return}else if(a==='add-variant'){addOrderVariant();return}else if(a==='remove-variant'){const index=Number(v);if(Number.isInteger(index)&&index>=0&&index<(state.orderVariants||[]).length)state.orderVariants.splice(index,1)}else if(a==='previous')state.step=Math.max(0,state.step-1);else if(a==='filter')state.filter=v;else if(a==='calendar-show-all'){state.dueDateFilter=v;state.filter='Все';state.query='';state.page='orders';navigate(pathFor('clinic','orders'));render();return}else if(a==='clear-date-filter'){state.dueDateFilter='';ordersPage();return}else if(a==='filter-reset'){state.orderMonthFilter='';state.orderWorkFilter='';state.orderStatusFilter='';state.orderFilterOpen=false}else if(a==='filter-close')state.orderFilterOpen=false;else if(a==='file-tab')state.fileTab=v;else if(a==='detail-tab')state.detailTab=v;else if(a==='clinic-tab')state.clinicTab=v;else if(a==='dentition')state.dentition=v;else if(a==='tooth-mode'){state.toothMode=v;state.selectedTeeth=[];state.bridgeRanges=[];state.bridgeStart=null}else if(a==='jaw-toggle'){state.toothMode='Челюсть';if(v==='upper')state.selectedTeeth=[...upperTeeth];else {const selected=lowerTeeth.every(tooth=>state.selectedTeeth.includes(tooth));state.selectedTeeth=selected?state.selectedTeeth.filter(tooth=>!lowerTeeth.includes(tooth)):[...new Set([...state.selectedTeeth,...lowerTeeth])].sort((x,y)=>x-y)}state.bridgeRanges=[];state.bridgeStart=null}else if(a==='order-type'){state.form.orderType=v==='analog'?'analog':'digital'}else if(a==='work'){state.work=v;state.workOption='';state.form.construction=v;state.form.material='';state.selectedTeeth=[];state.toothMode='Одиночка';state.bridgeRanges=[];state.bridgeStart=null}else if(a==='work-option'){state.workOption=v;state.form.material=v;if(isJawSplitSelection(state.work,v)){state.toothMode='Челюсть';state.selectedTeeth=[...upperTeeth];state.bridgeRanges=[];state.bridgeStart=null}else if(isNoTeethSelection(state.work,v)){state.selectedTeeth=[];state.toothMode='Одиночка';state.bridgeRanges=[];state.bridgeStart=null;if(!state.orderVariants?.length&&currentProductionDays()===null)state.form.due=''}}else if(a==='work-back'){state.work='';state.workOption='';state.form.construction='';state.form.material='';state.selectedTeeth=[];state.toothMode='Одиночка';state.bridgeRanges=[];state.bridgeStart=null}else if(a==='clear-teeth'){state.selectedTeeth=[];state.bridgeRanges=[];state.bridgeStart=null}else if(a==='date-open'){const field=v||'due',selected=dateValueParts(state.form[field]);state.datePickerField=field;state.datePickerMonth=selected?`${selected.getFullYear()}-${String(selected.getMonth()+1).padStart(2,'0')}`:`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;state.datePickerYearOpen=false;state.datePickerOpen=true}else if(a==='date-nav'){const parts=(state.datePickerMonth||'').split('-').map(Number),month=new Date(parts[0],parts[1]-1+Number(v),1);state.datePickerMonth=`${month.getFullYear()}-${String(month.getMonth()+1).padStart(2,'0')}`}else if(a==='date-year-toggle'){state.datePickerYearOpen=!state.datePickerYearOpen}else if(a==='date-year-nav'){const parts=(state.datePickerMonth||'').split('-').map(Number),limit=state.datePickerField==='birth'?new Date().getFullYear():Infinity,nextYear=Math.min(limit,parts[0]+Number(v)),month=new Date(nextYear,parts[1]-1,1);state.datePickerMonth=`${month.getFullYear()}-${String(month.getMonth()+1).padStart(2,'0')}`}else if(a==='date-year-select'){const parts=(state.datePickerMonth||'').split('-').map(Number);state.datePickerMonth=`${Number(v)}-${String(parts[1]).padStart(2,'0')}`;state.datePickerYearOpen=false}else if(a==='date-select'){const field=state.datePickerField||'due';state.form[field]=v;state.datePickerOpen=false}else if(a==='date-clear'){state.form[v||'due']='';state.datePickerOpen=false}else if(a==='date-today'){const field=v||'due',today=new Date();state.form[field]=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;state.datePickerOpen=false}else if(a==='open-messages')state.page='messages';else if(a==='repeat-order'){repeatOrder(state.orderId);return}else if(a==='request-edit'){state.clientRequest={orderId:state.orderId,type:'edit',field:'patient'}}else if(a==='request-cancel'){state.clientRequest={orderId:state.orderId,type:'cancel'}}else if(a==='client-request-close'){state.clientRequest=null}else if(a==='cad-open'){const requestId=++cadPreviewRequest;try{state.cadPreview={orderId:state.orderId,fileId:v,name:'Загрузка CAD…',html:'',url:''};render();const file=state.orderFiles.find(item=>item.id===v),html=await loadCadReviewHtml(v);if(requestId!==cadPreviewRequest||!state.cadPreview||state.cadPreview.fileId!==v)return;const url=URL.createObjectURL(new Blob([html],{type:'text/html'}));state.cadPreview={orderId:state.orderId,fileId:v,name:file?.name||'CAD',html:'',url};render()}catch(error){if(requestId!==cadPreviewRequest)return;state.cadPreview=null;notify(error.message)}return}else if(a==='cad-close'){cadPreviewRequest++;if(state.cadPreview?.url)URL.revokeObjectURL(state.cadPreview.url);state.cadPreview=null;render();return}else if(a==='cad-approve'){try{await decideCadReview(v,'approve');if(state.cadPreview?.url)URL.revokeObjectURL(state.cadPreview.url);state.cadPreview=null;await hydratePortal();notify('CAD подтверждён и передан в изготовление')}catch(error){notify(error.message)}return}else if(a==='cad-return'){state.cadReturnOrderId=v;state.cadReturnComment='';state.cadReturnAttachments=[];render();return}else if(a==='cad-return-cancel'){state.cadReturnOrderId='';state.cadReturnComment='';state.cadReturnAttachments=[];render();return}else if(a==='doctor-accept'){updateClinicStage(v,'Принято доктором');return}else if(a==='doctor-rework'){state.reworkOrderId=v;render();return}else if(a==='cancel-rework'){state.reworkOrderId='';render();return}else if(a==='add-order-file'){state.orderUpload={orderId:state.orderId,uploading:false,files:[]};render();return}else if(a==='order-upload-close'){if(!state.orderUpload?.uploading){state.orderUpload=null;render()}return}else if(a==='remove-file'){const removed=state.uploaded.filter(file=>file.name===v);removed.forEach(releaseUploadPreview);state.uploaded=state.uploaded.filter(file=>file.name!==v)}else if(a==='menu'){$('#sidebar').classList.toggle('open');return}else if(a==='sidebar-toggle'){try{localStorage.setItem('create-dental-sidebar-collapsed',sidebarCollapsed()?'0':'1')}catch{};render();return}else if(a==='save-clinic'){notify('Изменения сохранены локально');return}else if(a==='file-preview'){notify(v);return}else if(a==='filters'){state.orderFilterOpen=!state.orderFilterOpen}else if(a==='more'){notify('Дополнительные действия появятся после подключения сервера');return}else if(a==='change-logo'){$('#clinic-logo-input')?.click();return}else if(a==='attach'){notify('Прикрепление файлов доступно в разделе «Файлы»');return}else if(a==='contact'){notify('Демонстрационный диалог');return}else return;if(['new','open-messages'].includes(a))navigate(pathFor('clinic',state.page));render()});
 document.addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-tooth][role="button"]')){event.preventDefault();event.target.click()}});
 document.addEventListener('click',event=>{
   const button=event.target.closest('[data-action^="calendar-"]');
@@ -575,9 +1146,11 @@ document.addEventListener('change',async event=>{
     return;
   }
   if(event.target.id==='clinic-order-month'){state.orderMonthFilter=event.target.value;ordersPage();return}
+  if(event.target.id==='clinic-order-work'){state.orderWorkFilter=event.target.value;ordersPage();return}
+  if(event.target.id==='clinic-order-status'){state.orderStatusFilter=event.target.value;ordersPage();return}
   if(event.target.id==='clinic-chat-file'){await selectChatAttachment(event.target.files?.[0]);event.target.value='';return}
   if(event.target.id==='cad-return-files'){
-    const selected=Array.from(event.target.files||[]),allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf|html)$/i;
+    const selected=Array.from(event.target.files||[]),allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|constructionInfo|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf|html)$/i;
     const files=selected.filter(file=>allowed.test(file.name)&&file.size<=200*1024*1024).slice(0,10-(state.cadReturnAttachments||[]).length);
     if(selected.length>files.length)notify('Можно прикрепить до 10 файлов поддерживаемых форматов, каждый до 200 МБ');
     const prepared=await Promise.all(files.map(async file=>({file,name:file.name,size:file.size,type:file.type||'application/octet-stream',preview:await imageChatPreview(file)})));
@@ -607,7 +1180,7 @@ document.addEventListener('change',async event=>{
     return;
   }
   if(event.target.id==='upload-input'){
-    const files=Array.from(event.target.files||[]),allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf)$/i;
+    const files=Array.from(event.target.files||[]),allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|constructionInfo|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf)$/i;
     const invalid=files.filter(file=>!allowed.test(file.name)||file.size>200*1024*1024);
     if(invalid.length)notify(`Не добавлено: ${invalid.map(file=>file.name).join(', ')}. Выберите изображение, PDF, 3D-файл, архив или документ до 200 МБ.`);
     state.uploaded.push(...files.filter(file=>allowed.test(file.name)&&file.size<=200*1024*1024));
@@ -619,7 +1192,7 @@ document.addEventListener('dragleave',event=>{event.target.closest('.upload-zone
 document.addEventListener('drop',event=>{
   const zone=event.target.closest('.upload-zone');if(!zone)return;
   event.preventDefault();zone.classList.remove('dragging');
-  const files=Array.from(event.dataTransfer?.files||[]),allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf)$/i,valid=files.filter(file=>allowed.test(file.name)&&file.size<=200*1024*1024),invalid=files.filter(file=>!allowed.test(file.name)||file.size>200*1024*1024);
+  const files=Array.from(event.dataTransfer?.files||[]),allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|constructionInfo|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf)$/i,valid=files.filter(file=>allowed.test(file.name)&&file.size<=200*1024*1024),invalid=files.filter(file=>!allowed.test(file.name)||file.size>200*1024*1024);
   if(invalid.length)notify(`Не добавлено: ${invalid.map(file=>file.name).join(', ')}. Проверьте формат и размер до 200 МБ.`);
   state.uploaded.push(...valid);render();
 });
@@ -672,7 +1245,7 @@ document.addEventListener('submit',async event=>{
   const body=Object.fromEntries(new FormData(form));
   const action=form.dataset.mode==='register'?'register':'login';
   if(action==='register')authDraft={...authDraft,...body};
-  try{const data=await authRequest(action,body);if(data.pendingApproval){clearPortalToken();authDraft={name:'',phone:'',email:'',country:'RU',city:'',address:'',password:''};authNotice='Спасибо за регистрация. Мы с вами свяжемся в ближайшее время.';authMode='login';navigate('/login',{replace:true});render();return}await hydratePortal()}
+  try{const data=await authRequest(action,body);if(data.pendingApproval){clearPortalToken();authDraft={name:'',phone:'',email:'',country:'RU',city:'',address:'',password:''};authNotice='Спасибо за регистрация. Мы с вами свяжемся в ближайшее время.';authMode='login';navigate(pathFor(null,'login',null,currentAuthLocale()),{replace:true});render();return}await hydratePortal()}
   catch(error){clearPortalToken();portalError=error.message;render()}
 });
 window.addEventListener('popstate',syncRoute);

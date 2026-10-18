@@ -517,8 +517,8 @@ html[lang="ar"] .hero-title-text { letter-spacing: 0; }
 
 /* Legal documents belong only to the Russian landing, including locale switches. */
 .landing-legal { display: none; }
-html[data-locale="ru"] .landing-footer { flex-wrap: wrap; padding-block: 18px; }
-html[data-locale="ru"] .landing-legal {
+html .landing-footer { flex-wrap: wrap; padding-block: 18px; }
+html .landing-legal {
   display: flex;
   order: 4;
   flex: 0 0 100%;
@@ -535,6 +535,8 @@ html[data-locale="ru"] .landing-legal {
 .landing-legal a { color: #666; text-decoration: underline; text-underline-offset: 3px; }
 html[data-theme="dark"] .landing-legal a { color: #b8bec6; }
 @media (max-width: 560px) {
-  html[data-locale="ru"] .landing-legal { flex-direction: column; gap: 4px; }
+  html .landing-legal { flex-direction: column; gap: 4px; }
   .landing-legal a { max-width: 100%; padding-block: 8px; }
 }
+
+.language-switcher { display: none !important; }

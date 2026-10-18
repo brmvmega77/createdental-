@@ -18,6 +18,16 @@
     html[data-theme="dark"] .startup-notice{color:#eef0f2;background:#17191c}
   </style>
   <script>
+    (function(){
+      try{localStorage.removeItem('create-dental-locale')}catch(_){ }
+      document.documentElement.lang='ru';
+      document.documentElement.dir='ltr';
+      document.documentElement.dataset.locale='ru';
+      var matched=location.pathname.match(/^\/(?:ru|am|uz|kz|uea|uae)(?=\/|$)/);
+      if(matched){var path=location.pathname.slice(matched[0].length)||'/';history.replaceState(null,'',path+location.search+location.hash)}
+    }());
+  </script>
+  <script>
     window.addEventListener('error',function(event){
       if(!event.filename||!event.filename.endsWith('.js'))return;
       const notice=document.getElementById('startup-notice');
@@ -30,7 +40,7 @@
       },8000);
     });
   </script>
-  <script type="module" src="/app.js?v=theme-shared-3"></script>
+  <script type="module" src="/app.js?v=ru-only-1"></script>
 </head>
 <body><div id="app"><div id="startup-notice" class="startup-notice">Загрузка кабинета...</div></div></body>
 </html>

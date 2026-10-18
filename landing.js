@@ -187,9 +187,10 @@
     trigger.setAttribute('aria-expanded', 'false');
     if (restoreFocus) trigger.focus();
   };
-  const applyLanguage = (language, {replaceUrl = false} = {}) => {
-    const locale = locales[language] || locales.ru;
-    activeLanguage = language;
+  const applyLanguage = (_language, {replaceUrl = false} = {}) => {
+    const language = 'ru';
+    const locale = locales.ru;
+    activeLanguage = 'ru';
     document.documentElement.lang = locale.lang;
     document.documentElement.dir = locale.dir;
     document.documentElement.dataset.locale = language;
@@ -217,12 +218,13 @@
     document.title = `Create Dental — ${plainTitle}`;
     const description = document.querySelector('meta[name="description"]');
     if (description) description.content = locale.heroLede;
-    try { localStorage.setItem('create-dental-locale', language); } catch (_) {}
-    const nextPath = `/${locale.slug}${window.location.hash}`;
-    if (window.location.pathname !== nextPath) history[replaceUrl ? 'replaceState' : 'pushState'](null, '', nextPath);
-    const brand = document.querySelector('.landing-brand'); if (brand) brand.href = `/${locale.slug}`;
-    document.querySelectorAll('.landing-login').forEach(link => { link.href = `/${locale.slug}/login`; });
-    document.querySelectorAll('.action-primary, .project-dialog-cta').forEach(link => { link.href = `/${locale.slug}/register`; });
+    try { localStorage.removeItem('create-dental-locale'); } catch (_) {}
+    const firstPath = window.location.pathname.split('/').filter(Boolean)[0];
+    const oldLanguageRoute = Object.values(locales).some(item => item.slug === firstPath);
+    if (oldLanguageRoute) history[replaceUrl ? 'replaceState' : 'pushState'](null, '', `/${window.location.hash}`);
+    const brand = document.querySelector('.landing-brand'); if (brand) brand.href = '/';
+    document.querySelectorAll('.landing-login').forEach(link => { link.href = '/login'; });
+    document.querySelectorAll('.action-primary, .project-dialog-cta').forEach(link => { link.href = '/register'; });
     fitHeading();
     scheduleFit();
     window.dispatchEvent(new CustomEvent('landing:language-changed', {detail: {language, locale}}));
@@ -254,14 +256,9 @@
     if (!event.target.closest('.language-switcher')) closeMenu();
   });
   document.addEventListener('keydown', event => { if (event.key === 'Escape') closeMenu(); });
-  window.addEventListener('portal:language-change', event => applyLanguage(event.detail?.locale || 'ru'));
-  const slugLanguage = Object.keys(locales).find(language => locales[language].slug === location.pathname.split('/').filter(Boolean)[0]);
-  let savedLanguage = 'ru';
-  try { savedLanguage = location.pathname === '/' ? 'ru' : (slugLanguage || localStorage.getItem('create-dental-locale') || 'ru'); } catch (_) { savedLanguage = location.pathname === '/' ? 'ru' : (slugLanguage || 'ru'); }
-  if (savedLanguage === 'hy') savedLanguage = 'am';
-  applyLanguage(savedLanguage, {replaceUrl: true});
+  try { localStorage.removeItem('create-dental-locale'); } catch (_) {}
+  applyLanguage('ru', {replaceUrl: true});
   window.addEventListener('popstate', () => {
-    const language = Object.keys(locales).find(key => locales[key].slug === location.pathname.split('/').filter(Boolean)[0]) || 'ru';
-    applyLanguage(language, {replaceUrl: true});
+    applyLanguage('ru', {replaceUrl: true});
   });
 })();
