@@ -150,3 +150,256 @@
   .mobile-bottom-nav { gap: 0; padding-inline: max(4px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-right)); }
   .mobile-bottom-item { font-size: 9px; }
 }
+
+/* Mobile task layouts: give each screen a clear focus instead of shrinking desktop columns. */
+.mobile-tooth-picker, .mobile-jaw-choice, .mobile-order-summary { display: none; }
+
+@media (max-width: 900px) {
+  .page-title { align-items: flex-start; flex-direction: column; gap: 8px; margin: 10px 0 18px; }
+  .page-title h1 { font-size: 23px; line-height: 1.2; }
+  .page-title p { font-size: 13px; line-height: 1.45; }
+  .page-title > .btn, .page-title > button { width: 100%; min-height: 46px; font-size: 14px; }
+  .section-heading { align-items: flex-start; gap: 12px; }
+  .section-heading h2 { font-size: 18px; line-height: 1.25; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .stat { height: auto; min-height: 76px; padding: 12px; gap: 10px; }
+  .stat-icon { width: 38px; height: 38px; }
+  .stat strong { font-size: 22px; }
+  .stat span:not(.stat-icon) { white-space: normal; line-height: 1.25; }
+  .hero { height: auto; min-height: 0; flex-direction: column; align-items: stretch; margin-bottom: 20px; }
+  .hero > div { padding: 18px 18px 12px; }
+  .hero h2 { margin-bottom: 7px; font-size: 20px; }
+  .hero p { font-size: 13px; }
+  .hero img { display: block; width: 100%; max-width: 100%; height: 132px; min-height: 112px; max-height: 160px; flex: 0 0 auto; object-fit: cover; object-position: center 48%; mask-image: linear-gradient(180deg, transparent, #000 22%); }
+  .table-wrap, .tech-table-wrap, .tech-orders-table-wrap { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
+  .orders-table { min-width: 0; display: block; }
+  .tech-orders-table, .worker-table { min-width: 0; width: 100%; display: block; table-layout: auto; }
+  .orders-table thead, .tech-orders-table thead, .worker-table thead { display: none; }
+  .orders-table tbody, .tech-orders-table tbody, .worker-table tbody { display: grid; gap: 10px; }
+  .orders-table tr, .tech-orders-table tr, .worker-table tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 14px; padding: 12px; border: 1px solid #ededed; border-radius: 13px; background: #fff; }
+  .orders-table td, .tech-orders-table td, .worker-table td { display: grid; grid-template-columns: minmax(58px, 32%) minmax(0, 1fr); gap: 6px; min-width: 0; align-items: start; padding: 7px 0; border: 0; white-space: normal; overflow-wrap: anywhere; color: #333; font-size: 12px; }
+  .orders-table td::before, .tech-orders-table td::before, .worker-table td::before { color: #808080; font-size: 10px; font-weight: 650; line-height: 1.35; }
+  .orders-table td:nth-child(1)::before { content: 'Заказ'; }
+  .orders-table td:nth-child(2)::before { content: 'Пациент'; }
+  .orders-table td:nth-child(3)::before { content: 'Работа'; }
+  .orders-table td:nth-child(4)::before { content: 'Создан'; }
+  .orders-table td:nth-child(5)::before { content: 'Срок'; }
+  .orders-table td:nth-child(6)::before { content: 'Статус'; }
+  .orders-table td:nth-child(7)::before { content: 'Сумма'; }
+  .orders-table td:nth-child(1) { grid-column: 1 / -1; }
+  .orders-table td:nth-child(2), .orders-table td:nth-child(3) { grid-column: 1 / -1; }
+  .orders-table td:nth-child(6) { grid-column: 1; }
+  .orders-table td:nth-child(7) { grid-column: 2; }
+  .tech-orders-table td:nth-child(1)::before { content: 'Заказ'; }
+  .tech-orders-table td:nth-child(2)::before { content: 'Клиника'; }
+  .tech-orders-table td:nth-child(3)::before { content: 'Создан'; }
+  .tech-orders-table td:nth-child(4)::before { content: 'Тип заказа'; }
+  .tech-orders-table td:nth-child(5)::before { content: 'Работа'; }
+  .tech-orders-table td:nth-child(6)::before { content: 'Пациент'; }
+  .tech-orders-table td:nth-child(7)::before { content: 'Срок'; }
+  .tech-orders-table td:nth-child(8)::before { content: 'Этап'; }
+  .tech-orders-table td:nth-child(9)::before { content: 'Команда'; }
+  .tech-orders-table td:nth-child(10)::before { content: 'Действия'; }
+  .tech-orders-table tr { position: relative; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .tech-orders-table td:nth-child(1) { grid-column: 1; grid-row: 1; font-size: 14px; font-weight: 700; }
+  .tech-orders-table td:nth-child(10) { grid-column: 2; grid-row: 1; justify-self: end; }
+  .tech-orders-table td:nth-child(2), .tech-orders-table td:nth-child(5), .tech-orders-table td:nth-child(6), .tech-orders-table td:nth-child(9) { grid-column: 1 / -1; }
+  .tech-orders-table td:nth-child(3) { grid-column: 1; }
+  .tech-orders-table td:nth-child(4) { grid-column: 2; }
+  .tech-orders-table td:nth-child(7) { grid-column: 1; }
+  .tech-orders-table td:nth-child(8) { grid-column: 2; }
+  .tech-orders-table .tech-order-actions { gap: 6px; }
+  .tech-orders-table .tech-order-actions .tech-icon-btn { width: 38px; height: 38px; }
+  .worker-table td:nth-child(1)::before { content: 'Заказ / клиника'; }
+  .worker-table td:nth-child(2)::before { content: 'Создан'; }
+  .worker-table td:nth-child(3)::before { content: 'Работа / пациент'; }
+  .worker-table td:nth-child(4)::before { content: 'Срок'; }
+  .worker-table td:nth-child(5)::before { content: 'Этап'; }
+  .worker-table td:nth-child(6)::before { content: 'Действие'; }
+  .worker-table td:nth-child(1), .worker-table td:nth-child(3) { grid-column: 1 / -1; }
+  .worker-table td:nth-child(2), .worker-table td:nth-child(4) { grid-column: span 1; }
+  .worker-table td:nth-child(6) { grid-column: 2; justify-items: end; }
+  .tech-panel, .card, .clinic-panel { min-width: 0; }
+  .clinic-tabs, .tech-segment, .tabs { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+  .wizard.order-flow { display: grid; gap: 18px; min-height: 0; padding: 0 0 158px; overflow: visible; border: 0; background: transparent; box-shadow: none; }
+  .order-flow > h2 { margin: 0; font-size: 21px; line-height: 1.25; }
+  .order-flow .info-note { margin-top: 0; padding: 13px 14px; font-size: 13px; line-height: 1.45; }
+  .order-flow .form-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .order-type-choice { display: grid; gap: 12px; margin: 0; padding: 0; border: 0; background: transparent; }
+  .order-type-choice h3 { margin: 0 0 4px; font-size: 16px; }
+  .order-type-choice p { font-size: 13px; line-height: 1.4; }
+  .order-type-options { display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; min-width: 0; margin: 0; }
+  .order-type-options button { min-height: 62px; padding: 12px 14px; border-radius: 12px; }
+  .order-type-options button strong { font-size: 15px; }
+  .order-type-options button small { white-space: normal; font-size: 12px; line-height: 1.35; }
+  .stepper { display: flex; align-items: center; gap: 5px; width: 100%; margin: 0 0 17px; }
+  .step { display: flex; min-width: 28px; align-items: center; justify-content: center; gap: 7px; padding: 0; white-space: nowrap; }
+  .step b { width: 27px; height: 27px; flex: 0 0 27px; font-size: 12px; }
+  .step-label { display: none; }
+  .step.active .step-label { display: inline; max-width: 145px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+  .step-line { display: block; height: 2px; min-width: 8px; flex: 1; background: #e7e7e7; font-size: 0; }
+  .step.done + .step-line { background: #808080; }
+  .order-builder { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .order-builder section { padding: 15px; border: 1px solid #ededed; border-radius: 14px; background: #fff; }
+  .order-builder h2 { font-size: 17px; }
+  .tooth-picker { gap: 13px; }
+  .tooth-picker .desktop-tooth-chart { display: none; }
+  .mobile-tooth-picker { display: grid; gap: 12px; }
+  .mobile-quadrants { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .mobile-quadrants button { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 5px; padding: 7px 9px; border: 1px solid #e9e9e9; border-radius: 10px; background: #fbfbfb; color: #777; font-size: 11px; font-weight: 650; text-align: left; }
+  .mobile-quadrants button small { color: #999; font-size: 10px; font-weight: 600; }
+  .mobile-quadrants button.selected { border-color: #808080; background: #f3f3f3; color: #333; }
+  .mobile-quadrants button.selected small { color: #666; }
+  .mobile-tooth-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+  .mobile-tooth-grid button { min-height: 44px; border: 1px solid #e9e9e9; border-radius: 10px; background: #fff; color: #444; font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .mobile-tooth-grid button.selected { border-color: #808080; background: #333; color: #fff; }
+  .mobile-jaw-choice { display: grid; gap: 8px; }
+  .mobile-jaw-choice button { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border: 1px solid #e7e7e7; border-radius: 11px; background: #fbfbfb; color: #444; font-weight: 650; text-align: left; }
+  .mobile-jaw-choice button small { color: #888; font-size: 12px; font-weight: 550; }
+  .mobile-jaw-choice button.selected { border-color: #808080; background: #f2f2f2; }
+  .tooth-mode { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; }
+  .tooth-mode button { min-height: 42px; padding-inline: 5px; font-size: 12px; }
+  .tooth-picker .selected-teeth { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 11px; font-size: 12px; line-height: 1.4; }
+  .tooth-picker .selected-teeth .clear { min-height: 36px; padding: 4px 8px; }
+  .work-picker { gap: 13px; }
+  .work-picker-title { align-items: center; }
+  .work-picker-title p { font-size: 12px; line-height: 1.4; }
+  .order-work-grid { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .order-work-grid button { display: flex; min-height: 54px; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 10px; text-align: left; font-size: 14px; }
+  .order-work-grid button::after { content: '›'; color: #888; font-size: 22px; line-height: 1; }
+  .work-detail { gap: 10px; }
+  .work-back { min-height: 40px; padding: 0 4px; font-size: 13px; }
+  .work-current { padding: 13px 14px; }
+  .work-current strong { font-size: 15px; }
+  .work-option-list { gap: 7px; }
+  .work-option-list button { min-height: 58px; padding: 11px 12px; border-radius: 11px; font-size: 13px; }
+  .work-option-list button b { font-size: 13px; }
+  .prosthetic-addons { padding: 12px; }
+  .prosthetic-addon-list button { min-height: 58px; }
+  .order-draft { display: grid; }
+  .mobile-order-summary { display: flex; width: 100%; min-height: 58px; align-self: start; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border: 1px solid #e6e6e6; border-radius: 13px; background: #fff; color: #333; text-align: left; }
+  .mobile-order-summary > span:first-child { display: grid; gap: 2px; }
+  .mobile-order-summary strong { font-size: 14px; }
+  .mobile-order-summary small { color: #808080; font-size: 11px; }
+  .mobile-cart-chevron { color: #808080; font-size: 20px !important; }
+  .wizard-actions { position: fixed; z-index: 55; right: 0; bottom: 0; left: 0; display: flex; gap: 9px; padding: 10px max(14px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); border-top: 1px solid #e9e9e9; background: #fff; }
+  .wizard-actions:has([data-action="previous"]) { display: grid; grid-template-columns: minmax(86px, .72fr) minmax(0, 1.5fr); }
+  .wizard-actions .btn { width: 100%; min-height: 48px; font-size: 14px; }
+  #app:has(.order-flow) .mobile-bottom-nav { display: none; }
+  #app:has(.order-flow) .shell { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+  #app:has(.order-builder-wizard) .shell { padding-bottom: calc(175px + env(safe-area-inset-bottom)); }
+  #app:has(.order-builder-wizard) .order-draft { position: static; order: -1; z-index: auto; max-height: none; align-content: start; overflow: visible; gap: 12px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  #app:has(.order-builder-wizard) .order-draft:not(.expanded) > :not(.mobile-order-summary) { display: none; }
+  #app:has(.order-builder-wizard) .order-draft.expanded { position: fixed; z-index: 54; inset: auto 12px calc(70px + env(safe-area-inset-bottom)); max-height: min(68dvh, 560px); align-content: start; overflow-y: auto; padding: 12px; border: 1px solid #e5e5e5; border-radius: 14px; background: #fff; box-shadow: 0 0 0 100vmax #22222235, 0 12px 30px #22222220; }
+  #app:has(.order-builder-wizard) .order-draft.expanded .order-variants { overflow: auto; }
+  #app:has(.order-flow) .order-type-choice { border: 0; }
+  #app:has(.order-flow) .field > span { font-size: 13px; line-height: 1.4; }
+  #app:has(.order-flow) .field input, #app:has(.order-flow) .field select,
+  #app:has(.order-flow) .field textarea { min-height: 48px; padding: 12px 13px; border-radius: 11px; font-size: 16px; }
+  #app:has(.order-flow) .upload-zone { min-height: 112px; padding: 16px; text-align: center; }
+  #app:has(.order-flow) .attachment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .tech-heading, .clinic-heading { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .tech-heading > *, .clinic-heading > * { max-width: 100%; }
+  .tech-panel, .clinic-panel, .dashboard-card { padding: 15px; border-radius: 14px; }
+  .tech-panel h2, .clinic-panel h2 { font-size: 18px; }
+  .tech-toolbar, .tech-order-tools { align-items: stretch; flex-wrap: wrap; gap: 9px; }
+  .tech-toolbar > *, .tech-order-tools > * { min-width: 0; max-width: 100%; }
+  .tech-toolbar .btn, .tech-order-tools .btn { min-height: 44px; }
+  .tech-dialog-backdrop, .modal-backdrop { padding: 10px; }
+  .tech-dialog, .modal { width: min(100%, 520px); max-width: 100%; max-height: calc(100dvh - 20px); overflow-y: auto; padding: 18px; border-radius: 16px; }
+
+  html[data-theme="dark"] .order-builder section,
+  html[data-theme="dark"] .mobile-order-summary,
+  html[data-theme="dark"] #app:has(.order-builder-wizard) .order-draft.expanded { border-color: #343a41; background: #202428; color: #e9ecef; }
+  html[data-theme="dark"] .mobile-quadrants button,
+  html[data-theme="dark"] .mobile-tooth-grid button,
+  html[data-theme="dark"] .mobile-jaw-choice button,
+  html[data-theme="dark"] .wizard-actions { border-color: #343a41; background: #17191c; color: #e9ecef; }
+  html[data-theme="dark"] .mobile-tooth-grid button.selected { background: #e9ecef; color: #17191c; }
+  html[data-theme="dark"] .wizard-actions { border-top-color: #343a41; }
+}
+
+@media (max-width: 520px) {
+  .shell, .tech-shell { padding-right: 12px; padding-left: 12px; }
+  .topbar { margin-right: -12px; margin-left: -12px; padding-right: 12px; padding-left: 12px; }
+  .order-flow > h2 { font-size: 19px; }
+  .step.active .step-label { max-width: 105px; font-size: 11px; }
+  .step b { width: 25px; height: 25px; flex-basis: 25px; }
+  .stepper { gap: 4px; }
+  .step-line { min-width: 5px; }
+  .mobile-quadrants { gap: 6px; }
+  .mobile-quadrants button { font-size: 10px; }
+  .order-builder section { padding: 13px; }
+  .page-title > .btn, .page-title > button { white-space: normal; }
+  .clinic-form .form-grid, .tech-form-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .detail-actions, .clinic-accept-actions { grid-template-columns: minmax(0, 1fr); }
+  .portal-footer { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 16px 0; text-align: center; }
+}
+
+/* Phone layouts: make single-purpose pages feel native to a narrow viewport. */
+@media (max-width: 760px) {
+  .content { display: flex; flex-direction: column; gap: 16px; }
+  .content > * { min-width: 0; }
+  .content > .page-title, .content > .tech-heading, .content > .clinic-heading { margin-bottom: 0; }
+
+  .clinic-status-segment { display: flex; width: 100%; padding: 4px; gap: 4px; overflow-x: auto; }
+  .clinic-status-segment button { flex: 0 0 auto; min-height: 40px; padding: 0 12px; white-space: nowrap; }
+  .clinic-orders-panel { min-width: 0; padding: 12px; }
+  .clinic-orders-panel .toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .clinic-orders-panel .search { min-width: 0; width: 100%; }
+  .clinic-orders-panel .search input { min-width: 0; width: 100%; font-size: 16px; }
+  .clinic-order-filter { inset-inline: 12px; width: auto; }
+
+  .clinic-content { gap: 18px; }
+  .clinic-photo { display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 8px 12px; padding: 12px; border: 1px solid #ededed; border-radius: 14px; background: #fff; }
+  .clinic-photo > strong { grid-column: 1 / -1; margin: 0; font-size: 14px; }
+  .clinic-photo img { grid-column: 1; grid-row: 2 / span 2; width: 58px; height: 58px; margin: 0; border-radius: 12px; object-fit: cover; }
+  .clinic-photo button { grid-column: 2; grid-row: 2 / span 2; justify-self: start; min-height: 42px; }
+  .clinic-form .form-grid { gap: 14px; }
+  .clinic-form .save-field { position: sticky; bottom: calc(72px + env(safe-area-inset-bottom)); z-index: 20; margin: 0 -4px; padding: 8px 4px; background: linear-gradient(180deg, transparent, #fbfbfb 25%); }
+  .clinic-form .save-field .btn { width: 100%; min-height: 48px; }
+
+  .messages-layout { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; min-height: min(68dvh, 680px); gap: 0; overflow: hidden; }
+  .messages-layout > .contacts { display: none; }
+  .messages-layout > .conversation { min-width: 0; min-height: min(68dvh, 680px); }
+  .messages-layout .conversation-head { min-height: 58px; padding: 12px; }
+  .messages-layout .chat-bubbles { min-height: 260px; padding: 14px 12px; }
+  .messages-layout .bubble { max-width: 88%; overflow-wrap: anywhere; }
+  .messages-layout .chat-compose { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px; gap: 7px; padding: 8px; }
+  .messages-layout .chat-compose input { min-width: 0; min-height: 44px; font-size: 16px; }
+  .messages-layout .chat-attach-button, .messages-layout .send-btn { width: 42px; min-width: 42px; height: 42px; }
+
+  .order-type-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .order-type-options button { min-width: 0; min-height: 88px; align-items: flex-start; justify-content: center; gap: 5px; padding: 11px; text-align: left; }
+  .order-type-options button small { font-size: 11px; }
+
+  .calendar-grid { gap: 3px; }
+  .calendar-day { min-width: 0; min-height: 38px; }
+  .dashboard-aside, .dashboard-main { min-width: 0; }
+  .dashboard-main .tabs { max-width: calc(100vw - 24px); }
+
+  .tech-filter-button, .clinic-filter-wrap > button { min-height: 44px; }
+  .tech-toolbar input, .tech-order-tools input, .clinic-order-filter select,
+  .tech-form-grid input, .tech-form-grid select, .tech-form-grid textarea,
+  .clinic-form input, .clinic-form select, .clinic-form textarea,
+  .modal input, .modal select, .modal textarea,
+  .tech-dialog input, .tech-dialog select, .tech-dialog textarea { min-height: 44px; font-size: 16px; }
+  .tech-form-grid textarea, .clinic-form textarea, .modal textarea, .tech-dialog textarea { min-height: 100px; }
+  .tech-detail-grid, .tech-order-main, .tech-order-side, .detail-grid { min-width: 0; }
+  .tech-order-service-body { grid-template-columns: minmax(0, 1fr); }
+  .tech-order-service-chart .tooth-chart { max-width: 170px; }
+
+  html[data-theme="dark"] .clinic-photo { border-color: #343a41; background: #202428; }
+  html[data-theme="dark"] .clinic-form .save-field { background: linear-gradient(180deg, transparent, #17191c 25%); }
+}
+
+@media (max-width: 380px) {
+  .shell, .tech-shell { padding-right: 10px; padding-left: 10px; }
+  .topbar { margin-right: -10px; margin-left: -10px; padding-right: 10px; padding-left: 10px; }
+  .clinic-orders-panel { padding: 10px; }
+  .clinic-photo { grid-template-columns: 52px minmax(0, 1fr); }
+  .clinic-photo img { width: 52px; height: 52px; }
+  .order-type-options button { padding: 9px; }
+  .order-type-options button small { font-size: 10px; }
+}
