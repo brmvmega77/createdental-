@@ -6,7 +6,7 @@ import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCente
 import {workCatalog,rubles} from './work-catalog.js?v=work-prices-9';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=theme-icon-1';
 import {openOrderPrint} from './order-print.js?v=order-print-8';
-import {isSurgicalSocket,isSurgicalTemplate,surgicalVariantUnits} from '/assets/surgical-template-utils.js?v=surgical-sockets-1';
+import {isSurgicalSocket,isSurgicalTemplate,surgicalVariantUnits} from './public/assets/surgical-template-utils.js?v=surgical-sockets-2';
 import {calculateCompanyPulse} from './company-pulse.js?v=quality-pulse-1';
 import {taskStatuses,taskPriorities,taskStatusLabel,taskPriorityLabel,taskDateLabel,taskIsOverdue} from './tasks.js?v=task-flow-4';
 
