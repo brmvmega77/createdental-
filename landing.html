@@ -13,10 +13,10 @@
       catch (_) { document.documentElement.dataset.theme = 'light'; }
     }());
   </script>
-  <link rel="stylesheet" href="/landing.css?v=landing-125">
-  <script src="/assets/landing-portal.js?v=portal-13" defer></script>
+  <link rel="stylesheet" href="/landing.css?v=unified-layout-1">
+  <script src="/assets/landing-portal.js?v=portal-14" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
-  <script src="/landing.js?v=landing-49" defer></script>
+  <script src="/landing.js?v=unified-layout-1" defer></script>
 </head>
 <body>
   <div class="landing-shell">
@@ -30,11 +30,11 @@
             <span data-current-language>RU</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2 4.5 4 4 4-4"/></svg>
           </button>
           <div class="language-menu" id="language-menu" role="listbox" aria-labelledby="language-trigger" hidden>
-            <button type="button" role="option" data-language-choice="ru" aria-selected="true">Русский</button>
-            <button type="button" role="option" data-language-choice="am" aria-selected="false">Հայերեն</button>
-            <button type="button" role="option" data-language-choice="uz" aria-selected="false">O‘zbekcha</button>
-            <button type="button" role="option" data-language-choice="kk" aria-selected="false">Қазақша</button>
-            <button type="button" role="option" data-language-choice="ar" aria-selected="false">العربية</button>
+            <button type="button" role="option" data-language-choice="ru" aria-selected="true"><span lang="ru">Русский</span><small>RU</small></button>
+            <button type="button" role="option" data-language-choice="am" aria-selected="false"><span lang="hy">Հայերեն</span><small>AM</small></button>
+            <button type="button" role="option" data-language-choice="uz" aria-selected="false"><span lang="uz">O‘zbekcha</span><small>UZ</small></button>
+            <button type="button" role="option" data-language-choice="kk" aria-selected="false"><span lang="kk">Қазақша</span><small>KZ</small></button>
+            <button type="button" role="option" data-language-choice="ar" aria-selected="false"><span lang="ar" dir="rtl">العربية</span><small>AR</small></button>
           </div>
         </div>
         <a class="landing-login" href="/login"><span data-i18n="navLogin">Войти в кабинет</span><b aria-hidden="true">↗</b></a>
@@ -107,9 +107,6 @@
               <canvas class="portal-canvas" aria-hidden="true"></canvas>
             </div>
           </figure>
-          <button class="portal-toggle" type="button" aria-label="Приостановить анимацию портала" aria-pressed="false" hidden>
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path class="portal-pause" d="M7 5v10M13 5v10"/><path class="portal-play" d="m7 5 8 5-8 5Z"/></svg>
-          </button>
         </div>
       </section>
     </main>

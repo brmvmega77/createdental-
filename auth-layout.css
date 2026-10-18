@@ -1,0 +1,27 @@
+/* Auth layouts share one physical grid in every locale, including RTL. */
+.portal-login { direction: ltr; padding-block: 84px 32px; }
+.portal-login > section { min-width: 0; margin: 0; }
+.portal-login[dir="rtl"] > section { direction: rtl; text-align: right; }
+.portal-login h1 { line-height: 1.25; overflow-wrap: normal; }
+.portal-login-tools { direction: ltr; }
+.portal-language-trigger, .portal-locale-fixed { direction: ltr; }
+.portal-login .portal-language-menu small,
+.portal-login .portal-locale-fixed small { display: block; margin: 0; line-height: 1; }
+.portal-login .portal-language-menu button { font-family: inherit; }
+.portal-login input[type="email"], .portal-login input[type="tel"] { direction: ltr; text-align: start; }
+.portal-login .auth-links button { min-width: 0; line-height: 1.5; }
+@media(max-width:760px) {
+  .portal-login { padding: 76px 14px 24px; }
+  .portal-login > section { margin-top: 0; }
+  .portal-login-tools { position: absolute; }
+}
+
+.portal-login label { line-height: 1.5; }
+.portal-login .auth-recovery p { min-height: 3.1em; }
+@media(max-width:760px) {
+  .portal-login > section > p { min-height: 3.1em; }
+}
+@media(max-width:350px) {
+  .portal-login h1 { min-height: 2.5em; }
+  .portal-login > section > p, .portal-login .auth-recovery p { min-height: 4.65em; }
+}
