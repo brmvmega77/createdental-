@@ -4,7 +4,7 @@ import {savePortal,authRequest,portalToken,loadOrderFiles,loadCadReviewHtml,dele
 import {routeFromPath,pathFor,navigate} from './routes.js?v=ru-only-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=dashboard-layout-4';
 import {workCatalog,rubles} from './work-catalog.js?v=work-prices-9';
-import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=ru-only-1';
+import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=theme-icon-1';
 import {openOrderPrint} from './order-print.js?v=order-print-8';
 import {calculateCompanyPulse} from './company-pulse.js?v=quality-pulse-1';
 import {taskStatuses,taskPriorities,taskStatusLabel,taskPriorityLabel,taskDateLabel,taskIsOverdue} from './tasks.js?v=task-flow-4';

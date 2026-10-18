@@ -1,10 +1,10 @@
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camCanAccept,camCanSubmitQuality} from './cam-workflow.js?v=cam-flow-2';
-import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=ru-only-1';
+import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=theme-icon-1';
 import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadReviewHtml,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js?v=yandex-upload-11';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=ru-only-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=dashboard-layout-4';
 import {workCatalog,rubles} from './work-catalog.js?v=work-prices-5';
-import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=ru-only-1';
+import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=theme-icon-1';
 import {orderWorkLabel,orderEventSummary} from './order-list-utils.js?v=service-label-4';
 import {taskStatuses,taskPriorityLabel,taskDateLabel,taskIsOverdue} from './tasks.js?v=task-flow-4';
 

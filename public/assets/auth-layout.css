@@ -25,3 +25,26 @@
   .portal-login h1 { min-height: 2.5em; }
   .portal-login > section > p, .portal-login .auth-recovery p { min-height: 4.65em; }
 }
+
+.portal-login { display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
+.portal-login > section { flex: 0 0 auto; margin: auto 0 28px; }
+.portal-login .portal-login-footer { margin: 0 auto; }
+.theme-toggle { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 0; padding: 0; }
+.theme-toggle > span:last-child { display: inline; }
+.portal-footer { width: 100%; max-width: 1500px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 20px; margin: 36px auto 0; padding: 18px 0; color: #b5b5b5; border-top: 1px solid #e9e9e9; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.portal-footer-tagline { color: #b5b5b5; }
+.portal-footer-email { color: #808080; letter-spacing: 0; text-transform: none; text-decoration: none; }
+.portal-footer-legal { flex: 0 0 100%; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px 28px; text-align: center; font-size: 12px; line-height: 1.6; letter-spacing: 0; text-transform: none; }
+.portal-footer-legal a { color: #666; text-decoration: underline; text-underline-offset: 3px; }
+.portal-footer-legal a:hover, .portal-footer-email:hover { color: #333; }
+html[data-theme="dark"] .portal-footer { border-color: #343a41; color: #7f8994; }
+html[data-theme="dark"] .portal-footer-tagline { color: #7f8994; }
+html[data-theme="dark"] .portal-footer-email, html[data-theme="dark"] .portal-footer-legal a { color: #b8bec6; }
+html[data-theme="dark"] .portal-footer-legal a:hover, html[data-theme="dark"] .portal-footer-email:hover { color: #fff; }
+@media(max-width:760px) {
+  .portal-login > section { margin: auto 0 24px; }
+  .portal-footer { justify-content: center; gap: 10px 14px; margin-top: 28px; padding: 16px 0; text-align: center; }
+  .portal-footer-copy, .portal-footer-tagline, .portal-footer-email { flex: 0 0 100%; }
+  .portal-footer-legal { flex-direction: column; gap: 4px; }
+  .portal-footer-legal a { max-width: 100%; padding-block: 5px; }
+}

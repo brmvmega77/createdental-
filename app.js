@@ -3,10 +3,10 @@ import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal,authRe
 import {routeFromPath,pathFor,navigate} from './routes.js?v=ru-only-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=dashboard-layout-4';
 import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal} from './work-catalog.js?v=work-prices-9';
-import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=ru-only-1';
+import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=theme-icon-1';
 import {openOrderPrint} from './order-print.js?v=order-print-8';
 import {orderWorkTypes,orderWorkLabel,orderEventSummary} from './order-list-utils.js?v=service-label-4';
-import {productionStages,compactStageLabel} from './technician.js?v=ru-only-1';
+import {productionStages,compactStageLabel} from './technician.js?v=theme-icon-1';
 import './location-assist.js?v=country-cities-1';
 
 const $ = (selector) => document.querySelector(selector);
@@ -600,7 +600,8 @@ function clinicTranslateDom(root=document.querySelector('#app')){
   if(!clinicTranslationObserver){clinicTranslationObserver=new MutationObserver(()=>{if(portalUser?.role==='clinic')clinicTranslateDom(root)});clinicTranslationObserver.observe(root,{subtree:true,childList:true,characterData:true,attributes:false})}
 }
 
-function shell(content){$('#app').innerHTML=`${sidebar()}<div class="shell ${sidebarCollapsed()?'sidebar-shell-collapsed':''}">${header()}<main class="content">${content}</main></div><div class="toast ${state.toast?'visible':''}">${escapeHtml(state.toast)}</div>`;if(portalUser?.role==='clinic')clinicTranslateDom($('#app'));}
+function portalFooter(){return `<footer class="portal-footer"><span class="portal-footer-copy">© 2019–2026 Create Dental</span><span class="portal-footer-tagline">Для клиник, которым важен результат</span><a class="portal-footer-email" href="mailto:orders@createdental.io">orders@createdental.io</a><nav class="portal-footer-legal" aria-label="Правовые документы"><a href="/assets/legal/privacy.html">Политика конфиденциальности</a><a href="/assets/legal/consent-data.html">Согласие на обработку персональных данных</a></nav></footer>`}
+function shell(content){$('#app').innerHTML=`${sidebar()}<div class="shell ${sidebarCollapsed()?'sidebar-shell-collapsed':''}">${header()}<main class="content">${content}</main>${portalFooter()}</div><div class="toast ${state.toast?'visible':''}">${escapeHtml(state.toast)}</div>`;if(portalUser?.role==='clinic')clinicTranslateDom($('#app'));}
 function title(text,sub='',right=''){return `<div class="page-title"><div><h1>${text}</h1>${sub?`<p>${sub}</p>`:''}</div>${right}</div>`}
 function tabs(items,selected,action='filter',className=''){return `<div class="tabs ${className}">${items.map(([label,count,key=label])=>`<button class="tab ${selected===key?'active':''}" data-action="${action}" data-value="${key}">${label}${count!==undefined?` <span class="count">${count}</span>`:''}</button>`).join('')}</div>`}
 function orderTable(list){const heading=(key,label)=>`<th aria-sort="${state.sortKey===key?(state.sortDirection==='asc'?'ascending':'descending'):'none'}"><button class="order-sort" data-order-sort="${key}">${label}<span aria-hidden="true">${state.sortKey===key?(state.sortDirection==='asc'?'↑':'↓'):'↕'}</span></button></th>`;return `<div class="table-wrap"><table class="orders-table"><thead><tr><th>ID заказа</th><th>Пациент</th>${heading('work','Тип работы')}${heading('createdAt','Создан')}${heading('date','Срок')}${heading('status','Статус')}${heading('sum','Сумма')}</tr></thead><tbody>${list.map(o=>`<tr data-order="${escapeHtml(o.id)}" tabindex="0"><td><strong>${escapeHtml(o.id)}</strong></td><td>${escapeHtml(o.patient)}</td><td>${escapeHtml(orderWorkLabel(o))}</td><td>${o.createdAt?new Date(o.createdAt).toLocaleDateString(clinicIntlLocale()):'—'}</td><td>${escapeHtml(orderDateLabel(o.date))}</td><td>${badge(escapeHtml(displayClientStatus(o.status)))}</td><td><strong>${escapeHtml(o.sum)}</strong></td></tr>`).join('')||'<tr><td colspan="7" class="empty">Заказы не найдены</td></tr>'}</tbody></table></div>`}
@@ -949,7 +950,7 @@ function loginView(){
   const content=authMode==='recover'
     ?'<div class="auth-recovery"><p></p></div>'
     :`<form id="portal-login-form" data-mode="${authMode}">${form}</form>`;
-  $('#app').innerHTML=`<main class="portal-login"><div class="portal-login-tools">${languageSwitcherMarkup()}${themeToggleMarkup()}</div><section><img class="portal-logo" src="${logo}" alt="Create Dental"><h1>${authMode==='register'?labels.register:authMode==='recover'?labels.recover:labels.login}</h1>${authMode==='recover'?'':`<p>${labels.subtitle}</p>`}${content}${links}${authNotice?`<p class="portal-login-success">${escapeHtml(authNotice)}</p>`:''}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
+  $('#app').innerHTML=`<main class="portal-login"><div class="portal-login-tools">${languageSwitcherMarkup()}${themeToggleMarkup()}</div><section><img class="portal-logo" src="${logo}" alt="Create Dental"><h1>${authMode==='register'?labels.register:authMode==='recover'?labels.recover:labels.login}</h1>${authMode==='recover'?'':`<p>${labels.subtitle}</p>`}${content}${links}${authNotice?`<p class="portal-login-success">${escapeHtml(authNotice)}</p>`:''}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section>${portalFooter()}</main>`;
   localizeAuth();
 }
 function render(){if(!portalReady){if(portalToken()){$('#app').innerHTML='<div class="startup-notice">Загрузка кабинета...</div>';return}loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(state.datePickerOpen)queueMicrotask(positionDatePicker);if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
@@ -963,11 +964,11 @@ function syncRoute(){
 async function hydratePortal(){
   const data=await loadPortal();
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=ru-only-1');
+      const {createTechnicianCabinet}=await import('./technician.js?v=theme-icon-1');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=ru-only-1');
+    const {createWorkerCabinet}=await import('./worker.js?v=theme-icon-1');
     workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,orderHistory:()=>portalHistory,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   if(portalUser?.subjectId!==data.user.subjectId)state.messages=[];

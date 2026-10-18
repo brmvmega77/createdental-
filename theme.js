@@ -11,17 +11,15 @@ function applyTheme(value){
   try{localStorage.setItem(themeKey,theme)}catch{}
   document.querySelectorAll('[data-theme-toggle]').forEach(button=>{
     const dark=theme==='dark';
-    button.setAttribute('aria-label',dark?'Включить дневную тему':'Включить ночную тему');
+    button.setAttribute('aria-label',dark?'Включить светлую тему':'Включить тёмную тему');
     button.setAttribute('aria-pressed',String(dark));
     const icon=button.querySelector('[data-theme-icon]');
-    const label=button.querySelector('[data-theme-label]');
     if(icon)icon.textContent=dark?'☀':'☾';
-    if(label)label.textContent=dark?'Дневная тема':'Ночная тема';
   });
   return theme;
 }
 
-export const themeToggleMarkup=()=>{const dark=typeof document!=='undefined'?document.documentElement.dataset.theme==='dark':readTheme()==='dark';return `<button type="button" class="theme-toggle" data-theme-toggle aria-label="${dark?'Включить дневную тему':'Включить ночную тему'}" aria-pressed="${dark}"><span class="theme-toggle-icon" data-theme-icon aria-hidden="true">${dark?'☀':'☾'}</span><span data-theme-label>${dark?'Дневная тема':'Ночная тема'}</span></button>`};
+export const themeToggleMarkup=()=>{const dark=typeof document!=='undefined'?document.documentElement.dataset.theme==='dark':readTheme()==='dark';return `<button type="button" class="theme-toggle" data-theme-toggle aria-label="${dark?'Включить светлую тему':'Включить тёмную тему'}" title="${dark?'Светлая тема':'Тёмная тема'}" aria-pressed="${dark}"><span class="theme-toggle-icon" data-theme-icon aria-hidden="true">${dark?'☀':'☾'}</span></button>`};
 
 const localeKey='create-dental-locale';
 export const languageSwitcherMarkup=()=>'';
