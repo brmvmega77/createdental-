@@ -32,9 +32,8 @@ dt { font-size: 13px; color: var(--muted); margin-top: 18px; }
 dt:first-child { margin-top: 0; }
 dd { margin: 3px 0 0; overflow-wrap: anywhere; }
 mark { color: var(--ink); background: #e7e7e7; padding: 2px 5px; font-weight: 650; }
-.legal-footer { width: min(100% - 72px, 1500px); border-top: 1px solid var(--line); margin: auto auto 0; padding: 28px 0 36px; display: flex; justify-content: center; flex-wrap: wrap; gap: 16px 32px; text-align: center; font-size: 13px; color: var(--muted); }
+.legal-footer { width: min(calc(100% - 72px), 1500px); border-top: 1px solid var(--line); margin: auto; padding: 28px 0 36px; display: flex; justify-content: center; flex-wrap: wrap; gap: 16px 32px; text-align: center; font-size: 13px; color: var(--muted); }
 .legal-footer span { flex-basis: 100%; font-size: 11px; letter-spacing: .12em; }
-@media (min-width: 1572px) { .legal-footer { margin-inline: auto; } }
 @media (max-width: 560px) {
  body { font-size: 16px; line-height: 1.7; }
  .legal-header { width: calc(100% - 32px); min-height: 80px; gap: 18px; }
@@ -44,7 +43,7 @@ mark { color: var(--ink); background: #e7e7e7; padding: 2px 5px; font-weight: 65
  .lead { font-size: 18px; }
  .draft-note { padding: 18px; }
  section { margin-top: 36px; }
- .legal-footer { margin-inline: 20px; flex-direction: column; gap: 18px; }
+ .legal-footer { width: calc(100% - 40px); margin-inline: auto; flex-direction: column; gap: 18px; }
 }
 @media print {
  body { background: white; font-size: 11pt; }
