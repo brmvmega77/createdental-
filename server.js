@@ -273,7 +273,7 @@ async function handlePortal(req,res,url){
     return json(res,200,{...snapshot,user:publicUser(user)});
   }
   const key=url.pathname.slice('/api/portal/'.length);
-  if(req.method==='PUT'&&['orders','orderOverrides','clients','employees'].includes(key)){
+  if(req.method==='PUT'&&['orders','orderOverrides','clients','employees','workCatalog'].includes(key)){
     let value;
     try {value=await readBody(req,500000)} catch {return json(res,400,{error:'Неверные данные'})}
     if(user.role==='clinic'){

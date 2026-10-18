@@ -3,9 +3,11 @@ import path from 'node:path';
 import {randomInt} from 'node:crypto';
 import {seedOrders} from './seed-orders.js';
 import {seedClients,seedEmployees} from './technician.js';
+import {workCatalog} from './work-catalog.js';
 
 const file=process.env.PORTAL_DATA_FILE||path.join(process.cwd(),'.data','portal.json');
 const telegramCodePattern=/^CD-CL-(\d{8})$/;
+const cloneCatalog=value=>JSON.parse(JSON.stringify(value));
 
 function randomTelegramCode(used){
   let code='';
@@ -29,7 +31,8 @@ const defaults=()=>({
   orderHistory:[],
   clientRequests:[],
   clients:assignTelegramCodes(seedClients.map(client=>({...client}))),
-  employees:seedEmployees.map(employee=>({...employee}))
+  employees:seedEmployees.map(employee=>({...employee})),
+  workCatalog:cloneCatalog(workCatalog)
 });
 let state=defaults();
 let saveQueue=Promise.resolve();
@@ -38,6 +41,7 @@ try {
   const stored=JSON.parse(fs.readFileSync(file,'utf8'));
     if(stored&&typeof stored==='object'){
     for(const key of ['orders','clients','employees','clientRequests'])if(Array.isArray(stored[key]))state[key]=stored[key];
+    if(Array.isArray(stored.workCatalog)){state.workCatalog=cloneCatalog(stored.workCatalog);workCatalog.splice(0,workCatalog.length,...cloneCatalog(stored.workCatalog))}
     if(stored.orderOverrides&&typeof stored.orderOverrides==='object'&&!Array.isArray(stored.orderOverrides))state.orderOverrides=stored.orderOverrides;
     if(Array.isArray(stored.orderHistory))state.orderHistory=stored.orderHistory;
     const before=JSON.stringify(state);
@@ -72,6 +76,7 @@ function validCollection(key,value){
   if(key==='clients')return Array.isArray(value)&&value.length<=2000&&unique(value)&&new Set(value.map(item=>item.telegramCode)).size===value.length&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&telegramCodePattern.test(item.telegramCode)&&(item.approved===undefined||typeof item.approved==='boolean'));
   if(key==='employees')return Array.isArray(value)&&value.length<=500&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&['active','disabled','fired'].includes(item.status));
   if(key==='clientRequests')return Array.isArray(value)&&value.length<=20000&&unique(value)&&value.every(item=>item&&validId(item.id)&&validId(item.orderId)&&validId(item.clinicId)&&['edit','deadline','cancel'].includes(item.type)&&['pending','approved','rejected','archived'].includes(item.status)&&(!item.decision||['approved','rejected'].includes(item.decision))&&text(item.requestedBy||'',200)&&text(item.summary||'',2000)&&(!item.reason||text(item.reason,2000))&&item.changes&&typeof item.changes==='object'&&!Array.isArray(item.changes));
+  if(key==='workCatalog')return Array.isArray(value)&&value.length<=100&&value.every(category=>category&&text(category.name,120)&&category.name.trim()&&Array.isArray(category.options)&&category.options.length<=100&&category.options.every(option=>option&&text(option.name,200)&&option.name.trim()&&Number.isFinite(Number(option.price))&&Number(option.price)>=0&&Number(option.price)<=100000000&&(option.productionDays===null||option.productionDays===undefined||Number.isInteger(option.productionDays)&&option.productionDays>=0&&option.productionDays<=365)));
   if(key==='orderOverrides')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=5000&&Object.entries(value).every(([id,detail])=>validId(id)&&detail&&typeof detail==='object'&&!Array.isArray(detail)&&(!detail.stage||text(detail.stage,80))&&(!detail.manufacturingStatus||text(detail.manufacturingStatus,80))&&(!detail.assignee||text(detail.assignee,200))&&(!detail.reworkReason||text(detail.reworkReason,2000))&&(!detail.completedAt||typeof detail.completedAt==='string'&&detail.completedAt.length<=40)&&(!detail.cadReview||detail.cadReview&&typeof detail.cadReview==='object'&&!Array.isArray(detail.cadReview)&&['pending','approved','returned'].includes(detail.cadReview.status)&&validId(detail.cadReview.fileId)&&text(detail.cadReview.fileName,200)&&text(detail.cadReview.sentBy||'',200)&&text(detail.cadReview.reviewedBy||'',200)&&text(detail.cadReview.comment||'',2000)&&Number.isSafeInteger(detail.cadReview.revision)&&detail.cadReview.revision>0&&detail.cadReview.revision<10000&&typeof detail.cadReview.sentAt==='string'&&detail.cadReview.sentAt.length<=40&&(!detail.cadReview.reviewedAt||typeof detail.cadReview.reviewedAt==='string'&&detail.cadReview.reviewedAt.length<=40)));
   return false;
 }
@@ -111,6 +116,7 @@ export async function replacePortalCollection(key,value,actor={}){
     try {
       await fs.promises.writeFile(temporary,JSON.stringify(state),{mode:0o600});
       await fs.promises.rename(temporary,file);
+      if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(next));
     } catch(error){state[key]=previous;state.orderHistory=previousHistory;throw error}
   });
   await saveQueue;
