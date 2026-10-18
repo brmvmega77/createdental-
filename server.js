@@ -34,7 +34,7 @@ const integrationSecretFiles={
 const tlsKeyFile=process.env.TLS_KEY_FILE||'';
 const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
-const publicFiles = new Set(['/','/index.html','/app.js','/work-catalog.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/styles.css','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/yandex_a7db0249ed96373e.html']);
+const publicFiles = new Set(['/','/index.html','/app.js','/work-catalog.js','/technician.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/styles.css','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon'};
 const sharedAttachmentTypes={
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream',
@@ -1356,10 +1356,11 @@ async function handleChat(req, res, url) {
 function serveFile(req, res, pathname) {
   let file;
   const appRoute=/^\/(?:login|register|forgot-password|(?:clinic|technician|worker)(?:\/[A-Za-z0-9_-]+){0,2})\/?$/.test(pathname);
+  const landingRoute=pathname==='/'||pathname==='/landing'||pathname==='/landing/';
   if (pathname==='/favicon.ico') {
     file = path.join(root, 'public', 'assets', 'favicon.ico');
-  } else if (publicFiles.has(pathname)||appRoute) {
-    file = path.join(root, appRoute||pathname==='/' ? 'index.html' : pathname);
+  } else if (publicFiles.has(pathname)||appRoute||landingRoute) {
+    file = path.join(root, appRoute ? 'index.html' : landingRoute ? 'landing.html' : pathname);
   } else if (pathname.startsWith('/assets/')) {
     file = path.resolve(root, 'public', '.' + pathname);
     if (!file.startsWith(path.join(root, 'public', 'assets') + path.sep)) return json(res, 403, {error:'Доступ запрещён'});
