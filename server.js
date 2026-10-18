@@ -1030,13 +1030,14 @@ async function handleAuth(req,res,url){
     const name=String(body.name||'').trim(),email=String(body.email||'').trim().toLowerCase();
     const phone=String(body.phone||'').trim(),country=String(body.country||'').trim(),city=String(body.city||'').trim(),address=String(body.address||'').trim();
     const allowedCountries=new Set(['RU','BY','AM','KZ','UZ','AE']);
+    if(body.personalDataConsentVersion!=='1.0')return json(res,400,{error:'Для регистрации необходимо дать отдельное согласие на обработку персональных данных'});
     if(name.length<2||name.length>120||/[<>]/.test(name)||!validEmail(email)||!validPassword(body.password)||hasAccount(email))return json(res,400,{error:'Проверьте название, email и пароль (от 8 символов)'});
     if(!allowedCountries.has(country))return json(res,400,{error:'Выберите страну'});
     const normalizedPhone=phone.replace(/[\s()-]/g,'');
     if(phone&&!/^\+[1-9]\d{7,14}$/.test(normalizedPhone)||city.length>120||address.length>250||/[<>]/.test(city+address))return json(res,400,{error:'Проверьте телефон в международном формате, город и адрес'});
     const existing=portalSnapshot().clients.find(item=>item.email?.toLowerCase()===email&&!item.deleted);
     const id=existing?.id||'client-'+randomBytes(12).toString('hex');
-    const client={...(existing||{}),id,originalName:existing?.originalName||id,name,email,contact:existing?.contact||'',phone,city,address,country,approved:existing?.approved??false};
+    const client={...(existing||{}),id,originalName:existing?.originalName||id,name,email,contact:existing?.contact||'',phone,city,address,country,approved:existing?.approved??false,personalDataConsent:{version:'1.0',acceptedAt:new Date().toISOString()}};
     try{const clients=portalSnapshot().clients;await replacePortalCollection('clients',existing?clients.map(item=>item.id===id?client:item):[...clients,client]);await createAccount({email,password:body.password,role:'clinic',subjectId:id});await recordPortalEvent('',{role:'clinic',name},'clinic_registered',{clinicId:id,summary:name}).catch(()=>{});return json(res,201,{pendingApproval:true,email});}
     catch{return json(res,500,{error:'Не удалось создать кабинет'})}
   }
