@@ -3,7 +3,7 @@ import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadReviewHtml,uplo
 import {routeFromPath,pathFor,navigate} from './routes.js?v=worker-salary-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=dashboard-layout-4';
 import {workCatalog,rubles} from './work-catalog.js?v=work-prices-5';
-import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=portal-language-1';
+import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=portal-language-2';
 
 const safe=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const tone=stage=>['Согласование CAD','Контроль качества'].includes(stage)?'review':['Работа принята','В доставке','Принято доктором','Готово к выдаче'].includes(stage)?'ready':'work';

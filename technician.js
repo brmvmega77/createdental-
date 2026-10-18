@@ -2,7 +2,7 @@ import {savePortal,authRequest,portalToken,loadOrderFiles,loadCadReviewHtml,dele
 import {routeFromPath,pathFor,navigate} from './routes.js?v=worker-salary-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=dashboard-layout-4';
 import {workCatalog,rubles} from './work-catalog.js?v=work-prices-5';
-import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=portal-language-1';
+import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=portal-language-2';
 
 export const seedEmployees = [];
 export function loadEmployees(){

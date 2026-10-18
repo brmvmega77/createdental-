@@ -3,8 +3,8 @@ import {portalToken,setPortalToken,clearPortalToken,loadPortal,savePortal,authRe
 import {routeFromPath,pathFor,navigate} from './routes.js?v=worker-salary-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=dashboard-layout-4';
 import {workCatalog,rubles} from './work-catalog.js?v=work-prices-5';
-import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=portal-language-1';
-import {productionStages} from './technician.js?v=portal-language-1';
+import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=portal-language-2';
+import {productionStages} from './technician.js?v=portal-language-2';
 import './location-assist.js?v=portal-language-2';
 
 const $ = (selector) => document.querySelector(selector);
@@ -344,7 +344,7 @@ function clinicPage(){
   const area=(name,value,placeholder='')=>`<textarea name="${name}" rows="4" ${placeholder?`placeholder="${escapeHtml(placeholder)}"`:''}>${escapeHtml(value||'')}</textarea>`;
   const tabsList=[['Основная информация'],['Контактные лица'],['Настройки'],['Безопасность']];
   const fields={
-    'Основная информация':`${field('Название клиники',input('name',clinic.name))}${field('Страна',`<select name="country" required>${[['RU','Россия'],['BY','Беларусь'],['AM','Армения'],['KZ','Казахстан'],['UZ','Узбекистан'],['AE','Дубай, ОАЭ']].map(([code,name])=>`<option value="${code}" ${(clinic.country||'RU')===code?'selected':''}>${name}</option>`).join('')}</select>`)}${field('ИНН',input('inn',clinic.inn))}${field('Город',input('city',clinic.city))}${field('Адрес',input('address',clinic.address))}${field('Телефон',input('phone',clinic.phone,'tel','+7 (___) ___-__-__'))}${field('Email',input('email',clinic.email,'email'))}`,
+    'Основная информация':`${field('Название клиники',input('name',clinic.name))}${field('Страна',`<select name="country" required>${[['RU','Россия'],['BY','Беларусь'],['AM','Армения'],['KZ','Казахстан'],['UZ','Узбекистан'],['AE','ОАЭ']].map(([code,name])=>`<option value="${code}" ${(clinic.country||'RU')===code?'selected':''}>${name}</option>`).join('')}</select>`)}${field('ИНН',input('inn',clinic.inn))}${field('Город',input('city',clinic.city))}${field('Адрес',input('address',clinic.address))}${field('Телефон',input('phone',clinic.phone,'tel','+7 (___) ___-__-__'))}${field('Email',input('email',clinic.email,'email'))}`,
     'Контактные лица':`${field('Контактное лицо',input('contact',clinic.contact||''))}${field('Должность',input('contactPosition',clinic.contactPosition||''))}${field('Телефон контакта',input('contactPhone',clinic.contactPhone||clinic.phone||'','tel','+7 (___) ___-__-__'))}${field('Email контакта',input('contactEmail',clinic.contactEmail||clinic.email||'','email'))}`,
     'Настройки':`${field('График работы',input('workHours',clinic.workHours||'','text','Пн-Пт 09:00–18:00'))}${field('Предпочтительный способ доставки',input('deliveryPreference',clinic.deliveryPreference||''))}${field('Условия оплаты',input('paymentTerms',clinic.paymentTerms||''))}${field('Комментарий для лаборатории',area('labNotes',clinic.labNotes||''))}`,
     'Безопасность':`${field('Email для входа',input('loginEmail',clinic.loginEmail||clinic.email||'','email'))}${field('Ответственный за доступ',input('accessManager',clinic.accessManager||clinic.contact||''))}${field('Телефон для подтверждений',input('securityPhone',clinic.securityPhone||clinic.phone||'','tel'))}${field('Заметка по доступу',area('securityNotes',clinic.securityNotes||''))}`
@@ -362,10 +362,30 @@ let authMode=initialRoute.mode||'login';
 let portalError='';
 let authNotice='';
 let authDraft={name:'',phone:'',email:'',country:'RU',city:'',address:'',password:''};
+const authTranslations={
+  ru:{login:'Личный кабинет Create Dental',register:'Регистрация клиники',subtitle:'Заказы, производство и связь с лабораторией.',clinic:'Название клиники',phone:'Телефон',email:'Email',country:'Страна',city:'Город',address:'Адрес',password:'Пароль от 8 символов',emailLogin:'Email или логин',loginButton:'Войти',registerButton:'Зарегистрироваться',registerLink:'Регистрация',forgot:'Забыли пароль?',back:'← Вернуться ко входу',recover:'Восстановление пароля',recoverText:'Обратитесь по почте, чтобы получить новый пароль.',countries:['Россия','Беларусь','Армения','Казахстан','Узбекистан','ОАЭ']},
+  am:{login:'Create Dental-ի անձնական էջ',register:'Կլինիկայի գրանցում',subtitle:'Պատվերներ, արտադրություն և կապ լաբորատորիայի հետ։',clinic:'Կլինիկայի անվանումը',phone:'Հեռախոս',email:'Էլ․ փոստ',country:'Երկիր',city:'Քաղաք',address:'Հասցե',password:'Գաղտնաբառ՝ առնվազն 8 նիշ',emailLogin:'Էլ․ փոստ կամ մուտքանուն',loginButton:'Մուտք գործել',registerButton:'Գրանցել կլինիկան',registerLink:'Գրանցում',forgot:'Մոռացե՞լ եք գաղտնաբառը',back:'← Վերադառնալ մուտքին',recover:'Գաղտնաբառի վերականգնում',recoverText:'Նոր գաղտնաբառ ստանալու համար գրեք մեզ։',countries:['Ռուսաստան','Բելառուս','Հայաստան','Ղազախստան','Ուզբեկստան','ԱՄԷ']},
+  uz:{login:'Create Dental shaxsiy kabineti',register:'Klinikani ro‘yxatdan o‘tkazish',subtitle:'Buyurtmalar, ishlab chiqarish va laboratoriya bilan aloqa.',clinic:'Klinika nomi',phone:'Telefon',email:'Email',country:'Mamlakat',city:'Shahar',address:'Manzil',password:'Parol — kamida 8 belgi',emailLogin:'Email yoki login',loginButton:'Kirish',registerButton:'Klinikani ro‘yxatdan o‘tkazish',registerLink:'Ro‘yxatdan o‘tish',forgot:'Parolni unutdingizmi?',back:'← Kirishga qaytish',recover:'Parolni tiklash',recoverText:'Yangi parol olish uchun bizga yozing.',countries:['Rossiya','Belarus','Armaniston','Qozog‘iston','O‘zbekiston','BAA']},
+  kk:{login:'Create Dental жеке кабинеті',register:'Клиниканы тіркеу',subtitle:'Тапсырыстар, өндіріс және зертханамен байланыс.',clinic:'Клиника атауы',phone:'Телефон',email:'Email',country:'Ел',city:'Қала',address:'Мекенжай',password:'Құпиясөз — кемінде 8 таңба',emailLogin:'Email немесе логин',loginButton:'Кіру',registerButton:'Клиниканы тіркеу',registerLink:'Тіркелу',forgot:'Құпиясөзді ұмыттыңыз ба?',back:'← Кіруге оралу',recover:'Құпиясөзді қалпына келтіру',recoverText:'Жаңа құпиясөз алу үшін бізге жазыңыз.',countries:['Ресей','Беларусь','Армения','Қазақстан','Өзбекстан','БАӘ']},
+  ar:{login:'الحساب الشخصي — Create Dental',register:'تسجيل العيادة',subtitle:'الطلبات والإنتاج والتواصل مع المختبر.',clinic:'اسم العيادة',phone:'الهاتف',email:'البريد الإلكتروني',country:'الدولة',city:'المدينة',address:'العنوان',password:'كلمة المرور — 8 أحرف على الأقل',emailLogin:'البريد الإلكتروني أو اسم المستخدم',loginButton:'دخول',registerButton:'تسجيل العيادة',registerLink:'التسجيل',forgot:'هل نسيت كلمة المرور؟',back:'العودة إلى تسجيل الدخول ←',recover:'استعادة كلمة المرور',recoverText:'راسلنا للحصول على كلمة مرور جديدة.',countries:['روسيا','بيلاروس','أرمينيا','كازاخستان','أوزبكستان','الإمارات']}
+};
+function localizeAuth(){
+  const page=document.querySelector('.portal-login');if(!page)return;
+  let locale='ru';try{locale=localStorage.getItem('create-dental-locale')||'ru'}catch{}
+  if(locale==='hy')locale='am';const t=authTranslations[locale]||authTranslations.ru;page.dir=locale==='ar'?'rtl':'ltr';
+  const title=page.querySelector('h1');if(title)title.textContent=authMode==='register'?t.register:authMode==='recover'?t.recover:t.login;
+  const subtitle=page.querySelector('section>p');if(subtitle)subtitle.textContent=authMode==='recover'?t.recoverText:t.subtitle;
+  const labels=[t.clinic,t.phone,t.email,t.city,t.address,t.password];
+  page.querySelectorAll('#portal-login-form label').forEach((label,index)=>{if(label.querySelector('select')){label.childNodes[0].textContent=t.country;label.querySelectorAll('option').forEach((option,i)=>{option.textContent=t.countries[i]||option.textContent});return}if(label.firstChild?.nodeType===Node.TEXT_NODE){const name=label.querySelector('input')?.name;const byName={name:t.clinic,phone:t.phone,email:t.email,city:t.city,address:t.address,password:t.password};label.firstChild.textContent=byName[name]||t.emailLogin}});
+  const submit=page.querySelector('#portal-login-form .btn.primary');if(submit)submit.textContent=authMode==='register'?t.registerButton:t.loginButton;
+  const links=page.querySelectorAll('.auth-links button');links.forEach(button=>{if(button.dataset.authMode==='register')button.textContent=t.registerLink;else if(button.dataset.authMode==='recover')button.textContent=t.forgot;else button.textContent=t.back});
+  const recovery=page.querySelector('.auth-recovery h2');if(recovery)recovery.textContent=t.recover;
+}
+document.addEventListener('create-dental:locale-changed',localizeAuth);
 function loginView(){
   const field=(label,name,type='text',minimum='',value='')=>`<label>${label}<input name="${name}" type="${type}" value="${escapeHtml(value)}" ${minimum?`minlength="${minimum}"`:''} required></label>`;
   const form=authMode==='register'
-    ?`${field('Название клиники','name','text','',authDraft.name)}${field('Телефон','phone','tel','',authDraft.phone)}${field('Email','email','email','',authDraft.email)}<label>Страна<select name="country" required>${[['RU','Россия'],['BY','Беларусь'],['AM','Армения'],['KZ','Казахстан'],['UZ','Узбекистан'],['AE','Дубай, ОАЭ']].map(([code,name])=>`<option value="${code}" ${authDraft.country===code?'selected':''}>${name}</option>`).join('')}</select></label>${field('Город','city','text','',authDraft.city)}${field('Адрес','address','text','',authDraft.address)}${field('Пароль от 8 символов','password','password',8,authDraft.password)}<button class="btn primary">Зарегистрироваться</button>`
+    ?`${field('Название клиники','name','text','',authDraft.name)}${field('Телефон','phone','tel','',authDraft.phone)}${field('Email','email','email','',authDraft.email)}<label>Страна<select name="country" required>${[['RU','Россия'],['BY','Беларусь'],['AM','Армения'],['KZ','Казахстан'],['UZ','Узбекистан'],['AE','ОАЭ']].map(([code,name])=>`<option value="${code}" ${authDraft.country===code?'selected':''}>${name}</option>`).join('')}</select></label>${field('Город','city','text','',authDraft.city)}${field('Адрес','address','text','',authDraft.address)}${field('Пароль от 8 символов','password','password',8,authDraft.password)}<button class="btn primary">Зарегистрироваться</button>`
     :`${field('Email или логин','email')}${field('Пароль','password','password')}<button class="btn primary">Войти</button>`;
   const links=authMode==='login'
     ?'<div class="auth-links"><button type="button" data-auth-mode="register">Регистрация</button><button type="button" data-auth-mode="recover">Забыли пароль?</button></div>'
@@ -374,6 +394,7 @@ function loginView(){
     ?'<div class="auth-recovery"><h2>Восстановление пароля</h2><p>Обратитесь по почте <a href="mailto:ceo@createdental.ai">ceo@createdental.ai</a>, чтобы получить новый пароль.</p></div>'
     :`<form id="portal-login-form" data-mode="${authMode}">${form}</form>`;
   $('#app').innerHTML=`<main class="portal-login"><div class="portal-login-tools">${languageSwitcherMarkup()}${themeToggleMarkup()}</div><section><img class="portal-logo" src="${logo}" alt="Create Dental"><h1>${authMode==='register'?'Регистрация клиники':'Личный кабинет Create Dental'}</h1><p>Заказы, производство и связь с лабораторией.</p>${content}${links}${authNotice?`<p class="portal-login-success">${escapeHtml(authNotice)}</p>`:''}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section></main>`;
+  localizeAuth();
 }
 function render(){if(!portalReady){if(portalToken()){$('#app').innerHTML='<div class="startup-notice">Загрузка кабинета...</div>';return}loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
 function syncRoute(){
@@ -386,11 +407,11 @@ function syncRoute(){
 async function hydratePortal(){
   const data=await loadPortal();
   if(data.user.role==='technician'&&!technicianCabinet){
-    const {createTechnicianCabinet}=await import('./technician.js?v=portal-language-1');
+    const {createTechnicianCabinet}=await import('./technician.js?v=portal-language-2');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=portal-language-1');
+    const {createWorkerCabinet}=await import('./worker.js?v=portal-language-2');
     workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,orderHistory:()=>portalHistory,onUserUpdate:user=>{portalUser=user}});
   }
   if(portalUser?.subjectId!==data.user.subjectId)state.messages=[];
@@ -510,7 +531,7 @@ async function updateClinicStage(orderId,stage){
   try{await savePortal('orderOverrides',overrides);notify(stage==='Принято доктором'?'Заказ принят':'Статус обновлён');await hydratePortal()}catch(error){notify('Не удалось сохранить статус: '+error.message)}
 }
 function notify(message){state.toast=message;render();clearTimeout(notify.timer);notify.timer=setTimeout(()=>{state.toast='';$('.toast')?.classList.remove('visible')},3000)}
-document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';authNotice='';navigate(pathFor(null,authMode));loginView();if(authMode==='register')import('./location-assist.js?v=phone-mask-2').catch(()=>{})});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';authNotice='';navigate(pathFor(null,authMode));loginView();if(authMode==='register')import('./location-assist.js?v=portal-language-2').catch(()=>{})});
 document.addEventListener('click',async event=>{if(!event.target.closest('[data-auth-logout]'))return;try{await authRequest('logout',{})}catch{}clearPortalToken();portalReady=false;portalUser=null;state.messages=[];state.chatText='';state.role='clinic';authMode='login';navigate('/login',{replace:true});render()});
 document.addEventListener('click',event=>{const sort=event.target.closest('[data-order-sort]');if(!sort||state.role!=='clinic')return;const key=sort.dataset.orderSort;state.sortDirection=state.sortKey===key&&state.sortDirection==='asc'?'desc':'asc';state.sortKey=key;const table=$('.table-wrap');if(table)table.outerHTML=orderTable(filteredOrders().slice(0,state.page==='home'?4:Infinity))});
 document.addEventListener('click',async event=>{
