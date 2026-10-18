@@ -29,6 +29,13 @@ html[data-theme="dark"] .prosthetic-addon-list button:hover:not(:disabled) .pros
 .surgical-socket-quantity button{width:28px;height:28px;min-height:28px;padding:0!important;justify-content:center!important;border:1px solid #c8c8c8!important;border-radius:50%!important;background:#fff!important;color:#555!important;font-size:17px!important;line-height:1!important}
 .surgical-socket-quantity button:disabled{opacity:.4;cursor:not-allowed}
 .surgical-socket-quantity strong{min-width:42px;text-align:center;color:#555;font-size:12px}
+.surgical-socket-order-addon{display:grid;gap:8px;padding:10px 11px;border:1px solid #dfe8ef;border-radius:9px;background:#f7fbfe}
+.surgical-socket-order-heading,.surgical-socket-order-price{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.surgical-socket-order-heading>span{font-size:11px;font-weight:650;color:#536b80}
+.surgical-socket-order-price{font-size:11px;color:#808080}
+.surgical-socket-order-price strong{color:#333}
 html[data-theme="dark"] .surgical-socket-quantity button{background:#1b1b1b!important;border-color:#555!important;color:#eee!important}
 html[data-theme="dark"] .surgical-socket-quantity strong{color:#eee}
+html[data-theme="dark"] .surgical-socket-order-addon{background:#1d2831;border-color:#344656}
+html[data-theme="dark"] .surgical-socket-order-heading>span,html[data-theme="dark"] .surgical-socket-order-price,html[data-theme="dark"] .surgical-socket-order-price strong{color:#d6e1e9}
 @media(max-width:600px){.surgical-socket-quantity{gap:5px}.surgical-socket-quantity button{width:25px;height:25px;min-height:25px}}
