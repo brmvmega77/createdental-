@@ -1,0 +1,15 @@
+/* Keep the clinic dashboard teeth artwork at a steady size as the window widens. */
+.hero img {
+  width: auto;
+  max-width: 47%;
+  height: 100%;
+  object-fit: contain;
+  object-position: right center;
+  flex: 0 1 auto;
+}
+
+@media (max-width: 760px) {
+  .hero img {
+    display: none;
+  }
+}
