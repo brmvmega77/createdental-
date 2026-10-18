@@ -403,3 +403,39 @@
   .order-type-options button { padding: 9px; }
   .order-type-options button small { font-size: 10px; }
 }
+
+/* Order details: make the header, actions and status read as one compact mobile flow. */
+@media (max-width: 760px) {
+  .detail-heading .page-title { gap: 12px; margin: 4px 0 12px; }
+  .detail-heading .page-title > div:first-child { display: grid; gap: 7px; }
+  .detail-heading .page-title h1 { font-size: 22px; line-height: 1.2; overflow-wrap: anywhere; }
+  .detail-heading .page-title p { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0; font-size: 12px; }
+  .detail-actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 7px; }
+  .detail-actions .btn { width: 100%; min-height: 44px; padding: 8px 7px; border-radius: 10px !important; font-size: 12px; line-height: 1.25; white-space: normal; }
+  .detail-heading + .clinic-detail-tabs { margin: 0 0 14px !important; gap: 3px; padding: 4px; border: 1px solid #ededed; border-radius: 13px; background: #f5f5f5; }
+  .clinic-detail-tabs .tab { flex: 1 0 auto; min-height: 40px; padding: 0 9px; border: 0; border-radius: 9px; }
+  .clinic-detail-tabs .tab.active { background: #fff; color: #333; box-shadow: 0 1px 4px #00000010; }
+  .detail-grid { gap: 14px; margin-top: 0; }
+  .detail-main-column, .detail-side-column { gap: 14px; }
+  .detail-main-column > section, .detail-side-column > section { padding: 15px; border: 1px solid #e9e9e9; border-radius: 14px; background: #fff; box-shadow: 0 4px 14px #22222208; }
+  .detail-grid h3 { margin-bottom: 12px; font-size: 16px; line-height: 1.3; }
+  .detail-main-column .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .detail-main-column .facts > div { display: flex; min-width: 0; min-height: 62px; flex-direction: column; justify-content: center; gap: 5px; padding: 9px; border: 1px solid #f0f0f0; border-radius: 10px; }
+  .detail-main-column .facts span { font-size: 11px; font-weight: 600; }
+  .detail-main-column .facts strong { overflow-wrap: anywhere; font-size: 13px; line-height: 1.35; }
+  .clinic-production-timeline { margin: 0 0 2px 5px; padding-left: 5px; }
+  .clinic-production-timeline > div { min-height: 30px; gap: 2px; padding: 0 0 10px 18px; font-size: 12px; line-height: 1.25; }
+  .clinic-production-timeline > div:last-child { min-height: 18px; padding-bottom: 0; }
+  .clinic-stage-progress { width: 100%; max-width: none; margin: 10px 0 0; padding: 12px 13px; }
+  .detail-side-column .clinic-accept-actions { grid-template-columns: 1fr !important; margin-top: 12px; }
+  .detail-grid .order-service-card { padding: 12px; border-radius: 12px; }
+  .detail-grid .order-service-body { grid-template-columns: 84px minmax(0, 1fr); align-items: start; gap: 10px; }
+  .detail-grid .order-service-chart, .detail-grid .order-service-chart .tooth-chart { width: 84px; max-width: 84px; }
+  .detail-grid .order-service-card dl div { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .detail-grid .order-service-card dd { text-align: right; }
+
+  html[data-theme="dark"] .clinic-detail-tabs { border-color: #343a41; background: #202428; }
+  html[data-theme="dark"] .clinic-detail-tabs .tab.active { background: #30363d; color: #f0f1f2; }
+  html[data-theme="dark"] .detail-main-column > section, html[data-theme="dark"] .detail-side-column > section { border-color: #343a41; background: #202428; }
+  html[data-theme="dark"] .detail-main-column .facts > div { border-color: #343a41; }
+}
