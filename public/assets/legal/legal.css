@@ -1,7 +1,7 @@
 :root { color-scheme: light; --ink: #333; --muted: #666; --line: #dedfe0; --paper: #fbfbfb; }
 * { box-sizing: border-box; }
 html { scroll-padding-top: 24px; scrollbar-color: #999 var(--paper); }
-body { margin: 0; color: var(--ink); background: var(--paper); font: 17px/1.75 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+body { min-height: 100vh; min-height: 100svh; margin: 0; display: flex; flex-direction: column; color: var(--ink); background: var(--paper); font: 17px/1.75 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
 ::selection { background: #444; color: white; }
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 4px; overflow-wrap: anywhere; }
 a:hover { color: #111; }
@@ -11,7 +11,7 @@ a:focus-visible { outline: 2px solid #555; outline-offset: 5px; border-radius: 2
 .legal-header { width: min(100% - 72px, 1500px); margin-inline: auto; min-height: 99px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--line); padding-block: 12px; }
 .legal-header img { display: block; width: 185px; height: 74px; object-fit: contain; }
 .back-link { font-size: 14px; text-align: right; }
-main { max-width: 800px; margin: 72px auto 96px; padding-inline: 24px; }
+main { width: 100%; max-width: 800px; flex: 1 0 auto; margin: 72px auto 0; padding-inline: 24px; }
 h1 { font-size: clamp(32px, 5vw, 54px); line-height: 1.12; letter-spacing: -.035em; margin: 0 0 24px; font-weight: 750; text-wrap: balance; overflow-wrap: break-word; }
 .lead { font-size: 20px; line-height: 1.6; color: var(--muted); margin: 0 0 20px; }
 .version { font-size: 13px; color: var(--muted); }
@@ -32,7 +32,7 @@ dt { font-size: 13px; color: var(--muted); margin-top: 18px; }
 dt:first-child { margin-top: 0; }
 dd { margin: 3px 0 0; overflow-wrap: anywhere; }
 mark { color: var(--ink); background: #e7e7e7; padding: 2px 5px; font-weight: 650; }
-.legal-footer { border-top: 1px solid var(--line); max-width: 1500px; margin: 0 36px; padding: 28px 0 36px; display: flex; justify-content: center; flex-wrap: wrap; gap: 16px 32px; text-align: center; font-size: 13px; color: var(--muted); }
+.legal-footer { width: min(100% - 72px, 1500px); border-top: 1px solid var(--line); margin: auto auto 0; padding: 28px 0 36px; display: flex; justify-content: center; flex-wrap: wrap; gap: 16px 32px; text-align: center; font-size: 13px; color: var(--muted); }
 .legal-footer span { flex-basis: 100%; font-size: 11px; letter-spacing: .12em; }
 @media (min-width: 1572px) { .legal-footer { margin-inline: auto; } }
 @media (max-width: 560px) {
@@ -40,7 +40,7 @@ mark { color: var(--ink); background: #e7e7e7; padding: 2px 5px; font-weight: 65
  .legal-header { width: calc(100% - 32px); min-height: 80px; gap: 18px; }
  .legal-header img { width: 132px; height: 53px; }
  .back-link { font-size: 13px; }
- main { margin: 40px auto 56px; padding-inline: 20px; }
+ main { margin: 40px auto 0; padding-inline: 20px; }
  .lead { font-size: 18px; }
  .draft-note { padding: 18px; }
  section { margin-top: 36px; }

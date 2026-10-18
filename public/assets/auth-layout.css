@@ -54,7 +54,7 @@ html[data-theme="dark"] .portal-footer-legal a:hover, html[data-theme="dark"] .p
 
 /* Keep short portal pages bottom-aligned while the sign-in card stays centered. */
 .shell { display: flex; flex-direction: column; }
-.shell > .content { flex: 1 0 auto; }
+.shell > .content { flex: 1 0 auto; margin-block: 0; }
 .shell > .portal-footer { margin-top: auto; }
 .portal-login { min-height: 100vh; min-height: 100svh; justify-content: flex-start; padding: 24px 24px 0; }
 .portal-login > section { margin-block: auto; }
