@@ -1005,10 +1005,11 @@ function addProstheticAddon(optionName){
   if(!option)return notify('Не удалось найти выбранную позицию протетики');
   if(!variantIsComplete(current))return notify('Сначала выберите зубы и исполнение текущей услуги');
   if((state.orderVariants||[]).length>=9)return notify('В одном заказе можно добавить до 10 услуг');
-  state.orderVariants=[...(state.orderVariants||[]),current];
-  state.work=category.name;state.workOption=optionName;state.form.construction=category.name;state.form.material=optionName;
-  if(isNoTeethSelection(state.work,optionName)){state.selectedTeeth=[];state.toothMode='Одиночка';state.bridgeRanges=[];state.bridgeStart=null}
-  render();notify('Протетика добавлена в ваш заказ');
+  const addon={...current,work:category.name,workOption:optionName};
+  if(isNoTeethSelection(category.name,optionName)){addon.selectedTeeth=[];addon.toothMode='Одиночка';addon.bridgeRanges=[]}
+  state.orderVariants=[...(state.orderVariants||[]),current,addon];
+  resetCurrentVariant();
+  render();notify('Позиция добавлена в заказ · выберите следующую услугу');
 }
 function addCurrentOrderToCart(){if(state.cart.length>=19)return notify('За один раз можно оформить до 20 заказов');state.cart.push(currentOrderDraft());resetOrderDraft();notify('Заказ добавлен в корзину. Заполните следующий заказ.')}
 function startAnotherCartOrder(){
