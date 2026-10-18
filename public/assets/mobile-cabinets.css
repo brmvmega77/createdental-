@@ -1,0 +1,152 @@
+/* Shared mobile navigation for the clinic, technician and chief-technician cabinets. */
+.mobile-bottom-nav { display: none; }
+.mobile-sidebar-logout { display: none; }
+
+@media (max-width: 900px) {
+  html, body, #app { width: 100%; max-width: 100%; overflow-x: hidden; }
+  .sidebar {
+    position: fixed;
+    z-index: 60;
+    inset: 0 auto 0 0;
+    width: min(82vw, 290px);
+    overflow-y: auto;
+    transform: translateX(-105%);
+    transition: transform .2s ease;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .shell, .tech-shell {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    padding: 0 16px calc(94px + env(safe-area-inset-bottom));
+    overflow-x: hidden;
+  }
+  .content, .tech-content { width: 100%; max-width: 100%; min-width: 0; }
+  .dashboard-grid, .dashboard-aside, .tech-analytics-grid,
+  .tech-work-grid, .tech-team-grid, .clinic-content, .form-grid,
+  .patient-fields, .order-builder, .detail-grid, .tech-detail-grid,
+  .teeth-layout, .confirmation, .order-files-layout {
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+  .order-builder { gap: 22px; }
+  .order-draft { position: static; grid-column: auto; }
+  .order-draft-card { grid-template-columns: 1fr; }
+  .order-draft-card dl, .order-draft-card small { grid-column: auto; }
+  .clinic-form .form-grid { max-width: none; }
+  .tech-pricing-list { grid-template-columns: minmax(0, 1fr) !important; }
+  .tech-sidebar { width: min(82vw, 290px); }
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    height: 60px;
+    margin: 0 -16px 14px;
+    padding: 0 16px;
+    gap: 9px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fbfbfbf2;
+    backdrop-filter: blur(10px);
+  }
+  .topbar .profile { max-width: 44px; overflow: hidden; padding: 0; }
+  .topbar .profile > span:nth-child(2), .topbar .profile > svg,
+  .topbar-label, .clinic-select { display: none; }
+  .topbar .profile .avatar { width: 36px; height: 36px; }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    z-index: 55;
+    inset: auto 0 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 2px;
+    min-height: 64px;
+    padding: 5px max(8px, env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    border-top: 1px solid #e9e9e9;
+    background: #fff;
+  }
+
+  .mobile-bottom-item {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    min-height: 50px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 4px 2px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #808080;
+    font-size: 10px;
+    font-weight: 550;
+    line-height: 1.15;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-bottom-item svg { flex: 0 0 auto; }
+  .mobile-bottom-item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-bottom-item.active { background: #f5f5f5; color: #333; font-weight: 700; }
+  .mobile-bottom-item[data-page="new"] { background: #808080; color: #fff; }
+  .mobile-bottom-item:focus-visible { outline: 2px solid #808080; outline-offset: -2px; }
+  .mobile-nav-count {
+    position: absolute;
+    top: 1px;
+    right: max(2px, calc((100% - 54px) / 2));
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: #333;
+    color: #fff;
+    font-size: 9px;
+    font-style: normal;
+    line-height: 16px;
+  }
+
+  .shell, .tech-shell { padding-bottom: calc(94px + env(safe-area-inset-bottom)); }
+  .mobile-menu { display: none !important; }
+  .sidebar.open { z-index: 70; box-shadow: 0 0 0 100vmax #33333338, 10px 0 30px #33333329; }
+  .role-toggle { display: none !important; }
+  .mobile-sidebar-logout {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 48px;
+    margin-top: 12px;
+    padding: 0 13px;
+    border: 1px solid #ededed;
+    border-radius: 10px;
+    background: #fff;
+    color: #707070;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+  }
+  .tech-sidebar .mobile-sidebar-logout { margin-top: auto; }
+  .tech-icon-btn, .tech-dialog-close, .more-btn,
+  .work-picker-title > button, .order-cart article button,
+  .surgical-socket-quantity button { min-width: 40px; min-height: 40px; }
+  .tech-pricing-row input, .tech-pricing-row select { min-height: 44px; font-size: 16px; }
+  .order-cart article { grid-template-columns: minmax(0, 1fr) 40px; }
+  .order-cart article button { width: 40px; height: 40px; }
+  .toast { bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 56; }
+
+  html[data-theme="dark"] .mobile-bottom-nav { border-color: #343a41; background: #17191c; }
+  html[data-theme="dark"] .mobile-bottom-item { color: #9da4ad; }
+  html[data-theme="dark"] .mobile-bottom-item.active { background: #252a2f; color: #f0f1f2; }
+  html[data-theme="dark"] .mobile-bottom-item[data-page="new"] { background: #808890; color: #17191c; }
+  html[data-theme="dark"] .mobile-nav-count { background: #e6e8eb; color: #17191c; }
+  html[data-theme="dark"] .mobile-sidebar-logout { border-color: #343a41; background: #202428; color: #cbd2d9; }
+  html[data-theme="dark"] .topbar { border-color: #343a41; background: #17191cf2; }
+}
+
+@media (max-width: 360px) {
+  .mobile-bottom-nav { gap: 0; padding-inline: max(4px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-right)); }
+  .mobile-bottom-item { font-size: 9px; }
+}
