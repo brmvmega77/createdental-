@@ -6,7 +6,7 @@ import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWork
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=theme-icon-1';
 import {openOrderPrint} from './order-print.js?v=order-print-8';
 import {orderWorkTypes,orderWorkLabel,orderEventSummary} from './order-list-utils.js?v=service-label-4';
-import {productionStages,compactStageLabel} from './technician.js?v=mobile-cabinets-11';
+import {productionStages,compactStageLabel} from './technician.js?v=mobile-cabinets-13';
 import {SURGICAL_TEMPLATE_CATEGORY,SURGICAL_SOCKET_OPTION,SURGICAL_SOCKETS_PER_JAW,adjustSurgicalSockets,isSurgicalTemplate,isSurgicalSocket,hasSurgicalJaw,maxSurgicalSockets,surgicalVariantUnits,groupSurgicalSockets} from '/assets/surgical-template-utils.js?v=surgical-sockets-3';
 import './location-assist.js?v=country-cities-1';
 
@@ -1001,11 +1001,11 @@ function syncRoute(){
 async function hydratePortal(){
   const data=await loadPortal();
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=mobile-cabinets-11');
+      const {createTechnicianCabinet}=await import('./technician.js?v=mobile-cabinets-13');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=mobile-cabinets-11');
+    const {createWorkerCabinet}=await import('./worker.js?v=mobile-cabinets-13');
     workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,orderHistory:()=>portalHistory,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   if(portalUser?.subjectId!==data.user.subjectId)state.messages=[];
@@ -1340,7 +1340,7 @@ document.addEventListener('submit',async event=>{
   try{await requestOrderRework(state.reworkOrderId,reason);state.reworkOrderId='';await hydratePortal();notify('Заказ отправлен на доработку')}
   catch(error){notify(error.message);if(submit.isConnected)submit.disabled=false}
 });
-document.addEventListener('submit',async event=>{if(event.target.id==='chat-form'){event.preventDefault();const msg=state.chatText.trim(),pending=state.chatAttachment;if(!msg&&!pending)return;const send=event.target.querySelector('.send-btn');send.disabled=true;try{const uploaded=pending?(pending.uploaded||await uploadClinicMessageFile(pending.file)):null;if(pending&&!pending.uploaded)state.chatAttachment={...pending,uploaded};const attachment=uploaded?{...uploaded,preview:pending.preview||''}:null;const response=await fetch('/api/clinic-messages',{method:'POST',headers:{'Content-Type':'application/json','X-Portal-Token':portalToken()},body:JSON.stringify({text:msg,attachment})});if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.error||'Не удалось отправить сообщение')}state.chatText='';state.chatAttachment=null;await loadMessages()}catch(error){state.chatStatus=error.message;if($('#chat-status'))$('#chat-status').textContent=state.chatStatus}finally{if(send.isConnected)send.disabled=false}}});
+document.addEventListener('submit',async event=>{if(event.target.id==='chat-form'){event.preventDefault();const msg=state.chatText.trim(),pending=state.chatAttachment;if(!msg&&!pending)return;const send=event.target.querySelector('.send-btn');send.disabled=true;try{const uploaded=pending?(pending.uploaded||await uploadClinicMessageFile(pending.file)):null;if(pending&&!pending.uploaded)state.chatAttachment={...pending,uploaded};const attachment=uploaded?{...uploaded,preview:pending.preview||''}:null;const response=await fetch('/api/clinic-messages',{method:'POST',headers:{'Content-Type':'application/json','X-Portal-Token':portalToken()},body:JSON.stringify({text:msg,attachment})});if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.error||'Не удалось отправить сообщение')}state.chatText='';state.chatAttachment=null;const input=$('#chat-input');if(input)input.value='';$('#chat-form .chat-pending-file')?.remove();await loadMessages()}catch(error){state.chatStatus=error.message;if($('#chat-status'))$('#chat-status').textContent=state.chatStatus}finally{if(send.isConnected)send.disabled=false}}});
 document.addEventListener('submit',async event=>{
   if(event.target.id!=='portal-login-form')return;
   event.preventDefault();

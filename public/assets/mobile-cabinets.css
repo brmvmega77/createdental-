@@ -234,7 +234,10 @@
   .worker-table td:nth-child(6)::before { content: 'Действие'; }
   .worker-table td:nth-child(1), .worker-table td:nth-child(3) { grid-column: 1 / -1; }
   .worker-table td:nth-child(2), .worker-table td:nth-child(4) { grid-column: span 1; }
-  .worker-table td:nth-child(6) { grid-column: 2; justify-items: end; }
+  .worker-table td:nth-child(5), .worker-table td:nth-child(6) { grid-column: 1 / -1; }
+  .worker-table td:nth-child(5) .tech-stage { max-width: 100%; white-space: normal; line-height: 1.35; }
+  .worker-table td:nth-child(6) { align-items: center; }
+  .worker-table td:nth-child(6) .tech-link { min-height: 44px; justify-self: end; }
   .tech-panel, .card, .clinic-panel { min-width: 0; }
   .clinic-tabs, .tech-segment, .tabs { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
   .wizard.order-flow { display: grid; gap: 18px; min-height: 0; padding: 0 0 158px; overflow: visible; border: 0; background: transparent; box-shadow: none; }
@@ -429,6 +432,18 @@
   .chief-messages > .contacts .contact span:nth-child(2) { min-width: 0; }
   .chief-messages > .contacts .contact small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chief-messages > .conversation { min-height: min(54dvh, 560px); }
+  .chief-messages.is-empty > .contacts { display: none; }
+  .chief-messages.is-empty > .conversation { min-height: 180px; }
+}
+
+@media (max-width: 620px) {
+  .tech-pricing-row { grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr); }
+  .tech-pricing-row select { padding-right: 24px; }
+}
+
+@media (max-width: 360px) {
+  .tech-pricing-row { grid-template-columns: minmax(0, 1fr); }
+  .tech-pricing-name { grid-column: 1; }
 }
 
 @media (max-width: 380px) {
