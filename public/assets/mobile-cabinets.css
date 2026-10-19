@@ -1,6 +1,7 @@
 /* Shared mobile navigation for the clinic, technician and chief-technician cabinets. */
 .mobile-bottom-nav { display: none; }
 .mobile-sidebar-logout { display: none; }
+.mobile-drawer-backdrop { display: none; }
 
 @media (max-width: 900px) {
   html, body, #app { width: 100%; max-width: 100%; overflow-x: hidden; }
@@ -110,7 +111,7 @@
 
   .shell, .tech-shell { padding-bottom: calc(94px + env(safe-area-inset-bottom)); }
   .mobile-menu { display: none !important; }
-  .sidebar.open { z-index: 70; box-shadow: 0 0 0 100vmax #33333338, 10px 0 30px #33333329; }
+  .sidebar.open { z-index: 70; box-shadow: 10px 0 30px #33333329; }
   .role-toggle { display: none !important; }
   .mobile-sidebar-logout {
     display: flex;
@@ -144,6 +145,21 @@
   html[data-theme="dark"] .mobile-nav-count { background: #e6e8eb; color: #17191c; }
   html[data-theme="dark"] .mobile-sidebar-logout { border-color: #343a41; background: #202428; color: #cbd2d9; }
   html[data-theme="dark"] .topbar { border-color: #343a41; background: #17191cf2; }
+}
+
+@media (max-width: 900px), (max-height: 560px) and (orientation: landscape) {
+  .sidebar.open + .mobile-drawer-backdrop {
+    position: fixed;
+    z-index: 65;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: #22222238;
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 @media (max-width: 360px) {
@@ -394,6 +410,27 @@
   html[data-theme="dark"] .clinic-form .save-field { background: linear-gradient(180deg, transparent, #17191c 25%); }
 }
 
+/* The chief technician has many conversations, so keep clinic switching visible on phones. */
+@media (max-width: 900px) {
+  .chief-messages { display: flex; min-height: 0; flex-direction: column; gap: 8px; overflow: visible; }
+  .chief-messages > .contacts {
+    display: flex;
+    max-height: 78px;
+    flex: 0 0 auto;
+    gap: 7px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 0 8px;
+    border: 0;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chief-messages > .contacts .contact { display: flex; min-width: min(72vw, 250px); min-height: 58px; flex: 0 0 auto; border: 1px solid #ededed; border-radius: 12px; }
+  .chief-messages > .contacts .contact span:nth-child(2) { min-width: 0; }
+  .chief-messages > .contacts .contact small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chief-messages > .conversation { min-height: min(54dvh, 560px); }
+}
+
 @media (max-width: 380px) {
   .shell, .tech-shell { padding-right: 10px; padding-left: 10px; }
   .topbar { margin-right: -10px; margin-left: -10px; padding-right: 10px; padding-left: 10px; }
@@ -521,6 +558,11 @@
   .messages-layout .chat-compose { flex: 0 0 auto; padding: 6px 8px; }
   .messages-layout .chat-compose input { min-height: 38px; }
   .messages-layout .chat-attach-button, .messages-layout .send-btn { width: 38px; min-width: 38px; height: 38px; }
+  .chief-messages { display: grid; grid-template-rows: 56px minmax(0, 1fr); height: calc(100dvh - 170px); min-height: 120px; }
+  .chief-messages > .contacts { display: flex; min-height: 0; max-height: 56px; grid-row: 1; gap: 6px; overflow-x: auto; overflow-y: hidden; padding: 2px 0 6px; }
+  .chief-messages > .contacts .contact { min-width: min(55vw, 210px); min-height: 44px; padding: 6px 8px; }
+  .chief-messages > .contacts .contact-avatar { width: 30px; height: 30px; }
+  .chief-messages > .conversation { grid-row: 2; min-height: 0; height: 100%; }
 
   .order-builder { grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); align-items: start; gap: 10px; }
   .order-builder section { padding: 12px; }
