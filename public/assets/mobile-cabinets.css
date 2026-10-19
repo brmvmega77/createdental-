@@ -320,10 +320,20 @@
 
   .tech-heading, .clinic-heading { align-items: flex-start; flex-direction: column; gap: 10px; }
   .tech-heading > *, .clinic-heading > * { max-width: 100%; }
+  .tech-heading:has(.tech-task-count) { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+  .tech-heading:has(.tech-task-count) > div:first-child { min-width: 0; }
+  .tech-heading .tech-task-count { flex: 0 0 auto; }
+  .task-column:has(.task-column-empty) { min-height: 0; }
+  .task-column-empty { margin: 16px 3px 8px; }
+  .tech-profile-editor, .tech-profile-editor .tech-client-form { grid-template-columns: minmax(0, 1fr); }
+  .tech-profile-editor > *, .tech-profile-editor .tech-client-form > * { min-width: 0; max-width: 100%; }
+  .worker-rate-note { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .worker-rate-note span { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
   .tech-panel, .clinic-panel, .dashboard-card { padding: 15px; border-radius: 14px; }
   .tech-panel h2, .clinic-panel h2 { font-size: 18px; }
-  .tech-toolbar, .tech-order-tools { align-items: stretch; flex-wrap: wrap; gap: 9px; }
+  .tech-toolbar, .tech-order-tools { grid-template-columns: minmax(0, 1fr); align-items: stretch; flex-wrap: wrap; gap: 9px; }
   .tech-toolbar > *, .tech-order-tools > * { min-width: 0; max-width: 100%; }
+  .tech-order-tools > .tech-segment, .tech-order-tools > .tech-order-searchbar { width: 100%; }
   .tech-toolbar .btn, .tech-order-tools .btn { min-height: 44px; }
   .tech-dialog-backdrop, .modal-backdrop { padding: 10px; }
   .tech-dialog, .modal { width: min(100%, 520px); max-width: 100%; max-height: calc(100dvh - 20px); overflow-y: auto; padding: 18px; border-radius: 16px; }
