@@ -1,0 +1,48 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {createHash} from 'node:crypto';
+import {spawn} from 'node:child_process';
+
+const task=(id,assigneeId='worker-a',assigneeName='Техник А')=>({id,title:'Проверить работу',description:'Описание задачи',orderId:'',clinic:'',patient:'',work:'',assigneeId,assigneeName,priority:'normal',status:'backlog',dueDate:'',createdBy:'Прежний руководитель',createdAt:'2026-10-01T10:00:00.000Z',updatedAt:'2026-10-01T10:00:00.000Z',completedAt:''});
+
+test('tasks persist with trusted authors and role-scoped status updates',async context=>{
+  const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'create-dental-tasks-'));
+  const data=path.join(temporary,'.data');fs.mkdirSync(data);
+  const legacy=task('legacy','inactive','Бывший техник');
+  fs.writeFileSync(path.join(data,'portal.json'),JSON.stringify({orders:[],orderOverrides:{},orderHistory:[],clientRequests:[],tasks:[legacy],clients:[{id:'clinic-test',name:'Тестовая клиника',originalName:'Тестовая клиника',telegramCode:'CD-CL-12345678',approved:true}],employees:[{id:'worker-a',name:'Техник А',originalName:'Техник А',status:'active'},{id:'worker-b',name:'Техник Б',originalName:'Техник Б',status:'active'},{id:'inactive',name:'Бывший техник',originalName:'Бывший техник',status:'disabled'}]}));
+  fs.writeFileSync(path.join(data,'accounts.json'),'[]');
+  const sessions=[['chief','technician','chief','Руководитель'],['worker','worker','worker-a','Техник А'],['clinic','clinic','clinic-test','Клиника']].map(([token,role,subjectId,displayName])=>['sha256:'+createHash('sha256').update(token).digest('hex'),{role,subjectId,displayName,expires:Date.now()+120000}]);
+  fs.writeFileSync(path.join(data,'sessions.json'),JSON.stringify(sessions));
+  const port=45000+Math.floor(Math.random()*1000);
+  const child=spawn(process.execPath,[path.resolve(process.env.TASK_TEST_SERVER||'server.js')],{cwd:temporary,env:{...process.env,PORT:String(port),HOST:'127.0.0.1'},stdio:['ignore','pipe','pipe']});
+  context.after(()=>{child.kill('SIGTERM');fs.rmSync(temporary,{recursive:true,force:true})});
+  await new Promise((resolve,reject)=>{let errors='';const timer=setTimeout(()=>reject(new Error('Task test server did not start: '+errors)),5000);child.stderr.on('data',chunk=>errors+=chunk);child.once('exit',code=>{clearTimeout(timer);reject(new Error('Task test server exited '+code+': '+errors))});child.stdout.on('data',chunk=>{if(String(chunk).includes('Create Dental:')){clearTimeout(timer);resolve()}})});
+  const api=async(token='chief',value)=>{const response=await fetch(`http://127.0.0.1:${port}/api/portal${value===undefined?'':'/tasks'}`,{method:value===undefined?'GET':'PUT',headers:{'X-Portal-Token':token,'Content-Type':'application/json'},body:value===undefined?undefined:JSON.stringify(value)});return {status:response.status,body:await response.json()}};
+  const first=task('new-a');first.createdBy='Подменённый автор';
+  assert.equal((await api('chief',[legacy,first])).status,200);
+  let snapshot=(await api()).body;
+  assert.equal(snapshot.tasks.find(item=>item.id==='new-a').createdBy,'Руководитель');
+  assert.deepEqual(snapshot.tasks.find(item=>item.id==='legacy'),legacy);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(data,'portal.json'),'utf8')).tasks.length,2);
+  const second=task('new-b','worker-b','Техник Б');
+  assert.equal((await api('chief',[...snapshot.tasks,second])).status,200);
+  assert.equal((await api('chief',[...snapshot.tasks,task('invalid','inactive','Бывший техник')])).status,403);
+  assert.equal((await api('chief',null)).status,400);
+  assert.equal((await api('clinic',[])).status,403);
+  assert.equal((await api('',[])).status,401);
+  assert.deepEqual((await api('clinic')).body.tasks,[]);
+  const workerTasks=(await api('worker')).body.tasks;
+  assert.equal(workerTasks.length,1);
+  const own=workerTasks[0];
+  assert.equal((await api('worker',[{...own,title:'Подмена задания'}])).status,403);
+  assert.equal((await api('worker',[{...second,status:'done'}])).status,403);
+  assert.equal((await api('worker',[{...own,status:'done'}])).status,200);
+  snapshot=(await api()).body;
+  assert.equal(snapshot.tasks.length,3);
+  assert.equal(snapshot.tasks.find(item=>item.id==='new-a').status,'done');
+  assert.ok(snapshot.tasks.find(item=>item.id==='new-a').completedAt);
+  assert.equal(snapshot.tasks.find(item=>item.id==='new-b').status,'backlog');
+});

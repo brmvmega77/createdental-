@@ -6,7 +6,7 @@ import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWork
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
 import {openOrderPrint} from './order-print.js?v=order-print-8';
 import {orderWorkTypes,orderWorkLabel,orderEventSummary} from './order-list-utils.js?v=service-label-4';
-import {productionStages,compactStageLabel} from './technician.js?v=light-only-1';
+import {productionStages,compactStageLabel} from './technician.js?v=task-dialog-1';
 import {SURGICAL_TEMPLATE_CATEGORY,SURGICAL_SOCKET_OPTION,SURGICAL_SOCKETS_PER_JAW,adjustSurgicalSockets,isSurgicalTemplate,isSurgicalSocket,hasSurgicalJaw,maxSurgicalSockets,surgicalVariantUnits,groupSurgicalSockets} from '/assets/surgical-template-utils.js?v=surgical-sockets-3';
 import './location-assist.js?v=country-cities-1';
 
@@ -1000,7 +1000,7 @@ function syncRoute(){
 async function hydratePortal(){
   const data=await loadPortal();
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=light-only-1');
+      const {createTechnicianCabinet}=await import('./technician.js?v=task-dialog-1');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){

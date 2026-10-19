@@ -243,10 +243,45 @@ async function readBody(req,limit=8192) {
   return JSON.parse(body || '{}');
 }
 
+async function handleTaskUpdate(req,res,user,snapshot){
+  if(!['technician','worker'].includes(user.role))return json(res,403,{error:'Доступ запрещён'});
+  let value;
+  try{value=await readBody(req,500000)}catch{return json(res,400,{error:'Неверные данные задач'})}
+  if(!Array.isArray(value)||value.some(task=>!task||typeof task!=='object'||Array.isArray(task)))return json(res,400,{error:'Неверные данные задач'});
+  const previous=new Map(snapshot.tasks.map(task=>[task.id,task]));
+  const changed=value.filter(task=>JSON.stringify(task)!==JSON.stringify(previous.get(task.id)));
+  const stamp=new Date().toISOString();
+  if(user.role==='worker'){
+    if(changed.length!==1)return json(res,403,{error:'Можно изменить только одну свою задачу'});
+    const task=changed[0],old=previous.get(task.id);
+    if(!old||old.assigneeId!==user.subjectId||Object.keys({...old,...task}).some(key=>!['status','updatedAt','completedAt'].includes(key)&&JSON.stringify(old[key])!==JSON.stringify(task[key])))return json(res,403,{error:'Сотрудник может менять только статус своей задачи'});
+    if(!['backlog','in_progress','review','done'].includes(task.status))return json(res,400,{error:'Неверный статус задачи'});
+    value=snapshot.tasks.map(item=>item.id===old.id?{...old,status:task.status,updatedAt:stamp,completedAt:task.status==='done'?(old.completedAt||stamp):''}:item);
+  }else{
+    const activeEmployees=new Map(snapshot.employees.filter(employee=>employee.status==='active').map(employee=>[employee.id,employee]));
+    if(changed.some(task=>{const employee=activeEmployees.get(task.assigneeId);return !employee||task.assigneeName!==employee.name}))return json(res,403,{error:'Задачу можно назначить только активному сотруднику'});
+    const changedIds=new Set(changed.map(task=>task.id));
+    value=value.map(task=>{
+      if(!changedIds.has(task.id))return previous.get(task.id);
+      const old=previous.get(task.id);
+      return {...task,createdBy:old?.createdBy||actorName(user),createdAt:old?.createdAt||stamp,updatedAt:stamp,completedAt:task.status==='done'?(old?.completedAt||stamp):''};
+    });
+  }
+  try{
+    await replacePortalCollection('tasks',value,{role:user.role,name:actorName(user)});
+    for(const task of value){
+      const before=previous.get(task.id),employee=portalEmployee(task.assigneeId);
+      if(employee&&(task.assigneeId!==before?.assigneeId||task.status!==before?.status))void employeeTelegramBridge?.notifyTask?.(task,employee,before||{}).catch(error=>console.error('Employee Telegram task notification failed:',error.message));
+    }
+    return json(res,200,{ok:true});
+  }catch(error){return json(res,error.message==='invalid_collection'?400:500,{error:error.message==='invalid_collection'?'Неверные данные задач':'Не удалось сохранить задачу'})}
+}
+
 async function handlePortal(req,res,url){
   const user=session(req);
   if(!user)return json(res,401,{error:'Войдите в кабинет'});
   const snapshot=portalSnapshot();
+  if(req.method==='PUT'&&url.pathname==='/api/portal/tasks')return handleTaskUpdate(req,res,user,snapshot);
   if(req.method==='GET'&&url.pathname==='/api/portal'){
     if(user.role==='clinic'){
       snapshot.clients=snapshot.clients.filter(item=>item.id===user.subjectId);
@@ -255,6 +290,7 @@ async function handlePortal(req,res,url){
       snapshot.orderOverrides=Object.fromEntries(Object.entries(snapshot.orderOverrides).filter(([id])=>snapshot.orders.some(order=>order.id===id)).map(([id,detail])=>[id,publicClinicOverride(detail)]));
       snapshot.orderHistory=snapshot.orderHistory.filter(event=>event.clinicId===user.subjectId||snapshot.orders.some(order=>order.id===event.orderId)).map(publicClinicHistoryEvent);
       snapshot.clientRequests=snapshot.clientRequests.filter(item=>item.clinicId===user.subjectId);
+      snapshot.tasks=[];
     }else if(user.role==='worker'){
       const employee=portalEmployee(user.subjectId);
       // A worker can be assigned in either role. CAD/CAM operators and
@@ -269,6 +305,7 @@ async function handlePortal(req,res,url){
       snapshot.orderOverrides=Object.fromEntries(Object.entries(snapshot.orderOverrides).filter(([id])=>snapshot.orders.some(order=>order.id===id)));
       snapshot.orderHistory=snapshot.orderHistory.filter(event=>snapshot.orders.some(order=>order.id===event.orderId));
       snapshot.clientRequests=[];
+      snapshot.tasks=snapshot.tasks.filter(task=>task.assigneeId===user.subjectId);
     }
     return json(res,200,{...snapshot,user:publicUser(user)});
   }

@@ -141,6 +141,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   const sidebarCollapseMarkup = () => `<button class="sidebar-collapse-toggle" data-tech-sidebar-toggle aria-label="${sidebarCollapsed()?'Развернуть':'Свернуть'} боковое меню" title="${sidebarCollapsed()?'Развернуть':'Свернуть'} боковое меню">${icon('chevron',16)}</button>`;
   const sidebarMark = '<span class="sidebar-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9c3-3.2 7.4-3.5 12-1 4.6-2.5 9-2.2 12 1 2.6 2.8 1.6 8.2.6 12.9-.9 4.5-2 10.6-4.6 15-.9 1.5-3.1 1.4-4-.2l-3.9-8.1c-.8-1.6-3.3-1.6-4.1 0l-3.9 8.1c-.9 1.6-3.1 1.7-4 .2-2.6-4.4-3.7-10.5-4.6-15C10.4 17.2 9.4 11.8 12 9Z"/><path d="M18 10.5c.3 3.1.5 5.6 1.6 7.2M30 10.5c-.3 3.1-.5 5.6-1.6 7.2"/></svg></span>';
   let cadPreviewRequest=0;
+  let taskSaving=false;
   let messagesRequest=0;
   const chiefAvatarKey='create-dental-chief-avatar';
   function storedChiefAvatar(){try{return localStorage.getItem(chiefAvatarKey)||''}catch{return ''}}
@@ -600,7 +601,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(!state.taskCreateOpen)return '';
     const orderOptions=allOrders().slice().sort((a,b)=>String(a.id).localeCompare(String(b.id),'ru')).map(order=>`<option value="${safe(order.id)}">${safe(order.id)} · ${safe(order.patient||'Пациент не указан')}</option>`).join('');
     const employeeOptions=activeTeam.map(employee=>`<option value="${safe(employee.id)}">${safe(employee.name)} · ${safe(employeeSpecialtyDisplayLabel(employee.specialty))}</option>`).join('');
-    return `<div class="tech-dialog-backdrop task-create-backdrop" data-task-create="backdrop"><section class="tech-dialog task-create-dialog" role="dialog" aria-modal="true" aria-labelledby="task-create-title"><button type="button" class="tech-dialog-close" data-task-create="close" aria-label="Закрыть">×</button><span class="upload-dialog-eyebrow">КАНБАН ЗАДАЧ</span><h2 id="task-create-title">Добавить карточку</h2><p>Заполните задачу и, если нужно, привяжите её к заказу.</p><form id="tech-task-form" class="task-modal-form"><label>Задача<input name="title" maxlength="200" required placeholder="Например: проверить посадку каркаса"></label><label>Заказ<select name="orderId"><option value="">Без привязки к заказу</option>${orderOptions}</select></label><div class="task-modal-grid"><label>Клиника<input name="clinic" maxlength="200" placeholder="Название клиники"></label><label>Пациент<input name="patient" maxlength="200" placeholder="ФИО пациента"></label><label>Работа<input name="work" maxlength="200" placeholder="Тип работы"></label><label>Исполнитель<select name="assigneeId" required><option value="">Выберите сотрудника</option>${employeeOptions}</select></label><label>Приоритет<select name="priority">${taskPriorities.map(item=>`<option value="${item.key}" ${item.key==='normal'?'selected':''}>${item.label}</option>`).join('')}</select></label><label>Срок<input name="dueDate" type="date"></label></div><label>Описание<textarea name="description" rows="3" maxlength="4000" placeholder="Что нужно сделать и какой результат ожидается"></textarea></label><div class="task-modal-actions"><button type="button" class="btn outline" data-task-create="close">Отмена</button><button class="btn primary" type="submit">Добавить карточку</button></div></form></section></div>`;
+    return `<div class="tech-dialog-backdrop task-create-backdrop" data-task-create="backdrop"><section class="tech-dialog task-create-dialog" role="dialog" aria-modal="true" aria-labelledby="task-create-title"><button type="button" class="tech-dialog-close" data-task-create="close" aria-label="Закрыть">×</button><span class="upload-dialog-eyebrow">КАНБАН ЗАДАЧ</span><h2 id="task-create-title">Добавить карточку</h2><p>Заполните задачу и, если нужно, привяжите её к заказу.</p><form id="tech-task-form" class="task-modal-form"><label>Задача<input name="title" maxlength="200" required placeholder="Например: проверить посадку каркаса"></label><label>Заказ<select name="orderId"><option value="">Без привязки к заказу</option>${orderOptions}</select></label><div class="task-modal-grid"><label>Клиника<input name="clinic" maxlength="200" placeholder="Название клиники"></label><label>Пациент<input name="patient" maxlength="200" placeholder="ФИО пациента"></label><label>Работа<input name="work" maxlength="200" placeholder="Тип работы"></label><label>Исполнитель<select name="assigneeId" required><option value="">Выберите сотрудника</option>${employeeOptions}</select></label><label>Приоритет<select name="priority">${taskPriorities.map(item=>`<option value="${item.key}" ${item.key==='normal'?'selected':''}>${item.label}</option>`).join('')}</select></label><label>Срок<input name="dueDate" type="date"></label></div><label>Описание<textarea name="description" rows="3" maxlength="4000" placeholder="Что нужно сделать и какой результат ожидается"></textarea></label><p role="alert" data-task-create-error hidden></p><div class="task-modal-actions"><button type="button" class="btn outline" data-task-create="close">Отмена</button><button class="btn primary" type="submit">Добавить карточку</button></div></form></section></div>`;
   }
   function tasksPage(){
     const list=tasks(),activeTeam=team.filter(employee=>employee.status==='active'),visible=filteredTasks(list);
@@ -981,7 +982,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(currentUser()?.role!=='technician')return;
     if(root().querySelector('.notification-panel')&&!event.target.closest('.notification-center')){closeNotificationCenter();root().querySelector('.notification-panel')?.remove()}
     if(activeOrderFilters().orderFilterOpen&&!event.target.closest('.tech-order-filter-panel')&&!event.target.closest('[data-tech-filter-panel]')){activeOrderFilters().orderFilterOpen=false;root().querySelector('.tech-order-filter-panel')?.remove()}
-    if(state.taskFilterOpen&&!event.target.closest('.task-filter-panel')&&!event.target.closest('[data-task-filter-panel]')){state.taskFilterOpen=false;render();return}
+    if(state.taskFilterOpen&&!event.target.closest('.task-filter-panel')&&!event.target.closest('[data-task-filter-panel]')&&!event.target.closest('[data-task-create]')){state.taskFilterOpen=false;render();return}
     if(event.target.closest('[data-notification-toggle]')){await toggleNotificationCenter();render();return}
     const sidebarToggle=event.target.closest('[data-tech-sidebar-toggle]');
     if(sidebarToggle){try{localStorage.setItem('create-dental-sidebar-collapsed',sidebarCollapsed()?'0':'1')}catch{};render();return}
@@ -989,7 +990,10 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const taskCreateAction=event.target.closest('[data-task-create]');
     if(taskCreateAction){
       const action=taskCreateAction.dataset.taskCreate;
-      if(action==='open')state.taskCreateOpen=true;
+      // Clicks on the form bubble through the backdrop; only the backdrop itself dismisses it.
+      if(action==='backdrop'&&event.target!==taskCreateAction)return;
+      if(taskSaving)return;
+      if(action==='open'){state.taskCreateOpen=true;state.taskFilterOpen=false}
       else if(action==='close'||action==='backdrop')state.taskCreateOpen=false;
       render();
       return;
@@ -1459,12 +1463,19 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   document.addEventListener('submit',async event=>{
     if(!isActive()||event.target.id!=='tech-task-form')return;
     event.preventDefault();
+    if(taskSaving)return;
     const form=event.target,assigneeId=form.elements.namedItem('assigneeId').value,employee=team.find(item=>item.id===assigneeId&&item.status==='active');
     const title=form.elements.namedItem('title').value.trim(),description=form.elements.namedItem('description').value.trim(),priority=form.elements.namedItem('priority').value,dueDate=form.elements.namedItem('dueDate').value,orderId=form.elements.namedItem('orderId')?.value.trim()||'',clinic=form.elements.namedItem('clinic')?.value.trim()||'',patient=form.elements.namedItem('patient')?.value.trim()||'',work=form.elements.namedItem('work')?.value.trim()||'';
-    if(!employee||!title)return toast('Выберите сотрудника и укажите задачу');
+    const errorMessage=form.querySelector('[data-task-create-error]');
+    const showError=message=>{errorMessage.textContent=message;errorMessage.hidden=false};
+    if(!employee||!title)return showError('Выберите сотрудника и укажите задачу');
     const stamp=new Date().toISOString(),task={id:`task-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,title,description,orderId,clinic,patient,work,assigneeId:employee.id,assigneeName:employee.name,priority,status:'backlog',dueDate,createdBy:chiefProfile().displayName||'Главный техник',createdAt:stamp,updatedAt:stamp,completedAt:''};
     const next=[task,...tasks()];
-    try{await savePortal('tasks',next);tasks().splice(0,tasks().length,...next);state.taskCreateOpen=false;form.reset();toast('Карточка добавлена');render()}catch(error){toast('Не удалось добавить карточку: '+error.message)}
+    const button=form.querySelector('button[type="submit"]');
+    taskSaving=true;button.disabled=true;button.textContent='Сохранение…';errorMessage.hidden=true;
+    try{await savePortal('tasks',next);tasks().splice(0,tasks().length,...next);state.taskCreateOpen=false;toast('Карточка добавлена')}
+    catch(error){showError('Не удалось добавить карточку: '+error.message)}
+    finally{taskSaving=false;if(button.isConnected){button.disabled=false;button.textContent='Добавить карточку'}}
   });
   document.addEventListener('submit',async event=>{
     if(!isActive()||event.target.id!=='tech-employee-form')return;
