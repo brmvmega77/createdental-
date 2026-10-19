@@ -188,12 +188,44 @@
   .hero p { font-size: 13px; }
   .hero img { display: block; width: 100%; max-width: 100%; height: 132px; min-height: 112px; max-height: 160px; flex: 0 0 auto; object-fit: cover; object-position: center 48%; mask-image: linear-gradient(180deg, transparent, #000 22%); }
   .table-wrap, .tech-table-wrap, .tech-orders-table-wrap { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
-  .orders-table { min-width: 0; display: block; }
-  .tech-orders-table, .worker-table { min-width: 0; width: 100%; display: block; table-layout: auto; }
-  .orders-table thead, .tech-orders-table thead, .worker-table thead { display: none; }
-  .orders-table tbody, .tech-orders-table tbody, .worker-table tbody { display: grid; gap: 10px; }
-  .orders-table tr, .tech-orders-table tr, .worker-table tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 14px; padding: 12px; border: 1px solid #ededed; border-radius: 13px; background: #fff; }
-  .orders-table td, .tech-orders-table td, .worker-table td { display: grid; grid-template-columns: minmax(58px, 32%) minmax(0, 1fr); gap: 6px; min-width: 0; align-items: start; padding: 7px 0; border: 0; white-space: normal; overflow-wrap: anywhere; color: #333; font-size: 12px; }
+  .orders-table, .tech-orders-table, .worker-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    display: block !important;
+    table-layout: auto !important;
+  }
+  .orders-table thead, .tech-orders-table thead, .worker-table thead { display: none !important; }
+  .orders-table tbody, .tech-orders-table tbody, .worker-table tbody {
+    display: grid !important;
+    width: 100% !important;
+    gap: 10px;
+  }
+  .orders-table tbody tr, .tech-orders-table tbody tr, .worker-table tbody tr {
+    display: grid !important;
+    width: 100% !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 0 14px;
+    padding: 12px;
+    border: 1px solid #ededed;
+    border-radius: 13px;
+    background: #fff;
+  }
+  /* Desktop column widths from styles.css also match tablet-width landscape.
+     Clear those fixed widths when the tables are rendered as mobile cards. */
+  .orders-table th, .orders-table td,
+  .tech-orders-table th, .tech-orders-table td,
+  .worker-table th, .worker-table td {
+    display: grid !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    box-sizing: border-box;
+    white-space: normal !important;
+    overflow: visible !important;
+    overflow-wrap: anywhere;
+    text-overflow: clip !important;
+  }
+  .orders-table td, .tech-orders-table td, .worker-table td { grid-template-columns: minmax(58px, 32%) minmax(0, 1fr) !important; gap: 6px; min-width: 0; align-items: start; padding: 7px 0; border: 0; white-space: normal; overflow-wrap: anywhere; color: #333; font-size: 12px; }
   .orders-table td::before, .tech-orders-table td::before, .worker-table td::before { color: #808080; font-size: 10px; font-weight: 650; line-height: 1.35; }
   .orders-table td:nth-child(1)::before { content: 'Заказ'; }
   .orders-table td:nth-child(2)::before { content: 'Пациент'; }
@@ -216,7 +248,7 @@
   .tech-orders-table td:nth-child(8)::before { content: 'Этап'; }
   .tech-orders-table td:nth-child(9)::before { content: 'Команда'; }
   .tech-orders-table td:nth-child(10)::before { content: 'Действия'; }
-  .tech-orders-table tr { position: relative; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .tech-orders-table tr { position: relative; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; }
   .tech-orders-table td:nth-child(1) { grid-column: 1; grid-row: 1; font-size: 14px; font-weight: 700; }
   .tech-orders-table td:nth-child(10) { grid-column: 2; grid-row: 1; justify-self: end; }
   .tech-orders-table td:nth-child(2), .tech-orders-table td:nth-child(5), .tech-orders-table td:nth-child(6), .tech-orders-table td:nth-child(9) { grid-column: 1 / -1; }
