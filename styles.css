@@ -2583,6 +2583,10 @@ html[data-theme="dark"] .pulse-payment-panel input,html[data-theme="dark"] .puls
 .task-searchbar>input{flex:1;min-width:0;height:48px;padding:0 23px;border:1px solid #eeeeee;border-radius:12px;background:#fff;color:#333;font:inherit;font-size:16px;outline:none}
 .task-searchbar>input:focus{border-color:#b9b9b9;box-shadow:0 0 0 3px #3333330d}
 .task-searchbar>.tech-filter-button{height:48px;min-width:138px;border-radius:12px;font-size:16px}
+@media(min-width:901px){
+  .task-searchbar>input{height:38px;padding:0 12px;border-radius:8px;font-size:12px}
+  .task-searchbar>.tech-filter-button{height:36px;min-width:0;border-radius:7px;font-size:13px}
+}
 .task-filter-panel{top:calc(100% + 10px);width:min(420px,calc(100vw - 48px))}
 .task-create-dialog{width:min(720px,calc(100vw - 40px));max-height:min(90vh,760px);overflow:auto}
 .task-modal-form{display:grid;gap:14px}.task-modal-form label{display:grid;gap:7px;color:#777;font-size:12px;font-weight:650}.task-modal-form input,.task-modal-form select,.task-modal-form textarea{width:100%;box-sizing:border-box;border:1px solid #eee;border-radius:8px;background:#fff;color:#333;padding:11px 12px;font:inherit;font-size:13px}.task-modal-form textarea{resize:vertical;min-height:74px}.task-modal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.task-modal-actions{display:flex;justify-content:flex-end;gap:10px;padding-top:3px}.task-order-ref{margin:8px 0 4px;color:#4b6f9a;font-size:11px;font-weight:700}.task-order-meta{margin:0 0 8px;color:#888;font-size:10px}
