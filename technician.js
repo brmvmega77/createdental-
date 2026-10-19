@@ -142,6 +142,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   const sidebarMark = '<span class="sidebar-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9c3-3.2 7.4-3.5 12-1 4.6-2.5 9-2.2 12 1 2.6 2.8 1.6 8.2.6 12.9-.9 4.5-2 10.6-4.6 15-.9 1.5-3.1 1.4-4-.2l-3.9-8.1c-.8-1.6-3.3-1.6-4.1 0l-3.9 8.1c-.9 1.6-3.1 1.7-4 .2-2.6-4.4-3.7-10.5-4.6-15C10.4 17.2 9.4 11.8 12 9Z"/><path d="M18 10.5c.3 3.1.5 5.6 1.6 7.2M30 10.5c-.3 3.1-.5 5.6-1.6 7.2"/></svg></span>';
   let cadPreviewRequest=0;
   let taskSaving=false;
+  let taskDragId='';
   let messagesRequest=0;
   const chiefAvatarKey='create-dental-chief-avatar';
   function storedChiefAvatar(){try{return localStorage.getItem(chiefAvatarKey)||''}catch{return ''}}
@@ -594,8 +595,8 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     return list.filter(task=>(!query||[task.title,task.description,task.assigneeName].some(value=>String(value||'').toLocaleLowerCase('ru-RU').includes(query)))&&(!state.taskEmployeeFilter||task.assigneeId===state.taskEmployeeFilter)&&(!state.taskStatusFilter||task.status===state.taskStatusFilter)&&(!state.taskPriorityFilter||task.priority===state.taskPriorityFilter));
   }
   function taskBoardMarkup(list){
-    const card=task=>{const details=String(task.description||'').trim(),comment=details===String(task.title||'').trim()?'':details.startsWith(String(task.title||'').trim())?details.slice(String(task.title||'').trim().length).trim():details;return `<article class="task-card ${taskIsOverdue(task)?'is-overdue':''}"><header><span class="task-priority ${safe(task.priority)}">${safe(taskPriorityLabel(task.priority))}</span><time>${safe(taskDateLabel(task.dueDate))}</time></header><h3>${safe(task.title||'Задача')}</h3>${comment?`<p>${safe(comment)}</p>`:''}<footer><span>${safe(task.assigneeName)}</span><select data-task-status="${safe(task.id)}" aria-label="Статус задачи ${safe(task.title||'Задача')}">${taskStatuses.map(status=>`<option value="${status.key}" ${task.status===status.key?'selected':''}>${status.label}</option>`).join('')}</select></footer></article>`};
-    return `<section class="task-board">${taskStatuses.map(status=>{const items=list.filter(task=>task.status===status.key);return `<section class="task-column" data-task-column="${status.key}"><header><h2>${status.label}</h2><b>${items.length}</b></header><div>${items.map(card).join('')||'<p class="task-column-empty">Задач нет</p>'}</div></section>`}).join('')}</section>`;
+    const card=task=>{const details=String(task.description||'').trim(),comment=details===String(task.title||'').trim()?'':details.startsWith(String(task.title||'').trim())?details.slice(String(task.title||'').trim().length).trim():details;return `<article class="task-card ${taskIsOverdue(task)?'is-overdue':''}" draggable="true" data-task-drag="${safe(task.id)}" aria-label="Перетащить задачу ${safe(task.title||'Задача')}"><header><span class="task-priority ${safe(task.priority)}">${safe(taskPriorityLabel(task.priority))}</span><time>${safe(taskDateLabel(task.dueDate))}</time></header><h3>${safe(task.title||'Задача')}</h3>${comment?`<p>${safe(comment)}</p>`:''}<footer><span>${safe(task.assigneeName)}</span><select data-task-status="${safe(task.id)}" aria-label="Статус задачи ${safe(task.title||'Задача')}">${taskStatuses.map(status=>`<option value="${status.key}" ${task.status===status.key?'selected':''}>${status.label}</option>`).join('')}</select></footer></article>`};
+    return `<section class="task-board" data-task-board>${taskStatuses.map(status=>{const items=list.filter(task=>task.status===status.key);return `<section class="task-column" data-task-column="${status.key}"><header><h2>${status.label}</h2><b>${items.length}</b></header><div>${items.map(card).join('')||'<p class="task-column-empty">Задач нет</p>'}</div></section>`}).join('')}</section>`;
   }
   function taskCreateDialog(activeTeam){
     if(!state.taskCreateOpen)return '';
@@ -605,6 +606,17 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   function tasksPage(){
     const list=tasks(),activeTeam=team.filter(employee=>employee.status==='active'),visible=filteredTasks(list);
     return `<div class="tech-heading"><div><span class="tech-eyebrow">РАБОЧИЙ КОНТУР</span><h1>Задачи</h1><p>Распределяйте работу по четырём статусам.</p></div><button class="btn primary" type="button" data-task-create="open">Добавить карточку</button></div><section class="tech-panel task-filter-panel-wrap"><div class="task-searchbar"><input id="task-search" aria-label="Поиск задач" placeholder="Поиск по задаче, сотруднику или описанию..." value="${safe(state.taskSearch)}">${taskFilterPanel(activeTeam)}</div></section>${taskBoardMarkup(visible)}${taskCreateDialog(activeTeam)}`;
+  }
+  function clearTaskDrag(){
+    taskDragId='';
+    root().querySelectorAll('.task-card.is-dragging,.task-column.is-drag-over').forEach(element=>element.classList.remove('is-dragging','is-drag-over'));
+  }
+  async function moveTaskToStatus(id,status){
+    const current=tasks().find(task=>task.id===id);
+    if(!current||!taskStatuses.some(item=>item.key===status)||current.status===status)return;
+    const stamp=new Date().toISOString(),next=tasks().map(task=>task.id===id?{...task,status,updatedAt:stamp,completedAt:status==='done'?(task.completedAt||stamp):''}:task);
+    try{await savePortal('tasks',next);tasks().splice(0,tasks().length,...next);toast('Задача перемещена');render()}
+    catch(error){toast('Не удалось переместить задачу: '+error.message);render()}
   }
   function assignmentOptions(order){
     const active=activeTeam();
@@ -977,6 +989,34 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(state.page==='messages')queueMicrotask(()=>{refreshMessages();scrollChiefChat()});
     if(state.page==='profile'&&!state.integration)queueMicrotask(loadIntegrationStatus);
   }
+  document.addEventListener('dragstart',event=>{
+    if(!isActive()||state.page!=='tasks')return;
+    const card=event.target.closest('[data-task-drag]');
+    if(!card)return;
+    taskDragId=card.dataset.taskDrag;
+    card.classList.add('is-dragging');
+    event.dataTransfer?.setData('text/plain',taskDragId);
+    if(event.dataTransfer)event.dataTransfer.effectAllowed='move';
+  });
+  document.addEventListener('dragover',event=>{
+    if(!isActive()||state.page!=='tasks'||!taskDragId)return;
+    const column=event.target.closest('[data-task-column]');
+    if(!column)return;
+    event.preventDefault();
+    if(event.dataTransfer)event.dataTransfer.dropEffect='move';
+    root().querySelectorAll('.task-column.is-drag-over').forEach(item=>{if(item!==column)item.classList.remove('is-drag-over')});
+    column.classList.add('is-drag-over');
+  });
+  document.addEventListener('drop',event=>{
+    if(!isActive()||state.page!=='tasks'||!taskDragId)return;
+    const column=event.target.closest('[data-task-column]');
+    if(!column)return;
+    event.preventDefault();
+    const id=event.dataTransfer?.getData('text/plain')||taskDragId,status=column.dataset.taskColumn;
+    clearTaskDrag();
+    void moveTaskToStatus(id,status);
+  });
+  document.addEventListener('dragend',()=>{if(taskDragId)clearTaskDrag()});
   document.addEventListener('click',async event=>{
     if(currentUser()?.role!=='technician')return;
     if(root().querySelector('.notification-panel')&&!event.target.closest('.notification-center')){closeNotificationCenter();root().querySelector('.notification-panel')?.remove()}
