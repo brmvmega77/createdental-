@@ -10,7 +10,7 @@ import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,up
 import {createTelegramBridge} from './telegram-bot.js';
 import {createEmployeeTelegramBridge} from './employee-telegram-bot.js';
 import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource} from './yandex-disk-storage.js';
-import {workCatalog,rubles} from './work-catalog.js';
+import {workCatalog,rubles,estimateWork} from './work-catalog.js';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
@@ -379,7 +379,7 @@ const permanentTeethSet=new Set(permanentTeeth);
 const upperJaw=permanentTeeth.filter(tooth=>tooth<30);
 const lowerJaw=permanentTeeth.filter(tooth=>tooth>30);
 function cleanRequestText(value,maximum=2000){return String(value??'').replace(/[<>]/g,'').trim().slice(0,maximum)}
-function requestPrice(work,material,teeth){const category=workCatalog.find(item=>item.name===work),option=category?.options.find(item=>item.name===material),units=Math.max(1,teeth.length||1);return Number.isFinite(option?.price)?rubles(option.price*units):null}
+function requestPrice(work,material,teeth){const estimate=estimateWork({work,option:material,teeth});return estimate.amount===null?null:rubles(estimate.amount)}
 
 async function handleClientRequestCreate(req,res,url){
   const user=session(req);
