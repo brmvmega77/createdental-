@@ -422,7 +422,18 @@ async function handlePortal(req,res,url){
         if(!additions.length||additions.length>20||value.length!==snapshot.orders.filter(item=>item.clinicId===user.subjectId).length+additions.length||additions.some(item=>item.clinicId!==user.subjectId||snapshot.orders.some(existingOrder=>existingOrder.id===item.id)))return json(res,403,{error:'Можно добавить до 20 своих заказов за один раз'});
         const invalidDeadline=additions.map(order=>orderDeadlineValidation(order)).find(Boolean);
         if(invalidDeadline)return json(res,400,{error:invalidDeadline});
-        value=[...additions,...snapshot.orders];
+        // Keep the delivery rule authoritative on the server as well. The
+        // clinic UI sends the service subtotal, but the API recomputes the
+        // delivery amount before persisting a new order so stale clients
+        // cannot save a mismatched total.
+        const normalizedAdditions=additions.map(order=>{
+          const servicesTotal=Number(order.servicesTotal);
+          if(!Number.isFinite(servicesTotal))return order;
+          const deliveryFee=servicesTotal<4000?500:0;
+          const total=servicesTotal+deliveryFee;
+          return {...order,servicesTotal,deliveryFee,sum:rubles(total)};
+        });
+        value=[...normalizedAdditions,...snapshot.orders];
       }else if(key==='orderOverrides'){
         if(!value||typeof value!=='object'||Array.isArray(value))return json(res,400,{error:'Неверные данные'});
         const changes=Object.entries(value).filter(([id,detail])=>JSON.stringify(detail)!==JSON.stringify(publicClinicOverride(snapshot.orderOverrides[id]||{})));

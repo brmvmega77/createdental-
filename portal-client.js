@@ -9,16 +9,36 @@ export function setPortalToken(token){localStorage.setItem(key,token.trim());ses
 export function clearPortalToken(){localStorage.removeItem(key);sessionStorage.removeItem(key)}
 
 async function request(path,options={}){
-  const response=await fetch(path,{...options,headers:{'X-Portal-Token':portalToken(),...(options.headers||{})}});
+  const method=String(options.method||'GET').toUpperCase();
+  const retryable=method==='GET';
+  let response;
+  for(let attempt=0;attempt<(retryable?2:1);attempt++){
+    try{
+      response=await fetch(path,{...options,headers:{'X-Portal-Token':portalToken(),...(options.headers||{})}});
+      if(retryable&&attempt===0&&[502,503,504].includes(response.status)){
+        await new Promise(resolve=>setTimeout(resolve,250));
+        continue;
+      }
+      break;
+    }catch(error){
+      if(error?.name==='AbortError')throw error;
+      if(!retryable||attempt===1)throw error;
+      await new Promise(resolve=>setTimeout(resolve,250));
+    }
+  }
   let data;
   try {data=await response.json()} catch {throw new Error('Сервер вернул неверный ответ')}
   if(!response.ok){const error=new Error(data.error||'Ошибка связи с сервером');error.status=response.status;throw error}
   return data;
 }
 
-export const loadPortal=()=>request('/api/portal');
+export const loadPortal=(view='')=>request(view?`/api/portal?view=${encodeURIComponent(view)}`:'/api/portal');
+// Large portal collections can be requested independently so a cabinet can
+// load only the data needed for its current page.
+export const loadPortalSection=section=>request(`/api/portal/${encodeURIComponent(section)}`);
 export const savePortal=(collection,value)=>request(`/api/portal/${collection}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
 export const loadOrderFiles=orderId=>request(`/api/orders/${encodeURIComponent(orderId)}/files`);
+export const sendOrderToMilling=orderId=>request(`/api/orders/${encodeURIComponent(orderId)}/milling`,{method:'POST'});
 export const deleteOrder=orderId=>request(`/api/orders/${encodeURIComponent(orderId)}`,{method:'DELETE'});
 export const submitCadReview=(orderId,fileId)=>request(`/api/orders/${encodeURIComponent(orderId)}/cad-review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',fileId})});
 export const decideCadReview=(orderId,action,comment='',attachments=[])=>request(`/api/orders/${encodeURIComponent(orderId)}/cad-review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,comment,attachments})});
