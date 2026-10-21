@@ -1,0 +1,614 @@
+/* Order table overrides loaded after the shared stylesheet. */
+@media(min-width:761px){
+  .tech-shell{overflow-x:hidden}
+  .tech-orders-table-wrap{overflow-x:hidden!important;overflow-y:visible}
+  .tech-orders-table{
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    table-layout:fixed!important;
+    display:block!important;
+  }
+  .tech-orders-table thead,
+  .tech-orders-table tbody{display:block!important;width:100%!important}
+  .tech-orders-table thead tr,
+  .tech-orders-table tbody tr{
+    display:grid!important;
+    grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) 104px minmax(0,.85fr) minmax(0,1fr) minmax(0,1.15fr) 104px minmax(0,.85fr) minmax(0,1fr) 124px!important;
+    width:100%!important;
+  }
+  .tech-orders-table col{width:10%!important}
+  .tech-orders-table th,
+  .tech-orders-table td{
+    display:block!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:none!important;
+    justify-self:stretch!important;
+    align-self:stretch!important;
+    box-sizing:border-box;
+    padding-left:12px!important;
+    padding-right:12px!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis;
+    vertical-align:middle;
+  }
+  .tech-orders-table th:nth-child(n),
+  .tech-orders-table td:nth-child(n){
+    width:auto!important;
+  }
+  .tech-shell.sidebar-shell-collapsed .tech-orders-table th:nth-child(n),
+  .tech-shell.sidebar-shell-collapsed .tech-orders-table td:nth-child(n){
+    width:auto!important;
+  }
+  .tech-orders-table td:first-child strong,
+  .tech-orders-table td:first-child small{
+    display:inline!important;
+    white-space:nowrap!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+  }
+  .tech-orders-table td:first-child small{margin-left:5px;margin-top:0}
+  .tech-orders-table td:first-child small::before{content:'· '}
+  .tech-orders-table td:nth-child(8){text-align:left}
+  .tech-orders-table td:nth-child(8) .tech-stage{
+    display:inline-block!important;
+    width:auto!important;
+    max-width:100%!important;
+    min-width:0;
+    padding:5px 8px;
+    box-sizing:border-box;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    text-align:left;
+    vertical-align:middle;
+  }
+  .tech-orders-table td:nth-child(9) .tech-order-participants{
+    display:block!important;
+    min-width:0;
+    max-width:100%;
+    overflow:hidden!important;
+    white-space:nowrap!important;
+    text-overflow:ellipsis;
+  }
+  .tech-orders-table td:nth-child(9) .tech-order-participants li{
+    display:inline!important;
+    white-space:nowrap!important;
+    overflow-wrap:normal!important;
+    line-height:1.2;
+  }
+  .tech-orders-table td:nth-child(9) .tech-order-participants li:not(:last-child)::after{content:' · '}
+  .tech-orders-table td:nth-child(10) .tech-order-actions{
+    display:flex!important;
+    align-items:center;
+    justify-content:flex-start!important;
+    flex-wrap:nowrap!important;
+    gap:3px;
+    min-width:0!important;
+    max-width:100%;
+    overflow:hidden;
+    white-space:nowrap;
+  }
+  .tech-orders-table td:nth-child(10) .tech-order-actions .tech-link{
+    flex:0 1 28px!important;
+    width:28px!important;
+    max-width:28px;
+    min-width:0!important;
+    padding:0!important;
+    font-size:0;
+  }
+  .tech-orders-table td:nth-child(10) .tech-order-actions .tech-link::after{content:'↗';font-size:15px;line-height:1}
+  .tech-orders-table td:nth-child(10) .tech-order-actions .tech-icon-btn{
+    width:19px!important;
+    height:27px!important;
+    flex:0 0 19px!important;
+  }
+}
+
+/* Exact print layout for the supplied order-form template. */
+@media print{
+  .order-print-root{display:block!important;font-family:Arial,"Helvetica Neue",sans-serif;color:#111}
+  .order-print-sheet{position:relative;width:100%;height:100%;min-height:188mm;box-sizing:border-box;padding:0 0 2mm;border:0;background:#fff;break-after:page}
+  .order-print-sheet:last-child{break-after:auto}
+  .order-print-project{text-align:center;font-size:18pt;font-weight:400;line-height:1;margin:0 0 5mm;color:#111}
+  .order-print-project strong{font-weight:400}
+  .order-print-top{display:grid;grid-template-columns:minmax(0,1fr) 58mm;gap:8mm;align-items:start}
+  .order-print-fields{padding-top:1mm}
+  .order-print-line-field{height:7.4mm;display:flex;align-items:center;border-bottom:1px solid #5e4c8e;font-size:11pt;min-width:0}
+  .order-print-line-field span{flex:0 0 auto;margin-right:3mm;color:#111}
+  .order-print-line-field b{font-weight:400;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .order-print-brand{display:flex;flex-direction:column;align-items:center;gap:2mm;padding-top:1mm;color:#111;font-size:9pt;white-space:nowrap}
+  .order-print-brand img{width:52mm;height:22mm;object-fit:contain}
+  .order-print-formula-title{text-align:center;font-weight:400;font-size:13pt;line-height:1;margin:4mm 0 1mm;color:#111}
+  .order-print-formula{display:grid;grid-template-rows:5mm 5mm;margin:0 0 4mm;border-bottom:1px solid #5e4c8e}
+  .order-print-formula>div{display:grid;grid-template-columns:repeat(16,1fr);border-top:1px solid #5e4c8e}
+  .order-print-formula span{display:grid;place-items:center;border-left:1px solid #5e4c8e;font-size:7pt;color:#111}
+  .order-print-formula span:last-child{border-right:1px solid #5e4c8e}
+  .order-print-main{display:grid;grid-template-columns:1fr 74mm 1fr;gap:3mm;align-items:center;border-top:2px solid #5e4c8e;padding-top:2mm}
+  .order-print-side{display:grid;grid-template-rows:repeat(16,1fr);height:122mm}
+  .order-print-tooth-line{display:grid;grid-template-columns:minmax(0,1fr) 9mm;align-items:center;border-bottom:1px solid #5e4c8e;min-width:0}
+  .order-print-side-left .order-print-tooth-line{grid-template-columns:minmax(0,1fr) 9mm}
+  .order-print-side-right .order-print-tooth-line{grid-template-columns:9mm minmax(0,1fr)}
+  .order-print-tooth-line i{height:100%;border-left:1px solid #5e4c8e}
+  .order-print-side-right .order-print-tooth-line i{border-left:1px solid #5e4c8e}
+  .order-print-tooth-line span{font-size:8pt;padding:0 2mm;color:#111}
+  .order-print-side-left .order-print-tooth-line span{text-align:right}
+  .order-print-side-right .order-print-tooth-line span{text-align:left}
+  .order-print-jaw{height:122mm;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .order-print-jaw .tooth-chart{width:74mm!important;height:122mm!important;max-width:none!important;transform:none!important}
+  .order-print-jaw .tooth-chart svg{width:74mm!important;height:122mm!important;max-height:none!important}
+  .order-print-bottom{display:grid;grid-template-columns:1fr 1fr;gap:8mm;margin-top:2mm}
+  .order-print-bottom .order-print-line-field{height:8mm}
+  .order-print-bottom .order-print-line-field span{font-size:11pt}
+  .order-print-page{position:absolute;right:0;bottom:0;font-size:7pt;color:#555}
+}
+
+/* Printable work order based on the supplied landscape template. */
+.order-print-root{display:none}
+.tech-print-order-button{align-self:flex-start;white-space:nowrap}
+@media(max-width:760px){.tech-print-order-button{grid-column:1/-1;justify-self:start}}
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+  html,body{background:#fff!important;color:#1f2933!important}
+  body>*:not(.order-print-root){display:none!important}
+  .order-print-root{display:block!important;color:#1f2933;font-family:Arial,"Helvetica Neue",sans-serif;font-size:10pt;line-height:1.25}
+  .order-print-sheet{display:block;width:100%;box-sizing:border-box;padding:4mm 5mm 3mm;border:1px solid #d8dde2;background:#fff}
+  .order-print-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20mm;border-bottom:1px solid #cdd3d9;padding-bottom:4mm}
+  .order-print-project{font-size:10pt;text-transform:uppercase;letter-spacing:.08em;color:#66717d;font-weight:700;margin-bottom:1mm}
+  .order-print-header h1{font-size:20pt;line-height:1.1;margin:0;color:#17202a}
+  .order-print-brand{display:flex;flex-direction:column;align-items:flex-end;gap:2mm;min-width:48mm;text-align:right;color:#4b5563;font-size:9pt}
+  .order-print-brand img{width:42mm;max-height:14mm;object-fit:contain;object-position:right center}
+  .order-print-meta,.order-print-order-facts{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:3mm 7mm;padding:4mm 0}
+  .order-print-order-facts{grid-template-columns:repeat(5,minmax(0,1fr));padding:3mm 0}
+  .order-print-fact{min-width:0}
+  .order-print-fact span{display:block;color:#727d88;font-size:8pt;margin-bottom:1mm}
+  .order-print-fact strong{display:block;color:#1f2933;font-size:10pt;line-height:1.2;overflow-wrap:anywhere}
+  .order-print-divider{height:1px;background:#cdd3d9}
+  .order-print-section-title{font-size:13pt;margin:3mm 0 2mm;color:#17202a}
+  .order-print-service{border-top:1px solid #d8dde2;padding:3mm 0 2mm;break-inside:avoid}
+  .order-print-service-heading{display:flex;align-items:baseline;gap:4mm;margin-bottom:2mm}
+  .order-print-service-heading span{color:#66717d;font-size:8pt;text-transform:uppercase;font-weight:700;letter-spacing:.06em}
+  .order-print-service-heading h2{font-size:12pt;margin:0;color:#1f2933}
+  .order-print-service-grid{display:grid;grid-template-columns:58mm minmax(0,1fr);gap:7mm;align-items:center}
+  .order-print-chart{height:58mm;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #e0e4e8}
+  .order-print-chart .tooth-chart{transform:scale(.33);transform-origin:center center;width:150mm;max-width:none;flex:none}
+  .order-print-chart svg{max-height:55mm!important}
+  .order-print-service-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3mm 7mm}
+  .order-print-empty{color:#727d88;font-size:9pt;text-align:center;padding:5mm}
+  .order-print-notes{display:grid;grid-template-columns:2fr 1fr;gap:12mm;border-top:1px solid #cdd3d9;margin-top:3mm;padding-top:3mm;break-inside:avoid}
+  .order-print-notes strong{font-size:9pt;color:#66717d}
+  .order-print-notes p{margin:1mm 0 0;font-size:10pt;min-height:9mm;color:#1f2933}
+}
+@media(max-width:760px){
+  .tech-orders-table td:nth-child(1)::before{content:"Заказ"}
+  .tech-orders-table td:nth-child(2)::before{content:"Заказчик"}
+  .tech-orders-table td:nth-child(3)::before{content:"Создан"}
+  .tech-orders-table td:nth-child(4)::before{content:"Тип заказа"}
+  .tech-orders-table td:nth-child(5)::before{content:"Тип работы"}
+  .tech-orders-table td:nth-child(6)::before{content:"Пациент"}
+  .tech-orders-table td:nth-child(7)::before{content:"Срок"}
+  .tech-orders-table td:nth-child(8)::before{content:"Этап"}
+  .tech-orders-table td:nth-child(9)::before{content:"Сотрудники"}
+  .tech-orders-table td:nth-child(10)::before{content:"Действия"}
+}
+
+/* Readable production stage, vertical employee list, and normal-sized actions. */
+@media(min-width:761px){
+  .tech-orders-table td:nth-child(8){
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    overflow-wrap:anywhere!important;
+    line-height:1.25;
+  }
+  .tech-orders-table td:nth-child(9) .tech-order-participants{
+    display:grid!important;
+    gap:4px!important;
+    min-width:0;
+    max-width:100%;
+    overflow:visible!important;
+    white-space:normal!important;
+    text-overflow:clip!important;
+  }
+  .tech-orders-table td:nth-child(9) .tech-order-participants li{
+    display:block!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    overflow-wrap:anywhere!important;
+    line-height:1.2;
+  }
+  .tech-orders-table td:nth-child(9) .tech-order-participants li:not(:last-child)::after{content:none!important}
+  .tech-orders-table td:nth-child(10) .tech-order-actions{
+    justify-content:flex-start!important;
+    gap:3px!important;
+    overflow:visible!important;
+    min-width:0!important;
+  }
+  .tech-orders-table td:nth-child(10) .tech-order-actions .tech-link{
+    width:28px!important;
+    height:30px!important;
+    flex:0 0 28px!important;
+    min-width:28px!important;
+    max-width:28px!important;
+    display:grid!important;
+    place-items:center!important;
+    padding:0!important;
+    border-radius:8px!important;
+    font-size:0!important;
+    overflow:visible!important;
+  }
+  .tech-orders-table td:nth-child(10) .tech-order-actions .tech-link::after{
+    content:'↗';
+    font-size:18px;
+    line-height:1;
+  }
+  .tech-orders-table td:nth-child(10) .tech-order-actions .tech-icon-btn{
+    width:28px!important;
+    height:30px!important;
+    flex:0 0 28px!important;
+    border-radius:8px!important;
+    font-size:16px!important;
+  }
+}
+
+/* Let every order value use its full content and keep the reduced action group neat. */
+@media(min-width:761px){
+  .tech-orders-table th,
+  .tech-orders-table td{
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    overflow-wrap:anywhere!important;
+    line-height:1.25;
+  }
+  .tech-orders-table th{white-space:nowrap!important}
+  .tech-orders-table td:nth-child(3),
+  .tech-orders-table td:nth-child(7){white-space:nowrap!important;overflow:visible!important}
+  .tech-orders-table td:nth-child(10){padding-left:12px!important;padding-right:18px!important}
+  .tech-orders-table td:nth-child(10) .tech-order-actions{
+    justify-content:center!important;
+    gap:6px!important;
+    width:100%;
+    overflow:visible!important;
+  }
+  .tech-orders-table td:nth-child(10) .tech-order-actions .tech-icon-btn{
+    width:30px!important;
+    height:30px!important;
+    flex:0 0 30px!important;
+  }
+}
+
+/* Approved semantic highlights for order type and production stage. */
+@media(min-width:761px){
+  .tech-order-type-label{
+    display:inline-block;
+    font-weight:600;
+    white-space:normal;
+  }
+  .tech-order-type-label.analog{color:#b46b00}
+  .tech-order-type-label.digital{color:#28704f}
+  .tech-orders-table td:nth-child(8) .tech-stage{
+    display:inline-flex!important;
+    max-width:100%!important;
+    box-sizing:border-box;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    overflow-wrap:anywhere!important;
+    line-height:1.2;
+    padding:5px 8px;
+  }
+  .tech-orders-table td:nth-child(8) .tech-stage.overdue{color:#b33b3b;background:#fff0f0}
+}
+
+/* Keep the approved stage colors, but render statuses as plain text instead of pills. */
+@media(min-width:761px){
+  .tech-orders-table td:nth-child(8) .tech-stage{
+    display:inline-block!important;
+    max-width:100%!important;
+    padding:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    vertical-align:middle;
+  }
+.tech-orders-table td:nth-child(8) .tech-stage.overdue{background:transparent!important}
+}
+
+/* Use the blue accent for active/review stages instead of neutral gray. */
+@media(min-width:761px){
+  .tech-orders-table td:nth-child(8) .tech-stage.work,
+  .tech-orders-table td:nth-child(8) .tech-stage.review{
+    color:#66809d!important;
+  }
+}
+
+/* High-contrast text palette for both light and dark themes. */
+@media(min-width:761px){
+  .tech-order-type-label.analog{color:#b45309!important}
+  .tech-order-type-label.digital{color:#047857!important}
+  .tech-orders-table td:nth-child(8) .tech-stage.new{color:#c2410c!important}
+  .tech-orders-table td:nth-child(8) .tech-stage.work{color:#2563eb!important}
+  .tech-orders-table td:nth-child(8) .tech-stage.review{color:#7c3aed!important}
+  .tech-orders-table td:nth-child(8) .tech-stage.ready{color:#15803d!important}
+  .tech-orders-table td:nth-child(8) .tech-stage.overdue{color:#b91c1c!important}
+}
+html[data-theme="dark"] .tech-order-type-label.analog{color:#fbbf24!important}
+html[data-theme="dark"] .tech-order-type-label.digital{color:#4ade80!important}
+html[data-theme="dark"] .tech-orders-table td:nth-child(8) .tech-stage.new{color:#fb923c!important}
+html[data-theme="dark"] .tech-orders-table td:nth-child(8) .tech-stage.work{color:#60a5fa!important}
+html[data-theme="dark"] .tech-orders-table td:nth-child(8) .tech-stage.review{color:#c084fc!important}
+html[data-theme="dark"] .tech-orders-table td:nth-child(8) .tech-stage.ready{color:#4ade80!important}
+html[data-theme="dark"] .tech-orders-table td:nth-child(8) .tech-stage.overdue{color:#f87171!important}
+
+/* Use one consistent, inset arrow position for every single-select control. */
+select:not([multiple]){
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  padding-right:48px!important;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%234b5563' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
+  background-repeat:no-repeat!important;
+  background-position:right 18px center!important;
+  background-size:16px 16px!important;
+}
+html[data-theme="dark"] select:not([multiple]){
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%23d8dde2' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
+}
+
+/* Keep the rollback action directly below the aesthetician assignment. */
+.tech-assign-rollback{width:100%;margin-top:2px}
+.tech-assign-rollback .btn{
+  width:auto;
+  max-width:100%;
+  min-height:44px;
+  box-sizing:border-box;
+  border:1px solid #9ca3af!important;
+  background:#fff!important;
+  color:#4b5563!important;
+}
+html[data-theme="dark"] .tech-assign-rollback .btn{
+  border-color:#7d8792!important;
+  background:#252a2f!important;
+  color:#e5e7eb!important;
+}
+
+/* Keep timeline progress cards inside the detail panel at 100% zoom. */
+@media(min-width:761px){
+  .tech-detail-side,
+  .tech-detail-side>.tech-panel:first-child,
+  .tech-timeline{min-width:0!important;overflow:visible!important}
+  .tech-timeline>li.tech-timeline-stage{
+    position:relative!important;
+    display:grid!important;
+    grid-template-columns:23px minmax(0,1fr)!important;
+    grid-template-rows:auto auto!important;
+    column-gap:10px!important;
+    width:100%!important;
+    min-width:0!important;
+    min-height:32px!important;
+    align-items:center!important;
+  }
+  .tech-timeline>li.tech-timeline-stage>i{grid-column:1!important;grid-row:1!important}
+  .tech-timeline>li.tech-timeline-stage>span{
+    grid-column:2!important;
+    grid-row:1!important;
+    min-width:0!important;
+    max-width:100%!important;
+    overflow-wrap:anywhere!important;
+  }
+  .tech-timeline>li.tech-timeline-stage>.tech-stage-progress{
+    position:static!important;
+    grid-column:2!important;
+    grid-row:2!important;
+    width:min(100%,220px)!important;
+    max-width:100%!important;
+    flex:none!important;
+    margin:6px 0 12px!important;
+    transform:none!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+  }
+  .tech-timeline>li.tech-timeline-stage>.tech-timeline-hint{
+    position:static!important;
+    grid-column:2!important;
+    grid-row:2!important;
+    max-width:100%!important;
+    margin:4px 0 10px!important;
+    transform:none!important;
+  }
+}
+
+/* Final template overrides: keep the supplied PDF composition exactly. */
+@media print{
+  .order-print-root{display:block!important;font-family:Arial,"Helvetica Neue",sans-serif;color:#111!important}
+  .order-print-sheet{position:relative!important;width:100%!important;min-height:188mm!important;height:100%!important;box-sizing:border-box!important;padding:0 0 2mm!important;border:0!important;background:#fff!important;break-after:page!important}
+  .order-print-sheet:last-child{break-after:auto!important}
+  .order-print-project{text-align:center!important;font-size:18pt!important;font-weight:400!important;line-height:1!important;margin:0 0 5mm!important;color:#111!important;text-transform:none!important;letter-spacing:0!important}
+  .order-print-project strong{font-weight:400!important}
+  .order-print-top{display:grid!important;grid-template-columns:minmax(0,1fr) 58mm!important;gap:8mm!important;align-items:start!important}
+  .order-print-fields{padding-top:1mm!important}
+  .order-print-line-field{height:7.4mm!important;display:flex!important;align-items:center!important;border-bottom:1px solid #5e4c8e!important;font-size:11pt!important;min-width:0!important}
+  .order-print-line-field span{flex:0 0 auto!important;margin-right:3mm!important;color:#111!important}
+  .order-print-line-field b{font-weight:400!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+  .order-print-brand{display:flex!important;flex-direction:column!important;align-items:center!important;gap:2mm!important;padding-top:1mm!important;color:#111!important;font-size:9pt!important;white-space:nowrap!important;min-width:0!important;text-align:center!important}
+  .order-print-brand img{width:52mm!important;height:22mm!important;max-height:none!important;object-fit:contain!important;object-position:center!important}
+  .order-print-formula-title{text-align:center!important;font-weight:400!important;font-size:13pt!important;line-height:1!important;margin:4mm 0 1mm!important;color:#111!important}
+  .order-print-formula{display:grid!important;grid-template-rows:5mm 5mm!important;margin:0 0 4mm!important;border-bottom:1px solid #5e4c8e!important}
+  .order-print-formula>div{display:grid!important;grid-template-columns:repeat(16,1fr)!important;border-top:1px solid #5e4c8e!important}
+  .order-print-formula span{display:grid!important;place-items:center!important;border-left:1px solid #5e4c8e!important;font-size:7pt!important;color:#111!important}
+  .order-print-formula span:last-child{border-right:1px solid #5e4c8e!important}
+  .order-print-main{display:grid!important;grid-template-columns:1fr 74mm 1fr!important;gap:3mm!important;align-items:center!important;border-top:2px solid #5e4c8e!important;padding-top:2mm!important}
+  .order-print-side{display:grid!important;grid-template-rows:repeat(16,1fr)!important;height:122mm!important}
+  .order-print-tooth-line{display:grid!important;grid-template-columns:minmax(0,1fr) 9mm!important;align-items:center!important;border-bottom:1px solid #5e4c8e!important;min-width:0!important}
+  .order-print-side-right .order-print-tooth-line{grid-template-columns:9mm minmax(0,1fr)!important}
+  .order-print-tooth-line i{height:100%!important;border-left:1px solid #5e4c8e!important}
+  .order-print-tooth-line span{font-size:8pt!important;padding:0 2mm!important;color:#111!important}
+  .order-print-side-left .order-print-tooth-line span{text-align:right!important}
+  .order-print-side-right .order-print-tooth-line span{text-align:left!important}
+  .order-print-jaw{height:122mm!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important}
+  .order-print-jaw .tooth-chart{width:74mm!important;height:122mm!important;max-width:none!important;transform:none!important}
+  .order-print-jaw .tooth-chart svg{width:74mm!important;height:122mm!important;max-height:none!important}
+  .order-print-bottom{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8mm!important;margin-top:2mm!important}
+  .order-print-bottom .order-print-line-field{height:8mm!important}
+  .order-print-bottom .order-print-line-field span{font-size:11pt!important}
+  .order-print-page{position:absolute!important;right:0!important;bottom:0!important;font-size:7pt!important;color:#555!important}
+}
+
+/* The source PDF is a compact landscape sheet (595 x 419 pt), so keep one order on one page. */
+@media print{
+  @page{size:210mm 148mm;margin:3mm}
+  .order-print-sheet{min-height:142mm!important;height:142mm!important;padding:0!important;overflow:hidden!important}
+  .order-print-project{font-size:13pt!important;margin-bottom:2mm!important}
+  .order-print-top{grid-template-columns:minmax(0,1fr) 43mm!important;gap:5mm!important}
+  .order-print-line-field{height:5.8mm!important;font-size:8.5pt!important}
+  .order-print-brand img{width:38mm!important;height:15mm!important}
+  .order-print-brand{font-size:7pt!important;gap:1mm!important}
+  .order-print-formula-title{font-size:10pt!important;margin:2mm 0 1mm!important}
+  .order-print-formula{grid-template-rows:3.8mm 3.8mm!important;margin-bottom:2mm!important}
+  .order-print-formula span{font-size:5.5pt!important}
+  .order-print-main{grid-template-columns:1fr 52mm 1fr!important;gap:2mm!important;padding-top:1mm!important}
+  .order-print-side{height:82mm!important}
+  .order-print-jaw{height:82mm!important}
+  .order-print-jaw .tooth-chart{width:52mm!important;height:82mm!important}
+  .order-print-jaw .tooth-chart svg{width:52mm!important;height:82mm!important}
+  .order-print-tooth-line{grid-template-columns:minmax(0,1fr) 6mm!important}
+  .order-print-side-right .order-print-tooth-line{grid-template-columns:6mm minmax(0,1fr)!important}
+  .order-print-tooth-line span{font-size:6pt!important;padding:0 1mm!important}
+  .order-print-bottom{gap:5mm!important;margin-top:1mm!important}
+  .order-print-bottom .order-print-line-field{height:5.8mm!important}
+  .order-print-bottom .order-print-line-field span{font-size:8.5pt!important}
+  .order-print-top{grid-template-columns:minmax(0,1fr) 92mm!important;gap:4mm!important}
+  .order-print-brand img{width:92mm!important;height:36mm!important}
+  .order-print-brand{font-size:7.5pt!important;gap:.5mm!important}
+  .order-print-side{height:56mm!important}
+  .order-print-jaw{height:56mm!important}
+  .order-print-jaw .tooth-chart{width:35mm!important;height:56mm!important}
+  .order-print-jaw .tooth-chart svg{width:35mm!important;height:56mm!important}
+  .order-print-bottom{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 20mm!important;gap:4mm!important;align-items:end!important}
+  .order-print-qr{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-end!important;gap:.5mm!important;width:20mm!important}
+  .order-print-qr img{display:block!important;width:18mm!important;height:18mm!important;object-fit:contain!important}
+  .order-print-qr small{font-size:4.5pt!important;line-height:1!important;white-space:nowrap!important;color:#111!important}
+  .order-print-line-content{display:flex!important;align-items:center!important;gap:1.2mm!important;min-width:0!important;overflow:hidden!important}
+  .order-print-side-left .order-print-line-content{justify-content:flex-end!important}
+  .order-print-side-right .order-print-line-content{justify-content:flex-start!important}
+  .order-print-line-content>span{flex:0 0 auto!important}
+  .order-print-line-content>b{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:5.5pt!important;font-weight:400!important}
+}
+
+/* The print action uses the same clearly visible outline as the other detail actions. */
+.tech-print-order-button{border:1px solid #808080!important;background:#fff!important;color:#808080!important}
+html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;background:#25292e!important;color:#d8dde2!important}
+
+/* Print corrections: keep the dental formula open at the top and bottom, and give
+   the tooth chart the larger size requested for the work order. */
+@media print{
+  @page{size:A4 landscape;margin:3mm}
+  .order-print-sheet:first-child{transform:none!important;transform-origin:top left!important}
+  .order-print-formula{border-top:0!important;border-bottom:0!important}
+  .order-print-formula>div:first-child{border-top:0!important}
+  .order-print-main{grid-template-columns:minmax(0,1fr) 50mm minmax(0,1fr)!important}
+  .order-print-side,.order-print-jaw{height:80mm!important}
+  .order-print-jaw .tooth-chart{width:50mm!important;height:80mm!important;transform:none!important}
+  .order-print-jaw .tooth-chart svg{width:50mm!important;height:80mm!important;max-height:none!important}
+}
+
+/* Compact vertical work order: one upright form in the upper half of A4. */
+@media print{
+  @page{size:A4 portrait;margin:0}
+  html,body{width:210mm!important;min-height:297mm!important;margin:0!important;background:#fff!important;color:#111!important}
+  body>*:not(.order-print-root){display:none!important}
+  .order-print-root{display:block!important;width:210mm!important;font-family:Arial,"Helvetica Neue",sans-serif;font-size:7pt;line-height:1.1;color:#111}
+  .order-print-sheet{
+    display:block!important;position:relative;width:210mm!important;height:148mm!important;min-height:148mm!important;max-height:148mm!important;
+    box-sizing:border-box;padding:4mm 7mm 3mm!important;margin:0!important;border:0!important;background:#fff;overflow:hidden;break-after:page;page-break-after:always
+  }
+  .order-print-sheet:last-child{break-after:auto;page-break-after:auto}
+  .order-print-project{font-size:9pt!important;line-height:1!important;margin:0 0 2mm!important;text-align:center;color:#111}
+  .order-print-top{display:grid!important;grid-template-columns:minmax(0,1fr) 37mm!important;gap:4mm!important;align-items:start}
+  .order-print-fields{padding-top:0!important}
+  .order-print-line-field{height:4.7mm!important;min-width:0;border-bottom:1px solid #333!important;font-size:7pt!important;line-height:1!important}
+  .order-print-line-field span{margin-right:2mm!important;color:#111!important}
+  .order-print-line-field b{font-weight:400!important;color:#111!important}
+  .order-print-brand{gap:1mm!important;padding-top:0!important;font-size:6pt!important;white-space:nowrap!important;color:#111!important}
+  .order-print-brand img{width:30mm!important;height:13mm!important;object-fit:contain}
+  .order-print-formula-title{font-size:8pt!important;line-height:1!important;margin:2mm 0 .5mm!important}
+  .order-print-formula{grid-template-rows:3.5mm 3.5mm!important;margin:0 0 2mm!important;border-bottom:0!important}
+  .order-print-formula>div{border-top:1px solid #333!important}
+  .order-print-formula span{border-left:1px solid #333!important;font-size:5.5pt!important}
+  .order-print-formula span:last-child{border-right:1px solid #333!important}
+  .order-print-main{grid-template-columns:minmax(0,1fr) 48mm minmax(0,1fr)!important;gap:2mm!important;height:73mm!important;border-top:1px solid #333!important;padding-top:1mm!important}
+  .order-print-side{height:72mm!important;grid-template-rows:repeat(16,1fr)!important}
+  .order-print-tooth-line{grid-template-columns:minmax(0,1fr) 5mm!important;border-bottom:1px solid #333!important}
+  .order-print-side-right .order-print-tooth-line{grid-template-columns:5mm minmax(0,1fr)!important}
+  .order-print-tooth-line i,.order-print-side-right .order-print-tooth-line i{border-left:1px solid #333!important}
+  .order-print-tooth-line span{font-size:5.5pt!important;padding:0 1mm!important}
+  .order-print-tooth-line b{font-size:5pt!important;line-height:1!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .order-print-jaw{height:72mm!important;overflow:hidden!important}
+  .order-print-jaw .tooth-chart{width:48mm!important;height:72mm!important;max-width:none!important;transform:none!important}
+  .order-print-jaw .tooth-chart svg{width:48mm!important;height:72mm!important;max-height:none!important}
+  .order-print-bottom{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 20mm!important;gap:3mm!important;margin-top:1mm!important;align-items:center!important}
+  .order-print-bottom .order-print-line-field{height:5mm!important}
+  .order-print-bottom .order-print-line-field span{font-size:7pt!important}
+  .order-print-qr{display:flex!important;align-items:center;justify-content:flex-end;gap:1mm;font-size:5pt!important;line-height:1!important;text-align:center}
+  .order-print-qr img{width:14mm!important;height:14mm!important;object-fit:contain}
+  .order-print-qr small{font-size:5pt!important;max-width:8mm!important;white-space:normal!important}
+  .order-print-page{right:7mm!important;bottom:2mm!important;font-size:5pt!important;color:#555!important}
+}
+
+/* Physical paper and service numbering have separate classes: no inherited offsets. */
+@media print{
+  .order-print-paper{
+    display:grid!important;position:relative!important;inset:auto!important;transform:none!important;
+    width:210mm!important;height:297mm!important;box-sizing:border-box!important;
+    grid-template-rows:repeat(2,141.5mm)!important;gap:4mm!important;
+    margin:0!important;padding:5mm!important;overflow:visible!important;
+    break-after:page!important;page-break-after:always!important
+  }
+  .order-print-paper:last-child{break-after:auto!important;page-break-after:auto!important}
+  .order-print-paper>.order-print-sheet{
+    width:200mm!important;height:141.5mm!important;min-height:141.5mm!important;max-height:none!important;
+    margin:0!important;padding:calc(3mm + .25mm) calc(4mm + .25mm)!important;border:0!important;box-sizing:border-box!important;
+    inset:auto!important;transform:none!important;overflow:visible!important;
+    break-inside:avoid!important;page-break-inside:avoid!important;break-after:auto!important;page-break-after:auto!important
+  }
+  .order-print-page-number{position:absolute!important;right:4mm!important;bottom:1mm!important;font-size:5pt!important;color:#555!important}
+  .order-print-project{display:block!important;text-align:center!important}
+  .order-print-service-title{display:block!important;margin-top:.6mm!important;font-size:6.2pt!important;line-height:1.15!important;font-weight:700!important;white-space:normal!important;overflow-wrap:anywhere!important}
+  .order-print-main{height:70mm!important}
+  .order-print-side,.order-print-jaw{height:68mm!important}
+  .order-print-jaw .tooth-chart,.order-print-jaw .tooth-chart svg{height:68mm!important;width:45mm!important}
+}
+
+/* Keep the service next to every selected tooth and preserve written instructions. */
+@media print{
+  .order-print-line-content{min-height:0!important;overflow:visible!important}
+  .order-print-line-content>b{font-size:5.5pt!important;line-height:1.05!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere!important}
+  .order-print-bottom{grid-template-columns:24mm minmax(0,1fr) 20mm!important;align-items:start!important}
+  .order-print-bottom .order-print-line-field{height:auto!important;min-height:5mm!important;align-items:baseline!important}
+  .order-print-bottom .order-print-line-field b{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere!important;font-size:6.5pt!important;line-height:1.15!important}
+}
+
+/* Mirror the open tooth rows; keep the logo large within the existing header. */
+@media print{
+  .order-print-top{grid-template-columns:minmax(0,1fr) 48mm!important}
+  .order-print-brand img{width:45mm!important;height:19mm!important;object-fit:cover!important;object-position:center!important}
+  .order-print-side-right .order-print-tooth-line i{border-left:0!important;border-right:1px solid #333!important}
+  .order-print-side .order-print-tooth-line:last-child{border-bottom:0!important}
+  .order-print-formula>div>span:first-child{border-left:0!important}
+  .order-print-formula>div>span:last-child{border-right:0!important}
+}
+
+/* Keep history readable on wide screens and give each service its own line. */
+.order-history{max-width:1080px}
+.order-history>li{grid-template-columns:minmax(150px,190px) minmax(90px,130px) minmax(0,1fr);align-items:start;gap:12px 24px}
+.order-history-description,.order-history>li>span{max-width:68ch;min-width:0;line-height:1.55;overflow-wrap:anywhere}
+.order-history-patient{margin:4px 0 8px}
+.order-history-services{display:grid;gap:6px;margin:0;padding-left:18px;list-style:disc}
+.order-history .order-history-services>li{display:list-item;margin:0;padding:0;border:0;font:inherit;color:inherit}
+@media(max-width:760px){.order-history>li{grid-template-columns:1fr;gap:4px}.order-history-description{margin-top:4px}}
+
+@media print{
+  .order-print-qr svg{display:block!important;flex:none!important;width:14mm!important;height:14mm!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+}

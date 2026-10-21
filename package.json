@@ -5,8 +5,13 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check app.js && node --check technician.js && node --check worker.js && node --check seed-orders.js && node --check portal-client.js && node --check large-upload.js && node --check yandex-disk-storage.js && node --check notification-center.js && node --check portal-data.js && node --check auth-data.js && node --check routes.js && node --check reset-users.mjs && node --check backup-data.js && node --check telegram-bot.js && node --check server.js",
-    "test": "node --test telegram-bot.test.js cad-review.test.js"
+    "check": "node --check app.js && node --check technician.js && node --check company-pulse.js && node --check order-list-utils.js && node --check worker.js && node --check cam-workflow.js && node --check employee-telegram-bot.js && node --check seed-orders.js && node --check portal-client.js && node --check large-upload.js && node --check yandex-disk-storage.js && node --check notification-center.js && node --check portal-data.js && node --check auth-data.js && node --check routes.js && node --check reset-users.mjs && node --check backup-data.js && node --check telegram-bot.js && node --check server.js",
+    "test": "node --test telegram-bot.test.js cad-review.test.js order-list-utils.test.js cam-workflow.test.js company-pulse.test.js"
   },
-  "engines": {"node": ">=20"}
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
 }

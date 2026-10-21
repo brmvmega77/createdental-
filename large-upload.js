@@ -1,9 +1,10 @@
 const $=selector=>document.querySelector(selector);
 const token=new URLSearchParams(location.search).get('token')||'';
-let selectedFiles=[],preparing=false,sending=false,finished=false;
-const allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf)$/i;
+let selectedFiles=[],existingFiles=[],preparing=false,sending=false,finished=false;
+const allowed=/\.(jpg|jpeg|png|webp|pdf|stl|constructionInfo|ply|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf)$/i;
 const maxSize=200*1024*1024,maxFiles=10;
 const sizeLabel=size=>size>=1024*1024?`${(size/1024/1024).toFixed(1)} МБ`:`${Math.max(1,Math.ceil(size/1024))} КБ`;
+const sameFile=(left,right)=>String(left?.name||'').trim().toLocaleLowerCase('ru-RU')===String(right?.name||'').trim().toLocaleLowerCase('ru-RU')&&Number(left?.size||0)===Number(right?.size||0);
 
 function feedback(message='',tone=''){
   const element=$('#feedback');element.textContent=message;element.className=`feedback${tone?' '+tone:''}`;
@@ -70,6 +71,7 @@ function choose(files){
     if(!allowed.test(file.name))return feedback(`Формат файла «${file.name}» не поддерживается.`,'error');
     if(file.size>maxSize)return feedback(`Файл «${file.name}» больше 200 МБ.`,'error');
     if(!file.size)return feedback(`Файл «${file.name}» пустой.`,'error');
+    if(existingFiles.some(existing=>sameFile(existing,file))||selectedFiles.some(item=>sameFile(item.file,file)))return feedback(`Файл «${file.name}» уже загружен в этот заказ.`,'error');
   }
   selectedFiles.push(...list.map(file=>({file,state:'queued',progress:0,uploadId:''})));finished=false;renderFiles();void prepareFiles();
 }
@@ -77,7 +79,10 @@ async function load(){
   if(!token)throw new Error('В ссылке нет кода загрузки');
   const response=await fetch(`/api/large-upload/${encodeURIComponent(token)}`,{cache:'no-store'}),data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'Ссылка недействительна');
-  $('#clinic').textContent=data.clinic;$('#order').textContent=data.orderId;$('#patient').textContent=data.patient;$('#work').textContent=`${data.work} · ${data.date}`;$('#loader').classList.add('hidden');$('#upload').classList.remove('hidden');
+  existingFiles=Array.isArray(data.existingFiles)?data.existingFiles:[];
+  $('#clinic').textContent=data.clinic;$('#order').textContent=data.orderId||'Новый заказ';$('#patient').textContent=data.patient||'—';$('#work').textContent=`${data.work||'—'}${data.date?` · ${data.date}`:''}`;
+  if(data.draft){document.querySelector('#upload .eyebrow').textContent='ФАЙЛЫ ПАЦИЕНТА';document.querySelector('#upload h1').textContent='Загрузить файлы пациента';document.querySelector('#upload .lead').textContent='Файлы сохранятся и автоматически прикрепятся к заказу после его подтверждения.';document.querySelector('#success h1').textContent='Файлы сохранены';document.querySelector('#success .lead').textContent='Вернитесь в Telegram и нажмите «Файлы загружены, продолжить».'}
+  $('#loader').classList.add('hidden');$('#upload').classList.remove('hidden');
 }
 
 $('#file').addEventListener('change',event=>{choose(event.target.files);event.target.value=''});
@@ -107,6 +112,9 @@ $('#submit').addEventListener('click',async()=>{
     }
     const finishResponse=await fetch(`/api/large-upload/${encodeURIComponent(token)}/finish`,{method:'POST'}),finish=await finishResponse.json().catch(()=>({}));
     if(!finishResponse.ok)throw new Error(finish.error||'Не удалось завершить отправку');
+    if(!finish.telegramNotified)$('#success .lead').textContent=finish.orderId
+      ?'Файлы уже прикреплены к заказу. Уведомление в Telegram не доставлено; эту страницу можно закрыть.'
+      :'Файлы сохранены. Уведомление в Telegram не доставлено; вернитесь в бот и продолжите оформление.';
     finished=true;$('#upload').classList.add('hidden');$('#success').classList.add('show');feedback('');
   }catch(reason){feedback(reason.message||'Не удалось отправить файлы','error');status('Отправка не завершена.')}
   finally{sending=false;renderFiles()}

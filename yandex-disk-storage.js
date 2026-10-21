@@ -80,10 +80,10 @@ export async function moveDiskResource(token,fromPath,toPath){
   return true;
 }
 
-export async function copyDiskResource(token,fromPath,toPath){
+export async function copyDiskResource(token,fromPath,toPath,{overwrite=false}={}){
   const slash=String(toPath).lastIndexOf('/');
   await ensureDiskFolder(token,slash>0?toPath.slice(0,slash):'/Клиенты');
-  const response=await fetch(`${apiRoot}${query('/resources/copy',{from:fromPath,path:toPath,overwrite:'false'})}`,{
+  const response=await fetch(`${apiRoot}${query('/resources/copy',{from:fromPath,path:toPath,overwrite:overwrite?'true':'false'})}`,{
     method:'POST',headers:{Authorization:`OAuth ${token}`},signal:AbortSignal.timeout(30000)
   });
   const data=await response.json().catch(()=>({}));
