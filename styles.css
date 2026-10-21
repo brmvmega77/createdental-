@@ -259,21 +259,24 @@
 /* Keep the distance from the cabinet label to the menu identical everywhere. */
 .sidebar .sidebar-nav,.tech-sidebar .sidebar-nav{margin-top:7px}
 
-/* Keep the account link in its own bottom zone instead of letting it fall off the viewport. */
-.tech-sidebar .sidebar-nav{
-  flex:1 1 auto;
-  min-height:0;
-  overflow-y:auto;
-  scrollbar-width:thin;
+/* Keep the complete chief-technician menu visible at compact desktop heights. */
+@media(min-width:761px){
+  .tech-sidebar .sidebar-nav{gap:4px}
+  .tech-sidebar .nav-link{height:40px;gap:11px;padding-left:11px;padding-right:11px;font-size:13px}
+  .tech-sidebar .nav-link svg{width:19px;height:19px}
+  .tech-sidebar .brand{height:72px}
+  .tech-sidebar .brand .portal-logo{width:172px;height:68px}
+  .tech-sidebar .tech-side-label{margin-top:7px;margin-bottom:12px}
 }
-.tech-sidebar .sidebar-footer-nav{
-  flex:0 0 auto;
-  margin-top:12px;
-  padding-top:12px;
-  border-top:1px solid #f5f5f5;
+@media(min-width:761px) and (max-height:700px){
+  .tech-sidebar{padding-top:12px;padding-bottom:12px}
+  .tech-sidebar .brand{height:56px}
+  .tech-sidebar .brand .portal-logo{width:150px;height:56px}
+  .tech-sidebar .tech-side-label{margin-top:3px;margin-bottom:6px;font-size:9px}
+  .tech-sidebar .sidebar-nav{gap:1px}
+  .tech-sidebar .nav-link{height:34px;gap:9px;padding-left:9px;padding-right:9px;font-size:12px}
+  .tech-sidebar .nav-link svg{width:17px;height:17px}
 }
-.tech-sidebar .sidebar-profile-nav{margin-top:0}
-.tech-sidebar .sidebar-footer-nav .mobile-sidebar-logout{margin-top:12px}
 
 /* Simple mobile layout */
 @media(max-width:760px){
