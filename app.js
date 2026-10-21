@@ -62,6 +62,8 @@ let orderCreationInFlight=false;
 let portalHistory=[];
 let portalClientRequests=[];
 let portalTasks=[];
+const defaultDeliverySettings={freeThreshold:4000,fee:500};
+let deliverySettings={...defaultDeliverySettings};
 const selectedWork=()=>workCatalog.find(item=>item.name===state.work);
 const workOptionName=option=>typeof option==='string'?option:option.name;
 const selectedWorkOption=()=>selectedWork()?.options.find(option=>workOptionName(option)===state.workOption);
@@ -87,7 +89,7 @@ const variantEstimate = variant => estimateWork({work:variant.work,option:varian
 const currentSurgicalGuideIncluded=()=>{const current=currentVariant(),jaws=['upper','lower'].filter(jaw=>hasSurgicalJaw(current,jaw));return isSurgicalTemplate(current)&&jaws.length>0&&jaws.every(jaw=>(state.orderVariants||[]).some(variant=>isSurgicalTemplate(variant)&&hasSurgicalJaw(variant,jaw)))};
 const allVariants = () => [...(state.orderVariants||[]),...(currentSurgicalGuideIncluded()?[]:[currentVariant()])];
 const serviceSubtotalEstimate = () => {const variants=allVariants().filter(variantIsComplete),values=variants.map(variantEstimate);return variants.length&&values.every(Number.isFinite)?values.reduce((sum,value)=>sum+value,0):null};
-const deliveryFeeForSubtotal = subtotal => Number.isFinite(subtotal)?(subtotal<4000?500:0):null;
+const deliveryFeeForSubtotal = subtotal => {const threshold=Number(deliverySettings.freeThreshold),fee=Number(deliverySettings.fee);return Number.isFinite(subtotal)?(subtotal<(Number.isFinite(threshold)&&threshold>=0?threshold:4000)?(Number.isFinite(fee)&&fee>=0?fee:500):0):null};
 const orderDeliveryFee = () => deliveryFeeForSubtotal(serviceSubtotalEstimate());
 const totalOrderEstimate = () => {const subtotal=serviceSubtotalEstimate(),delivery=deliveryFeeForSubtotal(subtotal);return Number.isFinite(subtotal)&&Number.isFinite(delivery)?subtotal+delivery:null};
 const serviceSubtotalText = () => serviceSubtotalEstimate()===null?'Стоимость уточняется':rubles(serviceSubtotalEstimate());
@@ -773,7 +775,8 @@ function orderDraft(){
   const saved=state.orderVariants||[],current=currentVariant(),complete=variantIsComplete(current),currentIncluded=currentSurgicalGuideIncluded(),cards=[...saved,...(complete&&!currentIncluded?[current]:[])];
   if(!cards.length)return `<aside class="order-draft"><button type="button" class="mobile-order-summary" data-action="mobile-cart-toggle" aria-expanded="false"><span><strong>Ваш заказ</strong><small>Пока пусто</small></span><strong>＋</strong></button><h2>Ваш заказ</h2><div class="order-draft-empty">${icon('orders',24)}<strong>Выберите нужные зубы и работу</strong><span>Здесь появится состав заказа и предварительная стоимость.</span></div></aside>`;
   const groupedCards=groupSurgicalSockets(cards),serviceCount=groupedCards.length;
-  return `<aside class="order-draft"><button type="button" class="mobile-order-summary" data-action="mobile-cart-toggle" aria-expanded="false"><span><strong>Ваш заказ</strong><small>${serviceCount} ${serviceCount===1?'услуга':'услуги'}</small></span><strong>${totalOrderEstimateText()}</strong><span class="mobile-cart-chevron" aria-hidden="true">⌃</span></button><div class="order-draft-title"><h2>Ваш заказ</h2><span>${serviceCount}/10 услуг</span></div><div class="order-variants">${groupedCards.map(({variant,index,sockets},serviceIndex)=>variantCard(variant,index,index<saved.length,sockets,serviceIndex)).join('')}</div>${complete&&!currentIncluded&&serviceCount<10?`<button class="order-variant-add" data-action="add-variant">＋ Заказать ещё</button>`:''}<div class="order-delivery-row"><span>Доставка</span><strong>${deliveryFeeText()}</strong></div><div class="order-total"><span>Итого с доставкой</span><strong>${totalOrderEstimateText()}</strong></div><small class="order-total-note">Доставка 500 ₽ при сумме услуг меньше 4 000 ₽. От 4 000 ₽ — бесплатно.</small></aside>`;
+  const threshold=Number.isFinite(Number(deliverySettings.freeThreshold))?Number(deliverySettings.freeThreshold):4000,fee=Number.isFinite(Number(deliverySettings.fee))?Number(deliverySettings.fee):500;
+  return `<aside class="order-draft"><button type="button" class="mobile-order-summary" data-action="mobile-cart-toggle" aria-expanded="false"><span><strong>Ваш заказ</strong><small>${serviceCount} ${serviceCount===1?'услуга':'услуги'}</small></span><strong>${totalOrderEstimateText()}</strong><span class="mobile-cart-chevron" aria-hidden="true">⌃</span></button><div class="order-draft-title"><h2>Ваш заказ</h2><span>${serviceCount}/10 услуг</span></div><div class="order-variants">${groupedCards.map(({variant,index,sockets},serviceIndex)=>variantCard(variant,index,index<saved.length,sockets,serviceIndex)).join('')}</div>${complete&&!currentIncluded&&serviceCount<10?`<button class="order-variant-add" data-action="add-variant">＋ Заказать ещё</button>`:''}<div class="order-delivery-row"><span>Доставка</span><strong>${deliveryFeeText()}</strong></div><div class="order-total"><span>Итого с доставкой</span><strong>${totalOrderEstimateText()}</strong></div><small class="order-total-note">Доставка ${rubles(fee)} при сумме услуг меньше ${rubles(threshold)}. От ${rubles(threshold)} — бесплатно.</small></aside>`;
 }
 function bridgeSelectionText(){if(state.toothMode!=='Мост')return state.selectedTeeth.length?`Выбрано: ${state.selectedTeeth.join(', ')}`:'Нажмите на нужные зубы';if(state.bridgeStart)return `Начало моста: ${state.bridgeStart}. Выберите последний зуб на этой челюсти`;if(state.bridgeRanges.length)return `Мосты: ${state.bridgeRanges.map(range=>`${range[0]}–${range.at(-1)}`).join(', ')}`;return 'Выберите первый и последний зуб моста'}
 function jawSelectionText(){const upper=upperTeeth.every(tooth=>state.selectedTeeth.includes(tooth)),lower=lowerTeeth.every(tooth=>state.selectedTeeth.includes(tooth));return upper&&lower?'Выбраны верхняя и нижняя челюсти':upper?'Верхняя челюсть выбрана автоматически':lower?'Нижняя челюсть':'Выберите челюсть'}
@@ -1068,6 +1071,7 @@ function syncRoute(){
 function applyPortalData(data){
   if(portalUser?.subjectId!==data.user.subjectId)state.messages=[];
   portalUser=data.user;
+  if(data.deliverySettings&&typeof data.deliverySettings==='object'){const freeThreshold=Number(data.deliverySettings.freeThreshold),fee=Number(data.deliverySettings.fee);deliverySettings={freeThreshold:Number.isFinite(freeThreshold)&&freeThreshold>=0?freeThreshold:defaultDeliverySettings.freeThreshold,fee:Number.isFinite(fee)&&fee>=0?fee:defaultDeliverySettings.fee};}
   if(Array.isArray(data.workCatalog))workCatalog.splice(0,workCatalog.length,...structuredClone(data.workCatalog));
   orders.splice(0,orders.length,...data.orders);
   portalHistory=data.orderHistory||[];
@@ -1083,7 +1087,7 @@ async function hydratePortal(){
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
       const {createTechnicianCabinet}=await import('./technician.js?v=perf-split-1');
-    technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
+    technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
     const {createWorkerCabinet}=await import('./worker.js?v=perf-split-1');

@@ -36,7 +36,8 @@ const defaults=()=>({
   tasks:[],
   clients:assignTelegramCodes(seedClients.map(client=>({...client}))),
   employees:seedEmployees.map(employee=>({...employee})),
-  workCatalog:cloneCatalog(workCatalog)
+  workCatalog:cloneCatalog(workCatalog),
+  deliverySettings:{freeThreshold:4000,fee:500}
 });
 let state=defaults();
 let saveQueue=Promise.resolve();
@@ -48,6 +49,7 @@ try {
     if(stored&&typeof stored==='object'){
     for(const key of ['orders','clients','employees','clientRequests','tasks'])if(Array.isArray(stored[key]))state[key]=stored[key];
     if(Array.isArray(stored.workCatalog)){state.workCatalog=cloneCatalog(stored.workCatalog);workCatalog.splice(0,workCatalog.length,...cloneCatalog(stored.workCatalog))}
+    if(stored.deliverySettings&&typeof stored.deliverySettings==='object'&&!Array.isArray(stored.deliverySettings)){const freeThreshold=Number(stored.deliverySettings.freeThreshold),fee=Number(stored.deliverySettings.fee);state.deliverySettings={freeThreshold:Number.isFinite(freeThreshold)&&freeThreshold>=0?freeThreshold:4000,fee:Number.isFinite(fee)&&fee>=0?fee:500};}
     if(stored.orderOverrides&&typeof stored.orderOverrides==='object'&&!Array.isArray(stored.orderOverrides))state.orderOverrides=stored.orderOverrides;
     if(Array.isArray(stored.orderHistory))state.orderHistory=stored.orderHistory;
     const before=JSON.stringify(state);
@@ -277,12 +279,12 @@ export async function portalSnapshotForDatabase(role,subjectId,view=''){
       normalizedRows('SELECT data FROM portal_clients WHERE client_id=$1',[subjectId]),
       normalizedCatalog()
     ]);
-    return structuredClone({orders,orderOverrides,orderHistory,clientRequests,tasks:[],clients,employees:[],workCatalog});
+    return structuredClone({orders,orderOverrides,orderHistory,clientRequests,tasks:[],clients,employees:[],workCatalog,deliverySettings:state.deliverySettings});
   }
   if(role==='worker'){
     const employeeRows=await databasePool.query('SELECT data FROM portal_employees WHERE employee_id=$1',[subjectId]);
     const employee=employeeRows.rows[0]?.data;
-    if(!employee)return {orders:[],orderOverrides:{},orderHistory:[],clientRequests:[],tasks:[],clients:[],employees:[],workCatalog:await normalizedCatalog()};
+    if(!employee)return {orders:[],orderOverrides:{},orderHistory:[],clientRequests:[],tasks:[],clients:[],employees:[],workCatalog:await normalizedCatalog(),deliverySettings:state.deliverySettings};
     const name=employee.originalName;
     const overrideRows=await databasePool.query(`SELECT order_id,data FROM portal_order_overrides WHERE data->>'assignee'=$1 OR data->>'cadOperator'=$1 OR data->>'preprodTechnician'=$1 OR data->>'technician'=$1 OR data->>'frameTechnician'=$1 OR data->>'painter'=$1 OR data->>'ceramicist'=$1`,[name]);
     const ids=overrideRows.rows.map(row=>row.order_id);
@@ -292,7 +294,7 @@ export async function portalSnapshotForDatabase(role,subjectId,view=''){
       normalizedRows('SELECT data FROM portal_tasks WHERE assignee_id=$1 ORDER BY updated_at DESC NULLS LAST',[subjectId]),
       normalizedCatalog()
     ]);
-    return structuredClone({orders,orderOverrides:Object.fromEntries(overrideRows.rows.map(row=>[row.order_id,row.data])),orderHistory,clientRequests:[],tasks,clients:[],employees:[employee],workCatalog});
+    return structuredClone({orders,orderOverrides:Object.fromEntries(overrideRows.rows.map(row=>[row.order_id,row.data])),orderHistory,clientRequests:[],tasks,clients:[],employees:[employee],workCatalog,deliverySettings:state.deliverySettings});
   }
   const [orders,orderOverrideRows,orderHistory,clientRequests,tasks,clients,employees,workCatalog]=await Promise.all([
     normalizedRows('SELECT data FROM portal_orders ORDER BY created_at DESC NULLS LAST'),
@@ -304,7 +306,7 @@ export async function portalSnapshotForDatabase(role,subjectId,view=''){
     normalizedRows('SELECT data FROM portal_employees ORDER BY name'),
     normalizedCatalog()
   ]);
-  return structuredClone({orders,orderOverrides:Object.fromEntries(orderOverrideRows.rows.map(row=>[row.order_id,row.data])),orderHistory,clientRequests,tasks,clients,employees,workCatalog});
+  return structuredClone({orders,orderOverrides:Object.fromEntries(orderOverrideRows.rows.map(row=>[row.order_id,row.data])),orderHistory,clientRequests,tasks,clients,employees,workCatalog,deliverySettings:state.deliverySettings});
 }
 
 // GET /api/portal only needs the part of the portal visible to the current
@@ -315,7 +317,7 @@ export function portalSnapshotFor(role,subjectId,view=''){
   if(role==='technician'){
     if(view==='compact'){
       const clients=state.clients.map(({logo,...client})=>client);
-      return structuredClone({orders:state.orders,orderOverrides:state.orderOverrides,orderHistory:state.orderHistory.slice(-120),clientRequests:state.clientRequests,tasks:state.tasks,clients,employees:state.employees,workCatalog:state.workCatalog});
+      return structuredClone({orders:state.orders,orderOverrides:state.orderOverrides,orderHistory:state.orderHistory.slice(-120),clientRequests:state.clientRequests,tasks:state.tasks,clients,employees:state.employees,workCatalog:state.workCatalog,deliverySettings:state.deliverySettings});
     }
     return portalSnapshot();
   }
@@ -331,7 +333,8 @@ export function portalSnapshotFor(role,subjectId,view=''){
       tasks:[],
       clients:state.clients.filter(client=>client.id===subjectId),
       employees:[],
-      workCatalog:state.workCatalog
+      workCatalog:state.workCatalog,
+      deliverySettings:state.deliverySettings
     });
   }
   if(role==='worker'){
@@ -350,7 +353,8 @@ export function portalSnapshotFor(role,subjectId,view=''){
       tasks:state.tasks.filter(task=>task.assigneeId===subjectId),
       clients:[],
       employees:employee?[employee]:[],
-      workCatalog:state.workCatalog
+      workCatalog:state.workCatalog,
+      deliverySettings:state.deliverySettings
     });
   }
   return portalSnapshot();
@@ -369,6 +373,7 @@ function validCollection(key,value){
   if(key==='tasks')return Array.isArray(value)&&value.length<=20000&&unique(value)&&value.every(item=>item&&validId(item.id)&&validId(item.assigneeId)&&text(item.assigneeName,200)&&text(item.title,200)&&text(item.description||'',4000)&&(!item.orderId||text(item.orderId,100))&&text(item.clinic||'',200)&&text(item.patient||'',200)&&text(item.work||'',200)&&['backlog','in_progress','review','done'].includes(item.status)&&['low','normal','high','urgent'].includes(item.priority)&&(!item.dueDate||/^\d{4}-\d{2}-\d{2}$/.test(item.dueDate))&&text(item.createdBy||'',200)&&typeof item.createdAt==='string'&&item.createdAt.length<=40&&typeof item.updatedAt==='string'&&item.updatedAt.length<=40&&(!item.completedAt||typeof item.completedAt==='string'&&item.completedAt.length<=40));
   if(key==='orderOverrides')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=5000&&Object.entries(value).every(([id,detail])=>validId(id)&&detail&&typeof detail==='object'&&!Array.isArray(detail)&&(!detail.stage||text(detail.stage,80))&&(!detail.manufacturingStatus||text(detail.manufacturingStatus,80))&&(!detail.assignee||text(detail.assignee,200))&&(!detail.reworkReason||text(detail.reworkReason,2000))&&(!detail.completedAt||typeof detail.completedAt==='string'&&detail.completedAt.length<=40)&&(!detail.qualityDecision||detail.qualityDecision&&typeof detail.qualityDecision==='object'&&!Array.isArray(detail.qualityDecision)&&['cad','preprod','cam','esthetic','final'].includes(detail.qualityDecision.kind)&&['approved','rejected'].includes(detail.qualityDecision.result)&&text(detail.qualityDecision.reasonCategory||'',120)&&text(detail.qualityDecision.reason||'',1000)&&typeof detail.qualityDecision.at==='string'&&detail.qualityDecision.at.length<=40)&&(!detail.cadReview||detail.cadReview&&typeof detail.cadReview==='object'&&!Array.isArray(detail.cadReview)&&['pending','approved','returned'].includes(detail.cadReview.status)&&validId(detail.cadReview.fileId)&&text(detail.cadReview.fileName,200)&&text(detail.cadReview.sentBy||'',200)&&text(detail.cadReview.reviewedBy||'',200)&&text(detail.cadReview.comment||'',2000)&&Number.isSafeInteger(detail.cadReview.revision)&&detail.cadReview.revision>0&&detail.cadReview.revision<10000&&typeof detail.cadReview.sentAt==='string'&&detail.cadReview.sentAt.length<=40&&(!detail.cadReview.reviewedAt||typeof detail.cadReview.reviewedAt==='string'&&detail.cadReview.reviewedAt.length<=40)));
   if(key==='workCatalog')return Array.isArray(value)&&value.length<=100&&value.every(category=>category&&text(category.name,120)&&category.name.trim()&&Array.isArray(category.options)&&category.options.length<=100&&category.options.every(option=>option&&text(option.name,200)&&option.name.trim()&&Number.isFinite(Number(option.price))&&Number(option.price)>=0&&Number(option.price)<=100000000&&(option.productionDays===null||option.productionDays===undefined||Number.isInteger(option.productionDays)&&option.productionDays>=0&&option.productionDays<=365)));
+  if(key==='deliverySettings')return value&&typeof value==='object'&&!Array.isArray(value)&&Number.isFinite(Number(value.freeThreshold))&&Number(value.freeThreshold)>=0&&Number(value.freeThreshold)<=100000000&&Number.isFinite(Number(value.fee))&&Number(value.fee)>=0&&Number(value.fee)<=100000000;
   return false;
 }
 

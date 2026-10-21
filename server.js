@@ -366,7 +366,8 @@ const portalSectionAliases={
   history:'orderHistory','order-history':'orderHistory',orderHistory:'orderHistory',
   requests:'clientRequests','client-requests':'clientRequests',clientRequests:'clientRequests',
   tasks:'tasks',clients:'clients',employees:'employees',
-  catalog:'workCatalog','work-catalog':'workCatalog',workCatalog:'workCatalog'
+  catalog:'workCatalog','work-catalog':'workCatalog',workCatalog:'workCatalog',
+  deliverySettings:'deliverySettings','delivery-settings':'deliverySettings'
 };
 
 async function portalViewForUser(user,view=''){
@@ -408,7 +409,7 @@ async function handlePortal(req,res,url){
     const section=portalSectionAliases[key];
     if(section)return json(res,200,{[section]:snapshot[section]??(section==='orderOverrides'?{}:[]),user:publicUser(user)});
   }
-  if(req.method==='PUT'&&['orders','orderOverrides','clients','employees','workCatalog'].includes(key)){
+  if(req.method==='PUT'&&['orders','orderOverrides','clients','employees','workCatalog','deliverySettings'].includes(key)){
     let value;
     try {value=await readBody(req,500000)} catch {return json(res,400,{error:'Неверные данные'})}
     if(user.role==='clinic'){
@@ -429,7 +430,10 @@ async function handlePortal(req,res,url){
         const normalizedAdditions=additions.map(order=>{
           const servicesTotal=Number(order.servicesTotal);
           if(!Number.isFinite(servicesTotal))return order;
-          const deliveryFee=servicesTotal<4000?500:0;
+          const deliveryRules=snapshot.deliverySettings&&typeof snapshot.deliverySettings==='object'?snapshot.deliverySettings:{freeThreshold:4000,fee:500};
+          const freeThreshold=Number.isFinite(Number(deliveryRules.freeThreshold))?Number(deliveryRules.freeThreshold):4000;
+          const deliveryAmount=Number.isFinite(Number(deliveryRules.fee))?Number(deliveryRules.fee):500;
+          const deliveryFee=servicesTotal<freeThreshold?deliveryAmount:0;
           const total=servicesTotal+deliveryFee;
           return {...order,servicesTotal,deliveryFee,sum:rubles(total)};
         });
@@ -472,6 +476,11 @@ async function handlePortal(req,res,url){
       value={...snapshot.orderOverrides,[id]:next};
     }else if(user.role==='technician'&&key==='workCatalog'){
       if(!Array.isArray(value))return json(res,400,{error:'Неверный каталог'});
+    }else if(user.role==='technician'&&key==='deliverySettings'){
+      if(!value||typeof value!=='object'||Array.isArray(value))return json(res,400,{error:'Неверные условия доставки'});
+      const freeThreshold=Number(value.freeThreshold),fee=Number(value.fee);
+      if(!Number.isFinite(freeThreshold)||freeThreshold<0||freeThreshold>100000000||!Number.isFinite(fee)||fee<0||fee>100000000)return json(res,400,{error:'Порог и стоимость доставки должны быть корректными суммами'});
+      value={freeThreshold,fee};
     }else if(user.role==='technician'&&key==='orderOverrides'){
       if(!value||typeof value!=='object'||Array.isArray(value))return json(res,400,{error:'Неверные данные'});
       const ids=new Set([...Object.keys(snapshot.orderOverrides),...Object.keys(value)]);
