@@ -127,3 +127,21 @@ export function sessionFor(token){
 }
 export function revokeSession(token){sessions.delete(sessionKey(token));saveSessions()}
 export function revokeSubjectSessions(role,subjectId){let changed=false;for(const [token,current] of sessions)if(current.role===role&&current.subjectId===subjectId){sessions.delete(token);changed=true}if(changed)saveSessions()}
+
+// Owner provisioning is an administrative operation, never public registration.
+export async function createOwnerAccount({email,password}){
+  if(!validEmail(email)||!validPassword(password)||hasAccount(email))throw new Error('invalid_account');
+  const account={id:randomBytes(16).toString('hex'),email:normalize(email),passwordHash:hash(password),role:'owner',subjectId:'owner-'+randomBytes(8).toString('hex'),mustChangePassword:true};
+  accounts.push(account);
+  try{await save()}catch(error){accounts=accounts.filter(item=>item!==account);throw error}
+  return {id:account.id,email:account.email};
+}
+export async function updateOwnerPassword(subjectId,currentPassword,password){
+  const account=accounts.find(a=>a.role==='owner'&&a.subjectId===subjectId);
+  if(!account||typeof currentPassword!=='string'||!verify(currentPassword,account.passwordHash))throw Object.assign(new Error('Текущий пароль неверен'),{status:400});
+  if(!validPassword(password)||password===currentPassword)throw Object.assign(new Error('Новый пароль должен отличаться и содержать от 8 до 200 символов'),{status:400});
+  const previous=account.passwordHash;account.passwordHash=hash(password);account.mustChangePassword=false;
+  try{await save();}catch(e){account.passwordHash=previous;throw e;}
+  revokeSubjectSessions('owner',subjectId);
+}
+export function isOwnerEmail(email){return accounts.some(a=>a.role==='owner'&&a.email===normalize(email));}

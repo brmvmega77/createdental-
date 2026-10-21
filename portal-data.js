@@ -435,3 +435,6 @@ export async function recordPortalEvent(orderId,actor,action,details={}){
   await saveQueue;
   return portalSnapshot().orderHistory.at(-1);
 }
+
+// Reuse the existing PostgreSQL pool for the owner's private financial records.
+export function portalDatabasePool(){return databasePool;}

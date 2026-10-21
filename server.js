@@ -1,3 +1,4 @@
+import {handleOwner} from './owner-api.js';
 import {camCanAccept,camCanSubmitQuality,camAfterMilling} from './cam-workflow.js';
 import http from 'node:http';
 import https from 'node:https';
@@ -8,7 +9,7 @@ import {gzip} from 'node:zlib';
 import { timingSafeEqual,randomBytes,createHash } from 'node:crypto';
 import {createDataBackup} from './backup-data.js';
 import {portalSnapshot,portalSnapshotFor,portalSnapshotForDatabase,replacePortalCollection,recordPortalEvent,portalClient,portalEmployee} from './portal-data.js';
-import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
+import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,isOwnerEmail,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
 import {createTelegramBridge} from './telegram-bot.js';
 import {createEmployeeTelegramBridge} from './employee-telegram-bot.js';
 import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource} from './yandex-disk-storage.js';
@@ -93,7 +94,7 @@ const integrationSecretFiles={
 const tlsKeyFile=process.env.TLS_KEY_FILE||'';
 const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
-const publicFiles = new Set(['/','/index.html','/app.js','/work-catalog.js','/technician.js','/production-stages.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing.js']);
+const publicFiles = new Set(['/owner.js','/owner.css','/','/index.html','/app.js','/work-catalog.js','/technician.js','/production-stages.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon'};
 const sharedAttachmentTypes={
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream',
@@ -1359,6 +1360,7 @@ async function handleAuth(req,res,url){
     catch{return json(res,500,{error:'Не удалось создать кабинет'})}
   }
   if(req.method==='POST'&&url.pathname==='/api/auth/login'){
+    if(isOwnerEmail(body.email))return json(res,403,{error:'Для владельца откройте отдельный вход: /owner/login'});
     const account=login(body.email,body.password);
     if(!account||account.role==='worker'&&portalEmployee(account.subjectId)?.status!=='active'||account.role==='clinic'&&!portalClient(account.subjectId))return json(res,401,{error:'Неверный email или пароль'});
     if(account.role==='clinic'&&portalClient(account.subjectId).approved===false)return json(res,403,{error:'Кабинет ожидает подтверждения главным техником'});
@@ -1693,7 +1695,9 @@ function serveFile(req, res, pathname) {
   const appRoute=/^\/(?:login|register|forgot-password|(?:clinic|technician|worker)(?:\/[A-Za-z0-9_-]+){0,2})\/?$/.test(pathname);
   const landingRoute=pathname==='/landing'||pathname==='/landing/';
   const publicLandingRoute=pathname==='/'||landingRoute;
-  if (pathname==='/favicon.ico') {
+  if (/^\/owner(?:\/(?:login|overview|finance|economics|production|team|clients|settings))?\/?$/.test(pathname)) {
+    file = path.join(root, 'owner.html');
+  } else if (pathname==='/favicon.ico') {
     file = path.join(root, 'public', 'assets', 'favicon.ico');
   } else if (publicFiles.has(pathname)||appRoute||publicLandingRoute) {
     file = path.join(root, appRoute ? 'index.html' : publicLandingRoute ? 'landing.html' : pathname);
@@ -1740,6 +1744,8 @@ const requestHandler=async (req,res) => {
   }
   if(url.pathname.startsWith('/api/large-upload/')){try{return await handleLargeUpload(req,res,url)}catch(error){console.error('Large upload request failed:',error.message);return json(res,500,{error:'Ошибка загрузки файла'})}}
   if(url.pathname.startsWith('/api/cad-preview/')){try{return await handleCadPreview(req,res,url)}catch(error){console.error('CAD preview request failed:',error.message);return json(res,500,{error:'Ошибка предпросмотра CAD'})}}
+  if(url.pathname.startsWith('/api/owner/'))return handleOwner(req,res,url);
+  if(url.pathname.startsWith('/api/')&&session(req)?.role==='owner'&&url.pathname!=='/api/auth/logout')return json(res,403,{error:'Используйте кабинет владельца'});
   if(url.pathname.startsWith('/api/auth/'))return handleAuth(req,res,url);
   if(url.pathname==='/api/uploads/init'||url.pathname.startsWith('/api/uploads/')){try{return await handleUploads(req,res,url)}catch(error){console.error('Upload request failed:',error.message);return json(res,500,{error:'Ошибка загрузки файла'})}}
   if(url.pathname==='/api/clinic-message-files'||url.pathname.startsWith('/api/clinic-message-files/')){
