@@ -367,7 +367,8 @@ const portalSectionAliases={
   requests:'clientRequests','client-requests':'clientRequests',clientRequests:'clientRequests',
   tasks:'tasks',clients:'clients',employees:'employees',
   catalog:'workCatalog','work-catalog':'workCatalog',workCatalog:'workCatalog',
-  deliverySettings:'deliverySettings','delivery-settings':'deliverySettings'
+  deliverySettings:'deliverySettings','delivery-settings':'deliverySettings',
+  promoCodes:'promoCodes','promo-codes':'promoCodes'
 };
 
 async function portalViewForUser(user,view=''){
@@ -407,9 +408,10 @@ async function handlePortal(req,res,url){
   const key=url.pathname.slice('/api/portal/'.length);
   if(req.method==='GET'){
     const section=portalSectionAliases[key];
+    if(section==='promoCodes'&&user.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
     if(section)return json(res,200,{[section]:snapshot[section]??(section==='orderOverrides'?{}:[]),user:publicUser(user)});
   }
-  if(req.method==='PUT'&&['orders','orderOverrides','clients','employees','workCatalog','deliverySettings'].includes(key)){
+  if(req.method==='PUT'&&['orders','orderOverrides','clients','employees','workCatalog','deliverySettings','promoCodes'].includes(key)){
     let value;
     try {value=await readBody(req,500000)} catch {return json(res,400,{error:'Неверные данные'})}
     if(user.role==='clinic'){
@@ -428,14 +430,16 @@ async function handlePortal(req,res,url){
         // delivery amount before persisting a new order so stale clients
         // cannot save a mismatched total.
         const normalizedAdditions=additions.map(order=>{
-          const servicesTotal=Number(order.servicesTotal);
+          const promo=String(order.promoCode||'').trim().toUpperCase(),promoRule=snapshot.promoCodes?.find(item=>item.active!==false&&String(item.code||'').toUpperCase()===promo),variants=Array.isArray(order.variants)&&order.variants.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[],toothMode:order.toothMode}];
+          const calculated=variants.map(variant=>{const estimate=estimateWork({work:variant.work,option:variant.workOption,teeth:variant.selectedTeeth||[],units:variant.units}).amount,special=promoRule?.prices?.[`${variant.work}|||${variant.workOption}`];return Number.isFinite(Number(special))?Number(special)*estimateWork({work:variant.work,option:variant.workOption,teeth:variant.selectedTeeth||[],units:variant.units}).units:estimate});
+          const servicesTotal=calculated.length&&calculated.every(Number.isFinite)?calculated.reduce((sum,value)=>sum+value,0):Number(order.servicesTotal);
           if(!Number.isFinite(servicesTotal))return order;
           const deliveryRules=snapshot.deliverySettings&&typeof snapshot.deliverySettings==='object'?snapshot.deliverySettings:{freeThreshold:4000,fee:500};
           const freeThreshold=Number.isFinite(Number(deliveryRules.freeThreshold))?Number(deliveryRules.freeThreshold):4000;
           const deliveryAmount=Number.isFinite(Number(deliveryRules.fee))?Number(deliveryRules.fee):500;
           const deliveryFee=servicesTotal<freeThreshold?deliveryAmount:0;
           const total=servicesTotal+deliveryFee;
-          return {...order,servicesTotal,deliveryFee,sum:rubles(total)};
+          return {...order,servicesTotal,deliveryFee,promoCode:promo,sum:rubles(total)};
         });
         value=[...normalizedAdditions,...snapshot.orders];
       }else if(key==='orderOverrides'){
@@ -481,6 +485,9 @@ async function handlePortal(req,res,url){
       const freeThreshold=Number(value.freeThreshold),fee=Number(value.fee);
       if(!Number.isFinite(freeThreshold)||freeThreshold<0||freeThreshold>100000000||!Number.isFinite(fee)||fee<0||fee>100000000)return json(res,400,{error:'Порог и стоимость доставки должны быть корректными суммами'});
       value={freeThreshold,fee};
+    }else if(user.role==='technician'&&key==='promoCodes'){
+      if(!Array.isArray(value))return json(res,400,{error:'Неверные промокоды'});
+      value=value.map(item=>({...item,code:String(item.code||'').trim().toUpperCase()}));
     }else if(user.role==='technician'&&key==='orderOverrides'){
       if(!value||typeof value!=='object'||Array.isArray(value))return json(res,400,{error:'Неверные данные'});
       const ids=new Set([...Object.keys(snapshot.orderOverrides),...Object.keys(value)]);
@@ -1368,14 +1375,16 @@ async function handleAuth(req,res,url){
   if(req.method==='POST'&&url.pathname==='/api/auth/register'){
     const name=String(body.name||'').trim(),email=String(body.email||'').trim().toLowerCase();
     const phone=String(body.phone||'').trim(),country=String(body.country||'').trim(),city=String(body.city||'').trim(),address=String(body.address||'').trim();
+    const promoCode=String(body.promoCode||'').trim().toUpperCase();
     const allowedCountries=new Set(['RU','BY','AM','KZ','UZ','AE']);
     if(body.personalDataConsentVersion!=='1.0')return json(res,400,{error:'Для регистрации необходимо дать отдельное согласие на обработку персональных данных'});
     if(name.length<2||name.length>120||/[<>]/.test(name)||!validEmail(email)||!validPassword(body.password)||hasAccount(email))return json(res,400,{error:'Проверьте название, email и пароль (от 8 символов)'});
     if(!allowedCountries.has(country))return json(res,400,{error:'Выберите страну'});
     if(phone&&!/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/.test(phone)||city.length>120||address.length>250||/[<>]/.test(city+address))return json(res,400,{error:'Проверьте телефон, город и адрес'});
+    if(promoCode&&!portalSnapshot().promoCodes?.some(item=>item.active!==false&&String(item.code||'').toUpperCase()===promoCode))return json(res,400,{error:'Промокод не найден или больше не действует'});
     const existing=portalSnapshot().clients.find(item=>item.email?.toLowerCase()===email&&!item.deleted);
     const id=existing?.id||'client-'+randomBytes(12).toString('hex');
-    const client={...(existing||{}),id,originalName:existing?.originalName||id,name,email,contact:existing?.contact||'',phone,city,address,country,approved:existing?.approved??false,personalDataConsent:{version:'1.0',acceptedAt:new Date().toISOString()}};
+    const client={...(existing||{}),id,originalName:existing?.originalName||id,name,email,contact:existing?.contact||'',phone,city,address,country,promoCode,approved:existing?.approved??false,personalDataConsent:{version:'1.0',acceptedAt:new Date().toISOString()}};
     try{const clients=portalSnapshot().clients;await replacePortalCollection('clients',existing?clients.map(item=>item.id===id?client:item):[...clients,client]);await createAccount({email,password:body.password,role:'clinic',subjectId:id});await recordPortalEvent('',{role:'clinic',name},'clinic_registered',{clinicId:id,summary:name}).catch(()=>{});return json(res,201,{pendingApproval:true,email});}
     catch{return json(res,500,{error:'Не удалось создать кабинет'})}
   }
