@@ -1,5 +1,5 @@
 import path from 'node:path';
-import {login,issueSession,sessionFor,revokeSession,updateOwnerPassword} from './auth-data.js';
+import {loginOwner,issueSession,sessionFor,revokeSession,updateOwnerPassword} from './auth-data.js';
 import {portalSnapshotForDatabase,portalDatabasePool} from './portal-data.js';
 import {buildOwnerReport,reportingPeriod} from './owner-metrics.js';
 import {createOwnerStore} from './owner-store.js';
@@ -16,7 +16,7 @@ export async function handleOwner(req,res,url){
     if(entry.count>=10)return send(res,429,{error:'Слишком много попыток. Повторите через 15 минут.'});
     const body=await bodyOf(req);entry.count++;attempts.set(key,entry);
     if(typeof body.email!=='string'||typeof body.password!=='string'||body.password.length>200)return send(res,401,{error:'Проверьте email и пароль владельца'});
-    const account=login(body.email,body.password);
+    const account=loginOwner(body.email,body.password);
     if(!account||account.role!=='owner')return send(res,401,{error:'Проверьте email и пароль владельца'});
     attempts.delete(key);return send(res,200,{token:issueSession('owner',account.subjectId,'Владелец'),user:{role:'owner',email:account.email},mustChangePassword:Boolean(account.mustChangePassword)});
   }

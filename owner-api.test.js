@@ -11,7 +11,7 @@ export async function ownerFixture(){
  const today=new Date().toISOString().slice(0,10),created=today+'T10:00:00Z';
  const portal={orders:[{id:'CD-OWNER-A',clinicId:'clinic-1',clinic:'Клиника Альфа',patient:'PRIVATE_PATIENT',sum:'15 000 ₽',date:today,createdAt:created,variants:[{work:'Реставрации',workOption:'Керамическая коронка'}]},{id:'CD-OWNER-B',clinicId:'clinic-1',clinic:'Клиника Альфа',patient:'PRIVATE_PATIENT_B',sum:'8 000 ₽',date:today,createdAt:created}],orderOverrides:{'CD-OWNER-A':{stage:'Моделирование',cadOperator:'Техник'},'CD-OWNER-B':{stage:'В доставке',paidAmount:2000,paymentDueDate:today}},clients:[{id:'clinic-1',name:'Клиника Альфа',originalName:'Клиника Альфа',approved:true}],employees:[{id:'worker-1',name:'Техник',originalName:'Техник',specialty:'CAD',status:'active',wipLimit:1}],orderHistory:[],tasks:[]};
  await fs.writeFile(path.join(data,'portal.json'),JSON.stringify(portal));
- const password='Fixture-'+randomBytes(15).toString('hex'),salt=randomBytes(16).toString('hex');await fs.writeFile(path.join(data,'accounts.json'),JSON.stringify([{id:'owner-1',email:'owner@example.test',role:'owner',subjectId:'owner-1',passwordHash:salt+':'+scryptSync(password,salt,64).toString('hex')}]),{mode:0o600});
+ const password='Fixture-'+randomBytes(15).toString('hex'),salt=randomBytes(16).toString('hex');await fs.writeFile(path.join(data,'accounts.json'),JSON.stringify([{id:'owner-1',email:'owner@example.test',role:'owner',subjectId:'owner-1',passwordHash:salt+':'+scryptSync(password,salt,64).toString('hex')},{id:'chief-1',email:'owner@example.test',role:'technician',subjectId:'chief',passwordHash:salt+':'+scryptSync(password+'chief',salt,64).toString('hex')}]),{mode:0o600});
  await fs.writeFile(path.join(data,'sessions.json'),JSON.stringify(['owner','chief','clinic','worker'].map(role=>[sessionKey(role+'-token'),{role:role==='chief'?'technician':role,subjectId:role==='chief'?'chief':role==='clinic'?'clinic-1':role==='worker'?'worker-1':'owner-1',expires:Date.now()+3600000}])));
  for(const name of await fs.readdir(root)){if(/\.(js|html|css)$/.test(name))await fs.symlink(path.join(root,name),path.join(temporary,name));}await fs.symlink(path.join(root,'public'),path.join(temporary,'public'));
  const port=45000+Math.floor(Math.random()*1000),child=spawn(process.execPath,[path.join(root,'server.js')],{cwd:temporary,env:{...process.env,PORT:String(port),HOST:'127.0.0.1',PORTAL_DATABASE_URL:'',DATABASE_URL:'',HTTPS_REDIRECT:'0'},stdio:['ignore','pipe','pipe']});
@@ -32,7 +32,9 @@ test('owner financial access is isolated; writes conflict safely; password chang
  const current=await request('/api/owner/report','owner-token');assert.equal(current.data.summary.contribution,12000);
  assert.equal((await request('/api/owner/login','',{email:'owner@example.test',password:'wrong'})).status,401);
  const login=await request('/api/owner/login','',{email:'owner@example.test',password:fixture.password});assert.equal(login.status,200);
- assert.equal((await request('/api/auth/login','',{email:'owner@example.test',password:fixture.password})).status,403);
+ assert.equal((await request('/api/auth/login','',{email:'owner@example.test',password:fixture.password})).status,401);
+ assert.equal((await request('/api/auth/login','',{email:'owner@example.test',password:fixture.password+'chief'})).status,200);
+ assert.equal((await request('/api/owner/login','',{email:'owner@example.test',password:fixture.password+'chief'})).status,401);
  const updated=await request('/api/owner/password',login.data.token,{currentPassword:fixture.password,password:fixture.password+'new'});assert.equal(updated.status,200);
  assert.equal((await request('/api/owner/report','owner-token')).status,401);assert.equal((await request('/api/owner/report',updated.data.token)).status,200);
  const page=await fetch(fixture.base+'/owner/economics');assert.equal(page.status,200);assert.match(await page.text(),/owner.js/);

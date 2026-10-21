@@ -48,7 +48,7 @@ export async function createAccount({email,password,role,subjectId}){
 export async function upsertWorkerAccount({employeeId,email,password}){
   if(!validEmail(email)||password&&!validPassword(password))throw new Error('invalid_account');
   const normalized=normalize(email);
-  if(accounts.some(item=>item.email===normalized&&item.subjectId!==employeeId))throw new Error('duplicate_email');
+  if(accounts.some(item=>item.role!=='owner'&&item.email===normalized&&item.subjectId!==employeeId))throw new Error('duplicate_email');
   let account=accounts.find(item=>item.role==='worker'&&item.subjectId===employeeId);
   if(!account){if(!password)throw new Error('password_required');return createAccount({email,password,role:'worker',subjectId:employeeId})}
   account.email=normalized;
@@ -71,7 +71,7 @@ export async function updateChiefAccount({displayName,email,password,avatar}){
   const normalizedEmail=normalize(email);
   if(name.length<2||name.length>80||/[<>]/.test(name))throw new Error('invalid_profile');
   if(normalizedEmail&&!validEmail(normalizedEmail))throw new Error('invalid_profile');
-  if(normalizedEmail&&accounts.some(item=>item!==account&&item.email===normalizedEmail))throw new Error('duplicate_email');
+  if(normalizedEmail&&accounts.some(item=>item.role!=='owner'&&item!==account&&item.email===normalizedEmail))throw new Error('duplicate_email');
   if(password!==undefined&&password!==''&&(typeof password!=='string'||password.length<8||password.length>200))throw new Error('invalid_password');
   const image=String(avatar||'');
   if(image&&(!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(image)||image.length>1800000))throw new Error('invalid_avatar');
@@ -97,7 +97,7 @@ export async function updateWorkerAccount({employeeId,displayName,email,password
   const normalizedEmail=normalize(email);
   if(name&&(/[<>]/.test(name)||name.length>80))throw new Error('invalid_profile');
   if(!validEmail(normalizedEmail))throw new Error('invalid_profile');
-  if(accounts.some(item=>item!==account&&item.email===normalizedEmail))throw new Error('duplicate_email');
+  if(accounts.some(item=>item.role!=='owner'&&item!==account&&item.email===normalizedEmail))throw new Error('duplicate_email');
   if(password!==undefined&&password!==''&&(typeof password!=='string'||password.length<8||password.length>200))throw new Error('invalid_password');
   const image=String(avatar||'');
   if(image&&(!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(image)||image.length>1800000))throw new Error('invalid_avatar');
@@ -109,7 +109,7 @@ export async function updateWorkerAccount({employeeId,displayName,email,password
   return workerAccountProfile(employeeId);
 }
 export function login(email,password){
-  const account=accounts.find(item=>item.email===normalize(email)||item.username===normalize(email));
+  const account=accounts.find(item=>item.role!=='owner'&&(item.email===normalize(email)||item.username===normalize(email)));
   if(!account||typeof password!=='string'||!verify(password,account.passwordHash))return null;
   return account;
 }
@@ -130,7 +130,7 @@ export function revokeSubjectSessions(role,subjectId){let changed=false;for(cons
 
 // Owner provisioning is an administrative operation, never public registration.
 export async function createOwnerAccount({email,password}){
-  if(!validEmail(email)||!validPassword(password)||hasAccount(email))throw new Error('invalid_account');
+  if(!validEmail(email)||!validPassword(password)||accounts.some(a=>a.role==='owner'&&a.email===normalize(email)))throw new Error('invalid_account');
   const account={id:randomBytes(16).toString('hex'),email:normalize(email),passwordHash:hash(password),role:'owner',subjectId:'owner-'+randomBytes(8).toString('hex'),mustChangePassword:true};
   accounts.push(account);
   try{await save()}catch(error){accounts=accounts.filter(item=>item!==account);throw error}
@@ -144,4 +144,5 @@ export async function updateOwnerPassword(subjectId,currentPassword,password){
   try{await save();}catch(e){account.passwordHash=previous;throw e;}
   revokeSubjectSessions('owner',subjectId);
 }
-export function isOwnerEmail(email){return accounts.some(a=>a.role==='owner'&&a.email===normalize(email));}
+export function isOwnerOnlyEmail(email){return accounts.some(a=>a.role==='owner'&&a.email===normalize(email))&&!accounts.some(a=>a.role!=='owner'&&(a.email===normalize(email)||a.username===normalize(email)));}
+export function loginOwner(email,password){const account=accounts.find(a=>a.role==='owner'&&a.email===normalize(email));return account&&typeof password==='string'&&verify(password,account.passwordHash)?account:null;}
