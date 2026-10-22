@@ -108,6 +108,7 @@ const currentEarliestDueDate=()=>earliestDueDateForOrder(currentProductionOrder(
 const currentEarliestDueIso=()=>isoDateLocal(currentEarliestDueDate());
 const displayIsoDate=value=>{const date=dateValueParts(value);return date?`${String(date.getDate()).padStart(2,'0')}.${String(date.getMonth()+1).padStart(2,'0')}.${date.getFullYear()}`:''};
 const upperTeeth=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
+const vitaShadeOptions=['A1','A2','A3','A3.5','A4','B1','B2','B3','B4','C1','C2','C3','C4','D2','D3','D4','Не требуется'];
 const lowerTeeth=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
 const statusClass = s => ['В работе','Работа принята','Принято','Принято доктором','Принято врачом','Завершен'].includes(s)?'green':s==='Новый'?'blue':'orange';
 const displayClientStatus = status => ({'На согласовании':'Согласование врача','В пути к вам':'Доставка','Принято':'Готово'}[status]||status);
@@ -803,7 +804,7 @@ function uploadPreview(file){
 }
 function releaseUploadPreview(file){const url=uploadPreviewUrls.get(file);if(url)URL.revokeObjectURL(url);uploadPreviewUrls.delete(file)}
 function attachmentTiles(){return `<div class="attachment-grid">${state.uploaded.map(file=>{const preview=uploadPreview(file),extension=(file.name.split('.').pop()||'FILE').toUpperCase().slice(0,5),size=file.size>=1024*1024?`${(file.size/1024/1024).toFixed(1)} МБ`:`${Math.max(1,Math.ceil(file.size/1024))} КБ`;return `<div class="attachment">${preview?`<img src="${preview}" loading="lazy" decoding="async" alt="Миниатюра ${escapeHtml(file.name)}">`:`<span class="attachment-file-icon">${escapeHtml(extension)}</span>`}<span class="attachment-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span><small>${size}</small><button aria-label="Удалить файл ${escapeHtml(file.name)}" data-action="remove-file" data-value="${escapeHtml(file.name)}">×</button></div>`}).join('')}<label class="attachment-add" title="Добавить файлы">${icon('plus',26)}<span>Добавить</span><input type="file" id="upload-input" accept="*/*" multiple hidden></label></div>`}
-function extraStep(){return `<h2>Дополнительная информация</h2><div class="form-grid">${field('Желаемый срок готовности',datePickerControl('due'))}${field('Цвет/оттенок (например, Vita)',selectInput(['A2','A1','A3','B1','B2','Не требуется'],'shade'))}</div><div class="form-grid extra-fields"><div class="field"><span>Файлы заказа — сканы, КТ и фото</span><label class="upload-zone">${icon('upload',26)}<span>Перетащите файлы сюда<br>или нажмите, чтобы выбрать</span><input type="file" id="upload-input" accept="*/*" multiple hidden></label><small class="hint">Изображения, PDF, 3D-файлы, архивы и документы — до 200 МБ на файл. Файлы прикрепятся к заказу.</small>${attachmentTiles()}</div>${field('Комментарий к заказу',`<textarea rows="5" data-field="comment" placeholder="Напишите пожелания, особенности, дополнительные инструкции...">${escapeHtml(state.form.comment)}</textarea>`)}</div>`}
+function extraStep(){return `<h2>Дополнительная информация</h2><div class="form-grid">${field('Желаемый срок готовности',datePickerControl('due'))}${field('Цвет/оттенок (например, Vita)',selectInput(vitaShadeOptions,'shade'))}</div><div class="form-grid extra-fields"><div class="field"><span>Файлы заказа — сканы, КТ и фото</span><label class="upload-zone">${icon('upload',26)}<span>Перетащите файлы сюда<br>или нажмите, чтобы выбрать</span><input type="file" id="upload-input" accept="*/*" multiple hidden></label><small class="hint">Изображения, PDF, 3D-файлы, архивы и документы — до 200 МБ на файл. Файлы прикрепятся к заказу.</small>${attachmentTiles()}</div>${field('Комментарий к заказу',`<textarea rows="5" data-field="comment" placeholder="Напишите пожелания, особенности, дополнительные инструкции...">${escapeHtml(state.form.comment)}</textarea>`)}</div>`}
 function confirmStep(){
   const variants=allVariants().filter(variantIsComplete),groups=groupSurgicalSockets(variants),teeth=[...new Set(variants.flatMap(variant=>variant.selectedTeeth||[]))].sort((a,b)=>a-b),orderCount=1;
   const serviceRows=groups.map(({variant,sockets},index)=>{
@@ -1149,7 +1150,7 @@ async function hydratePortal(){
   // history and logo payload is fetched in the background for detail pages.
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=messages-author-4');
+      const {createTechnicianCabinet}=await import('./technician.js?v=vita-shades-5');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},promoCodes:()=>portalPromoCodes,onPromoCodesUpdate:items=>{portalPromoCodes=structuredClone(items)},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){

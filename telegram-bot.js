@@ -15,6 +15,7 @@ const execFileAsync=promisify(execFile);
 const telegramCodePattern=/\bCD-CL-\d{8}\b/i;
 const upperTeeth=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
 const lowerTeeth=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
+const vitaShadeOptions=['A1','A2','A3','A3.5','A4','B1','B2','B3','B4','C1','C2','C3','C4','D2','D3','D4'];
 const validTeeth=new Set([...upperTeeth,...lowerTeeth]);
 // These rules mirror the clinic order builder: jaw-specific templates default to
 // the upper jaw, while the two prosthetic base options do not require tooth input.
@@ -618,11 +619,7 @@ function createOrderChoiceMarkup(analysis,wizardStep=''){
     {text:`Стандартный · ${displayDate(currentServiceDueDate(analysis))}`,callback_data:'tgnew:due:standard'},
     {text:'Ввести дату',callback_data:'tgnew:due:custom'}
   ],...guidedNavigationMarkup().inline_keyboard]};
-  if(missing.includes('цвет/оттенок или «не требуется»'))return {inline_keyboard:[
-    ['A1','A2','A3','B1','B2'].map(shade=>({text:shade,callback_data:`tgnew:shade:${shade}`})),
-    [{text:'Другой оттенок',callback_data:'tgnew:shade:custom'},{text:'Не требуется',callback_data:'tgnew:shade:none'}],
-    ...guidedNavigationMarkup().inline_keyboard
-  ]};
+  if(missing.includes('цвет/оттенок или «не требуется»')){const shadeRows=[];for(let index=0;index<vitaShadeOptions.length;index+=4)shadeRows.push(vitaShadeOptions.slice(index,index+4).map(shade=>({text:shade,callback_data:`tgnew:shade:${shade}`})));return {inline_keyboard:[...shadeRows,[{text:'Другой оттенок',callback_data:'tgnew:shade:custom'},{text:'Не требуется',callback_data:'tgnew:shade:none'}],...guidedNavigationMarkup().inline_keyboard]};}
   if(!fields.productionType)return {inline_keyboard:[[
     {text:'Цифровой · нужны STL/сканы',callback_data:'tgnew:type:digital'},
     {text:'Аналоговый · нужен гипсовый слепок',callback_data:'tgnew:type:analog'}
@@ -647,11 +644,7 @@ function editJawMarkup(orderId){return {inline_keyboard:[
   [{text:'Обе челюсти',callback_data:`tgoldchoice:${orderId}:jaw|both`}],
   editChoiceBack(orderId)
 ]};}
-function editShadeMarkup(orderId){return {inline_keyboard:[
-  ['A1','A2','A3','B1','B2'].map(shade=>({text:shade,callback_data:`tgoldchoice:${orderId}:shade|${shade}`})),
-  [{text:'Другой оттенок',callback_data:`tgoldchoice:${orderId}:shade|custom`},{text:'Не требуется',callback_data:`tgoldchoice:${orderId}:shade|none`}],
-  editChoiceBack(orderId)
-]};}
+function editShadeMarkup(orderId){const rows=[];for(let index=0;index<vitaShadeOptions.length;index+=4)rows.push(vitaShadeOptions.slice(index,index+4).map(shade=>({text:shade,callback_data:`tgoldchoice:${orderId}:shade|${shade}`})));return {inline_keyboard:[...rows,[{text:'Другой оттенок',callback_data:`tgoldchoice:${orderId}:shade|custom`},{text:'Не требуется',callback_data:`tgoldchoice:${orderId}:shade|none`}],editChoiceBack(orderId)]};}
 function editTeethMarkup(orderId,selected=[]){
   const chosen=new Set(safeTeeth(selected)),rows=[];
   for(const arch of [upperTeeth.slice(0,8),upperTeeth.slice(8),lowerTeeth.slice(0,8),lowerTeeth.slice(8)]){
@@ -1622,7 +1615,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         rememberGuidedAction(message.chat.id,callback.from?.id,clinic.id,order.id,'edit',{field:editState.field||'teeth',editMode:editState.editMode||'',editTeeth:next});await saveState();await answerCallback(callback.id,`Зуб ${choice} выбран`);
         return editMessage(message.chat.id,message.message_id,`Выберите зубы. Выбраны: ${next.join(', ')}. После выбора нажмите «Готово».`,editTeethMarkup(order.id,next));
       }
-      if(field==='shade'&&['A1','A2','A3','B1','B2','none'].includes(choice))return applyEdit({shade:choice==='none'?'Не требуется':choice},`Новый цвет заказа ${order.id}`);
+      if(field==='shade'&&(vitaShadeOptions.includes(choice)||choice==='none'))return applyEdit({shade:choice==='none'?'Не требуется':choice},`Новый цвет заказа ${order.id}`);
       if(field==='shade'&&choice==='custom'){
         rememberGuidedAction(message.chat.id,callback.from?.id,clinic.id,order.id,'edit',{field:'shade'});await saveState();await answerCallback(callback.id,'Жду оттенок');
         return send(message.chat.id,'Напишите нужный оттенок текстом.',{reply_markup:{inline_keyboard:editChoiceBack(order.id)}});
