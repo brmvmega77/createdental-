@@ -55,6 +55,12 @@
 /* A medium gray keeps selected teeth distinct without hiding their anatomy. */
 .tooth-picker .desktop-tooth-chart .tooth.selected[aria-pressed="true"] .tooth-image{filter:brightness(.65) saturate(0)}
 .tooth-picker .tooth.selected text{fill:#fff;stroke:#666}
+/* Service cards reuse the same tooth artwork, but should match the picker’s
+   medium-gray selected state instead of the high-contrast creation default. */
+.order-service-chart .tooth.selected .tooth-image,
+.tech-order-service-chart .tooth.selected .tooth-image,
+.detail-grid .tooth-chart .tooth.selected .tooth-image,
+.tech-detail-teeth .tooth-chart .tooth.selected .tooth-image{filter:brightness(.65) saturate(0)}
 .confirmation .tooth-chart{max-width:300px}
 .detail-grid .tooth-chart{max-width:220px}
 @media(max-width:1100px){.teeth-layout{grid-template-columns:1fr;max-width:650px}}
