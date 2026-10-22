@@ -2921,3 +2921,6 @@ html[data-theme="dark"] .sidebar.sidebar-collapsed .tech-nav-group>summary:hover
 .sidebar.sidebar-collapsed .tech-nav-group-title{display:none}
 .sidebar.sidebar-collapsed .tech-nav-group-items{display:grid;padding-left:0}
 html[data-theme="dark"] .tech-nav-group-title{color:#aeb6be}
+
+/* В свернутом меню показываем только иконки групп, а вложенные пункты скрываем. */
+.sidebar.sidebar-collapsed .tech-nav-group-items{display:none}
