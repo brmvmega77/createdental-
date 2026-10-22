@@ -52,9 +52,6 @@
 .tooth[role="button"]:not(.selected):hover .tooth-image{filter:brightness(.9)}
 .tooth[role="button"]:focus-visible .tooth-hitbox{stroke:#fff;stroke-dasharray:4 3}
 .tooth.selected .tooth-image{filter:brightness(.34) contrast(1.3) saturate(0)}
-/* Keep the selected tooth black on desktop, phones, hover and keyboard focus. */
-.tooth-picker .desktop-tooth-chart .tooth.selected[aria-pressed="true"] .tooth-image{filter:brightness(0)}
-.tooth-picker .tooth.selected text{fill:#fff;stroke:#000}
 .confirmation .tooth-chart{max-width:300px}
 .detail-grid .tooth-chart{max-width:220px}
 @media(max-width:1100px){.teeth-layout{grid-template-columns:1fr;max-width:650px}}
