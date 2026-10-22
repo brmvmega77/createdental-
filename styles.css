@@ -2790,3 +2790,8 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
   .orders-table td:nth-child(7)::before{content:"Статус"}
   .orders-table td:nth-child(8)::before{content:"Сумма"}
 }
+
+/* Центрируем содержимое строк заказов по высоте самой высокой ячейки. */
+.tech-orders-table tbody tr{vertical-align:middle}
+.tech-orders-table tbody td{vertical-align:middle!important}
+.tech-orders-table .tech-order-actions{align-items:center;align-self:center}
