@@ -405,7 +405,7 @@ function validCollection(key,value){
   const text=(input,max=200)=>typeof input==='string'&&input.length<=max&&!/[<>]/.test(input);
   const validId=input=>typeof input==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(input);
   const unique=items=>new Set(items.map(item=>item.id)).size===items.length;
-  if(key==='orders')return Array.isArray(value)&&value.length<=5000&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.patient)&&text(item.work)&&(!item.date||/^\d{2}\.\d{2}\.\d{4}$/.test(item.date))&&text(item.sum,40)&&text(item.status,40)&&(item.doctor===undefined||text(item.doctor,120))&&(item.doctorId===undefined||item.doctorId===''||validId(item.doctorId))&&(!item.image||['tooth.png','smile.png','scan.png'].includes(item.image))&&(!item.clinicId||validId(item.clinicId))&&(!item.teeth||Array.isArray(item.teeth)&&item.teeth.every(tooth=>Number.isInteger(tooth)&&tooth>0&&tooth<100)));
+  if(key==='orders')return Array.isArray(value)&&value.length<=5000&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.patient)&&text(item.work)&&(!item.date||/^\d{2}\.\d{2}\.\d{4}$/.test(item.date))&&text(item.sum,40)&&text(item.status,40)&&(item.doctor===undefined||text(item.doctor,120))&&(item.doctorSpecialty===undefined||text(item.doctorSpecialty,80))&&(item.doctorId===undefined||item.doctorId===''||validId(item.doctorId))&&(!item.image||['tooth.png','smile.png','scan.png'].includes(item.image))&&(!item.clinicId||validId(item.clinicId))&&(!item.teeth||Array.isArray(item.teeth)&&item.teeth.every(tooth=>Number.isInteger(tooth)&&tooth>0&&tooth<100)));
   if(key==='clients')return Array.isArray(value)&&value.length<=2000&&unique(value)&&new Set(value.map(item=>item.telegramCode)).size===value.length&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&telegramCodePattern.test(item.telegramCode)&&validClinicDoctors(item)&&(item.approved===undefined||typeof item.approved==='boolean'));
   if(key==='payrollSettings')return validPayrollSettings(value);
   if(key==='employees')return Array.isArray(value)&&value.length<=500&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&(item.rank===undefined||Number.isInteger(item.rank)&&item.rank>=1&&item.rank<=5)&&['active','disabled','fired'].includes(item.status));
@@ -446,7 +446,7 @@ export async function replacePortalCollection(key,value,actor={}){
       if(!order.doctorId){if(active.length)throw new Error('invalid_doctor');return {...order,doctor:''};}
       const doctor=active.find(item=>item.id===order.doctorId);
       if(!doctor)throw new Error('invalid_doctor');
-      return {...order,doctor:doctor.name};
+      return {...order,doctor:doctor.name,doctorSpecialty:doctor.specialty||''};
     });
 
     const generated=[];
