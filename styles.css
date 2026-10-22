@@ -2829,3 +2829,4 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
 .shell>.content{padding-bottom:var(--content-footer-gap)}
 .clinic-settings-content{padding-bottom:0}
 @media(max-width:760px){:root{--content-footer-gap:48px}}
+.clinic-work-instructions + .save-field{grid-column:1;justify-content:flex-start}
