@@ -2,7 +2,7 @@ import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camAfterMilling}
 import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary} from './order-list-utils.js?v=service-label-4';
 import {savePortal,authRequest,portalToken,loadOrderFiles,loadCadReviewHtml,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js?v=reliability-retry-1';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=ru-only-1';
-import {notificationCenterMarkup,notificationCenterState,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=reliability-retry-1';
+import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=reliability-retry-1';
 import {workCatalog,rubles,estimateWork,priceUnitsForSelection} from './work-catalog.js?v=jaw-price-1';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
 import {openOrderPrint} from './order-print.js?v=order-print-22';
@@ -89,7 +89,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(Array.isArray(saved))clients=saved.filter(client=>client&&typeof client.id==='string'&&typeof client.name==='string');
   } catch { /* Keep the demo directory if local data is damaged. */ }
   const initialRoute=routeFromPath(location.pathname);
-  const state={page:initialRoute.role==='technician'?initialRoute.page:'overview',navGroups:{},filter:'Все',search:'',orderDueFilter:'',orderId:initialRoute.orderId||'',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',orderSortKey:'createdAt',orderSortDirection:'desc',orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderEmployeeFilter:'',orderWorkFilter:'',taskSearch:'',taskFilterOpen:false,taskEmployeeFilter:'',taskStatusFilter:'',taskPriorityFilter:'',taskCreateOpen:false,taskEditId:null,clientSearch:'',requestFilter:'all',requestSearch:'',requestSearchFilters:{orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderEmployeeFilter:'',orderWorkFilter:''},qualityFilter:'all',qualitySearch:'',qualitySearchFilters:{orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderEmployeeFilter:'',orderWorkFilter:''},editClientId:null,confirmDeleteId:null,employeeSearch:'',employeeFilter:'all',editEmployeeId:null,confirmFireId:null,qualityReworkOrderId:null,conversations:[],activeConversation:null,conversationMessages:[],messageAttachment:null,messagesError:'',deadlineMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),deadlineDay:new Date().getDate(),profile:null,integration:null,integrationLoading:false,editOrderId:null,editOrderVariants:null,confirmOrderDeleteId:null,orderUpload:null,cadPreview:null,millingSendingOrderId:'',pricingDraft:null,pricingSaving:false,deliverySettingsDraft:null,deliverySettingsSaving:false,promoCodesDraft:null,promoCodesSaving:false,pricingAddingCategory:null,toast:''};
+  const state={page:initialRoute.role==='technician'?initialRoute.page:'overview',filter:'Все',search:'',orderDueFilter:'',orderId:initialRoute.orderId||'',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',orderSortKey:'createdAt',orderSortDirection:'desc',orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderEmployeeFilter:'',orderWorkFilter:'',taskSearch:'',taskFilterOpen:false,taskEmployeeFilter:'',taskStatusFilter:'',taskPriorityFilter:'',taskCreateOpen:false,taskEditId:null,clientSearch:'',requestFilter:'all',requestSearch:'',requestSearchFilters:{orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderEmployeeFilter:'',orderWorkFilter:''},qualityFilter:'all',qualitySearch:'',qualitySearchFilters:{orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderEmployeeFilter:'',orderWorkFilter:''},editClientId:null,confirmDeleteId:null,employeeSearch:'',employeeFilter:'all',editEmployeeId:null,confirmFireId:null,qualityReworkOrderId:null,conversations:[],activeConversation:null,conversationMessages:[],messageAttachment:null,messagesError:'',deadlineMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),deadlineDay:new Date().getDate(),profile:null,integration:null,integrationLoading:false,editOrderId:null,editOrderVariants:null,confirmOrderDeleteId:null,orderUpload:null,cadPreview:null,millingSendingOrderId:'',pricingDraft:null,pricingSaving:false,deliverySettingsDraft:null,deliverySettingsSaving:false,promoCodesDraft:null,promoCodesSaving:false,pricingAddingCategory:null,toast:''};
   state.productionSearch='';
   state.productionScope='all';
   state.productionFilters={orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderEmployeeFilter:'',orderWorkFilter:''};
@@ -138,7 +138,6 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   }
   function setPage(page){
     state.page=page;
-    state.navGroups={};
     navigate(pathFor('technician',page,state.orderId));
     render();
     if(page==='requests')queueMicrotask(refreshClientRequests);
@@ -830,41 +829,18 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     }catch(error){if(requestId!==messagesRequest)return;state.messagesError=error.message;if(state.page==='messages'&&!root().querySelector('#chief-chat-form input:focus'))shell(messagesPage())}
   }
   function portalFooter(){return `<footer class="portal-footer"><span class="portal-footer-copy">© 2019–2026 Create Dental</span><span class="portal-footer-tagline">Для клиник, которым важен результат</span><a class="portal-footer-email" href="mailto:orders@createdental.io">orders@createdental.io</a><nav class="portal-footer-legal" aria-label="Правовые документы"><a href="/assets/legal/privacy.html">Политика конфиденциальности</a><a href="/assets/legal/consent-data.html">Согласие на обработку персональных данных</a></nav></footer>`}
-  const messageNotificationCount=()=>notificationCenterState().items.filter(item=>item.type==='message'&&!item.read&&item.actorRole!=='technician').length;
-  function refreshNavigationCounters(){
-    if(!isActive())return;
-    const count=messageNotificationCount();
-    root().querySelectorAll('[data-tech-page="messages"]').forEach(link=>{
-      link.querySelector('.tech-nav-count,.mobile-nav-count')?.remove();
-      if(!count)return;
-      const badge=document.createElement('i');
-      badge.className=link.classList.contains('mobile-bottom-item')?'mobile-nav-count':'tech-nav-count';
-      badge.setAttribute('aria-label',`Новых уведомлений о сообщениях: ${count}`);
-      badge.textContent=count>99?'99+':String(count);
-      link.append(badge);
-    });
-  }
   function shell(content){
-    const drawerOpen=Boolean(root().querySelector('#tech-sidebar')?.classList.contains('open'));
     const pendingRequests=clientRequests().filter(request=>request.status==='pending').length;
     const newOrders=allOrders().filter(order=>['Черновик из Telegram','Ожидает распределения','Ожидает подтверждения'].includes(order.stage)).length;
     const intakeOrders=allOrders().filter(order=>order.stage==='Контроль качества').length;
     const newClients=clients.filter(client=>client.approved===false).length;
-    const newMessages=messageNotificationCount();
-    const activePage=state.page==='quality'?'intake':state.page==='detail'?state.detailReturnPage:state.page;
-    const navLink=([page,label,ico,count],sub=false)=>`<button type="button" class="nav-link ${sub?'tech-subnav-link':''} ${activePage===page?'active':''}" data-tech-page="${page}" data-sidebar-label="${label}" title="${label}" ${activePage===page?'aria-current="page"':''}>${icon(ico,sub?18:20)}<span>${label}</span>${count?`<i class="tech-nav-count" aria-label="Новых: ${count}">${count>99?'99+':count}</i>`:''}</button>`;
-    const navGroups=[
-      {key:'production',label:'Производство',ico:'grid',pages:[['production','Доска производства','grid'],['tasks','Задачи','check',tasks().filter(task=>task.status!=='done').length],['intake','Контроль качества','check',intakeOrders],['requests','Правки от клиник','file',pendingRequests]]},
-      {key:'management',label:'Управление',ico:'pulse',pages:[['pulse','Показатели лаборатории','pulse'],['team','Команда','user'],['pricing','Прайс и сроки','wallet']]}
-    ];
-    const groupMarkup=group=>{const active=group.pages.some(([page])=>activePage===page),open=state.navGroups[group.key]??active;return `<div class="tech-nav-group ${open?'is-open':''}"><button type="button" class="nav-link tech-nav-group-toggle ${active?'active':''}" data-tech-group-toggle="${group.key}" data-sidebar-label="${group.label}" aria-expanded="${open}" aria-controls="tech-nav-${group.key}" title="${group.label}">${icon(group.ico,20)}<span>${group.label}</span><span class="tech-nav-group-chevron" aria-hidden="true">${icon('chevron',14)}</span></button><div id="tech-nav-${group.key}" class="tech-nav-group-children" ${open?'':'hidden'}>${group.pages.map(item=>navLink(item,true)).join('')}</div></div>`};
-    const directNav=[['overview','Главная','home'],['orders','Заказы','orders',newOrders],['messages','Сообщения','message',newMessages]];
+    const nav=[['overview','Обзор','home'],['orders','Заказы','orders',newOrders],['production','Производство','grid'],['pulse','Пульс компании','pulse'],['tasks','Задачи','check',tasks().filter(task=>task.status!=='done').length],['requests','Клиентские правки','file',pendingRequests],['intake','Отдел качества','check',intakeOrders],['messages','Сообщения','message'],['clients','Клиентская база','clinic',newClients],['team','Команда','user'],['pricing','Прайс и сроки','wallet'],['profile','Профиль','user']];
     const profile=chiefProfile();
     const avatar=profile.avatar?`<span class="avatar"><img src="${safe(profile.avatar)}" alt=""></span>`:`<span class="avatar">${safe(initials(profile.displayName||'Главный техник'))}</span>`;
-    const mobileItems=[['overview','Главная','home'],['orders','Заказы','orders',newOrders],['production','Цех','grid'],['messages','Сообщения','message',newMessages]];
-    const moreActive=!mobileItems.some(([page])=>page===activePage);
+    const mobileItems=[['overview','Обзор','home'],['orders','Заказы','orders',newOrders],['production','Цех','grid'],['messages','Сообщения','message']];
+    const activePage=state.page==='quality'?'intake':state.page==='detail'?state.detailReturnPage:state.page,moreActive=!mobileItems.some(([page])=>page===activePage);
     const mobileNav=`<nav class="mobile-bottom-nav" aria-label="Основная навигация">${mobileItems.map(([page,label,ico,count])=>`<button type="button" class="mobile-bottom-item ${activePage===page?'active':''}" data-tech-page="${page}" aria-label="${label}" ${activePage===page?'aria-current="page"':''}>${icon(ico,20)}<span>${label}</span>${count?`<i class="mobile-nav-count">${count>99?'99+':count}</i>`:''}</button>`).join('')}<button type="button" class="mobile-bottom-item ${moreActive?'active':''}" data-tech-action="menu" aria-label="Ещё разделы" ${moreActive?'aria-current="page"':''}>${icon('more',20)}<span>Ещё</span></button></nav>`;
-    root().innerHTML=`<aside class="sidebar tech-sidebar ${sidebarCollapsed()?'sidebar-collapsed':''} ${drawerOpen?'open':''}" id="tech-sidebar"><button class="brand brand-home" data-tech-page="overview" aria-label="На главную"><img class="portal-logo" src="${logo}" alt="Create Dental">${sidebarMark}</button>${sidebarCollapseMarkup()}<div class="tech-side-label">КАБИНЕТ ГЛАВНОГО ТЕХНИКА</div><nav class="sidebar-nav" aria-label="Разделы кабинета">${directNav.map(item=>navLink(item)).join('')}${groupMarkup(navGroups[0])}${navLink(['clients','Клиники','clinic',newClients])}${groupMarkup(navGroups[1])}</nav><nav class="tech-sidebar-footer" aria-label="Аккаунт">${navLink(['profile','Профиль','user'])}</nav><button type="button" class="mobile-sidebar-logout" data-auth-logout>↪ <span>Выйти из кабинета</span></button></aside><button type="button" class="mobile-drawer-backdrop" data-tech-action="menu-close" aria-label="Закрыть меню"></button><div class="shell tech-shell ${sidebarCollapsed()?'sidebar-shell-collapsed':''}"><header class="topbar"><button class="mobile-menu" data-tech-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div>${languageSwitcherMarkup()}${themeToggleMarkup()}${notificationCenterMarkup()}<button class="role-toggle" data-auth-logout>Выйти</button><button class="profile" data-tech-page="profile">${avatar}<span><strong>${safe(profile.displayName||'Главный техник')}</strong><small>Главный техник</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main>${portalFooter()}</div>${mobileNav}<div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>${qualityReworkDialog()}`;
+    root().innerHTML=`<aside class="sidebar tech-sidebar ${sidebarCollapsed()?'sidebar-collapsed':''}" id="tech-sidebar"><button class="brand brand-home" data-tech-page="overview" aria-label="На главную"><img class="portal-logo" src="${logo}" alt="Create Dental">${sidebarMark}</button>${sidebarCollapseMarkup()}<div class="tech-side-label">КАБИНЕТ ГЛАВНОГО ТЕХНИКА</div><nav class="sidebar-nav" aria-label="Разделы кабинета">${nav.map(([page,label,ico,count])=>`<button class="nav-link ${state.page===page||state.page==='quality'&&page==='intake'||state.page==='detail'&&page===state.detailReturnPage?'active':''}" data-tech-page="${page}" data-sidebar-label="${label}" title="${label}">${icon(ico,20)}<span>${label}</span>${count?`<i class="tech-nav-count">${count>99?'99+':count}</i>`:''}</button>`).join('')}</nav><button type="button" class="mobile-sidebar-logout" data-auth-logout>↪ <span>Выйти из кабинета</span></button></aside><button type="button" class="mobile-drawer-backdrop" data-tech-action="menu-close" aria-label="Закрыть меню"></button><div class="shell tech-shell ${sidebarCollapsed()?'sidebar-shell-collapsed':''}"><header class="topbar"><button class="mobile-menu" data-tech-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div>${languageSwitcherMarkup()}${themeToggleMarkup()}${notificationCenterMarkup()}<button class="role-toggle" data-auth-logout>Выйти</button><button class="profile" data-tech-page="profile">${avatar}<span><strong>${safe(profile.displayName||'Главный техник')}</strong><small>Главный техник</small></span>${icon('chevron',13)}</button></header><main class="content tech-content">${content}</main>${portalFooter()}</div>${mobileNav}<div class="toast ${state.toast?'visible':''}">${safe(state.toast)}</div>${qualityReworkDialog()}`;
   }
   function qualityReworkDialog(){
     const order=state.qualityReworkOrderId&&orderById(state.qualityReworkOrderId);
@@ -1017,22 +993,6 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(event.target.closest('[data-notification-toggle]')){await toggleNotificationCenter();render();return}
     const sidebarToggle=event.target.closest('[data-tech-sidebar-toggle]');
     if(sidebarToggle){try{localStorage.setItem('create-dental-sidebar-collapsed',sidebarCollapsed()?'0':'1')}catch{};render();return}
-    const groupToggle=event.target.closest('[data-tech-group-toggle]');
-    if(groupToggle){
-      const key=groupToggle.dataset.techGroupToggle;
-      const open=groupToggle.getAttribute('aria-expanded')!=='true';
-      state.navGroups={...state.navGroups,[key]:open};
-      if(sidebarCollapsed()){
-        try{localStorage.setItem('create-dental-sidebar-collapsed','0')}catch{}
-        state.navGroups[key]=true;
-        render();
-      }else{
-        groupToggle.setAttribute('aria-expanded',String(open));
-        groupToggle.closest('.tech-nav-group').classList.toggle('is-open',open);
-        document.getElementById(groupToggle.getAttribute('aria-controls')).hidden=!open;
-      }
-      return;
-    }
     if(event.target.closest('[data-notification-close]')){closeNotificationCenter();render();return}
     const taskCreateAction=event.target.closest('[data-task-create]');
     if(taskCreateAction){
@@ -1683,5 +1643,5 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       }
     }catch{/* The next refresh will retry. */}
   }
-  return {render,refreshMessages,refreshClientRequests,refreshNavigationCounters};
+  return {render,refreshMessages,refreshClientRequests};
 }

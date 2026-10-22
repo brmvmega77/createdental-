@@ -1096,7 +1096,7 @@ async function hydratePortal(){
   // history and logo payload is fetched in the background for detail pages.
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=workflow-nav-2');
+      const {createTechnicianCabinet}=await import('./technician.js?v=flat-nav-1');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},promoCodes:()=>portalPromoCodes,onPromoCodesUpdate:items=>{portalPromoCodes=structuredClone(items)},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
@@ -1106,7 +1106,7 @@ async function hydratePortal(){
   applyPortalData(data);
   portalReady=true;
   portalError='';
-  refreshNotificationCenter().then(()=>{const center=document.querySelector('.notification-center');if(center)center.outerHTML=notificationCenterMarkup();technicianCabinet?.refreshNavigationCounters?.()}).catch(()=>{});
+  refreshNotificationCenter().then(()=>{const center=document.querySelector('.notification-center');if(center)center.outerHTML=notificationCenterMarkup()}).catch(()=>{});
   syncRoute();
   if(data.user.role==='technician'){
     // Keep the first paint compact and hydrate the two heavy collections in
@@ -1447,7 +1447,7 @@ document.addEventListener('submit',async event=>{
 });
 window.addEventListener('popstate',syncRoute);
 setInterval(()=>{if(document.visibilityState!=='visible')return;loadMessages();technicianCabinet?.refreshMessages();technicianCabinet?.refreshClientRequests?.()},3000);
-setInterval(()=>{if(document.visibilityState!=='visible'||!portalReady)return;refreshNotificationCenter().then(()=>{const center=document.querySelector('.notification-center');if(center)center.outerHTML=notificationCenterMarkup();technicianCabinet?.refreshNavigationCounters?.()}).catch(()=>{})},20000);
+setInterval(()=>{if(document.visibilityState!=='visible'||!portalReady)return;refreshNotificationCenter().then(()=>{const center=document.querySelector('.notification-center');if(center)center.outerHTML=notificationCenterMarkup()}).catch(()=>{})},20000);
 render();
 if(portalToken())hydratePortal().catch(error=>{
   if(error.status===401){clearPortalToken();portalReady=false;navigate('/login',{replace:true})}
