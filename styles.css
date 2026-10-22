@@ -1581,56 +1581,33 @@ html,body,#app{max-width:100%;overflow-x:hidden}
   .tech-shell{margin-left:226px;width:auto;min-width:0;max-width:calc(100% - 226px)}
 }
 
-/* Keep the clinic orders table on one predictable seven-column grid. */
-@media(min-width:761px){
-  .orders-table{
-    width:100%;
-    min-width:0;
-    max-width:100%;
-    table-layout:fixed;
-  }
-  .orders-table th,
-  .orders-table td{
-    width:14.2857%!important;
+/* Let clinic order columns follow their content, including complete dates and statuses. */
+@media(min-width:901px){
+  .orders-table,.dashboard-main .orders-table{table-layout:auto}
+  .orders-table th:nth-child(n),.orders-table td:nth-child(n){
+    width:auto!important;
     min-width:0!important;
     max-width:none!important;
-    padding-left:16px!important;
-    padding-right:16px!important;
-    box-sizing:border-box;
+    padding-left:10px!important;
+    padding-right:10px!important;
     white-space:nowrap!important;
-    overflow:hidden!important;
-    text-overflow:ellipsis!important;
-    vertical-align:middle;
-  }
-  .orders-table td .badge{
-    display:inline-flex;
-    max-width:100%;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-  }
-  .orders-table th:nth-child(3),.orders-table td:nth-child(3),
-  .orders-table th:nth-child(6),.orders-table td:nth-child(6),
-  .orders-table th:nth-child(7),.orders-table td:nth-child(7){width:14.2857%!important}
-  .orders-table th:nth-child(1),.orders-table td:nth-child(1),
-  .orders-table th:nth-child(2),.orders-table td:nth-child(2){width:18.5714%!important}
-  .orders-table th:nth-child(4),.orders-table td:nth-child(4),
-  .orders-table th:nth-child(5),.orders-table td:nth-child(5){width:10%!important}
-  .orders-table td:nth-child(1),
-  .orders-table td:nth-child(2),
-  .orders-table td:nth-child(3),
-  .orders-table td:nth-child(6),
-  .orders-table td:nth-child(7){
-    white-space:normal!important;
-    overflow-wrap:anywhere!important;
+    overflow:visible!important;
+    overflow-wrap:normal!important;
+    word-break:normal;
     text-overflow:clip!important;
-    line-height:1.25;
+    vertical-align:middle;
+    line-height:1.35;
   }
-  .orders-table td:nth-child(4),
-  .orders-table td:nth-child(5){white-space:nowrap!important}
+  .orders-table th:first-child,.orders-table td:first-child{padding-left:16px!important}
+  .orders-table th:last-child,.orders-table td:last-child{padding-right:16px!important}
+  .orders-table td:nth-child(2),.orders-table td:nth-child(3){white-space:normal!important}
+  .orders-table td:nth-child(4),.orders-table td:nth-child(5){font-variant-numeric:tabular-nums}
   .orders-table td:nth-child(6) .badge{
-    white-space:normal!important;
-    overflow-wrap:anywhere;
+    max-width:none;
+    white-space:nowrap!important;
+    overflow:visible;
+    overflow-wrap:normal;
+    word-break:normal;
     line-height:1.2;
     text-align:left;
   }
