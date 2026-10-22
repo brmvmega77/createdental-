@@ -1,4 +1,4 @@
-import {createClinicMobileUI,clinicSections} from './assets/clinic-mobile-ui.js?v=clinic-doctors-1';
+import {createClinicMobileUI,clinicSections} from './assets/clinic-mobile-ui.js?v=clinic-settings-2';
 import { seedOrders } from './seed-orders.js?v=mobile-fast-1';
 import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadReviewHtml} from './portal-client.js?v=reliability-retry-1';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
@@ -1044,12 +1044,12 @@ function clinicPage(){
   const clinic={...(clinicRecord()||{name:'Клиника',inn:'',city:'',address:'',phone:'',email:''}),...(state.clinicDrafts[state.clinicTab]||{})};
   const input=(name,value,type='text',placeholder='')=>`<input name="${name}" type="${type}" value="${escapeHtml(value||'')}" ${placeholder?`placeholder="${escapeHtml(placeholder)}"`:''}>`;
   const area=(name,value,placeholder='')=>`<textarea name="${name}" rows="4" ${placeholder?`placeholder="${escapeHtml(placeholder)}"`:''}>${escapeHtml(value||'')}</textarea>`;
-  const tabsList=[['Основная информация'],['Контактные лица'],['Врачи'],['Настройки'],['Безопасность']];
+  const tabsList=[['Основная информация'],['Контактные лица'],['Врачи'],['Рабочие настройки'],['Доступ и уведомления']];
   const fields={
     'Основная информация':`${field('Название клиники',input('name',clinic.name))}${field('Страна',`<select name="country" required>${[['RU','Россия'],['BY','Беларусь'],['AM','Армения'],['KZ','Казахстан'],['UZ','Узбекистан'],['AE','ОАЭ']].map(([code,name])=>`<option value="${code}" ${(clinic.country||'RU')===code?'selected':''}>${name}</option>`).join('')}</select>`)}${field('ИНН',input('inn',clinic.inn))}${field('Город',input('city',clinic.city))}${field('Адрес',input('address',clinic.address))}${field('Телефон',input('phone',clinic.phone,'tel','+7 (___) ___-__-__'))}${field('Email',input('email',clinic.email,'email'))}`,
     'Контактные лица':`${field('Контактное лицо',input('contact',clinic.contact||''))}${field('Должность',input('contactPosition',clinic.contactPosition||''))}${field('Телефон контакта',input('contactPhone',clinic.contactPhone||clinic.phone||'','tel','+7 (___) ___-__-__'))}${field('Email контакта',input('contactEmail',clinic.contactEmail||clinic.email||'','email'))}`,
-    'Настройки':`${field('График работы',input('workHours',clinic.workHours||'','text','Пн-Пт 09:00–18:00'))}${field('Предпочтительный способ доставки',input('deliveryPreference',clinic.deliveryPreference||''))}${field('Условия оплаты',input('paymentTerms',clinic.paymentTerms||''))}${field('Комментарий для лаборатории',area('labNotes',clinic.labNotes||''))}`,
-    'Безопасность':`${field('Email для входа',input('loginEmail',clinic.loginEmail||clinic.email||'','email'))}${field('Ответственный за доступ',input('accessManager',clinic.accessManager||clinic.contact||''))}${field('Телефон для подтверждений',input('securityPhone',clinic.securityPhone||clinic.phone||'','tel'))}${field('Заметка по доступу',area('securityNotes',clinic.securityNotes||''))}`
+    'Рабочие настройки':`${field('График работы',input('workHours',clinic.workHours||'','text','Пн–Пт 09:00–18:00'))}${field('Инструкции для лаборатории',area('labNotes',clinic.labNotes||'','Например: позвонить перед доставкой или вложить документы в заказ'))}`,
+    'Доступ и уведомления':`${field('Email для входа',input('loginEmail',clinic.loginEmail||clinic.email||'','email'))}${field('Телефон для уведомлений',input('securityPhone',clinic.securityPhone||clinic.phone||'','tel','+7 (___) ___-__-__'))}<div class="access-status"><span>Статус доступа</span><strong>Активен</strong></div>`
   };
   const active=state.clinicTab==='Врачи'?'Врачи':fields[state.clinicTab]?state.clinicTab:'Основная информация';
   const clinicTabs=`<div class="tech-segment clinic-page-segment">${tabsList.map(([label])=>`<button data-action="clinic-tab" data-value="${escapeHtml(label)}" class="${active===label?'active':''}">${escapeHtml(label)}</button>`).join('')}</div>`;

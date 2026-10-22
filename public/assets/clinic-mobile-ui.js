@@ -8,8 +8,8 @@ export const clinicSections = [
   {key:'Основная информация',label:'Данные клиники',description:'Название, реквизиты и адрес'},
   {key:'Контактные лица',label:'Контактные лица',description:'Сотрудник для связи с лабораторией'},
   {key:'Врачи',label:'Врачи',description:'Врачи клиники для заказов и нарядов'},
-  {key:'Настройки',label:'Настройки',description:'График работы, доставка и оплата'},
-  {key:'Безопасность',label:'Безопасность',description:'Данные для входа и ответственный за доступ'},
+  {key:'Рабочие настройки',label:'Рабочие настройки',description:'График и инструкции лаборатории'},
+  {key:'Доступ и уведомления',label:'Доступ и уведомления',description:'Вход и подтверждения заказов'},
 ];
 
 export function createClinicMobileUI({getSnapshot,applyFilters,chooseStatus,chooseClinicSection,enabled=()=>true}) {
