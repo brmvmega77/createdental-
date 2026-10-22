@@ -810,7 +810,8 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       const divider=day!==previous?`<div class="chat-date-divider">${messageDateLabel(message.time)}</div>`:'';
       previous=day;
       const side=['support','bot'].includes(message.from)?'me':'them';
-      const author=message.from==='bot'?'Ответ AI':message.source==='telegram'&&message.from==='support'?safe('Create Dental Team'):message.source==='telegram'&&message.sender?safe('Клиент'):'';
+      const sender=String(message.sender||'').trim();
+      const author=message.from==='bot'?'Ответ AI':message.source==='telegram'&&message.from==='support'?safe(String(message.senderLabel||'').trim()||'Create Dental Team'):message.source==='telegram'&&sender?safe(`Клиент · ${sender}`):'';
       const delivery=message.from==='support'&&message.deliveryStatus?`<span class="message-delivery ${safe(message.deliveryStatus)}">${message.deliveryStatus==='delivered'?'Доставлено в Telegram':message.deliveryStatus==='sending'?'Отправляется…':`Не доставлено${message.deliveryError?`: ${safe(message.deliveryError)}`:''}${message.deliveryStatus==='error'?` <button data-tech-message-retry="${safe(message.id)}">Повторить</button>`:''}`}</span>`:'';
       return `${divider}<div class="bubble ${side} ${message.from==='bot'?'bot':''} message-${['support','bot'].includes(message.from)?message.from:'client'}">${author?`<small class="message-author">${author}</small>`:''}${message.text?`<p>${formattedMessageText(message.text)}</p>`:''}${messageAttachmentMarkup(message.attachment)}<time>${new Date(message.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</time>${delivery}</div>`;
     }).join('');
