@@ -2810,3 +2810,10 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
   .tech-orders-table td.tech-order-actions-cell .tech-order-actions{display:flex!important;align-items:center!important;justify-content:center!important;flex-wrap:nowrap!important;gap:3px!important;min-width:0!important;width:100%!important;white-space:nowrap!important}
   .tech-orders-table td.tech-order-actions-cell .tech-icon-btn{width:24px!important;height:28px!important;flex:0 0 24px!important}
 }
+
+/* Точное вертикальное выравнивание содержимого строки лабораторных заказов. */
+@media(min-width:761px){
+  .tech-orders-table tbody td{vertical-align:middle!important;line-height:1.35!important;padding-top:14px!important;padding-bottom:14px!important}
+  .tech-orders-table tbody td.tech-order-actions-cell{padding-top:0!important;padding-bottom:0!important}
+  .tech-orders-table tbody td.tech-order-actions-cell .tech-order-actions{height:100%;align-items:center!important}
+}
