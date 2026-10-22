@@ -14,9 +14,10 @@ test('Clinic doctor changes are versioned; orders bind only their clinic doctor 
  const {portalSnapshot:snapshot,replacePortalCollection:save}=await import(${JSON.stringify(pathToFileURL(path.resolve('portal-data.js')).href)});
  const actor={role:'clinic',name:'Администратор'};
  let clients=snapshot().clients;
- clients=clients.map(item=>({...item,doctors:[{id:'doctor-'+item.id,name:'Врач '+item.id,active:true}],doctorsRevision:0}));
+ clients=clients.map(item=>({...item,doctors:[{id:'doctor-'+item.id,name:'Врач '+item.id,specialty:'Ортопед',active:true}],doctorsRevision:0}));
  await save('clients',clients,actor);
  assert.equal(snapshot().clients[0].doctorsRevision,1);
+ assert.equal(snapshot().clients[0].doctors[0].specialty,'Ортопед');
  const order={id:'DOC-ORDER',clinicId:'a',clinic:'Клиника А',patient:'Пациент',work:'Каппы',sum:'5000 ₽',status:'Новый',doctorId:'doctor-b',doctor:'Подмена имени',variants:[{selectedTeeth:[11],work:'Каппы',workOption:'Каппа'}, {selectedTeeth:[21],work:'Каппы',workOption:'Каппа'}, {selectedTeeth:[31],work:'Каппы',workOption:'Каппа'}]};
  await assert.rejects(save('orders',[order],actor),/invalid_doctor/);
  await assert.rejects(save('orders',[{...order,doctorId:''}],actor),/invalid_doctor/);
@@ -33,6 +34,8 @@ test('Clinic doctor changes are versioned; orders bind only their clinic doctor 
  assert.equal(results.filter(item=>item.status==='fulfilled').length,1);
  assert.equal(results.filter(item=>item.status==='rejected'&&item.reason.message==='doctors_conflict').length,1);
  const latest=snapshot().clients;
+ await assert.rejects(save('clients',latest.map(item=>item.id==='a'?{...item,doctors:item.doctors.map(doctor=>({...doctor,specialty:'<script>'}))}:item),actor),/invalid_collection/);
+ await assert.rejects(save('clients',latest.map(item=>item.id==='a'?{...item,doctors:item.doctors.map(doctor=>({...doctor,specialty:123}))}:item),actor),/invalid_collection/);
  await assert.rejects(save('clients',latest.map(item=>item.id==='a'?{...item,doctors:[{id:'one',name:'Дубликат',active:true},{id:'two',name:'Дубликат',active:true}]}:item),actor),/invalid_collection/);
  await assert.rejects(save('clients',latest.map(item=>item.id==='a'?{...item,doctors:[{id:'one',name:'<script>',active:true}]}:item),actor),/invalid_collection/);
  // Old clinic edits which omit the new field preserve the doctor list.

@@ -2705,7 +2705,7 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
 .clinic-doctors>header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px}
 .clinic-doctors h2{margin:0 0 8px;font-size:21px}
 .clinic-doctors p{margin:0;color:#808080;font-size:13px;line-height:1.5}
-#clinic-doctor-form{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:14px;margin-bottom:24px}
+#clinic-doctor-form{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(180px,1fr) auto;align-items:end;gap:14px;margin-bottom:24px}
 #clinic-doctor-form .field{min-width:0}
 #clinic-doctor-form input{width:100%;min-height:43px;padding:11px 13px;border:1px solid #eeeeee;border-radius:7px;background:#fff;color:#333;font-size:14px}
 .clinic-doctor-form-actions,.clinic-doctor-actions{display:flex;flex-wrap:wrap;gap:8px}
@@ -2726,3 +2726,5 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
 }
 
 .doctor-choice-field{min-width:0}.doctor-choice-field .doctor-manage-link{min-height:32px;margin-top:4px;font-size:12px}
+
+.clinic-doctor-row .clinic-doctor-specialty{color:#333;font-size:13px}

@@ -394,6 +394,7 @@ function validClinicDoctors(clinic){
   const ids=new Set(),names=new Set();
   return clinic.doctors.every(item=>{
     if(!item||typeof item.id!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(item.id)||ids.has(item.id)||typeof item.name!=='string'||item.name.trim().length<2||item.name.length>120||/[<>\r\n]/.test(item.name)||typeof item.active!=='boolean')return false;
+    if(item.specialty!==undefined&&(typeof item.specialty!=='string'||item.specialty.length>80||/[<>\r\n]/.test(item.specialty)))return false;
     ids.add(item.id);const name=item.name.trim().replace(/\s+/g,' ').toLocaleLowerCase('ru');
     if(item.active&&names.has(name))return false;
     if(item.active)names.add(name);return true;
