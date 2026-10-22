@@ -387,12 +387,25 @@ export function portalSnapshotFor(role,subjectId,view=''){
 export function portalClient(id){return state.clients.find(client=>client.id===id&&!client.deleted)}
 export function portalEmployee(id){return state.employees.find(employee=>employee.id===id)}
 
+function validClinicDoctors(clinic){
+  if(clinic.doctorsRevision!==undefined&&(!Number.isSafeInteger(clinic.doctorsRevision)||clinic.doctorsRevision<0))return false;
+  if(clinic.doctors===undefined)return true;
+  if(!Array.isArray(clinic.doctors)||clinic.doctors.length>200)return false;
+  const ids=new Set(),names=new Set();
+  return clinic.doctors.every(item=>{
+    if(!item||typeof item.id!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(item.id)||ids.has(item.id)||typeof item.name!=='string'||item.name.trim().length<2||item.name.length>120||/[<>\r\n]/.test(item.name)||typeof item.active!=='boolean')return false;
+    ids.add(item.id);const name=item.name.trim().replace(/\s+/g,' ').toLocaleLowerCase('ru');
+    if(item.active&&names.has(name))return false;
+    if(item.active)names.add(name);return true;
+  });
+}
+
 function validCollection(key,value){
   const text=(input,max=200)=>typeof input==='string'&&input.length<=max&&!/[<>]/.test(input);
   const validId=input=>typeof input==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(input);
   const unique=items=>new Set(items.map(item=>item.id)).size===items.length;
-  if(key==='orders')return Array.isArray(value)&&value.length<=5000&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.patient)&&text(item.work)&&(!item.date||/^\d{2}\.\d{2}\.\d{4}$/.test(item.date))&&text(item.sum,40)&&text(item.status,40)&&(!item.image||['tooth.png','smile.png','scan.png'].includes(item.image))&&(!item.clinicId||validId(item.clinicId))&&(!item.teeth||Array.isArray(item.teeth)&&item.teeth.every(tooth=>Number.isInteger(tooth)&&tooth>0&&tooth<100)));
-  if(key==='clients')return Array.isArray(value)&&value.length<=2000&&unique(value)&&new Set(value.map(item=>item.telegramCode)).size===value.length&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&telegramCodePattern.test(item.telegramCode)&&(item.approved===undefined||typeof item.approved==='boolean'));
+  if(key==='orders')return Array.isArray(value)&&value.length<=5000&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.patient)&&text(item.work)&&(!item.date||/^\d{2}\.\d{2}\.\d{4}$/.test(item.date))&&text(item.sum,40)&&text(item.status,40)&&(item.doctor===undefined||text(item.doctor,120))&&(item.doctorId===undefined||item.doctorId===''||validId(item.doctorId))&&(!item.image||['tooth.png','smile.png','scan.png'].includes(item.image))&&(!item.clinicId||validId(item.clinicId))&&(!item.teeth||Array.isArray(item.teeth)&&item.teeth.every(tooth=>Number.isInteger(tooth)&&tooth>0&&tooth<100)));
+  if(key==='clients')return Array.isArray(value)&&value.length<=2000&&unique(value)&&new Set(value.map(item=>item.telegramCode)).size===value.length&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&telegramCodePattern.test(item.telegramCode)&&validClinicDoctors(item)&&(item.approved===undefined||typeof item.approved==='boolean'));
   if(key==='payrollSettings')return validPayrollSettings(value);
   if(key==='employees')return Array.isArray(value)&&value.length<=500&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&(item.rank===undefined||Number.isInteger(item.rank)&&item.rank>=1&&item.rank<=5)&&['active','disabled','fired'].includes(item.status));
   if(key==='clientRequests')return Array.isArray(value)&&value.length<=20000&&unique(value)&&value.every(item=>item&&validId(item.id)&&validId(item.orderId)&&validId(item.clinicId)&&['edit','deadline','cancel'].includes(item.type)&&['pending','approved','rejected','archived'].includes(item.status)&&(!item.decision||['approved','rejected'].includes(item.decision))&&text(item.requestedBy||'',200)&&text(item.summary||'',2000)&&(!item.reason||text(item.reason,2000))&&item.changes&&typeof item.changes==='object'&&!Array.isArray(item.changes));
@@ -410,12 +423,31 @@ function eventFor(orderId,actor,action,details={}){
 export async function replacePortalCollection(key,value,actor={}){
   const prepared=key==='clients'&&Array.isArray(value)?assignTelegramCodes(value):value;
   if(!validCollection(key,prepared))throw new Error('invalid_collection');
-  const next=structuredClone(prepared);
+  let next=structuredClone(prepared);
   saveQueue=saveQueue.catch(()=>{}).then(async()=>{
     const previous=state[key];
     const previousHistory=state.orderHistory;
     const previousAccruals=state.salaryAccruals;
     if(key==='payrollSettings'&&next.revision!==(previous?.revision||0))throw new Error('payroll_conflict');
+    if(key==='clients')next=next.map(client=>{
+      const before=(previous||[]).find(item=>item.id===client.id);
+      if(!before)return client;
+      if(!Object.hasOwn(client,'doctors'))return {...client,...(before.doctors?{doctors:before.doctors,doctorsRevision:before.doctorsRevision||0}:{})};
+      if(JSON.stringify(client.doctors)!==JSON.stringify(before.doctors||[])){
+        if((client.doctorsRevision||0)!==(before.doctorsRevision||0))throw new Error('doctors_conflict');
+        return {...client,doctorsRevision:(before.doctorsRevision||0)+1};
+      }
+      return {...client,doctorsRevision:before.doctorsRevision||0};
+    });
+    if(key==='orders')next=next.map(order=>{
+      if((previous||[]).some(item=>item.id===order.id)||!Object.hasOwn(order,'doctorId'))return order;
+      const clinic=state.clients.find(item=>item.id===order.clinicId),active=(clinic?.doctors||[]).filter(item=>item.active!==false);
+      if(!order.doctorId){if(active.length)throw new Error('invalid_doctor');return {...order,doctor:''};}
+      const doctor=active.find(item=>item.id===order.doctorId);
+      if(!doctor)throw new Error('invalid_doctor');
+      return {...order,doctor:doctor.name};
+    });
+
     const generated=[];
     if(key==='orderOverrides'){
       const ids=new Set([...Object.keys(previous||{}),...Object.keys(next||{})]);

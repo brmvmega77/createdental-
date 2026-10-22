@@ -589,6 +589,8 @@ async function handlePortal(req,res,url){
       return json(res,200,{ok:true})
     }
     catch(error){
+      if(error.message==='doctors_conflict')return json(res,409,{error:'Список врачей уже изменился. Обновите страницу и повторите изменение.'});
+      if(error.message==='invalid_doctor')return json(res,400,{error:'Выберите действующего врача вашей клиники'});
       if(error.message==='order_folder_failed')return json(res,502,{error:'Не удалось создать папку заказа на Яндекс Диске. Заказ не создан'});
       return json(res,error.message==='invalid_collection'?400:500,{error:error.message==='invalid_collection'?'Неверные данные':'Не удалось сохранить'});
     }

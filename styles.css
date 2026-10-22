@@ -2698,3 +2698,31 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
   .payroll-accrual-line>span:first-child{grid-column:1/-1}
   .payroll-accrual-line>strong{grid-column:2}
 }
+
+/* Clinic doctors use the same forms and buttons as the clinic profile. */
+.clinic-settings-content[data-section="Врачи"]{display:block}
+.clinic-doctors{width:100%;max-width:1000px}
+.clinic-doctors>header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px}
+.clinic-doctors h2{margin:0 0 8px;font-size:21px}
+.clinic-doctors p{margin:0;color:#808080;font-size:13px;line-height:1.5}
+#clinic-doctor-form{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:14px;margin-bottom:24px}
+#clinic-doctor-form .field{min-width:0}
+#clinic-doctor-form input{width:100%;min-height:43px;padding:11px 13px;border:1px solid #eeeeee;border-radius:7px;background:#fff;color:#333;font-size:14px}
+.clinic-doctor-form-actions,.clinic-doctor-actions{display:flex;flex-wrap:wrap;gap:8px}
+.clinic-doctor-list{display:grid;gap:0}
+.clinic-doctor-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0;border-top:1px solid #eeeeee}
+.clinic-doctor-row>div:first-child{min-width:0}
+.clinic-doctor-row strong{display:block;font-size:14px;overflow-wrap:anywhere}
+.clinic-doctor-row span{display:block;margin-top:5px;color:#808080;font-size:12px;line-height:1.4}
+.doctor-field-hint{font-size:12px;color:#808080;line-height:1.4;font-weight:400}
+.doctor-manage-link{justify-self:start;align-self:end;min-height:43px;padding:0;text-align:left}
+@media(max-width:900px){
+  .clinic-doctors>header{flex-direction:column;gap:12px}
+  #clinic-doctor-form{grid-template-columns:minmax(0,1fr)}
+  #clinic-doctor-form input{min-height:44px;font-size:16px}
+  .clinic-doctor-form-actions .btn{flex:1;min-height:44px}
+  .clinic-doctor-row{align-items:flex-start;flex-direction:column;gap:12px}
+  .clinic-doctor-actions{width:100%}.clinic-doctor-actions .btn{flex:1;min-height:44px}
+}
+
+.doctor-choice-field{min-width:0}.doctor-choice-field .doctor-manage-link{min-height:32px;margin-top:4px;font-size:12px}
