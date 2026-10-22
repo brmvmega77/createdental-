@@ -1,3 +1,4 @@
+import {handlePayroll} from './payroll-api.js';
 import {handleOwner} from './owner-api.js';
 import {camCanAccept,camCanSubmitQuality,camAfterMilling} from './cam-workflow.js';
 import http from 'node:http';
@@ -94,7 +95,7 @@ const integrationSecretFiles={
 const tlsKeyFile=process.env.TLS_KEY_FILE||'';
 const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
-const publicFiles = new Set(['/owner.js','/owner.css','/','/index.html','/app.js','/work-catalog.js','/technician.js','/production-stages.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing.js']);
+const publicFiles = new Set(['/payroll.js','/payroll-ui.js','/owner.js','/owner.css','/','/index.html','/app.js','/work-catalog.js','/technician.js','/production-stages.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon'};
 const sharedAttachmentTypes={
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream',
@@ -260,7 +261,7 @@ function actorName(user){
 function isCadOperatorEmployee(employee){
   return /cad\s*\/?\s*cam|cadcam|cad\s*оператор|моделировщик/i.test(String(employee?.specialty||''));
 }
-function isPreprodEmployee(employee){return /препрод|pre\s*prod|предпрод/i.test(String(employee?.specialty||''));}
+function isPreprodEmployee(employee){return /гипсов|препрод|pre\s*prod|предпрод/i.test(String(employee?.specialty||''));}
 function isPainterEmployee(employee){
   const value=String(employee?.specialty||'').trim();
   return /красильщик|керамист|эстетист/i.test(value);
@@ -412,6 +413,7 @@ async function handlePortal(req,res,url){
     if(section)return json(res,200,{[section]:snapshot[section]??(section==='orderOverrides'?{}:[]),user:publicUser(user)});
   }
   if(req.method==='PUT'&&['orders','orderOverrides','clients','employees','workCatalog','deliverySettings','promoCodes'].includes(key)){
+    if(user.role==='worker'&&key!=='orderOverrides')return json(res,403,{error:'Доступ запрещён'});
     let value;
     try {value=await readBody(req,500000)} catch {return json(res,400,{error:'Неверные данные'})}
     if(user.role==='clinic'){
@@ -1775,6 +1777,7 @@ const requestHandler=async (req,res) => {
   if(url.pathname.startsWith('/api/cad-preview/')){try{return await handleCadPreview(req,res,url)}catch(error){console.error('CAD preview request failed:',error.message);return json(res,500,{error:'Ошибка предпросмотра CAD'})}}
   if(url.pathname.startsWith('/api/owner/'))return handleOwner(req,res,url);
   if(url.pathname.startsWith('/api/')&&session(req)?.role==='owner'&&url.pathname!=='/api/auth/logout')return json(res,403,{error:'Используйте кабинет владельца'});
+  if(url.pathname==='/api/payroll'||url.pathname==='/api/payroll/settings')return handlePayroll(req,res,url,{user:session(req),json,readBody});
   if(url.pathname.startsWith('/api/auth/'))return handleAuth(req,res,url);
   if(url.pathname==='/api/uploads/init'||url.pathname.startsWith('/api/uploads/')){try{return await handleUploads(req,res,url)}catch(error){console.error('Upload request failed:',error.message);return json(res,500,{error:'Ошибка загрузки файла'})}}
   if(url.pathname==='/api/clinic-message-files'||url.pathname.startsWith('/api/clinic-message-files/')){

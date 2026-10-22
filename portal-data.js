@@ -1,3 +1,4 @@
+import {collectPayrollAccruals,initializePayrollState,validPayrollSettings} from './payroll.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import {randomInt} from 'node:crypto';
@@ -52,6 +53,9 @@ try {
     if(Array.isArray(stored.workCatalog)){state.workCatalog=cloneCatalog(stored.workCatalog);workCatalog.splice(0,workCatalog.length,...cloneCatalog(stored.workCatalog))}
     if(stored.deliverySettings&&typeof stored.deliverySettings==='object'&&!Array.isArray(stored.deliverySettings)){const freeThreshold=Number(stored.deliverySettings.freeThreshold),fee=Number(stored.deliverySettings.fee);state.deliverySettings={freeThreshold:Number.isFinite(freeThreshold)&&freeThreshold>=0?freeThreshold:4000,fee:Number.isFinite(fee)&&fee>=0?fee:500};}
     if(Array.isArray(stored.promoCodes))state.promoCodes=stored.promoCodes;
+    if(stored.payrollSettings)state.payrollSettings=stored.payrollSettings;
+    if(Array.isArray(stored.salaryAccruals))state.salaryAccruals=stored.salaryAccruals;
+    if(stored.payrollVersion===1)state.payrollVersion=1;
     if(stored.orderOverrides&&typeof stored.orderOverrides==='object'&&!Array.isArray(stored.orderOverrides))state.orderOverrides=stored.orderOverrides;
     if(Array.isArray(stored.orderHistory))state.orderHistory=stored.orderHistory;
     const before=JSON.stringify(state);
@@ -93,6 +97,8 @@ async function initializeDatabase(){
 }
 
 if(databasePool)await initializeDatabase();
+const payrollInitialized=initializePayrollState(state);
+if(payrollInitialized!==state){state=payrollInitialized;await persistState(['salaryAccruals']);}
 
 async function initializeRelationalSchema(){
   await databasePool.query(`
@@ -120,6 +126,16 @@ async function initializeRelationalSchema(){
       data jsonb NOT NULL,
       updated_at timestamptz NOT NULL DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS portal_salary_accruals (
+      accrual_id text PRIMARY KEY,
+      employee_id text NOT NULL,
+      order_id text NOT NULL,
+      role text NOT NULL,
+      happened_at timestamptz NOT NULL,
+      data jsonb NOT NULL,
+      UNIQUE (order_id,role)
+    );
+    CREATE INDEX IF NOT EXISTS portal_salary_employee_date_idx ON portal_salary_accruals (employee_id,happened_at DESC);
     CREATE TABLE IF NOT EXISTS portal_order_overrides (
       order_id text PRIMARY KEY,
       stage text NOT NULL DEFAULT '',
@@ -185,6 +201,9 @@ function timestampValue(value){const date=value?new Date(value):null;return date
 async function syncNormalizedState(client,changedKeys=['all']){
   const keys=new Set(changedKeys||['all']);
   const all=keys.has('all');
+  if(all||keys.has('salaryAccruals')){
+    if(state.salaryAccruals?.length)await client.query(`INSERT INTO portal_salary_accruals (accrual_id,employee_id,order_id,role,happened_at,data) SELECT item->>'id',item->>'employeeId',item->>'orderId',item->>'role',(item->>'at')::timestamptz,item FROM jsonb_array_elements($1::jsonb) item ON CONFLICT (order_id,role) DO NOTHING`,[sqlJson(state.salaryAccruals)]);
+  }
   if(all||keys.has('orders')){
     await client.query('DELETE FROM portal_orders');
     await client.query(`INSERT INTO portal_orders (order_id,clinic_id,status,patient,created_at,due_date,data)
@@ -374,7 +393,8 @@ function validCollection(key,value){
   const unique=items=>new Set(items.map(item=>item.id)).size===items.length;
   if(key==='orders')return Array.isArray(value)&&value.length<=5000&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.patient)&&text(item.work)&&(!item.date||/^\d{2}\.\d{2}\.\d{4}$/.test(item.date))&&text(item.sum,40)&&text(item.status,40)&&(!item.image||['tooth.png','smile.png','scan.png'].includes(item.image))&&(!item.clinicId||validId(item.clinicId))&&(!item.teeth||Array.isArray(item.teeth)&&item.teeth.every(tooth=>Number.isInteger(tooth)&&tooth>0&&tooth<100)));
   if(key==='clients')return Array.isArray(value)&&value.length<=2000&&unique(value)&&new Set(value.map(item=>item.telegramCode)).size===value.length&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&telegramCodePattern.test(item.telegramCode)&&(item.approved===undefined||typeof item.approved==='boolean'));
-  if(key==='employees')return Array.isArray(value)&&value.length<=500&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&['active','disabled','fired'].includes(item.status));
+  if(key==='payrollSettings')return validPayrollSettings(value);
+  if(key==='employees')return Array.isArray(value)&&value.length<=500&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&(item.rank===undefined||Number.isInteger(item.rank)&&item.rank>=1&&item.rank<=5)&&['active','disabled','fired'].includes(item.status));
   if(key==='clientRequests')return Array.isArray(value)&&value.length<=20000&&unique(value)&&value.every(item=>item&&validId(item.id)&&validId(item.orderId)&&validId(item.clinicId)&&['edit','deadline','cancel'].includes(item.type)&&['pending','approved','rejected','archived'].includes(item.status)&&(!item.decision||['approved','rejected'].includes(item.decision))&&text(item.requestedBy||'',200)&&text(item.summary||'',2000)&&(!item.reason||text(item.reason,2000))&&item.changes&&typeof item.changes==='object'&&!Array.isArray(item.changes));
   if(key==='tasks')return Array.isArray(value)&&value.length<=20000&&unique(value)&&value.every(item=>item&&validId(item.id)&&validId(item.assigneeId)&&text(item.assigneeName,200)&&text(item.title,200)&&text(item.description||'',4000)&&(!item.orderId||text(item.orderId,100))&&text(item.clinic||'',200)&&text(item.patient||'',200)&&text(item.work||'',200)&&['backlog','in_progress','review','done'].includes(item.status)&&['low','normal','high','urgent'].includes(item.priority)&&(!item.dueDate||/^\d{4}-\d{2}-\d{2}$/.test(item.dueDate))&&text(item.createdBy||'',200)&&typeof item.createdAt==='string'&&item.createdAt.length<=40&&typeof item.updatedAt==='string'&&item.updatedAt.length<=40&&(!item.completedAt||typeof item.completedAt==='string'&&item.completedAt.length<=40));
   if(key==='orderOverrides')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=5000&&Object.entries(value).every(([id,detail])=>validId(id)&&detail&&typeof detail==='object'&&!Array.isArray(detail)&&(!detail.stage||text(detail.stage,80))&&(!detail.manufacturingStatus||text(detail.manufacturingStatus,80))&&(!detail.assignee||text(detail.assignee,200))&&(!detail.reworkReason||text(detail.reworkReason,2000))&&(!detail.completedAt||typeof detail.completedAt==='string'&&detail.completedAt.length<=40)&&(!detail.qualityDecision||detail.qualityDecision&&typeof detail.qualityDecision==='object'&&!Array.isArray(detail.qualityDecision)&&['cad','preprod','cam','esthetic','final'].includes(detail.qualityDecision.kind)&&['approved','rejected'].includes(detail.qualityDecision.result)&&text(detail.qualityDecision.reasonCategory||'',120)&&text(detail.qualityDecision.reason||'',1000)&&typeof detail.qualityDecision.at==='string'&&detail.qualityDecision.at.length<=40)&&(!detail.cadReview||detail.cadReview&&typeof detail.cadReview==='object'&&!Array.isArray(detail.cadReview)&&['pending','approved','returned'].includes(detail.cadReview.status)&&validId(detail.cadReview.fileId)&&text(detail.cadReview.fileName,200)&&text(detail.cadReview.sentBy||'',200)&&text(detail.cadReview.reviewedBy||'',200)&&text(detail.cadReview.comment||'',2000)&&Number.isSafeInteger(detail.cadReview.revision)&&detail.cadReview.revision>0&&detail.cadReview.revision<10000&&typeof detail.cadReview.sentAt==='string'&&detail.cadReview.sentAt.length<=40&&(!detail.cadReview.reviewedAt||typeof detail.cadReview.reviewedAt==='string'&&detail.cadReview.reviewedAt.length<=40)));
@@ -394,6 +414,8 @@ export async function replacePortalCollection(key,value,actor={}){
   saveQueue=saveQueue.catch(()=>{}).then(async()=>{
     const previous=state[key];
     const previousHistory=state.orderHistory;
+    const previousAccruals=state.salaryAccruals;
+    if(key==='payrollSettings'&&next.revision!==(previous?.revision||0))throw new Error('payroll_conflict');
     const generated=[];
     if(key==='orderOverrides'){
       const ids=new Set([...Object.keys(previous||{}),...Object.keys(next||{})]);
@@ -423,14 +445,16 @@ export async function replacePortalCollection(key,value,actor={}){
       for(const order of next){const before=oldById.get(order.id);if(!before)generated.push(eventFor(order.id,actor,'order_created',{summary:`${orderWorkLabel(order)||'Заказ'} · ${order.patient||''}`}));else if(JSON.stringify(before)!==JSON.stringify(order))generated.push(eventFor(order.id,actor,'order_updated',{summary:'Изменены данные заказа'}))}
       for(const order of previous||[])if(!newById.has(order.id))generated.push(eventFor(order.id,actor,'order_deleted',{summary:'Заказ удалён'}));
     }
-    state[key]=next;
+    state[key]=key==='payrollSettings'?{...next,revision:(previous?.revision||0)+1,updatedAt:new Date().toISOString()}:next;
+    if(key==='orderOverrides'){const accrued=collectPayrollAccruals(state,{previousOverrides:previous,actorRole:actor.role});if(accrued.length)state.salaryAccruals=[...(state.salaryAccruals||[]),...accrued];}
     if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(next));
     if(generated.length)state.orderHistory=[...(state.orderHistory||[]),...generated].slice(-50000);
     try {
       const changedKeys=new Set([key]);
       if(generated.length)changedKeys.add('orderHistory');
+      if(state.salaryAccruals!==previousAccruals)changedKeys.add('salaryAccruals');
       await persistState([...changedKeys]);
-    } catch(error){state[key]=previous;state.orderHistory=previousHistory;throw error}
+    } catch(error){state[key]=previous;state.orderHistory=previousHistory;state.salaryAccruals=previousAccruals;throw error}
   });
   await saveQueue;
   return portalSnapshot();
