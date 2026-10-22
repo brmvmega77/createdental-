@@ -2847,3 +2847,20 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
   border-color:#252525;
   box-shadow:0 3px 8px rgba(37,37,37,.2);
 }
+
+/* В режиме просмотра поля прайса не выглядят доступными для случайного ввода. */
+.tech-pricing-category-name:disabled,
+.tech-pricing-service-name:disabled,
+.tech-pricing-input input:disabled,
+.tech-pricing-control select:disabled{
+  background:#f8f8f8;
+  color:#333;
+  opacity:1;
+  cursor:default;
+}
+.tech-pricing-add:disabled,
+.tech-pricing-remove:disabled{
+  opacity:.45;
+  cursor:default;
+  pointer-events:none;
+}
