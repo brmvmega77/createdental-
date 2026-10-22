@@ -2819,3 +2819,6 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
   .tech-orders-table tbody td.tech-order-actions-cell{padding-top:0!important;padding-bottom:0!important}
   .tech-orders-table tbody td.tech-order-actions-cell .tech-order-actions{height:100%;align-items:center!important}
 }
+/* Keep clinic profile content visually separate from the footer. */
+.clinic-settings-content{padding-bottom:72px}
+@media(max-width:760px){.clinic-settings-content{padding-bottom:42px}}
