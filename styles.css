@@ -2790,3 +2790,25 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
   .orders-table td:nth-child(7)::before{content:"Статус"}
   .orders-table td:nth-child(8)::before{content:"Сумма"}
 }
+
+
+/* Финальная раскладка строк заказов: действия остаются в той же строке. */
+@media(min-width:761px){
+  .tech-orders-table{table-layout:fixed!important}
+  .tech-orders-table tbody tr{vertical-align:middle!important}
+  .tech-orders-table th,.tech-orders-table td{vertical-align:middle!important}
+  .tech-orders-table th:nth-child(1),.tech-orders-table td:nth-child(1){width:12%!important}
+  .tech-orders-table th:nth-child(2),.tech-orders-table td:nth-child(2){width:10%!important}
+  .tech-orders-table th:nth-child(3),.tech-orders-table td:nth-child(3){width:8%!important}
+  .tech-orders-table th:nth-child(4),.tech-orders-table td:nth-child(4){width:9%!important}
+  .tech-orders-table th:nth-child(5),.tech-orders-table td:nth-child(5){width:13%!important}
+  .tech-orders-table th:nth-child(6),.tech-orders-table td:nth-child(6){width:10%!important}
+  .tech-orders-table th:nth-child(7),.tech-orders-table td:nth-child(7){width:8%!important}
+  .tech-orders-table th:nth-child(8),.tech-orders-table td:nth-child(8){width:8%!important}
+  .tech-orders-table th:nth-child(9),.tech-orders-table td:nth-child(9){width:9%!important}
+  .tech-orders-table th:nth-child(10),.tech-orders-table td:nth-child(10){width:6%!important}
+  .tech-orders-table th:nth-child(11),.tech-orders-table td:nth-child(11){width:7%!important}
+  .tech-orders-table td.tech-order-actions-cell{white-space:nowrap!important;overflow:visible!important;padding-left:4px!important;padding-right:4px!important}
+  .tech-orders-table td.tech-order-actions-cell .tech-order-actions{display:flex!important;align-items:center!important;justify-content:center!important;flex-wrap:nowrap!important;gap:3px!important;min-width:0!important;width:100%!important;white-space:nowrap!important}
+  .tech-orders-table td.tech-order-actions-cell .tech-icon-btn{width:24px!important;height:28px!important;flex:0 0 24px!important}
+}
