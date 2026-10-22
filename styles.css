@@ -2892,3 +2892,25 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
   .tech-pricing-row{grid-template-columns:1fr 1fr 34px 34px}
   .tech-pricing-name{grid-column:1/-1}
 }
+
+/* Группы разделов в меню главного техника. */
+.tech-nav-group{display:grid;gap:4px}
+.tech-nav-group>summary{height:40px;display:flex;align-items:center;gap:11px;padding:0 11px;border-radius:8px;color:#333;font-size:13px;font-weight:650;cursor:pointer;list-style:none;user-select:none}
+.tech-nav-group>summary::-webkit-details-marker{display:none}
+.tech-nav-group>summary svg:last-child{margin-left:auto;transition:transform .18s ease}
+.tech-nav-group[open]>summary svg:last-child{transform:rotate(90deg)}
+.tech-nav-group>summary:hover,.tech-nav-group[open]>summary{background:#f5f5f5;color:#808080}
+.tech-nav-group-items{display:grid;gap:4px;padding-left:10px}
+.tech-nav-group-items .nav-link{height:36px;padding-left:18px;font-size:12px}
+@media(max-width:760px){
+  .tech-nav-group>summary{height:42px;padding:0 12px;font-size:14px}
+  .tech-nav-group-items{padding-left:8px}
+  .tech-nav-group-items .nav-link{height:40px;padding-left:18px;font-size:13px}
+}
+.sidebar.sidebar-collapsed .tech-nav-group>summary{position:relative;width:44px;height:44px;margin:0 auto;justify-content:center;padding:0;border-radius:12px}
+.sidebar.sidebar-collapsed .tech-nav-group>summary span,
+.sidebar.sidebar-collapsed .tech-nav-group>summary svg:last-child{display:none}
+.sidebar.sidebar-collapsed .tech-nav-group-items{display:none}
+.sidebar.sidebar-collapsed .tech-nav-group>summary:hover::after{content:attr(data-sidebar-label);position:absolute;left:calc(100% + 12px);top:50%;z-index:80;transform:translateY(-50%);white-space:nowrap;pointer-events:none;padding:7px 10px;border:1px solid #eeeeee;border-radius:7px;background:#fff;color:#333;font-size:12px;font-weight:600;box-shadow:0 8px 22px rgba(0,0,0,.1)}
+html[data-theme="dark"] .tech-nav-group>summary:hover,html[data-theme="dark"] .tech-nav-group[open]>summary{background:#2b3036;color:#e6e8eb}
+html[data-theme="dark"] .sidebar.sidebar-collapsed .tech-nav-group>summary:hover::after{border-color:#3b4247;background:#252a2f;color:#f0f1f2;box-shadow:0 8px 22px #0006}
