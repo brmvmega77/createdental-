@@ -2823,3 +2823,9 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
 /* Keep clinic profile content visually separate from the footer. */
 .clinic-settings-content{padding-bottom:72px}
 @media(max-width:760px){.clinic-settings-content{padding-bottom:42px}}
+
+/* Keep a consistent breathing room between page content and the footer. */
+:root{--content-footer-gap:72px}
+.shell>.content{padding-bottom:var(--content-footer-gap)}
+.clinic-settings-content{padding-bottom:0}
+@media(max-width:760px){:root{--content-footer-gap:48px}}
