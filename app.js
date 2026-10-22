@@ -43,7 +43,7 @@ const assets = '/assets/';
 const logo = `${assets}create-dental-logo.png`;
 const sidebarMark = '<span class="sidebar-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9c3-3.2 7.4-3.5 12-1 4.6-2.5 9-2.2 12 1 2.6 2.8 1.6 8.2.6 12.9-.9 4.5-2 10.6-4.6 15-.9 1.5-3.1 1.4-4-.2l-3.9-8.1c-.8-1.6-3.3-1.6-4.1 0l-3.9 8.1c-.9 1.6-3.1 1.7-4 .2-2.6-4.4-3.7-10.5-4.6-15C10.4 17.2 9.4 11.8 12 9Z"/><path d="M18 10.5c.3 3.1.5 5.6 1.6 7.2M30 10.5c-.3 3.1-.5 5.6-1.6 7.2"/></svg></span>';
 const orders = seedOrders.map(order=>({...order}));
-const nav = [['home','Главная','home'],['new','Новый заказ','plus'],['orders','Мои заказы','orders'],['messages','Сообщения','message'],['clinic','Моя клиника','clinic']];
+const nav = [['home','Главная','home'],['new','Новый заказ','plus'],['orders','Мои заказы','orders'],['clinic','Моя клиника','clinic']];
 const steps = ['Пациент','Зубы и работа','Дополнительно','Подтверждение'];
 const oldLink=new URLSearchParams(location.search);
 if(oldLink.has('role')||oldLink.has('page')){
