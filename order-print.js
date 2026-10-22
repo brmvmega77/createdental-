@@ -22,6 +22,16 @@ const lowerTeeth=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
 
 function formulaMarkup(){return `<div class="order-print-formula"><div>${upperTeeth.map(tooth=>`<span>${tooth}</span>`).join('')}</div><div>${lowerTeeth.map(tooth=>`<span>${tooth}</span>`).join('')}</div></div>`}
 function lineField(label,value=''){return `<div class="order-print-line-field"><span>${escapeValue(label)}</span><b>${escapeValue(value)}</b></div>`}
+function orderDoctor(order){
+  const doctor=order?.doctor;
+  return String(
+    (typeof doctor==='object' ? (doctor.name||doctor.fullName||doctor.displayName) : doctor)
+    || order?.doctorName
+    || order?.dentist
+    || (typeof order?.doctorRecord==='object' ? (order.doctorRecord.name||order.doctorRecord.fullName) : order?.doctorRecord)
+    || ''
+  ).trim();
+}
 function orderCardUrl(order){
   const origin=typeof location!=='undefined'&&location.origin&&location.origin!=='null'?location.origin:'https://createdental.io';
   return `${origin}/clinic/orders/${encodeURIComponent(order?.id||'')}`;
@@ -65,7 +75,7 @@ function sheetMarkup(order,variant,toothChart,logo,index,total){
   const chart=typeof toothChart==='function'?toothChart(false,selected,ranges):'';
   const services=servicesByTooth(order,variant);
   const serviceLabel=serviceName(order,variant);
-  return `<article class="order-print-sheet"><div class="order-print-project">Заказ-наряд № <strong>${escapeValue(order.id||'')}</strong>${serviceLabel?`<small class="order-print-service-title">${escapeValue(serviceLabel)}</small>`:''}</div><div class="order-print-top"><div class="order-print-fields">${lineField('Клиника',order.clinic)}${lineField('Доктор',order.doctor||order.dentist||'')}${lineField('Пациент',order.patient)}${lineField('Создан',displayDate(order.createdAt))}${lineField('Ожидаемая дата',displayDate(order.date))}</div><div class="order-print-brand"><img src="${escapeValue(logo)}" alt="Create Dental"><span>e-mail: orders@createdental.io</span></div></div><h1 class="order-print-formula-title">Зубная формула</h1>${formulaMarkup()}<div class="order-print-main"><div class="order-print-side order-print-side-left">${sideToothLines([11,12,13,14,15,16,17,18,48,47,46,45,44,43,42,41],services,'left')}</div><div class="order-print-jaw">${chart||'<span>Схема не указана</span>'}</div><div class="order-print-side order-print-side-right">${sideToothLines([21,22,23,24,25,26,27,28,38,37,36,35,34,33,32,31],services,'right')}</div></div><div class="order-print-bottom"><div class="order-print-color">${lineField('ЦВЕТ',order.shade||'')}</div><div class="order-print-note">${lineField('Примечание',order.comment||'')}</div>${qrMarkup(order)}</div>${total>1?`<small class="order-print-page-number">${index+1} / ${total}</small>`:''}</article>`;
+  return `<article class="order-print-sheet"><div class="order-print-project">Заказ-наряд № <strong>${escapeValue(order.id||'')}</strong>${serviceLabel?`<small class="order-print-service-title">${escapeValue(serviceLabel)}</small>`:''}</div><div class="order-print-top"><div class="order-print-fields">${lineField('Клиника',order.clinic)}${lineField('Доктор',orderDoctor(order))}${lineField('Пациент',order.patient)}${lineField('Создан',displayDate(order.createdAt))}${lineField('Ожидаемая дата',displayDate(order.date))}</div><div class="order-print-brand"><img src="${escapeValue(logo)}" alt="Create Dental"><span>e-mail: orders@createdental.io</span></div></div><h1 class="order-print-formula-title">Зубная формула</h1>${formulaMarkup()}<div class="order-print-main"><div class="order-print-side order-print-side-left">${sideToothLines([11,12,13,14,15,16,17,18,48,47,46,45,44,43,42,41],services,'left')}</div><div class="order-print-jaw">${chart||'<span>Схема не указана</span>'}</div><div class="order-print-side order-print-side-right">${sideToothLines([21,22,23,24,25,26,27,28,38,37,36,35,34,33,32,31],services,'right')}</div></div><div class="order-print-bottom"><div class="order-print-color">${lineField('ЦВЕТ',order.shade||'')}</div><div class="order-print-note">${lineField('Примечание',order.comment||'')}</div>${qrMarkup(order)}</div>${total>1?`<small class="order-print-page-number">${index+1} / ${total}</small>`:''}</article>`;
 }
 
 export function openOrderPrint({order,toothChart,logo='/assets/create-dental-logo.png'}){

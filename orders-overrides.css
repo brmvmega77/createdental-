@@ -655,3 +655,8 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
     white-space:nowrap!important;
   }
 }
+
+/* Print narяд uses the same medium-gray selected teeth as the order card. */
+@media print{
+  .order-print-jaw .tooth.selected .tooth-image{filter:brightness(.65) saturate(0)!important}
+}
