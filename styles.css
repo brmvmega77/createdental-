@@ -2735,6 +2735,28 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
 
 .clinic-doctor-row .clinic-doctor-specialty{color:#333;font-size:13px}
 
+/* Orders table includes the doctor between the patient and deadline. */
+@media(min-width:761px){
+  .tech-orders-table th,.tech-orders-table td{width:9.090909%!important}
+  .tech-orders-table td:nth-child(9){text-align:left}
+  .tech-orders-table td:nth-child(9) .tech-stage{display:inline-block!important;width:auto!important;max-width:100%;padding:5px 8px;box-sizing:border-box;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+  .tech-orders-table td:nth-child(10) .tech-order-participants{display:block!important;max-width:100%;overflow:hidden!important;white-space:nowrap!important;text-overflow:ellipsis}
+  .tech-orders-table td:nth-child(10) .tech-order-participants li{display:inline!important;white-space:nowrap!important;overflow-wrap:normal!important}
+  .tech-orders-table td:nth-child(10) .tech-order-participants li:not(:last-child)::after{content:' · '}
+  .tech-orders-table td:nth-child(11) .tech-order-actions{display:flex!important;align-items:center;justify-content:flex-start!important;flex-wrap:nowrap!important;gap:3px;min-width:0!important;max-width:100%;overflow:hidden;white-space:nowrap}
+  .tech-orders-table td:nth-child(11) .tech-order-actions .tech-icon-btn{width:19px!important;height:27px!important;flex:0 0 19px!important}
+}
+@media(max-width:760px){
+  .tech-orders-table td:nth-child(4)::before{content:"Тип заказа"}
+  .tech-orders-table td:nth-child(5)::before{content:"Тип работы"}
+  .tech-orders-table td:nth-child(6)::before{content:"Пациент"}
+  .tech-orders-table td:nth-child(7)::before{content:"Врач"}
+  .tech-orders-table td:nth-child(8)::before{content:"Срок"}
+  .tech-orders-table td:nth-child(9)::before{content:"Этап"}
+  .tech-orders-table td:nth-child(10)::before{content:"Сотрудники"}
+  .tech-orders-table td:nth-child(11)::before{content:"Действия"}
+}
+
 /* Price catalogue editing: section names and destructive actions stay visible
    for both existing and newly added entries. */
 .tech-pricing-category-head>div:first-child{min-width:0;flex:1}
