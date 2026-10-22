@@ -2885,6 +2885,7 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
 .tech-pricing-edit:hover,
 .tech-pricing-remove:hover{border-color:#808080;background:#f5f5f5;color:#333}
 .tech-pricing-edit + .tech-pricing-remove{margin-left:-8px}
+.tech-pricing-row .tech-pricing-edit + .tech-pricing-remove{margin-left:-16px}
 .tech-pricing-labels,.tech-pricing-row{grid-template-columns:minmax(0,1fr) 125px 200px 34px 34px}
 @media(max-width:620px){
   .tech-pricing-labels{grid-template-columns:1fr 1fr 34px 34px}
