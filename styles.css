@@ -2914,3 +2914,10 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
 .sidebar.sidebar-collapsed .tech-nav-group>summary:hover::after{content:attr(data-sidebar-label);position:absolute;left:calc(100% + 12px);top:50%;z-index:80;transform:translateY(-50%);white-space:nowrap;pointer-events:none;padding:7px 10px;border:1px solid #eeeeee;border-radius:7px;background:#fff;color:#333;font-size:12px;font-weight:600;box-shadow:0 8px 22px rgba(0,0,0,.1)}
 html[data-theme="dark"] .tech-nav-group>summary:hover,html[data-theme="dark"] .tech-nav-group[open]>summary{background:#2b3036;color:#e6e8eb}
 html[data-theme="dark"] .sidebar.sidebar-collapsed .tech-nav-group>summary:hover::after{border-color:#3b4247;background:#252a2f;color:#f0f1f2;box-shadow:0 8px 22px #0006}
+
+/* Группы меню — обычные заголовки, без дополнительного поведения. */
+.tech-nav-group-title{height:30px;display:flex;align-items:flex-end;padding:0 11px 4px;color:#808080;font-size:11px;font-weight:750;letter-spacing:.04em}
+.tech-nav-group-items{padding-left:10px}
+.sidebar.sidebar-collapsed .tech-nav-group-title{display:none}
+.sidebar.sidebar-collapsed .tech-nav-group-items{display:grid;padding-left:0}
+html[data-theme="dark"] .tech-nav-group-title{color:#aeb6be}
