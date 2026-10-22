@@ -612,3 +612,28 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
 @media print{
   .order-print-qr svg{display:block!important;flex:none!important;width:14mm!important;height:14mm!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
 }
+
+/* Desktop order rows: the grid keeps every action in the same row, while flex
+   alignment centers wrapped cell content against the row height. */
+@media(min-width:761px){
+  .tech-orders-table thead th,
+  .tech-orders-table tbody td{
+    display:flex!important;
+    align-items:center!important;
+    align-self:stretch!important;
+    vertical-align:middle!important;
+  }
+  .tech-orders-table tbody td.tech-order-actions-cell{
+    justify-content:center!important;
+    padding-top:0!important;
+    padding-bottom:0!important;
+  }
+  .tech-orders-table tbody td.tech-order-actions-cell .tech-order-actions{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex-wrap:nowrap!important;
+    width:100%!important;
+    height:auto!important;
+  }
+}
