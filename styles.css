@@ -2830,3 +2830,20 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
 .clinic-settings-content{padding-bottom:0}
 @media(max-width:760px){:root{--content-footer-gap:48px}}
 .clinic-work-instructions + .save-field{grid-column:1;justify-content:flex-start}
+
+/* Единый hover для основных кнопок во всех разделах приложения. */
+.btn.primary{
+  transition:background-color .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease;
+}
+.btn.primary:hover:not(:disabled),
+.btn.primary:focus-visible:not(:disabled){
+  background:#333;
+  border-color:#333;
+  color:#fff;
+  box-shadow:0 7px 16px rgba(51,51,51,.2);
+}
+.btn.primary:active:not(:disabled){
+  background:#252525;
+  border-color:#252525;
+  box-shadow:0 3px 8px rgba(37,37,37,.2);
+}
