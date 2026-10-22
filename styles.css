@@ -2709,6 +2709,7 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
 
 /* Clinic doctors use the same forms and buttons as the clinic profile. */
 .clinic-settings-content[data-section="Врачи"]{display:block}
+.clinic-work-instructions{grid-column:1/-1}
 .clinic-doctors{width:100%;max-width:1000px}
 .clinic-doctors>header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px}
 .clinic-doctors h2{margin:0 0 8px;font-size:21px}
