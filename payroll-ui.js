@@ -13,6 +13,11 @@ async function request(path,options={}){
 }
 export function createPayrollUI({root,isActive,worker=false,onSummary=()=>{}}){
   const state={data:null,draft:null,loading:false,saving:false,dirty:false,error:'',notice:'',role:'cad',search:'',tab:'rates',month:monthKey(new Date()),employee:'',loadedAt:0};
+  let identityKey=portalToken(),generation=0;
+  function ensureIdentity(){
+    const next=portalToken();if(next===identityKey)return;
+    identityKey=next;generation++;Object.assign(state,{data:null,draft:null,loading:false,saving:false,dirty:false,error:'',notice:'',role:'cad',search:'',tab:'rates',month:monthKey(new Date()),employee:'',loadedAt:0});
+  }
   const surface=()=>root().querySelector('[data-payroll-surface]');
   const roleInfo=()=>payrollRoles.find(role=>role.key===state.role);
   function entries(){return (state.data?.accruals||[]).filter(item=>(!state.employee||item.employeeId===state.employee)&&(!state.month||monthKey(item.at)===state.month)).sort((a,b)=>Date.parse(b.at)-Date.parse(a.at))}
@@ -40,11 +45,12 @@ export function createPayrollUI({root,isActive,worker=false,onSummary=()=>{}}){
   }
   function content(){return '<header class="payroll-heading"><div><h1>'+(worker?'Зарплата':'Зарплаты')+'</h1><p>'+(worker?'Ваши начисления за выполненные работы.':'Ставки за услуги для CAD, CAM, эстетистов и гипсовщиков.')+'</p></div><button class="btn outline" type="button" data-payroll-refresh '+(state.loading||state.saving||state.dirty?'disabled':'')+'>Обновить</button></header><div class="payroll-feedback" data-payroll-feedback><p class="payroll-error" role="alert" '+(state.error?'':'hidden')+'>'+safe(state.error)+'</p><p class="payroll-notice" role="status" '+(state.notice?'':'hidden')+'>'+safe(state.notice)+'</p></div><section class="tech-panel payroll-panel">'+body()+'</section>'}
   function paint(){const node=surface();if(node)node.innerHTML=content()}
-  function feedback(){const node=root().querySelector('[data-payroll-feedback]');if(node)node.innerHTML='<p class="payroll-error" role="alert" '+(state.error?'':'hidden')+'>'+safe(state.error)+'</p><p class="payroll-notice" role="status" '+(state.notice?'':'hidden')+'>'+safe(state.notice)+'</p>'}
   async function load(force=false){
+    ensureIdentity();
+    const requestGeneration=generation,requestIdentity=identityKey;
     if(state.loading||state.dirty||state.saving||!isActive()||!force&&state.loadedAt&&Date.now()-state.loadedAt<20000)return;
     state.loading=true;state.error='';paint();
-    try{state.data=await request('/api/payroll');state.draft=worker?null:structuredClone(state.data.settings);state.loadedAt=Date.now();onSummary(state.data)}catch(error){state.error=error.message}finally{state.loading=false;if(isActive())paint()}
+    try{const data=await request('/api/payroll');if(requestGeneration!==generation||requestIdentity!==portalToken())return;state.data=data;state.draft=worker?null:structuredClone(state.data.settings);state.loadedAt=Date.now();onSummary(state.data)}catch(error){if(requestGeneration===generation)state.error=error.message}finally{if(requestGeneration===generation){state.loading=false;if(isActive())paint()}}
   }
   document.addEventListener('input',event=>{
     if(!isActive()||!event.target.closest('[data-payroll-surface]')||state.saving)return;
@@ -74,8 +80,9 @@ export function createPayrollUI({root,isActive,worker=false,onSummary=()=>{}}){
     if(!isActive()||worker||!event.target.matches('[data-payroll-rates-form]'))return;
     event.preventDefault();if(state.saving)return;
     const form=event.target;if(!form.reportValidity())return;
+    const requestGeneration=generation,requestIdentity=identityKey;
     state.saving=true;state.error='';state.notice='';paint();
-    try{const result=await request('/api/payroll/settings',{method:'PUT',body:JSON.stringify(state.draft)});state.data.settings=result.settings;state.draft=structuredClone(result.settings);state.dirty=false;state.notice='Ставки сохранены. Применяются к новым приёмкам работ.';state.loadedAt=Date.now()}catch(error){state.error=error.message}finally{state.saving=false;if(isActive())paint()}
+    try{const result=await request('/api/payroll/settings',{method:'PUT',body:JSON.stringify(state.draft)});if(requestGeneration!==generation||requestIdentity!==portalToken())return;state.data.settings=result.settings;state.draft=structuredClone(result.settings);state.dirty=false;state.notice='Ставки сохранены. Применяются к новым приёмкам работ.';state.loadedAt=Date.now()}catch(error){if(requestGeneration===generation)state.error=error.message}finally{if(requestGeneration===generation){state.saving=false;if(isActive())paint()}}
   });
-  return {markup:()=>'<div data-payroll-surface>'+content()+'</div>',load,summary:()=>state.data};
+  return {markup:()=>{ensureIdentity();return '<div data-payroll-surface>'+content()+'</div>'},load,summary:()=>{ensureIdentity();return state.data}};
 }
