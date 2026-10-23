@@ -4,7 +4,7 @@ import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camAfterMilling} from './cam-workflow.js?v=cam-flow-2';
 import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary} from './order-list-utils.js?v=service-label-4';
-import {savePortal,authRequest,portalToken,loadOrderFiles,loadCadReviewHtml,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js';
+import {savePortal,authRequest,portalToken,loadOrderFiles,loadCadReviewHtml,downloadOrderFile,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js';
 import {parseMoneyAmount} from './money.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
@@ -641,13 +641,14 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const millingLocked=!cadApproved||!millingReady||!millingFiles.length||state.millingSendingOrderId===order.id;
     const uploadMillingEnabled=cadApproved&&camAssigned;
     const millingNote=!cadApproved?'Отправка на фрезеровку и загрузка файлов будут доступны после согласования CAD врачом. Открыть файлы можно уже сейчас.':!camAssigned?'Сначала назначьте CAM‑оператора. После этого можно загрузить файлы и отправить их на фрезеровку.':millingFiles.length?`Файлы для фрезеровки: ${millingFiles.map(file=>safe(file.name)).join(', ')}`:'Загрузите файлы .constructionInfo или _cad.stl';
-    const folderMarkup=orderFilesState.folderUrl
-      ?`<a class="btn outline" href="${safe(orderFilesState.folderUrl)}" target="_blank" rel="noopener noreferrer">Открыть файлы</a>`
-      :'<span class="btn outline disabled" aria-disabled="true">Открыть файлы</span>';
+    const formatFileSize=size=>{const bytes=Number(size)||0;if(bytes<1024)return `${bytes} Б`;if(bytes<1024*1024)return `${Math.round(bytes/1024)} КБ`;return `${(bytes/1024/1024).toFixed(1)} МБ`};
+    const fileRows=orderFilesState.files.length
+      ?orderFilesState.files.map(file=>`<div class="tech-order-file-row"><div><strong title="${safe(file.name)}">${safe(file.name)}</strong><small>${safe(file.purpose==='cad-review'?'CAD-модель':file.purpose==='result-photo'?'Фото результата':file.purpose==='source-photo'?'Исходное фото':'Материал заказа')} · ${formatFileSize(file.size)}</small></div><div class="tech-order-file-actions"><button type="button" class="btn outline" data-tech-order-action="download-file" data-file-id="${safe(file.id)}">Скачать</button>${file.purpose==='cad-review'&&/\.html$/i.test(file.name)?`<button type="button" class="btn outline" data-tech-order-action="open-cad" data-id="${safe(order.id)}" data-file-id="${safe(file.id)}">Открыть CAD</button>`:''}</div></div>`).join('')
+      :'<p class="tech-order-files-empty">Материалы пока не загружены.</p>';
     const uploadMarkup=uploadMillingEnabled
       ?`<label class="btn outline">Загрузить файлы<input type="file" id="tech-direct-order-upload" data-order-id="${safe(order.id)}" accept="*/*" multiple hidden></label>`
       :'<button type="button" class="btn outline disabled" disabled aria-disabled="true">Загрузить файлы</button>';
-    const orderFolderMarkup=`<div class="tech-order-files"><h3>Файлы заказа</h3><div class="order-folder-link"><div><strong>Папка заказа на Яндекс Диске</strong><small>Все файлы заказа собраны в одном месте</small></div><div class="order-folder-actions">${folderMarkup}${uploadMarkup}<button type="button" class="btn outline ${millingLocked?'disabled':''}" data-tech-order-action="send-milling" data-id="${safe(order.id)}" ${millingLocked?'disabled':''} aria-disabled="${millingLocked?'true':'false'}">${state.millingSendingOrderId===order.id?'Отправляем…':millingSent?'Отправить повторно':'Отправить на фрезеровку'}</button></div></div><small class="tech-order-milling-note">${millingNote}</small></div>`;
+    const orderFolderMarkup=`<div class="tech-order-files"><h3>Файлы заказа</h3><div class="tech-order-file-list">${fileRows}</div><div class="order-folder-actions">${uploadMarkup}<button type="button" class="btn outline ${millingLocked?'disabled':''}" data-tech-order-action="send-milling" data-id="${safe(order.id)}" ${millingLocked?'disabled':''} aria-disabled="${millingLocked?'true':'false'}">${state.millingSendingOrderId===order.id?'Отправляем…':millingSent?'Отправить повторно':'Отправить на фрезеровку'}</button></div><small class="tech-order-milling-note">${millingNote}</small></div>`;
     const sourcePhotoMarkup=order.productionType==='analog'?`<section class="tech-panel source-photo-upload"><div class="tech-panel-heading"><div><h3>Исходные фото</h3><p>Фото, полученные от клиники, сохраняются отдельно в папке «Исходные фото».</p></div><span class="tech-stage work">${sourcePhotos.length} фото</span></div><label class="btn outline">${sourcePhotos.length?'Добавить ещё фото':'Загрузить исходные фото'}<input type="file" id="tech-source-photo" accept="image/jpeg,image/png,image/webp" capture="environment" multiple hidden></label></section>`:'';
     const cadFiles=orderFilesState.files.filter(file=>file.purpose==='cad-review'&&/\.html$/i.test(file.name));
     const cadReview=order.cadReview||{};
@@ -1223,7 +1224,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
         finally{render()}
         return;
       }
-      if(action==='open-cad'){
+      if(action==='download-file'){try{await downloadOrderFile(orderAction.dataset.fileId)}catch(error){toast(error.message||'Не удалось скачать файл')}return} if(action==='open-cad'){
         const fileId=orderAction.dataset.fileId,order=orderById(id);
         if(!fileId||!order)return;
         const requestId=++cadPreviewRequest;
@@ -1239,14 +1240,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
         return;
       }
       if(action==='disk'){
-        const popup=window.open('about:blank','_blank');
-        if(popup)popup.opener=null;
-        try{
-          const result=await loadOrderFiles(id);
-          if(!result.folderUrl)throw new Error('Папка заказа недоступна');
-          if(popup)popup.location.replace(result.folderUrl);
-          else window.open(result.folderUrl,'_blank','noopener');
-        }catch(error){if(popup)popup.close();toast('Не удалось открыть папку: '+error.message)}
+        state.orderId=id;state.detailReturnPage=state.page;setPage('detail');
         return;
       }
       if(action==='edit'){const order=orderById(id),fallback=order?{toothMode:order.toothMode||'Одиночка',bridgeRanges:order.bridgeRanges||[],selectedTeeth:[...(order.teeth||[])],work:order.work,workOption:order.material}:null;state.editOrderId=id;state.editOrderVariants=order?orderVariants(order).map((variant,index)=>({...variant,sourcePosition:index})):[];state.confirmOrderDeleteId=null;render();return}
