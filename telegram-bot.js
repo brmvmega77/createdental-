@@ -2175,7 +2175,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         const updates=await api('getUpdates',{offset:state.offset,timeout:25,allowed_updates:['message','edited_message','callback_query']});
         for(const update of updates){state.inbox[String(update.update_id)]=update;state.offset=Math.max(state.offset,Number(update.update_id)+1)}
         if(updates.length){await saveState();await Promise.all(updates.map(queueUpdate))}
-      }catch(error){if(!stopped){health.lastErrorAt=new Date().toISOString();health.lastError=cleanText(error.message,300);console.error('Telegram polling failed:',error.message);await new Promise(resolve=>setTimeout(resolve,5000))}}
+      }catch(error){const normalLongPollTimeout=error?.name==='TimeoutError'||error?.name==='AbortError'||/aborted due to timeout/i.test(String(error?.message||''));if(!normalLongPollTimeout&&!stopped){health.lastErrorAt=new Date().toISOString();health.lastError=cleanText(error.message,300);console.error('Telegram polling failed:',error.message);await new Promise(resolve=>setTimeout(resolve,5000))}}
     }
     polling=false;
   }
