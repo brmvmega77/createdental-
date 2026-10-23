@@ -1,10 +1,11 @@
 import {completedOrderStages} from './flow-rules.js';
+import {parseMoneyAmount} from './money.js';
 const finishedStages = new Set(['Работа принята', 'В доставке', 'Принято доктором', 'Готово к выдаче']);
 const paymentStages = new Set(['В доставке', 'Принято доктором', 'Готово к выдаче']);
 const initialStages = new Set(['Черновик из Telegram', 'Ожидает распределения', 'Ожидает подтверждения']);
 const dayMs = 86400000;
 const roundPercent = (part, total) => total > 0 ? Math.round(part / total * 100) : null;
-const amountOf = value => Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
+const amountOf = value => parseMoneyAmount(value) ?? 0;
 const validTime = value => { const time = Date.parse(value || ''); return Number.isFinite(time) ? time : null; };
 
 function dueDay(value) {

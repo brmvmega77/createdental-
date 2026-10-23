@@ -17,7 +17,7 @@ import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,up
 import {createTelegramBridge} from './telegram-bot.js';
 import {createEmployeeTelegramBridge} from './employee-telegram-bot.js';
 import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource} from './yandex-disk-storage.js';
-import {workCatalog,rubles,orderDeadlineError,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork} from './work-catalog.js';
+import {workCatalog,rubles,orderDeadlineError,earliestDueDateForOrder,isWorkingDay,isoDateLocal,isValidIsoDate,estimateWork,resolveWorkSelection} from './work-catalog.js';
 import {orderWorkLabel} from './order-list-utils.js';
 
 const root = process.cwd();
@@ -98,7 +98,7 @@ const integrationSecretFiles={
 const tlsKeyFile=process.env.TLS_KEY_FILE||'';
 const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
-const publicFiles = new Set(['/flow-rules.js','/collection-concurrency.js','/clinic-doctors.js','/order-revision.js','/payroll.js','/payroll-ui.js','/owner.js','/owner.css','/','/index.html','/app.js','/work-catalog.js','/technician.js','/production-stages.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing.js']);
+const publicFiles = new Set(['/flow-rules.js','/collection-concurrency.js','/clinic-doctors.js','/order-revision.js','/payroll.js','/payroll-ui.js','/owner.js','/owner.css','/','/index.html','/app.js','/work-catalog.js','/money.js','/technician.js','/production-stages.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon'};
 const sharedAttachmentTypes={
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream',
@@ -127,6 +127,10 @@ const cadHtmlInflight=new Map();
 let cadHtmlCacheBytes=0;
 const cadHtmlCacheLimit=24*1024*1024;
 function orderDeadlineValidation(order){return orderDeadlineError(order)}
+function orderCatalogIsValid(order){
+  const variants=Array.isArray(order?.variants)&&order.variants.length?order.variants:[{work:order?.work,workOption:order?.material}];
+  return variants.length>0&&variants.every(variant=>Boolean(resolveWorkSelection(variant?.workId||variant?.work,variant?.serviceId||variant?.workOption).option));
+}
 
 function rememberCadHtml(id,html){
   const size=Buffer.byteLength(html,'utf8');
@@ -419,6 +423,7 @@ async function handlePortal(req,res,url){
         const existing=new Set(snapshot.orders.map(item=>item.id));
         const additions=value.filter(item=>!existing.has(item.id));
         if(!additions.length||additions.length>20||value.length!==snapshot.orders.filter(item=>item.clinicId===user.subjectId).length+additions.length||additions.some(item=>item.clinicId!==user.subjectId||snapshot.orders.some(existingOrder=>existingOrder.id===item.id)))return json(res,403,{error:'Можно добавить до 20 своих заказов за один раз'});
+        if(additions.some(order=>!orderCatalogIsValid(order)))return json(res,400,{error:'Выберите услугу из актуального прайса'});
         const invalidDeadline=additions.map(order=>orderDeadlineValidation(order)).find(Boolean);
         if(invalidDeadline)return json(res,400,{error:invalidDeadline});
         // Keep the delivery rule authoritative on the server as well. The
@@ -587,6 +592,7 @@ async function handlePortal(req,res,url){
       if(error.message==='collection_conflict')return json(res,409,{error:'Данные уже изменились в другой вкладке или у другого сотрудника. Обновите страницу и повторите изменение.'});
       if(error.message==='doctors_conflict')return json(res,409,{error:'Список врачей уже изменился. Обновите страницу и повторите изменение.'});
       if(error.message==='invalid_doctor')return json(res,400,{error:'Выберите действующего врача вашей клиники'});
+      if(error.message==='invalid_order_service')return json(res,400,{error:'Выберите услугу из актуального прайса'});
       if(error.message==='order_folder_failed')return json(res,502,{error:'Не удалось создать папку заказа на Яндекс Диске. Заказ не создан'});
       return json(res,error.message==='invalid_collection'?400:500,{error:error.message==='invalid_collection'?'Неверные данные':'Не удалось сохранить'});
     }
@@ -630,7 +636,7 @@ async function handleClientRequestCreate(req,res,url){
       changes={patient};summary=`Пациент: ${patient}`;
     }else if(field==='birth'){
       const birth=cleanRequestText(value,20);
-      if(!/^\d{4}-\d{2}-\d{2}$/.test(birth))return json(res,400,{error:'Укажите дату рождения'});
+      if(!isValidIsoDate(birth))return json(res,400,{error:'Укажите корректную дату рождения'});
       changes={birth};summary=`Дата рождения: ${birth.split('-').reverse().join('.')}`;
     }else if(field==='teeth'){
       const teeth=[...new Set(String(value||'').split(/[^0-9]+/).filter(Boolean).map(Number))].filter(tooth=>permanentTeethSet.has(tooth));
@@ -803,16 +809,18 @@ async function deleteOrderWithFolder(user,orderId){
   if(!order)throw new Error('not_found');
   const token=readIntegrationSecret('yandexDiskToken');
   if(!token)throw new Error('disk_not_connected');
-  // Delete cloud files before committing the single queued database mutation.
-  // Concurrent changes to other orders are never restored from an old snapshot.
-  await deleteDiskResource(token,orderDiskFolder(orderId));
+  // Commit the database deletion first. If cloud cleanup fails, files remain
+  // recoverable and the cleanup can be retried without losing the order data.
   await removePortalOrder(orderId,{role:user.role,name:actorName(user)});
+  let cleanupPending=false;
+  try{await deleteDiskResource(token,orderDiskFolder(orderId));}
+  catch(error){cleanupPending=true;console.error('Deleted order cloud cleanup failed:',error.message)}
   publicOrderFolderLinks.delete(orderId);orderFileMigrationJobs.delete(orderId);
   const files=orderFiles[orderId]||[];
   for(const file of files)if(file.storage!=='yandex-disk')await fs.promises.unlink(path.join(uploadDir,file.id)).catch(()=>{});
   delete orderFiles[orderId];
   await persistOrderFiles().catch(error=>console.error('Deleted order file metadata cleanup failed:',error.message));
-  return order;
+  return {order,cleanupPending};
 }
 async function ensureOrderFilesOnDisk(orderId){
   const key=String(orderId||'');
@@ -864,6 +872,10 @@ async function completeDiskUpload(item,uploadedBy){
   if(!token)throw new Error('Яндекс Диск не подключён');
   const metadata=await diskMetadata(token,item.diskPath);
   if(Number(metadata.size)!==item.size)throw new Error('Размер загруженного файла не совпадает');
+  if(item.target==='message'||item.target==='telegram-draft'){
+    const existing=Object.values(clinicMessageFiles).find(file=>file?.storage==='yandex-disk'&&file.diskPath===item.diskPath);
+    if(existing)return {target:'message',attachment:publicUploadRecord(existing),alreadyRecorded:true};
+  }
   const id=randomBytes(18).toString('hex'),uploadedAt=new Date().toISOString();
   if(item.target==='message'||item.target==='telegram-draft'){
     const record={id,clinicId:item.clinicId,name:item.name,size:item.size,type:item.type,uploadedAt,uploadedBy,kind:'document',orderEligible:true,source:'large-upload',largeLinkKey:item.largeLinkKey||'',storage:'yandex-disk',diskPath:item.diskPath};
@@ -878,6 +890,7 @@ async function completeDiskUpload(item,uploadedBy){
   }
   const duplicate=duplicateOrderFile(item.orderId,item,metadata);
   if(duplicate){
+    if(duplicate.diskPath===item.diskPath)return {target:'order',file:publicUploadRecord(duplicate),alreadyRecorded:true};
     await deleteDiskResource(token,item.diskPath).catch(()=>{});
     const error=new Error(`Файл «${item.name}» уже загружен в этот заказ`);error.status=409;throw error;
   }
@@ -1004,8 +1017,10 @@ async function handleLargeUpload(req,res,url){
     if(item.completing)return json(res,409,{error:'Загрузка уже обрабатывается'});item.completing=true;
     try{
       const result=await completeDiskUpload(item,`Telegram · ${link.requestedBy}`),file=result.file||result.attachment;
-      if(link.draft)link.draftAttachmentIds=[...(link.draftAttachmentIds||[]),file.id];
-      diskUploadSessions.delete(item.id);link.completedCount=(link.completedCount||0)+1;void persistLargeUploadLinks().catch(()=>{});
+      if(link.draft&&!result.alreadyRecorded)link.draftAttachmentIds=[...(link.draftAttachmentIds||[]),file.id];
+      if(!result.alreadyRecorded)link.completedCount=(link.completedCount||0)+1;
+      await persistLargeUploadLinks();
+      diskUploadSessions.delete(item.id);
       return json(res,201,{ok:true,file,orderId:link.draft?'':order.id});
     }catch(error){item.completing=false;console.error('Large upload completion failed:',error.message);return json(res,error.status===409?409:400,{error:error.message||'Не удалось подтвердить загрузку'})}
   }
@@ -1020,8 +1035,9 @@ async function handleLargeUpload(req,res,url){
   if(req.method==='POST'&&action==='finish'){
     const completed=Math.min(maximumLargeUploadFiles,Number(link.completedCount)||0);
     if(!completed)return json(res,409,{error:'Сначала загрузите хотя бы один файл'});
+    const previousUsedAt=link.usedAt;
     link.usedAt=Date.now();
-    void persistLargeUploadLinks().catch(()=>{});
+    try{await persistLargeUploadLinks()}catch(error){link.usedAt=previousUsedAt;console.error('Large upload finish state save failed:',error.message);return json(res,503,{error:'Не удалось завершить загрузку. Повторите попытку'})}
     const notification=link.draft
       ?`Файлы пациента загружены (${completed}). Вернитесь к созданию заказа и продолжите оформление.`
       :`✅ ${completed} ${completed===1?'файл':completed<5?'файла':'файлов'} загружено к заказу ${order.id}. Файлы уже прикреплены к заказу и доступны главному технику.`;
@@ -1191,7 +1207,7 @@ async function handleOrderResource(req,res,url){
   if(req.method!=='DELETE')return json(res,405,{error:'Метод не поддерживается'});
   const orderId=url.pathname.match(/^\/api\/orders\/([A-Za-z0-9_-]{1,80})$/)?.[1]||'';
   if(!orderId)return json(res,404,{error:'Заказ не найден'});
-  try{await deleteOrderWithFolder(user,orderId);return json(res,200,{ok:true})}
+  try{const result=await deleteOrderWithFolder(user,orderId);return json(res,200,{ok:true,cleanupPending:Boolean(result.cleanupPending)})}
   catch(error){
     if(error.message==='not_found')return json(res,404,{error:'Заказ не найден'});
     if(error.message==='forbidden')return json(res,403,{error:'Доступ запрещён'});
@@ -1383,8 +1399,16 @@ async function handleAuth(req,res,url){
     const existing=portalSnapshot().clients.find(item=>item.email?.toLowerCase()===email&&!item.deleted);
     const id=existing?.id||'client-'+randomBytes(12).toString('hex');
     const client={...(existing||{}),id,originalName:existing?.originalName||id,name,email,contact:existing?.contact||'',phone,city,address,country,promoCode,approved:existing?.approved??false,personalDataConsent:{version:'1.0',acceptedAt:new Date().toISOString()}};
-    try{const clients=portalSnapshot().clients;await replacePortalCollection('clients',existing?clients.map(item=>item.id===id?client:item):[...clients,client]);await createAccount({email,password:body.password,role:'clinic',subjectId:id});await recordPortalEvent('',{role:'clinic',name},'clinic_registered',{clinicId:id,summary:name}).catch(()=>{});return json(res,201,{pendingApproval:true,email});}
-    catch{return json(res,500,{error:'Не удалось создать кабинет'})}
+    const clientsBefore=portalSnapshot().clients,versionBefore=portalSnapshot().collectionVersions?.clients||0;
+    try{
+      await replacePortalCollection('clients',existing?clientsBefore.map(item=>item.id===id?client:item):[...clientsBefore,client],{role:'system',name:'Регистрация'});
+      await createAccount({email,password:body.password,role:'clinic',subjectId:id});
+      await recordPortalEvent('',{role:'clinic',name},'clinic_registered',{clinicId:id,summary:name}).catch(()=>{});
+      return json(res,201,{pendingApproval:true,email});
+    }catch(error){
+      try{await replacePortalCollection('clients',clientsBefore,{role:'system',name:'Откат регистрации'},{expectedVersion:versionBefore+1})}catch(rollbackError){console.error('Clinic registration rollback failed:',rollbackError.message)}
+      return json(res,500,{error:'Не удалось создать кабинет'});
+    }
   }
   if(req.method==='POST'&&url.pathname==='/api/auth/login'){
     if(isOwnerOnlyEmail(body.email))return json(res,403,{error:'Для владельца откройте отдельный вход: /owner/login'});

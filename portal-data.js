@@ -9,7 +9,7 @@ import pg from 'pg';
 import {seedOrders} from './seed-orders.js';
 import {seedClients,seedEmployees} from './technician.js';
 import {orderWorkLabel} from './order-list-utils.js';
-import {workCatalog,normalizeWorkCatalog,resolveWorkSelection} from './work-catalog.js';
+import {workCatalog,normalizeWorkCatalog,resolveWorkSelection,isValidIsoDate} from './work-catalog.js';
 
 const file=process.env.PORTAL_DATA_FILE||path.join(process.cwd(),'.data','portal.json');
 const {Pool}=pg;
@@ -417,15 +417,22 @@ function validClinicDoctors(clinic){
 function validCollection(key,value){
   const text=(input,max=200)=>typeof input==='string'&&input.length<=max&&!/[<>]/.test(input);
   const validId=input=>typeof input==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(input);
+  const catalogText=input=>String(input||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/[^а-яa-z0-9]+/gi,' ').trim();
   const unique=items=>new Set(items.map(item=>item.id)).size===items.length;
-  if(key==='orders')return Array.isArray(value)&&value.length<=5000&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.patient)&&text(item.work)&&(!item.date||/^\d{2}\.\d{2}\.\d{4}$/.test(item.date))&&text(item.sum,40)&&text(item.status,40)&&(item.doctor===undefined||text(item.doctor,120))&&(item.doctorSpecialty===undefined||text(item.doctorSpecialty,80))&&(item.doctorId===undefined||item.doctorId===''||validId(item.doctorId))&&(!item.image||['tooth.png','smile.png','scan.png'].includes(item.image))&&(!item.clinicId||validId(item.clinicId))&&(!item.teeth||Array.isArray(item.teeth)&&item.teeth.every(tooth=>Number.isInteger(tooth)&&tooth>0&&tooth<100)));
+  if(key==='orders')return Array.isArray(value)&&value.length<=5000&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.patient)&&text(item.work)&&(!item.birth||isValidIsoDate(item.birth))&&(!item.date||/^\d{2}\.\d{2}\.\d{4}$/.test(item.date))&&text(item.sum,40)&&text(item.status,40)&&(item.doctor===undefined||text(item.doctor,120))&&(item.doctorSpecialty===undefined||text(item.doctorSpecialty,80))&&(item.doctorId===undefined||item.doctorId===''||validId(item.doctorId))&&(!item.image||['tooth.png','smile.png','scan.png'].includes(item.image))&&(!item.clinicId||validId(item.clinicId))&&(!item.teeth||Array.isArray(item.teeth)&&item.teeth.every(tooth=>Number.isInteger(tooth)&&tooth>0&&tooth<100)));
   if(key==='clients')return Array.isArray(value)&&value.length<=2000&&unique(value)&&new Set(value.map(item=>item.telegramCode)).size===value.length&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&telegramCodePattern.test(item.telegramCode)&&validClinicDoctors(item)&&(item.approved===undefined||typeof item.approved==='boolean'));
   if(key==='payrollSettings')return validPayrollSettings(value);
   if(key==='employees')return Array.isArray(value)&&value.length<=500&&unique(value)&&value.every(item=>item&&validId(item.id)&&text(item.name)&&text(item.originalName||'',200)&&(item.rank===undefined||Number.isInteger(item.rank)&&item.rank>=1&&item.rank<=5)&&['active','disabled','fired'].includes(item.status));
   if(key==='clientRequests')return Array.isArray(value)&&value.length<=20000&&unique(value)&&value.every(item=>item&&validId(item.id)&&validId(item.orderId)&&validId(item.clinicId)&&['edit','deadline','cancel'].includes(item.type)&&['pending','approved','rejected','archived'].includes(item.status)&&(!item.decision||['approved','rejected'].includes(item.decision))&&text(item.requestedBy||'',200)&&text(item.summary||'',2000)&&(!item.reason||text(item.reason,2000))&&item.changes&&typeof item.changes==='object'&&!Array.isArray(item.changes));
   if(key==='tasks')return Array.isArray(value)&&value.length<=20000&&unique(value)&&value.every(item=>item&&validId(item.id)&&validId(item.assigneeId)&&text(item.assigneeName,200)&&text(item.title,200)&&text(item.description||'',4000)&&(!item.orderId||text(item.orderId,100))&&text(item.clinic||'',200)&&text(item.patient||'',200)&&text(item.work||'',200)&&['backlog','in_progress','review','done'].includes(item.status)&&['low','normal','high','urgent'].includes(item.priority)&&(!item.dueDate||/^\d{4}-\d{2}-\d{2}$/.test(item.dueDate))&&text(item.createdBy||'',200)&&typeof item.createdAt==='string'&&item.createdAt.length<=40&&typeof item.updatedAt==='string'&&item.updatedAt.length<=40&&(!item.completedAt||typeof item.completedAt==='string'&&item.completedAt.length<=40));
   if(key==='orderOverrides')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=5000&&Object.entries(value).every(([id,detail])=>validId(id)&&detail&&typeof detail==='object'&&!Array.isArray(detail)&&(!detail.stage||text(detail.stage,80))&&(!detail.manufacturingStatus||text(detail.manufacturingStatus,80))&&(!detail.assignee||text(detail.assignee,200))&&(!detail.reworkReason||text(detail.reworkReason,2000))&&(!detail.completedAt||typeof detail.completedAt==='string'&&detail.completedAt.length<=40)&&(!detail.qualityDecision||detail.qualityDecision&&typeof detail.qualityDecision==='object'&&!Array.isArray(detail.qualityDecision)&&['cad','preprod','cam','esthetic','final'].includes(detail.qualityDecision.kind)&&['approved','rejected'].includes(detail.qualityDecision.result)&&text(detail.qualityDecision.reasonCategory||'',120)&&text(detail.qualityDecision.reason||'',1000)&&typeof detail.qualityDecision.at==='string'&&detail.qualityDecision.at.length<=40)&&(!detail.cadReview||detail.cadReview&&typeof detail.cadReview==='object'&&!Array.isArray(detail.cadReview)&&['pending','approved','returned'].includes(detail.cadReview.status)&&validId(detail.cadReview.fileId)&&text(detail.cadReview.fileName,200)&&text(detail.cadReview.sentBy||'',200)&&text(detail.cadReview.reviewedBy||'',200)&&text(detail.cadReview.comment||'',2000)&&Number.isSafeInteger(detail.cadReview.revision)&&detail.cadReview.revision>0&&detail.cadReview.revision<10000&&typeof detail.cadReview.sentAt==='string'&&detail.cadReview.sentAt.length<=40&&(!detail.cadReview.reviewedAt||typeof detail.cadReview.reviewedAt==='string'&&detail.cadReview.reviewedAt.length<=40)));
-  if(key==='workCatalog')return Array.isArray(value)&&value.length<=100&&value.every(category=>category&&text(category.name,120)&&category.name.trim()&&Array.isArray(category.options)&&category.options.length<=100&&category.options.every(option=>option&&text(option.name,200)&&option.name.trim()&&Number.isFinite(Number(option.price))&&Number(option.price)>=0&&Number(option.price)<=100000000&&(option.productionDays===null||option.productionDays===undefined||Number.isInteger(option.productionDays)&&option.productionDays>=0&&option.productionDays<=365)));
+  if(key==='workCatalog'){
+    const validOption=option=>option&&text(option.name,200)&&option.name.trim()&&Number.isFinite(Number(option.price))&&Number(option.price)>=0&&Number(option.price)<=100000000&&
+      (option.productionDays===null||option.productionDays===undefined||Number.isInteger(option.productionDays)&&option.productionDays>=0&&option.productionDays<=365);
+    const validCategory=category=>category&&text(category.name,120)&&category.name.trim()&&Array.isArray(category.options)&&category.options.length<=100&&
+      new Set(category.options.map(option=>catalogText(option?.name))).size===category.options.length&&category.options.every(validOption);
+    return Array.isArray(value)&&value.length<=100&&new Set(value.map(category=>catalogText(category?.name))).size===value.length&&value.every(validCategory);
+  }
   if(key==='deliverySettings')return value&&typeof value==='object'&&!Array.isArray(value)&&Number.isFinite(Number(value.freeThreshold))&&Number(value.freeThreshold)>=0&&Number(value.freeThreshold)<=100000000&&Number.isFinite(Number(value.fee))&&Number(value.fee)>=0&&Number(value.fee)<=100000000;
   if(key==='promoCodes')return Array.isArray(value)&&value.length<=500&&new Set(value.map(item=>String(item?.code||'').toUpperCase())).size===value.length&&value.every(item=>item&&/^[A-Z0-9_-]{2,40}$/.test(String(item.code||'').toUpperCase())&&text(item.name||'',120)&&typeof item.active==='boolean'&&item.prices&&typeof item.prices==='object'&&!Array.isArray(item.prices)&&Object.values(item.prices).every(price=>Number.isFinite(Number(price))&&Number(price)>=0&&Number(price)<=100000000));
   return false;
@@ -478,6 +485,23 @@ export async function replacePortalCollection(key,value,actor={},options={}){
       if(!doctor)throw new Error('invalid_doctor');
       return {...order,doctor:doctor.name,doctorSpecialty:doctor.specialty||''};
     });
+    if(key==='orders'){
+      const previousIds=new Set((previous||[]).map(item=>item.id));
+      for(const order of next){
+        if(previousIds.has(order.id))continue;
+        const variants=Array.isArray(order.variants)&&order.variants.length?order.variants:[{work:order.work,workOption:order.material}];
+        const validVariant=variant=>{
+          const workValue=variant.workId||variant.work,optionValue=variant.serviceId||variant.workOption||variant.material;
+          const selection=resolveWorkSelection(workValue,optionValue);
+          if(selection.option)return true;
+          // Preserve older orders that used a shortened service label while
+          // still requiring it to resolve unambiguously inside a real category.
+          const optionKey=String(optionValue||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/[^а-яa-z0-9]+/gi,' ').trim();
+          return Boolean(selection.category&&optionKey.length>=4&&selection.category.options.some(option=>String(option.name||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/[^а-яa-z0-9]+/gi,' ').trim().startsWith(optionKey)));
+        };
+        if(!variants.length||variants.some(variant=>!validVariant(variant)))throw new Error('invalid_order_service');
+      }
+    }
 
     next=versionCollection(key,next,previous,options.expectedVersion,previousVersions[key]||0);
     const generated=[];

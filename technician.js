@@ -5,6 +5,7 @@ import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camAfterMilling} from './cam-workflow.js?v=cam-flow-2';
 import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary} from './order-list-utils.js?v=service-label-4';
 import {savePortal,authRequest,portalToken,loadOrderFiles,loadCadReviewHtml,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js';
+import {parseMoneyAmount} from './money.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,estimateWork,priceUnitsForSelection} from './work-catalog.js';
@@ -237,11 +238,11 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(next.length===orders.length)return toast('Заказ не найден');
     const nextOverrides={...overrides};delete nextOverrides[id];
     try{
-      await deleteOrder(id);
+      const result=await deleteOrder(id);
       orders.splice(0,orders.length,...next);
       overrides=nextOverrides;
       localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
-      state.page='orders';state.orderId='';toast('Заказ и папка на Яндекс Диске удалены');render();
+      state.page='orders';state.orderId='';toast(result?.cleanupPending?'Заказ удалён. Очистка папки на Яндекс Диске будет повторена.':'Заказ и папка на Яндекс Диске удалены');render();
     }catch(error){toast('Не удалось удалить заказ: '+error.message)}
   }
   function toast(message){
@@ -253,7 +254,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   function analyticsRecords(){
     return allOrders().filter(order=>order.stage==='Принято доктором'&&order.doctorAcceptedAt).map(order=>{
       const date=new Date(order.doctorAcceptedAt);
-      return {year:date.getFullYear(),month:date.getMonth(),clinic:order.clinic,technician:order.assignee,amount:Number(String(order.sum).replace(/[^0-9]/g,'')),order};
+      return {year:date.getFullYear(),month:date.getMonth(),clinic:order.clinic,technician:order.assignee,amount:parseMoneyAmount(order.sum)||0,order};
     }).filter(record=>!Number.isNaN(record.year));
   }
   function filteredRecords(month=state.month){
@@ -280,7 +281,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const previousRevenue=previous.reduce((sum,row)=>sum+row.amount,0);
     const change=previousRevenue?Math.round((revenue/previousRevenue-1)*100):null;
     const created=allOrders().filter(order=>{const date=new Date(order.createdAt);return !Number.isNaN(date.getTime())&&date.getFullYear()===analyticsYear&&date.getMonth()===state.month&&(state.technician==='Все техники'||order.assignee===state.technician)}).length;
-    const paid=allOrders().filter(order=>order.paidAt&&(()=>{const date=new Date(order.paidAt);return !Number.isNaN(date.getTime())&&date.getFullYear()===analyticsYear&&date.getMonth()===state.month&&(state.technician==='Все техники'||order.assignee===state.technician)})()).reduce((sum,order)=>sum+Number(String(order.sum).replace(/[^0-9]/g,'')),0);
+    const paid=allOrders().filter(order=>order.paidAt&&(()=>{const date=new Date(order.paidAt);return !Number.isNaN(date.getTime())&&date.getFullYear()===analyticsYear&&date.getMonth()===state.month&&(state.technician==='Все техники'||order.assignee===state.technician)})()).reduce((sum,order)=>sum+(parseMoneyAmount(order.sum)||0),0);
     return `<div class="tech-kpis">
       <article><span>Выручка после приёмки</span><strong>${money(revenue)}</strong><small class="${change!==null&&change>=0?'positive':'negative'}">${change===null?'Первый месяц':(change>=0?'+':'')+change+'% к прошлому месяцу'}</small></article>
       <article><span>Создано заказов</span><strong>${created}</strong><small>По дате создания</small></article>
@@ -1234,7 +1235,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(action==='close-cad'){cadPreviewRequest++;if(state.cadPreview?.url)URL.revokeObjectURL(state.cadPreview.url);state.cadPreview=null;render();return}
       if(action==='toggle-paid'){
         const order=orders.find(item=>item.id===id);
-        if(order)await saveOrderRecord(id,order.paidAt?{paidAt:'',paidAmount:0,paymentStatus:'Не оплачено'}:{paidAt:new Date().toISOString(),paidAmount:Number(String(order.sum||'').replace(/[^0-9]/g,''))||0,paymentStatus:'Оплачено'});
+        if(order)await saveOrderRecord(id,order.paidAt?{paidAt:'',paidAmount:0,paymentStatus:'Не оплачено'}:{paidAt:new Date().toISOString(),paidAmount:parseMoneyAmount(order.sum)||0,paymentStatus:'Оплачено'});
         return;
       }
       if(action==='disk'){
@@ -1551,7 +1552,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     event.preventDefault();
     const form=event.target,id=form.dataset.orderId,order=orderById(id);
     if(!order)return toast('Заказ не найден');
-    const total=Number(String(order.sum||'').replace(/[^0-9]/g,''))||0;
+    const total=parseMoneyAmount(order.sum)||0;
     const paidAmount=Number(form.elements.namedItem('paidAmount').value);
     if(!Number.isInteger(paidAmount)||paidAmount<0||paidAmount>total)return toast('Укажите оплаченную сумму от 0 до суммы заказа');
     const paymentDueDate=form.elements.namedItem('paymentDueDate').value;
