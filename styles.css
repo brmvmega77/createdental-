@@ -2926,6 +2926,10 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
 .sidebar.sidebar-collapsed .tech-nav-group>summary span,
 .sidebar.sidebar-collapsed .tech-nav-group>summary svg:last-child{display:none}
 .sidebar.sidebar-collapsed .tech-nav-group-items{display:none}
+
+/* Upload files are intentionally stacked: one file per row at every viewport width. */
+.order-upload-dialog .upload-progress-list{display:grid;grid-template-columns:1fr!important;grid-auto-flow:row;gap:10px;width:100%;min-width:0}
+.order-upload-dialog .upload-progress-file{display:grid;width:100%;min-width:0;max-width:none}
 .sidebar.sidebar-collapsed .tech-nav-group>summary:hover::after{content:attr(data-sidebar-label);position:absolute;left:calc(100% + 12px);top:50%;z-index:80;transform:translateY(-50%);white-space:nowrap;pointer-events:none;padding:7px 10px;border:1px solid #eeeeee;border-radius:7px;background:#fff;color:#333;font-size:12px;font-weight:600;box-shadow:0 8px 22px rgba(0,0,0,.1)}
 html[data-theme="dark"] .tech-nav-group>summary:hover,html[data-theme="dark"] .tech-nav-group[open]>summary{background:#2b3036;color:#e6e8eb}
 html[data-theme="dark"] .sidebar.sidebar-collapsed .tech-nav-group>summary:hover::after{border-color:#3b4247;background:#252a2f;color:#f0f1f2;box-shadow:0 8px 22px #0006}
