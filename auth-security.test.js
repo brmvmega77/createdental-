@@ -20,7 +20,7 @@ test('malformed password hashes fail safely and repeated login attempts are thro
   assert.ok(statuses.includes(429),'login attempts should be rate limited');
   const limiterFile=path.join(data,'login-rate-limit.json');
   for(let attempt=0;attempt<20&&!fs.existsSync(limiterFile);attempt++)await new Promise(resolve=>setTimeout(resolve,25));
-  assert.ok(fs.existsSync(limiterFile),'login limiter state should survive a process restart');
+  assert.ok(fs.existsSync(limiterFile),'login limiter state should be persisted to disk');
   const persisted=JSON.parse(fs.readFileSync(limiterFile,'utf8'));
   assert.ok(Object.keys(persisted).length>0);
   assert.ok(Object.keys(persisted).every(key=>!key.includes('clinic@example.test')),'limiter state must not store the raw email');
