@@ -44,7 +44,8 @@ export function collectPayrollAccruals(state,{previousOverrides={},legacy=false,
       // Old production data can have a submitted status without a timestamp.
       const statusDone=role.key==='cad'?Boolean(at):role.key==='cam'?detail.frameTechnicianStatus==='Работа сдана':role.key==='esthetic'?(detail.painterStatus||detail.ceramicistStatus)==='Работа сдана':detail.preprodTechnicianStatus==='Работа сдана';
       if(!statusDone||!legacy&&completion(previousOverrides[order.id]||{},role.key))continue;
-      const reference=fields[role.key].map(field=>detail[field]).find(Boolean);
+      const submitted=previousOverrides[order.id]?.qualityRequest,submittedRole=submitted?.kind==='preprod'?'gypsum':submitted?.kind;
+      const reference=fields[role.key].map(field=>detail[field]).find(Boolean)||(submittedRole===role.key?submitted.employeeId:'')||(role.key==='cad'?(detail.cadReview?.employeeId||detail.cadReview?.sentBy):'');
       const employee=(state.employees||[]).find(item=>[item.id,item.originalName,item.name].includes(reference));
       if(!employee||legacy&&payrollRole(employee)!==role.key)continue;
       const rank=legacy?null:employeeRank(employee);

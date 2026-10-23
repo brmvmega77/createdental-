@@ -1158,7 +1158,7 @@ async function handleCadReview(req,res,url){
     if(details.stage!=='Моделирование')return json(res,409,{error:'CAD можно отправить только на этапе «Моделирование»'});
     const file=(orderFiles[orderId]||[]).find(item=>item.id===String(body.fileId||'')&&item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html');
     if(!file)return json(res,404,{error:'CAD HTML не найден'});
-    const review={status:'pending',fileId:file.id,fileName:file.name,sentAt:now,sentBy:employee.name,revision:Number(details.cadReview?.revision||0)+1,comment:''};
+    const review={status:'pending',fileId:file.id,fileName:file.name,sentAt:now,sentBy:employee.name,employeeId:employee.id,revision:Number(details.cadReview?.revision||0)+1,comment:''};
     const next={...snapshot.orderOverrides,[orderId]:{...details,stage:'Контроль качества',cadOperatorStatus:'ОТК',qualityRequest:{kind:'cad',employeeId:user.subjectId,requestedBy:employee.originalName,requestedByName:employee.name,requestedAt:now,next:'CAD на согласование у врача'},cadReview:review}};
     try{
       await replacePortalCollection('orderOverrides',next,{role:'worker',name:employee.name});

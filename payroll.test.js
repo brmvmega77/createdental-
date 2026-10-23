@@ -44,3 +44,9 @@ test('legacy migration preserves old money exactly and runs once',()=>{
  assert.equal(migrated.salaryAccruals[0].amount,2250);assert.equal(migrated.salaryAccruals[0].legacy,true);assert.equal(migrated.salaryAccruals[0].rank,null);
  assert.equal(initializePayrollState(migrated),migrated);
 });
+
+test('approved submitted work still accrues to its performer after staff is disabled',()=>{
+ const s=state();s.employees[0].status='fired';s.orderOverrides['CD-PAY'].frameTechnician='';
+ const previousOverrides={'CD-PAY':{stage:'Контроль качества',qualityRequest:{kind:'cam',employeeId:employee.id},frameTechnicianStatus:''}};
+ const rows=collectPayrollAccruals(s,{previousOverrides,now:at});assert.equal(rows.length,1);assert.equal(rows[0].employeeId,employee.id);assert.equal(rows[0].amount,651);
+});
