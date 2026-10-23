@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {mergeOrderVariant,reviseOrderServices,reviseOrderVariants,clientRequestConflict} from './order-revision.js';
+import {mergeOrderVariant,reviseOrderServices,reviseOrderVariants,clientRequestConflict,reconcilePayment} from './order-revision.js';
 import {assignmentChange,workerTransitionAllowed} from './flow-rules.js';
 import {qualityApprovalChange} from './technician.js';
 import {workCatalog,normalizeWorkCatalog,orderDeadlineError} from './work-catalog.js';
@@ -63,4 +63,9 @@ test('editing another field preserves separate bridges; replacing a socket servi
  const original={...variant,toothMode:'Мост',selectedTeeth:[11,12,21,22],bridgeRanges:[[11,12],[21,22]]};
  const merged=mergeOrderVariant(original,{...original,bridgeRanges:[[11,12,21,22]]});assert.deepEqual(merged.bridgeRanges,original.bridgeRanges);
  const replacement=mergeOrderVariant({work:'Хирургические шаблоны',workOption:'Дополнительное гнездо под имплантант в хирургическом шаблоне',units:4},{work:variant.work,workOption:variant.workOption,selectedTeeth:[11]});assert.equal(replacement.units,undefined);
+});
+test('payment state is reconciled when an agreed order total changes',()=>{
+ const previous={sum:'2 500 ₽',paidAmount:2500,paidAt:'2026-10-22T12:00:00Z',paymentStatus:'Оплачено'};
+ const increased=reconcilePayment(previous,{...previous,sum:'4 000 ₽'});assert.equal(increased.paidAmount,2500);assert.equal(increased.paidAt,'');assert.equal(increased.paymentStatus,'Частично оплачено');
+ const reduced=reconcilePayment(previous,{...previous,sum:'2 000 ₽'});assert.equal(reduced.paidAmount,2000);assert.equal(reduced.paymentStatus,'Оплачено');
 });

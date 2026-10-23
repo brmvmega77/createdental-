@@ -1,6 +1,15 @@
 import {resolveWorkSelection,priceUnitsForSelection,rubles} from './work-catalog.js';
 import {samePortalValue} from './collection-concurrency.js';
 export class OrderRevisionError extends Error{constructor(message,code='invalid_revision'){super(message);this.code=code;this.status=400;}}
+export function reconcilePayment(previous,next){
+ const total=money(next?.sum);
+ if(!Number.isFinite(total))return next;
+ const hadPayment=Boolean(previous?.paidAt)||previous?.paidAmount!==undefined||String(previous?.paymentStatus||'')==='Оплачено';
+ if(!hadPayment)return next;
+ const recorded=previous?.paidAmount===undefined&&previous?.paidAt?total:Number(previous?.paidAmount)||0;
+ const paid=Math.max(0,Math.min(total,recorded)),fullyPaid=paid>=total;
+ return {...next,paidAmount:paid,paidAt:fullyPaid?(previous.paidAt||new Date().toISOString()):'',paymentStatus:fullyPaid?'Оплачено':paid>0?'Частично оплачено':'Не оплачено'};
+}
 export const hasServiceChanges=changes=>['work','material','teeth','toothMode','bridgeRanges','variants'].some(key=>Object.hasOwn(changes||{},key));
 const money=value=>typeof value==='number'?value:!/[0-9]/.test(String(value??''))?NaN:Number(String(value??'').replace(/[^\d,.-]/g,'').replace(',','.'));
 const teethOf=v=>[...new Set((v.selectedTeeth||v.teeth||[]).map(Number))].sort((a,b)=>a-b);

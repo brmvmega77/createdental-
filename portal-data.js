@@ -440,9 +440,15 @@ export async function replacePortalCollection(key,value,actor={},options={}){
   let next=structuredClone(prepared);
   saveQueue=saveQueue.catch(()=>{}).then(async()=>{
     const previous=state[key];
+    const previousPromoCodes=state.promoCodes;
     const previousVersions={...(state.collectionVersions||{})};
     const previousOverrides=state.orderOverrides;
-    if(key==='workCatalog')next=normalizeWorkCatalog(next,previous).map((category,index)=>({...category,position:String(index).padStart(5,'0')}));
+    if(key==='workCatalog'){
+      next=normalizeWorkCatalog(next,previous).map((category,index)=>({...category,position:String(index).padStart(5,'0')}));
+      const oldPriceKeys=new Map((previous||[]).flatMap(category=>(category.options||[]).map(option=>[`${category.name}|||${option.name}`,option.id])));
+      const renamedKeys=new Map(next.flatMap(category=>(category.options||[]).map(option=>[option.id,`${category.name}|||${option.name}`])));
+      state.promoCodes=(state.promoCodes||[]).map(rule=>({...rule,prices:Object.fromEntries(Object.entries(rule.prices||{}).map(([key,price])=>[renamedKeys.get(oldPriceKeys.get(key))||key,price]))}));
+    }
     const previousHistory=state.orderHistory;
     const previousAccruals=state.salaryAccruals;
     if(key==='payrollSettings'&&next.revision!==(previous?.revision||0))throw new Error('payroll_conflict');
@@ -511,11 +517,12 @@ export async function replacePortalCollection(key,value,actor={},options={}){
     if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(next));
     if(generated.length)state.orderHistory=[...(state.orderHistory||[]),...generated].slice(-50000);
       const changedKeys=new Set([key]);
+      if(key==='workCatalog'&&JSON.stringify(state.promoCodes)!==JSON.stringify(previousPromoCodes))changedKeys.add('promoCodes');
       if(state.orderOverrides!==previousOverrides)changedKeys.add('orderOverrides');
       if(generated.length)changedKeys.add('orderHistory');
       if(state.salaryAccruals!==previousAccruals)changedKeys.add('salaryAccruals');
       await persistState([...changedKeys]);
-    } catch(error){state[key]=previous;state.orderOverrides=previousOverrides;state.collectionVersions=previousVersions;state.orderHistory=previousHistory;state.salaryAccruals=previousAccruals;if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(previous));throw error}
+    } catch(error){state[key]=previous;state.promoCodes=previousPromoCodes;state.orderOverrides=previousOverrides;state.collectionVersions=previousVersions;state.orderHistory=previousHistory;state.salaryAccruals=previousAccruals;if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(previous));throw error}
   });
   await saveQueue;
   return portalSnapshot();

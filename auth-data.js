@@ -127,6 +127,8 @@ export function sessionFor(token){
 }
 export function revokeSession(token){sessions.delete(sessionKey(token));saveSessions()}
 export function revokeSubjectSessions(role,subjectId){let changed=false;for(const [token,current] of sessions)if(current.role===role&&current.subjectId===subjectId){sessions.delete(token);changed=true}if(changed)saveSessions()}
+export function revokeOtherSubjectSessions(role,subjectId,keepToken){let changed=false;const keep=sessionKey(keepToken);for(const [token,current] of sessions)if(token!==keep&&current.role===role&&current.subjectId===subjectId){sessions.delete(token);changed=true}if(changed)saveSessions()}
+export function emailAvailableForEmployee(email,employeeId){const normalized=normalize(email);return validEmail(normalized)&&!accounts.some(item=>item.role!=='owner'&&item.email===normalized&&item.subjectId!==employeeId)}
 
 // Owner provisioning is an administrative operation, never public registration.
 export async function createOwnerAccount({email,password}){

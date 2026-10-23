@@ -1,5 +1,5 @@
 import {samePortalValue} from './collection-concurrency.js';
-import {clientRequestConflict,reviseOrderVariants,reviseOrderServices} from './order-revision.js';
+import {clientRequestConflict,reviseOrderVariants,reviseOrderServices,reconcilePayment} from './order-revision.js';
 import {assignmentChange,cadDecisionChange,workerTransitionAllowed} from './flow-rules.js';
 import {handlePayroll} from './payroll-api.js';
 import {handleOwner} from './owner-api.js';
@@ -13,7 +13,7 @@ import {gzip} from 'node:zlib';
 import { timingSafeEqual,randomBytes,createHash } from 'node:crypto';
 import {createDataBackup} from './backup-data.js';
 import {removePortalOrder,portalSnapshot,portalSnapshotFor,portalSnapshotForDatabase,replacePortalCollection,recordPortalEvent,portalClient,portalEmployee} from './portal-data.js';
-import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,isOwnerOnlyEmail,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
+import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,isOwnerOnlyEmail,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions,revokeOtherSubjectSessions,emailAvailableForEmployee} from './auth-data.js';
 import {createTelegramBridge} from './telegram-bot.js';
 import {createEmployeeTelegramBridge} from './employee-telegram-bot.js';
 import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource} from './yandex-disk-storage.js';
@@ -531,12 +531,14 @@ async function handlePortal(req,res,url){
         return client&&previous?.logo&& !Object.prototype.hasOwnProperty.call(client,'logo')?{...client,logo:previous.logo}:client;
       });
     }
+    if(user.role==='technician'&&key==='employees'&&Array.isArray(value)&&value.some(employee=>employee.email&&!emailAvailableForEmployee(employee.email,employee.id)))return json(res,409,{error:'Email сотрудника уже используется другим входом'});
     if(user.role==='technician'&&key==='orders'&&Array.isArray(value)){
       try{value=value.map(order=>{
         const before=snapshot.orders.find(item=>item.id===order.id);if(!before)return order;
         const promo=snapshot.promoCodes?.find(item=>item.active!==false&&item.code===before.promoCode);
-        const updated=order.variants?{...order,...reviseOrderVariants(before,order.variants,{deliverySettings:snapshot.deliverySettings,promoPrices:promo?.prices||{}})}:order;
-        if(updated.date!==before.date){const issue=orderDeadlineError(updated,updated.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)throw new Error(issue);}
+        const updated=order.variants?reconcilePayment(before,{...order,...reviseOrderVariants(before,order.variants,{deliverySettings:snapshot.deliverySettings,promoPrices:promo?.prices||{}})}):order;
+        const serviceChanged=JSON.stringify(before.variants||[])!==JSON.stringify(updated.variants||[]);
+        if(updated.date!==before.date||serviceChanged){const issue=orderDeadlineError(updated,updated.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)throw new Error(issue);}
         return updated;
       });}catch(error){return json(res,400,{error:error.message})}
     }
@@ -660,7 +662,7 @@ async function handleClientRequestCreate(req,res,url){
     const promoRule=snapshot.promoCodes?.find(item=>item.active!==false&&item.code===order.promoCode);
     try{changes=reviseOrderServices(order,changes,{variantIndex:body.variantIndex,deliverySettings:snapshot.deliverySettings,promoPrices:promoRule?.prices||{}})}catch(error){return json(res,400,{error:error.message})}
   }
-  if(changes.date){const issue=orderDeadlineError({...order,...changes},changes.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)return json(res,400,{error:issue});}
+  if(changes.date||changes.variants){const issue=orderDeadlineError({...order,...changes},changes.date||order.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)return json(res,400,{error:issue});}
   if(snapshot.clientRequests.some(item=>item.orderId===order.id&&item.type===requestType&&item.status==='pending'))return json(res,409,{error:requestType==='cancel'?'Запрос на отмену уже ожидает решения':requestType==='deadline'?'Запрос на изменение срока уже ожидает решения':'По заказу уже есть правка, ожидающая решения'});
   const before=Object.fromEntries(Object.keys(changes).map(key=>[key,order[key]??'']));
   const request={id:`cr-${randomBytes(10).toString('hex')}`,baseOrderRevision:order._revision||0,...(body.variantIndex!==undefined?{variantIndex:Number(body.variantIndex)}:{}),orderId:order.id,clinicId:order.clinicId,type:requestType,status:'pending',requestedBy,confirmedBy:requestedBy,summary,reason,changes,before,createdAt,source:'portal'};
@@ -698,8 +700,8 @@ async function handleClientRequestDecision(req,res,url){
         const allowed=new Set(['patient','birth','work','material','teeth','quantity','toothMode','date','shade','comment','sum','bridgeRanges','variants','servicesTotal','deliveryFee']);
         const changes=Object.fromEntries(Object.entries(request.changes||{}).filter(([key])=>allowed.has(key)));
         if(!changes.variants&&['work','material','teeth','toothMode'].some(key=>Object.hasOwn(changes,key))){const revised=reviseOrderServices(order,changes,{variantIndex:request.variantIndex??decisionBody.variantIndex,deliverySettings:snapshot.deliverySettings,promoPrices:snapshot.promoCodes?.find(item=>item.active!==false&&item.code===order.promoCode)?.prices||{}});Object.assign(changes,revised);}
-        const updated={...order,...changes,id:order.id,clinicId:order.clinicId,createdAt:order.createdAt,updatedAt:reviewedAt};
-        if(changes.date){const issue=orderDeadlineError(updated,updated.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)return json(res,400,{error:issue});}
+        const updated=reconcilePayment(order,{...order,...changes,id:order.id,clinicId:order.clinicId,createdAt:order.createdAt,updatedAt:reviewedAt});
+        if(changes.date||changes.variants||['work','material','teeth','toothMode'].some(key=>Object.hasOwn(changes,key))){const issue=orderDeadlineError(updated,updated.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)return json(res,400,{error:issue});}
         await replacePortalCollection('orders',snapshot.orders.map(item=>item.id===order.id?updated:item),{role:'technician',name:reviewedBy});
       }
     }
@@ -1340,7 +1342,7 @@ async function handleAuth(req,res,url){
     const user=session(req);
     if(user?.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
     let body;try{body=await readBody(req,2000000)}catch(error){return json(res,400,{error:error.message==='too_large'?'Фото слишком большое. Загрузите изображение поменьше.':'Неверные данные'})}
-    try{return json(res,200,{ok:true,profile:await updateChiefAccount(body),user:publicUser(user)})}
+    try{const profile=await updateChiefAccount(body);if(body.password)revokeOtherSubjectSessions('technician',user.subjectId,req.headers['x-portal-token']);return json(res,200,{ok:true,profile,user:publicUser(user)})}
     catch(error){
       const messages={missing_account:'Аккаунт главного техника не найден',invalid_profile:'Проверьте имя и email',duplicate_email:'Такой email уже используется',invalid_password:'Пароль должен быть от 8 символов',invalid_avatar:'Аватар должен быть изображением до 1.8 МБ'};
       return json(res,400,{error:messages[error.message]||'Не удалось сохранить профиль'});
@@ -1358,6 +1360,7 @@ async function handleAuth(req,res,url){
     if(name.length<2||name.length>120||/[<>]/.test(name+specialty+phone)||specialty.length>120||phone.length>40||!validEmail(email))return json(res,400,{error:'Профиль сотрудника заполнен неверно'});
     try{
       const profile=await updateWorkerAccount({employeeId:employee.id,displayName:name,email,password:body.password||'',avatar:body.avatar||''});
+      if(body.password)revokeOtherSubjectSessions('worker',employee.id,req.headers['x-portal-token']);
       const updated={...employee,name,specialty,phone,email};
       await replacePortalCollection('employees',portalSnapshot().employees.map(item=>item.id===employee.id?updated:item));
       return json(res,200,{ok:true,employee:updated,profile,user:publicUser(user)});
