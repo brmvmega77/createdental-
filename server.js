@@ -559,7 +559,7 @@ async function handlePortal(req,res,url){
         const created=await Promise.allSettled(newOrders.map(order=>ensurePublicOrderFolder(order.id)));
         const failed=created.find(result=>result.status==='rejected');
         if(failed){
-          await replacePortalCollection('orders',snapshot.orders,{role:user.role,name:actorName(user)}).catch(rollbackError=>console.error('Order create rollback failed:',rollbackError.message));
+          for(const order of newOrders)await removePortalOrder(order.id,{role:user.role,name:actorName(user)});
           const token=readIntegrationSecret('yandexDiskToken');
           await Promise.allSettled(newOrders.map(order=>deleteDiskResource(token,orderDiskFolder(order.id))));
           for(const order of newOrders)publicOrderFolderLinks.delete(order.id);
