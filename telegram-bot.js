@@ -1,3 +1,5 @@
+import {cadDecisionChange} from './flow-rules.js';
+import {availableClinicDoctors} from './clinic-doctors.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -73,7 +75,7 @@ function messageAddsBot(message,botIdentity={}){
 }
 function codeFromText(value){return String(value||'').toUpperCase().match(telegramCodePattern)?.[0]||''}
 function safeTeeth(value){return [...new Set((Array.isArray(value)?value:[]).map(Number).filter(number=>validTeeth.has(number)))].sort((a,b)=>a-b)}
-function activeClinicDoctors(clinic){return Array.isArray(clinic?.doctors)?clinic.doctors.filter(item=>item&&item.active!==false&&typeof item.id==='string'&&typeof item.name==='string'):[]}
+const activeClinicDoctors=availableClinicDoctors;
 function doctorLabel(doctor){return doctor?`${doctor.name}${doctor.specialty?` · ${doctor.specialty}`:''}`:''}
 function selectedClinicDoctor(clinic,doctorId){return activeClinicDoctors(clinic).find(item=>item.id===String(doctorId||''))||null}
 function orderDoctorText(order){return order?.doctor?`\nВрач: ${order.doctor}${order.doctorSpecialty?` · ${order.doctorSpecialty}`:''}`:''}
@@ -249,8 +251,7 @@ function orderStage(snapshot,order){return snapshot.orderOverrides[order.id]?.st
 function activeOrdersForClinic(snapshot,clinicId){return snapshot.orders.filter(order=>order.clinicId===clinicId&&order.status!=='Отменён')}
 function orderCanReceiveFiles(snapshot,order){
   if(!order||orderStage(snapshot,order)==='Отменён')return false;
-  const details=snapshot?.orderOverrides?.[order.id]||{};
-  return !order.telegramDraft&&details.stage!=='Черновик из Telegram';
+  return true;
 }
 function orderPickerLabel(order){return `${order.patient} · ${order.date?'до '+order.date:'без фиксированного срока'}`}
 
@@ -1528,7 +1529,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       const reviewer=actorName({from:callback.from})||clinic.name||'Врач',approved=id==='approve',now=new Date().toISOString();
       const comment=approved?'':'Возврат из Telegram: требуется доработка CAD.';
       const review={...details.cadReview,status:approved?'approved':'returned',reviewedAt:now,reviewedBy:reviewer,comment};
-      const next={...snapshot.orderOverrides,[order.id]:{...details,stage:approved?'Изготовление':'Моделирование',cadReview:review}};
+      const next={...snapshot.orderOverrides,[order.id]:{...details,...cadDecisionChange(details,approved,review)}};
       try{
         await replacePortalCollection('orderOverrides',next,{role:'clinic',name:reviewer});
         await recordPortalEvent(order.id,{role:'clinic',name:reviewer},approved?'cad_review_approved':'cad_review_returned',{clinicId:order.clinicId,summary:approved?'CAD подтверждён врачом в Telegram':'CAD возвращён моделировщику из Telegram',comment}).catch(()=>{});

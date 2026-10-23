@@ -32,12 +32,12 @@ test('normalizes model output and rejects invalid tooth numbers',()=>{
 
 test('requires the minimum safe fields before proposing a new order',()=>{
   const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'',teeth:[]}});
-  assert.deepEqual(telegramInternals.missingCreateFields(analysis),['режим: одиночка, мост или челюсть','номер зуба или номера зубов','вид работы из прайса','желаемый срок готовности','цвет/оттенок или «не требуется»']);
+  assert.deepEqual(telegramInternals.missingCreateFields(analysis),['вид работы из прайса','цвет/оттенок или «не требуется»']);
 });
 
 test('does not allow creating an order with only one part of the patient name',()=>{
   const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',patientSurname:'Петров',fields:{patient:'Петров',work:'Вкладки',material:'Вкладка культевая',teeth:[11]}});
-  assert.deepEqual(telegramInternals.missingCreateFields(analysis),['имя и фамилию пациента','режим: одиночка, мост или челюсть','желаемый срок готовности','цвет/оттенок или «не требуется»']);
+  assert.deepEqual(telegramInternals.missingCreateFields(analysis),['имя и фамилию пациента','желаемый срок готовности','режим: одиночка, мост или челюсть','цвет/оттенок или «не требуется»']);
 });
 
 test('preserves the full patient name including patronymic',()=>{
@@ -60,25 +60,25 @@ test('requires an exact priced service when only a catalog category is given',()
 
 test('keeps recognized order data while collecting a follow-up message',()=>{
   const first=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр Сергеевич',teeth:[11,21],toothMode:'Одиночка'}});
-  const second=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{work:'Реставрации',material:'Коронка E.max, ZrO2',dueDate:'2026-10-20',shade:'A2'}});
+  const second=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{work:'Реставрации',material:'Коронка дисиликат лития',dueDate:'2026-10-20',shade:'A2'}});
   const merged=telegramInternals.mergeCreateAnalysis(first,second);
   assert.equal(merged.fields.patient,'Петров Пётр Сергеевич');
   assert.deepEqual(merged.fields.teeth,[11,21]);
-  assert.equal(merged.fields.material,'Коронка E.max, ZrO2');
+  assert.equal(merged.fields.material,'Коронка дисиликат лития');
   assert.deepEqual(telegramInternals.missingCreateFields(merged),[]);
 });
 
 test('allows any number of separately selected teeth',()=>{
   const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{
     patient:'Петров Пётр',toothMode:'Одиночка',teeth:[11,12,13,14,15,16],
-    work:'Реставрации',material:'Коронка E.max, ZrO2',dueDate:'2026-10-20',shade:'A2'
+    work:'Реставрации',material:'Коронка дисиликат лития',dueDate:'2026-10-20',shade:'A2'
   }});
   assert.deepEqual(telegramInternals.missingCreateFields(analysis),[]);
   assert.equal(telegramInternals.priceEstimate(analysis).units,6);
 });
 
 test('keeps the tooth buttons open until done and hides every selected tooth',()=>{
-  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',toothMode:'Одиночка',teeth:[11,12,13,21,22]}});
+  const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'Реставрации',material:'Коронка дисиликат лития',dueDate:'2026-11-30',toothMode:'Одиночка',teeth:[11,12,13,21,22]}});
   const markup=telegramInternals.createOrderChoiceMarkup(analysis,'teeth');
   const buttons=markup.inline_keyboard.flat();
   assert.ok(buttons.some(button=>button.callback_data==='tgnew:teeth:done'));
@@ -139,7 +139,7 @@ test('shows catalog categories first and services as the next button level',()=>
   assert.ok(categoryButtons.some(button=>button.text==='Реставрации'));
   const serviceStep=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',toothMode:'Одиночка',teeth:[11],work:'Реставрации'}});
   const serviceButtons=telegramInternals.createOrderChoiceMarkup(serviceStep).inline_keyboard.flat();
-  assert.ok(serviceButtons.some(button=>/Коронка E\.max, ZrO2/.test(button.text)));
+  assert.ok(serviceButtons.some(button=>/Коронка дисиликат лития/.test(button.text)));
   assert.equal(telegramInternals.createOrderWizardPrompt(serviceStep),'Выберите услугу из раздела «Реставрации»:');
   assert.equal(telegramInternals.createOrderWizardPrompt(serviceStep).split('\n').length,1);
 });
@@ -158,18 +158,20 @@ test('does not preselect a jaw for template services',()=>{
 test('explains missing stages and provides valid choices',()=>{
   const analysis=telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров Пётр',work:'Реставрации'}});
   const prompt=telegramInternals.createOrderMissingPrompt(analysis);
-  assert.match(prompt,/Одиночка.*Мост.*Челюсть/);
+  assert.match(prompt,/Услуга из раздела/);
   assert.match(prompt,/PMMA коронка CAD\/CAM/);
-  assert.match(prompt,/Желаемый срок|Срок:/i);
+  assert.match(prompt,/Тип работы/);
   assert.match(prompt,/A1 \/ A2/);
   assert.match(prompt,/Уже названные данные повторять не нужно/);
 });
 
 test('canonicalizes a catalog service and estimates the Telegram order price',()=>{
-  const analysis=telegramInternals.canonicalizeCatalogSelection(telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров',work:'Коронка E.max, ZrO2',teeth:[11,21],toothMode:'Мост'}}));
+  const analysis=telegramInternals.canonicalizeCatalogSelection(telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:'Петров',work:'Коронка дисиликат лития',teeth:[11,21],toothMode:'Мост'}}));
   assert.equal(analysis.fields.work,'Реставрации');
-  assert.equal(analysis.fields.material,'Коронка E.max, ZrO2');
-  assert.deepEqual(telegramInternals.priceEstimate(analysis),{category:{name:'Реставрации',price:null,options:[{name:'PMMA коронка CAD/CAM',price:4000},{name:'Композитная коронка CAD/CAM',price:10000},{name:'Коронка E.max, ZrO2',price:12000},{name:'Коронка E.max, ZrO2 по Славичеку',price:16000},{name:'Коронка, винир на рефракторе',price:18000},{name:'Одиночная реставрация OPTISHADE/MATISSE',price:25000}]},option:{name:'Коронка E.max, ZrO2',price:12000},price:12000,units:2,amount:24000,text:'24 000 ₽'});
+  assert.equal(analysis.fields.material,'Коронка дисиликат лития');
+  const estimate=telegramInternals.priceEstimate(analysis);
+  assert.equal(estimate.category.name,'Реставрации');assert.equal(estimate.option.name,'Коронка дисиликат лития');
+  assert.equal(estimate.price,10000);assert.equal(estimate.units,2);assert.equal(estimate.amount,20000);
 });
 
 test('prices a full jaw as sixteen units',()=>{
@@ -286,6 +288,6 @@ test('does not reveal the recommended deadline before a custom date is entered',
 test('routes existing order changes through chief approval',()=>{
   assert.equal(telegramInternals.clientRequestType('update_order',{date:'20.10.2026'}),'deadline');
   assert.equal(telegramInternals.clientRequestType('update_order',{date:'20.10.2026',quantity:2,sum:'24 000 ₽'}),'deadline');
-  assert.equal(telegramInternals.clientRequestType('update_order',{work:'Реставрации',material:'Коронка E.max, ZrO2'}),'edit');
+  assert.equal(telegramInternals.clientRequestType('update_order',{work:'Реставрации',material:'Коронка дисиликат лития'}),'edit');
   assert.equal(telegramInternals.clientRequestType('cancel_order',{}),'cancel');
 });

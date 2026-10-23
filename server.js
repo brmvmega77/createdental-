@@ -1,3 +1,6 @@
+import {samePortalValue} from './collection-concurrency.js';
+import {reviseOrderServices} from './order-revision.js';
+import {cadDecisionChange,workerTransitionAllowed} from './flow-rules.js';
 import {handlePayroll} from './payroll-api.js';
 import {handleOwner} from './owner-api.js';
 import {camCanAccept,camCanSubmitQuality,camAfterMilling} from './cam-workflow.js';
@@ -9,7 +12,7 @@ import {spawn} from 'node:child_process';
 import {gzip} from 'node:zlib';
 import { timingSafeEqual,randomBytes,createHash } from 'node:crypto';
 import {createDataBackup} from './backup-data.js';
-import {portalSnapshot,portalSnapshotFor,portalSnapshotForDatabase,replacePortalCollection,recordPortalEvent,portalClient,portalEmployee} from './portal-data.js';
+import {removePortalOrder,portalSnapshot,portalSnapshotFor,portalSnapshotForDatabase,replacePortalCollection,recordPortalEvent,portalClient,portalEmployee} from './portal-data.js';
 import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,isOwnerOnlyEmail,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions} from './auth-data.js';
 import {createTelegramBridge} from './telegram-bot.js';
 import {createEmployeeTelegramBridge} from './employee-telegram-bot.js';
@@ -95,7 +98,7 @@ const integrationSecretFiles={
 const tlsKeyFile=process.env.TLS_KEY_FILE||'';
 const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
-const publicFiles = new Set(['/payroll.js','/payroll-ui.js','/owner.js','/owner.css','/','/index.html','/app.js','/work-catalog.js','/technician.js','/production-stages.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing.js']);
+const publicFiles = new Set(['/flow-rules.js','/collection-concurrency.js','/clinic-doctors.js','/order-revision.js','/payroll.js','/payroll-ui.js','/owner.js','/owner.css','/','/index.html','/app.js','/work-catalog.js','/technician.js','/production-stages.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon'};
 const sharedAttachmentTypes={
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream',
@@ -333,12 +336,12 @@ async function handleTaskUpdate(req,res,user,snapshot){
   try{value=await readBody(req,500000)}catch{return json(res,400,{error:'Неверные данные задач'})}
   if(!Array.isArray(value)||value.some(task=>!task||typeof task!=='object'||Array.isArray(task)))return json(res,400,{error:'Неверные данные задач'});
   const previous=new Map(snapshot.tasks.map(task=>[task.id,task]));
-  const changed=value.filter(task=>JSON.stringify(task)!==JSON.stringify(previous.get(task.id)));
+  const changed=value.filter(task=>!samePortalValue(task,previous.get(task.id)));
   const stamp=new Date().toISOString();
   if(user.role==='worker'){
     if(changed.length!==1)return json(res,403,{error:'Можно изменить только одну свою задачу'});
     const task=changed[0],old=previous.get(task.id);
-    if(!old||old.assigneeId!==user.subjectId||Object.keys({...old,...task}).some(key=>!['status','updatedAt','completedAt'].includes(key)&&JSON.stringify(old[key])!==JSON.stringify(task[key])))return json(res,403,{error:'Сотрудник может менять только статус своей задачи'});
+    if(!old||old.assigneeId!==user.subjectId||Object.keys({...old,...task}).some(key=>!['status','updatedAt','completedAt'].includes(key)&&!samePortalValue(old[key],task[key])))return json(res,403,{error:'Сотрудник может менять только статус своей задачи'});
     if(!['backlog','in_progress','review','done'].includes(task.status))return json(res,400,{error:'Неверный статус задачи'});
     value=snapshot.tasks.map(item=>item.id===old.id?{...old,status:task.status,updatedAt:stamp,completedAt:task.status==='done'?(old.completedAt||stamp):''}:item);
   }else{
@@ -352,13 +355,13 @@ async function handleTaskUpdate(req,res,user,snapshot){
     });
   }
   try{
-    await replacePortalCollection('tasks',value,{role:user.role,name:actorName(user)});
+    await replacePortalCollection('tasks',value,{role:user.role,name:actorName(user)},{expectedVersion:req.headers['x-portal-version']===undefined?(snapshot.collectionVersions?.tasks||0):Number(req.headers['x-portal-version'])});
     for(const task of value){
       const before=previous.get(task.id),employee=portalEmployee(task.assigneeId);
       if(employee&&(task.assigneeId!==before?.assigneeId||task.status!==before?.status))void employeeTelegramBridge?.notifyTask?.(task,employee,before||{}).catch(error=>console.error('Employee Telegram task notification failed:',error.message));
     }
-    return json(res,200,{ok:true});
-  }catch(error){return json(res,error.message==='invalid_collection'?400:500,{error:error.message==='invalid_collection'?'Неверные данные задач':'Не удалось сохранить задачу'})}
+    return json(res,200,{ok:true,saved:portalSnapshotFor(user.role,user.subjectId).tasks,collectionVersions:portalSnapshot().collectionVersions});
+  }catch(error){if(error.message==='collection_conflict')return json(res,409,{error:'Задачи уже изменились. Обновите страницу.'});return json(res,error.message==='invalid_collection'?400:500,{error:error.message==='invalid_collection'?'Неверные данные задач':'Не удалось сохранить задачу'})}
 }
 
 const portalSectionAliases={
@@ -395,6 +398,7 @@ async function portalViewForUser(user,view=''){
     snapshot.clientRequests=[];
     snapshot.tasks=snapshot.tasks.filter(task=>task.assigneeId===user.subjectId);
   }
+  snapshot.collectionVersions=portalSnapshot().collectionVersions||{};
   return snapshot;
 }
 
@@ -419,7 +423,9 @@ async function handlePortal(req,res,url){
     if(user.role==='clinic'){
       if(key==='clients'){
         if(!Array.isArray(value)||value.length!==1||value[0].id!==user.subjectId)return json(res,403,{error:'Доступ запрещён'});
-        value=snapshot.clients.map(item=>item.id===user.subjectId?{...item,...value[0],id:item.id,originalName:item.originalName,telegramCode:item.telegramCode}:item);
+        const allowed=new Set(['name','country','inn','city','address','phone','email','contact','contactPosition','contactPhone','workHours','labNotes','logo','doctors','doctorsRevision','clinicHiddenDoctorIds','_revision']);
+        const changes=Object.fromEntries(Object.entries(value[0]).filter(([key])=>allowed.has(key)));
+        value=snapshot.clients.map(item=>item.id===user.subjectId?{...item,...changes,id:item.id,originalName:item.originalName,telegramCode:item.telegramCode}:item);
       }else if(key==='orders'){
         if(!Array.isArray(value))return json(res,400,{error:'Неверные данные'});
         const existing=new Set(snapshot.orders.map(item=>item.id));
@@ -446,39 +452,21 @@ async function handlePortal(req,res,url){
         value=[...normalizedAdditions,...snapshot.orders];
       }else if(key==='orderOverrides'){
         if(!value||typeof value!=='object'||Array.isArray(value))return json(res,400,{error:'Неверные данные'});
-        const changes=Object.entries(value).filter(([id,detail])=>JSON.stringify(detail)!==JSON.stringify(publicClinicOverride(snapshot.orderOverrides[id]||{})));
+        const changes=Object.entries(value).filter(([id,detail])=>!samePortalValue(detail,publicClinicOverride(snapshot.orderOverrides[id]||{})));
         if(changes.length!==1)return json(res,403,{error:'Можно изменить только один свой заказ'});
         const [id,next]=changes[0],order=snapshot.orders.find(item=>item.id===id&&item.clinicId===user.subjectId),old=snapshot.orderOverrides[id]||{};
         const visibleOld=publicClinicOverride(old);
         const currentStage=old.stage||(['В пути к вам','В доставке'].includes(order?.status)?'В доставке':order?.status==='Принято'?'Принято доктором':order?.status);
-        if(!order||currentStage!=='В доставке'||next.stage!=='Принято доктором'||Object.keys({...visibleOld,...next}).some(field=>!['stage','doctorAcceptedAt'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(visibleOld[field])))return json(res,403,{error:'Неверный переход этапа'});
+        if(!order||currentStage!=='В доставке'||next.stage!=='Принято доктором'||Object.keys({...visibleOld,...next}).some(field=>!['stage','doctorAcceptedAt'].includes(field)&&!samePortalValue(next[field],visibleOld[field])))return json(res,403,{error:'Неверный переход этапа'});
         value={...snapshot.orderOverrides,[id]:{...old,stage:'Принято доктором',doctorAcceptedAt:new Date().toISOString()}};
       }else return json(res,403,{error:'Доступ запрещён'});
     }else if(user.role==='worker'&&key==='orderOverrides'){
       if(key!=='orderOverrides'||!value||typeof value!=='object')return json(res,403,{error:'Доступ запрещён'});
       const employee=portalEmployee(user.subjectId);
-      const cadOperator=isCadOperatorEmployee(employee),preprod=isPreprodEmployee(employee),painter=isPainterEmployee(employee),stages=cadOperator?['Подготовка','Моделирование','Контроль качества']:preprod?['Подготовка','Препрод','Контроль качества']:['Изготовление','Контроль качества'];
-      const changes=Object.entries(value).filter(([id,detail])=>JSON.stringify(detail)!==JSON.stringify(snapshot.orderOverrides[id]));
+      const changes=Object.entries(value).filter(([id,detail])=>!samePortalValue(detail,snapshot.orderOverrides[id]));
       if(changes.length!==1)return json(res,403,{error:'Можно изменить только один свой заказ'});
       const [id,next]=changes[0],old=snapshot.orderOverrides[id];
-      const oldIndex=stages.indexOf(old?.stage),nextIndex=stages.indexOf(next?.stage);
-      if(old?.stage==='Согласование CAD'&&next?.stage!==old.stage)return json(res,409,{error:'CAD остаётся на согласовании у врача до его решения'});
-      const reworkResume=old?.stage==='На доработке'&&['Изготовление','Препрод'].includes(next?.stage);
-      const bypassesCad=old?.stage==='Моделирование'&&next?.stage==='Изготовление';
-      const statusField=preprod?'preprodTechnicianStatus':painter?'painterStatus':'frameTechnicianStatus';
-      const statusOnly=preprod?old?.stage==='Препрод'&&next?.stage==='Препрод'&&['Принял работу','В работе'].includes(next?.[statusField]):!cadOperator&&old?.stage==='Изготовление'&&next?.stage==='Изготовление'&&['Принял работу','В работе'].includes(next?.[statusField]);
-      const directAcceptance=preprod?old?.stage==='Подготовка'&&next?.stage==='Препрод'&&next?.[statusField]==='В работе':!cadOperator&&old?.stage==='Изготовление'&&next?.stage==='Изготовление'&&!old?.[statusField]&&next?.[statusField]==='В работе';
-      const qualityKind=preprod?'preprod':painter?'esthetic':'cam';
-      const qualitySubmit=preprod?old?.stage==='Препрод'&&next?.stage==='Контроль качества'&&old?.[statusField]==='В работе'&&next?.qualityRequest?.kind==='preprod'&&next?.qualityRequest?.employeeId===employee?.id&&next?.[statusField]==='ОТК':!cadOperator&&old?.stage==='Изготовление'&&next?.stage==='Контроль качества'&&old?.manufacturingStatus===(painter?'В работе у Красильщика':'В работе у Каркасиста')&&old?.[statusField]==='В работе'&&next?.qualityRequest?.kind===qualityKind&&next?.qualityRequest?.employeeId===employee?.id&&next?.[statusField]==='ОТК';
-      if(!cadOperator&&!preprod&&!painter){
-        if((old?.frameTechnician||old?.technician)!==employee?.originalName)return json(res,403,{error:'Заказ назначен другому CAM-оператору'});
-        if(!old?.milling?.completedAt)return json(res,409,{error:'Сначала главный техник должен завершить фрезеровку'});
-        if(next?.stage==='Контроль качества'&&(!qualitySubmit||!camCanSubmitQuality(old)))return json(res,409,{error:'Сначала примите заказ в работу'});
-        if(next?.[statusField]==='В работе'&&old?.[statusField]!==next?.[statusField]&&!camCanAccept(old))return json(res,409,{error:'Сейчас заказ нельзя принять в работу'});
-      }
-      const handoff=false;
-      const assignedToWorker=[old.assignee,old.cadOperator,old.preprodTechnician,old.technician,old.frameTechnician,old.painter,old.ceramicist].includes(employee?.originalName);
-      if(!old||!assignedToWorker||!next||next.assignee!==old.assignee||bypassesCad||(!reworkResume&&!statusOnly&&!directAcceptance&&!qualitySubmit&&!handoff&&(oldIndex<0||nextIndex<0||Math.abs(nextIndex-oldIndex)!==1))||Object.keys(next).some(field=>!['stage','reworkReason','reworkAt','qualityRequest','cadOperator','preprodTechnician','preprodTechnicianStatus','technician','frameTechnician','painter','ceramicist','technicianStatus','frameTechnicianStatus','painterStatus','ceramicistStatus','manufacturingStatus','workerAcceptances'].includes(field)&&JSON.stringify(next[field])!==JSON.stringify(old[field])))return json(res,403,{error:bypassesCad?'Сначала отправьте CAD главному технику на ОТК':cadOperator?'Неверный переход этапа для CAD оператора':'Этот этап выполняется на текущей стадии производства'});
+      if(!workerTransitionAllowed(old,next,employee))return json(res,409,{error:'Этот переход недоступен. Примите свою работу перед отправкой на ОТК; решение ОТК принимает главный техник.'});
       value={...snapshot.orderOverrides,[id]:next};
     }else if(user.role==='technician'&&key==='workCatalog'){
       if(!Array.isArray(value))return json(res,400,{error:'Неверный каталог'});
@@ -519,6 +507,14 @@ async function handlePortal(req,res,url){
         return orderDeadlineValidation({...order,acceptedAt:new Date()});
       }).find(Boolean);
       if(acceptanceDeadlineViolation)return json(res,409,{error:acceptanceDeadlineViolation});
+      const cadQualityBypass=[...ids].find(id=>{
+        const old=snapshot.orderOverrides[id]||{},next=value[id];
+        if(old.stage!=='Контроль качества'||old.qualityRequest?.kind!=='cad'||!next||next.stage===old.stage)return false;
+        const approved=next.stage==='Согласование CAD'&&!next.qualityRequest&&next.cadOperatorStatus==='Согласование с врачом';
+        const returned=next.stage==='Моделирование'&&!next.qualityRequest&&next.cadReview?.status==='returned';
+        return !approved&&!returned;
+      });
+      if(cadQualityBypass)return json(res,409,{error:'Сначала проверьте CAD на ОТК, затем дождитесь решения врача.'});
       const forbidden=[...ids].find(id=>{
         const old=snapshot.orderOverrides[id]||{},next=value[id];
         const downstream=['Согласование CAD','Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'];
@@ -550,7 +546,7 @@ async function handlePortal(req,res,url){
     }
     const newOrders=key==='orders'&&Array.isArray(value)?value.filter(order=>!snapshot.orders.some(existing=>existing.id===order.id)):[];
     try {
-      await replacePortalCollection(key,value,{role:user.role,name:actorName(user)});
+      await replacePortalCollection(key,value,{role:user.role,name:actorName(user)},{expectedVersion:req.headers['x-portal-version']===undefined?(snapshot.collectionVersions?.[key]||0):Number(req.headers['x-portal-version'])});
       if(key==='clients'&&Array.isArray(value)){
         for(const clinic of value){
           const previous=snapshot.clients.find(item=>item.id===clinic.id);
@@ -586,9 +582,11 @@ async function handlePortal(req,res,url){
         const employee=portalEmployee(task.assigneeId);
         if(employee&&(assignedChanged||statusChanged))void employeeTelegramBridge?.notifyTask(task,employee,before||{}).catch(error=>console.error('Employee Telegram task notification failed:',error.message));
       }
-      return json(res,200,{ok:true})
+      const saved=(await portalViewForUser(user))[key];
+      return json(res,200,{ok:true,saved,...(key==='employees'?{orderOverrides:portalSnapshot().orderOverrides}:{}),collectionVersions:portalSnapshot().collectionVersions})
     }
     catch(error){
+      if(error.message==='collection_conflict')return json(res,409,{error:'Данные уже изменились в другой вкладке или у другого сотрудника. Обновите страницу и повторите изменение.'});
       if(error.message==='doctors_conflict')return json(res,409,{error:'Список врачей уже изменился. Обновите страницу и повторите изменение.'});
       if(error.message==='invalid_doctor')return json(res,400,{error:'Выберите действующего врача вашей клиники'});
       if(error.message==='order_folder_failed')return json(res,502,{error:'Не удалось создать папку заказа на Яндекс Диске. Заказ не создан'});
@@ -651,8 +649,7 @@ async function handleClientRequestCreate(req,res,url){
       const [work,material]=String(value||'').split('|||').map(item=>cleanRequestText(item,200));
       const category=workCatalog.find(item=>item.name===work),option=category?.options.find(item=>item.name===material);
       if(!category||!option)return json(res,400,{error:'Выберите услугу из прайса'});
-      const teeth=Array.isArray(order.teeth)?order.teeth:[],quantity=Math.max(1,teeth.length||Number(order.quantity)||1);
-      changes={work:category.name,material:option.name,quantity,sum:rubles(option.price*quantity)};summary=`Услуга: ${category.name} · ${option.name}`;
+      changes={work:category.name,material:option.name};summary=`Услуга: ${category.name} · ${option.name}`;
     }else if(field==='date'){
       const date=cleanRequestText(value,20);
       if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(`${date}T00:00:00`)))return json(res,400,{error:'Укажите новый срок'});
@@ -663,9 +660,13 @@ async function handleClientRequestCreate(req,res,url){
       const comment=cleanRequestText(value);if(comment.length<3)return json(res,400,{error:'Введите новый комментарий'});changes={comment};summary='Изменение комментария к заказу';
     }else return json(res,400,{error:'Выберите, что нужно изменить'});
   }
+  if(type==='edit'&&['teeth','mode','service'].includes(body.field)){
+    const promoRule=snapshot.promoCodes?.find(item=>item.active!==false&&item.code===order.promoCode);
+    try{changes=reviseOrderServices(order,changes,{variantIndex:body.variantIndex,deliverySettings:snapshot.deliverySettings,promoPrices:promoRule?.prices||{}})}catch(error){return json(res,400,{error:error.message})}
+  }
   if(snapshot.clientRequests.some(item=>item.orderId===order.id&&item.type===requestType&&item.status==='pending'))return json(res,409,{error:requestType==='cancel'?'Запрос на отмену уже ожидает решения':requestType==='deadline'?'Запрос на изменение срока уже ожидает решения':'По заказу уже есть правка, ожидающая решения'});
   const before=Object.fromEntries(Object.keys(changes).map(key=>[key,order[key]??'']));
-  const request={id:`cr-${randomBytes(10).toString('hex')}`,orderId:order.id,clinicId:order.clinicId,type:requestType,status:'pending',requestedBy,confirmedBy:requestedBy,summary,reason,changes,before,createdAt,source:'portal'};
+  const request={id:`cr-${randomBytes(10).toString('hex')}`,baseOrderRevision:order._revision||0,orderId:order.id,clinicId:order.clinicId,type:requestType,status:'pending',requestedBy,confirmedBy:requestedBy,summary,reason,changes,before,createdAt,source:'portal'};
   try{
     await replacePortalCollection('clientRequests',[request,...snapshot.clientRequests],{role:'clinic',name:requestedBy});
     await recordPortalEvent(order.id,{role:'clinic',name:requestedBy},'client_change_requested',{clinicId:order.clinicId,summary:`Запрошено ${clientRequestLabel(requestType)}`,clientRequestId:request.id}).catch(()=>{});
@@ -686,6 +687,7 @@ async function handleClientRequestDecision(req,res,url){
   if(request.status!=='pending')return json(res,409,{error:'По этому запросу уже принято решение'});
   const order=snapshot.orders.find(item=>item.id===request.orderId&&item.clinicId===request.clinicId);
   if(!order)return json(res,404,{error:'Заказ не найден'});
+  if(decision==='approve'&&request.baseOrderRevision!==undefined&&request.baseOrderRevision!==(order._revision||0))return json(res,409,{error:'Заказ изменился после создания запроса. Проверьте актуальные данные и создайте новый запрос.'});
   const reviewedAt=new Date().toISOString(),reviewedBy=actorName(user),status='archived',decisionResult=decision==='approve'?'approved':'rejected';
   try{
     if(decision==='approve'){
@@ -695,8 +697,9 @@ async function handleClientRequestDecision(req,res,url){
         const current=portalSnapshot();
         await replacePortalCollection('orderOverrides',{...current.orderOverrides,[order.id]:{...(current.orderOverrides[order.id]||{}),stage:'Отменён',cancelledAt:reviewedAt,cancelReason:reason}},{role:'technician',name:reviewedBy});
       }else{
-        const allowed=new Set(['patient','birth','work','material','teeth','quantity','toothMode','date','shade','comment','sum','bridgeRanges']);
+        const allowed=new Set(['patient','birth','work','material','teeth','quantity','toothMode','date','shade','comment','sum','bridgeRanges','variants','servicesTotal','deliveryFee']);
         const changes=Object.fromEntries(Object.entries(request.changes||{}).filter(([key])=>allowed.has(key)));
+        if(!changes.variants&&['work','material','teeth','toothMode'].some(key=>Object.hasOwn(changes,key))){const revised=reviseOrderServices(order,changes,{variantIndex:request.variantIndex,deliverySettings:snapshot.deliverySettings});Object.assign(changes,revised);}
         const updated={...order,...changes,id:order.id,clinicId:order.clinicId,createdAt:order.createdAt,updatedAt:reviewedAt};
         await replacePortalCollection('orders',snapshot.orders.map(item=>item.id===order.id?updated:item),{role:'technician',name:reviewedBy});
       }
@@ -799,21 +802,10 @@ async function deleteOrderWithFolder(user,orderId){
   if(!order)throw new Error('not_found');
   const token=readIntegrationSecret('yandexDiskToken');
   if(!token)throw new Error('disk_not_connected');
-  const nextOrders=snapshot.orders.filter(item=>item.id!==orderId),nextOverrides={...snapshot.orderOverrides};
-  delete nextOverrides[orderId];
-  const actor={role:user.role,name:actorName(user)};
-  let ordersChanged=false;
-  try{
-    await replacePortalCollection('orders',nextOrders,actor);ordersChanged=true;
-    await replacePortalCollection('orderOverrides',nextOverrides,actor);
-    await deleteDiskResource(token,orderDiskFolder(orderId));
-  }catch(error){
-    if(ordersChanged){
-      await replacePortalCollection('orders',snapshot.orders,actor).catch(rollbackError=>console.error('Order delete rollback failed:',rollbackError.message));
-      await replacePortalCollection('orderOverrides',snapshot.orderOverrides,actor).catch(rollbackError=>console.error('Override delete rollback failed:',rollbackError.message));
-    }
-    throw error;
-  }
+  // Delete cloud files before committing the single queued database mutation.
+  // Concurrent changes to other orders are never restored from an old snapshot.
+  await deleteDiskResource(token,orderDiskFolder(orderId));
+  await removePortalOrder(orderId,{role:user.role,name:actorName(user)});
   publicOrderFolderLinks.delete(orderId);orderFileMigrationJobs.delete(orderId);
   const files=orderFiles[orderId]||[];
   for(const file of files)if(file.storage!=='yandex-disk')await fs.promises.unlink(path.join(uploadDir,file.id)).catch(()=>{});
@@ -1183,7 +1175,7 @@ async function handleCadReview(req,res,url){
   const orderAttachments=(orderFiles[orderId]||[]).filter(file=>attachmentIds.includes(file.id)&&file.purpose==='cad-review-attachment');
   if(orderAttachments.length!==attachmentIds.length)return json(res,400,{error:'Не удалось проверить прикреплённые файлы'});
   const approved=body.action==='approve',review={...details.cadReview,status:approved?'approved':'returned',reviewedAt:now,reviewedBy:reviewer,comment:approved?'':comment,...(orderAttachments.length?{attachments:orderAttachments.map(publicUploadRecord)}:{})};
-  const next={...snapshot.orderOverrides,[orderId]:{...details,stage:approved?'Изготовление':'Моделирование',cadOperatorStatus:approved?'Передал дальше':'В работе',cadReview:review}};
+  const next={...snapshot.orderOverrides,[orderId]:{...details,...cadDecisionChange(details,approved,review)}};
   try{
     await replacePortalCollection('orderOverrides',next,{role:'clinic',name:reviewer});
     await recordPortalEvent(orderId,{role:'clinic',name:reviewer},approved?'cad_review_approved':'cad_review_returned',{clinicId:order.clinicId,summary:approved?'CAD подтверждён врачом':`CAD возвращён моделировщику: ${comment}`,comment}).catch(()=>{});
@@ -1338,7 +1330,7 @@ async function handleOrderRework(req,res,url){
   let body;try{body=await readBody(req,6000)}catch{return json(res,400,{error:'Укажите причину доработки'})}
   const reason=String(body.reason||'').trim();
   if(reason.length<5||reason.length>2000)return json(res,400,{error:'Опишите причину доработки (от 5 до 2000 символов)'});
-  const next={...snapshot.orderOverrides,[id]:{...old,stage:'На доработке',reworkReason:reason,reworkAt:new Date().toISOString()}};
+  const next={...snapshot.orderOverrides,[id]:{...old,stage:'На доработке',reworkKind:'pending',reworkNeedsAssignment:true,reworkReason:reason,reworkAt:new Date().toISOString()}};
   try{await replacePortalCollection('orderOverrides',next,{role:'clinic',name:actorName(user)});return json(res,200,{ok:true})}
   catch{return json(res,500,{error:'Не удалось сохранить запрос на доработку'})}
 }

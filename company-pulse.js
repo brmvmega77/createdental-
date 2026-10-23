@@ -1,3 +1,4 @@
+import {completedOrderStages} from './flow-rules.js';
 const finishedStages = new Set(['Работа принята', 'В доставке', 'Принято доктором', 'Готово к выдаче']);
 const paymentStages = new Set(['В доставке', 'Принято доктором', 'Готово к выдаче']);
 const initialStages = new Set(['Черновик из Telegram', 'Ожидает распределения', 'Ожидает подтверждения']);
@@ -43,7 +44,7 @@ function stageSince(order, events) {
 export function calculateCompanyPulse(orders, team, now = new Date(), history = [], clientRequests = []) {
   const current = now instanceof Date ? now : new Date(now);
   const currentTime = current.getTime(), today = new Date(current.getFullYear(), current.getMonth(), current.getDate()).getTime();
-  const active = orders.filter(order => !finishedStages.has(order.stage));
+  const active = orders.filter(order => !completedOrderStages.has(order.stage));
   const deadlines = {score:null, total:0, onTrack:0, soon:0, overdue:0, noDate:0, risks:[]};
   let deadlinePoints = 0;
   for (const order of active) {

@@ -11,7 +11,7 @@ test('Clinic doctor changes are versioned; orders bind only their clinic doctor 
  fs.writeFileSync(path.join(data,'portal.json'),JSON.stringify({orders:[],clients:[{id:'a',name:'Клиника А',approved:true},{id:'b',name:'Клиника Б',approved:true}],employees:[],orderOverrides:{},orderHistory:[]}));
  const source=`
  import assert from 'node:assert/strict';
- const {portalSnapshot:snapshot,replacePortalCollection:save}=await import(${JSON.stringify(pathToFileURL(path.resolve('portal-data.js')).href)});
+ const {portalSnapshot:snapshot,replacePortalCollection:save,removePortalOrder:remove}=await import(${JSON.stringify(pathToFileURL(path.resolve('portal-data.js')).href)});
  const actor={role:'clinic',name:'Администратор'};
  let clients=snapshot().clients;
  clients=clients.map(item=>({...item,doctors:[{id:'doctor-'+item.id,name:'Врач '+item.id,specialty:'Ортопед',active:true}],doctorsRevision:0}));
@@ -41,6 +41,12 @@ test('Clinic doctor changes are versioned; orders bind only their clinic doctor 
  // Old clinic edits which omit the new field preserve the doctor list.
  await save('clients',latest.map(({doctors,doctorsRevision,...item})=>item),actor);
  assert.equal(snapshot().clients[0].doctors.length,1);
+ let hidden=snapshot().clients.map(item=>item.id==='a'?{...item,doctors:item.doctors.map(d=>({...d,active:true})),clinicHiddenDoctorIds:['doctor-a']}:item);
+ await save('clients',hidden,actor);
+ await save('orders',[...snapshot().orders,{...order,id:'NO-DOCTOR',doctorId:''}],actor);
+ assert.equal(snapshot().orders.find(item=>item.id==='NO-DOCTOR').doctor,'');
+ await save('clients',snapshot().clients.map(item=>item.id==='a'?{...item,doctors:[...item.doctors,{id:'replacement',name:item.doctors[0].name,active:true}]}:item),actor);
+ assert.equal(snapshot().clients[0].doctors.length,2);
  let printed='';
  globalThis.document={querySelector:()=>({remove(){},querySelectorAll:()=>[]}),body:{insertAdjacentHTML:(_position,html)=>{printed=html}}};
  globalThis.window={addEventListener(){},print(){throw Error('No physical printing in tests')}};
@@ -48,13 +54,14 @@ test('Clinic doctor changes are versioned; orders bind only their clinic doctor 
  const {openOrderPrint}=await import(${JSON.stringify(pathToFileURL(path.resolve('order-print.js')).href)});
  openOrderPrint({order:snapshot().orders[0],toothChart:()=>'<svg></svg>'});
  assert.equal((printed.match(/Врач a/g)||[]).length,3);
+ await remove('NO-DOCTOR',actor);assert.equal(snapshot().orders.length,1);assert.equal(snapshot().orders[0].doctor,'Врач a');
  console.log('doctor checks passed');
  `;
  try{
   const env={...process.env,PORTAL_DATA_FILE:path.join(data,'portal.json'),PORTAL_DATABASE_URL:'',DATABASE_URL:''};
   const result=execFileSync(process.execPath,['--input-type=module','-e',source],{cwd:dir,env,encoding:'utf8',timeout:10000});assert.match(result,/doctor checks passed/);
   const reread=`const {portalSnapshot}=await import(${JSON.stringify(pathToFileURL(path.resolve('portal-data.js')).href)});console.log(JSON.stringify({doctor:portalSnapshot().orders[0].doctor,count:portalSnapshot().clients[0].doctors.length}));`;
-  const restored=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',reread],{cwd:dir,env,encoding:'utf8',timeout:10000}).trim());assert.deepEqual(restored,{doctor:'Врач a',count:1});
+  const restored=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',reread],{cwd:dir,env,encoding:'utf8',timeout:10000}).trim());assert.deepEqual(restored,{doctor:'Врач a',count:2});
  }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });
 

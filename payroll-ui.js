@@ -1,5 +1,5 @@
-import {payrollRoles,payrollCatalog} from './payroll.js?v=salary-ranks-2';
-import {portalToken} from './portal-client.js?v=reliability-retry-1';
+import {payrollRoles,payrollCatalog} from './payroll.js';
+import {portalToken} from './portal-client.js';
 
 const safe=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const money=value=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:0,maximumFractionDigits:2}).format(value);

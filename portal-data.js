@@ -1,3 +1,6 @@
+import {samePortalValue,versionCollection} from './collection-concurrency.js';
+import {availableClinicDoctors} from './clinic-doctors.js';
+import {repairLegacyFlowState,releaseEmployeeAssignments} from './flow-rules.js';
 import {collectPayrollAccruals,initializePayrollState,validPayrollSettings} from './payroll.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -6,7 +9,7 @@ import pg from 'pg';
 import {seedOrders} from './seed-orders.js';
 import {seedClients,seedEmployees} from './technician.js';
 import {orderWorkLabel} from './order-list-utils.js';
-import {workCatalog} from './work-catalog.js';
+import {workCatalog,normalizeWorkCatalog,resolveWorkSelection} from './work-catalog.js';
 
 const file=process.env.PORTAL_DATA_FILE||path.join(process.cwd(),'.data','portal.json');
 const {Pool}=pg;
@@ -39,6 +42,7 @@ const defaults=()=>({
   employees:seedEmployees.map(employee=>({...employee})),
   workCatalog:cloneCatalog(workCatalog),
   deliverySettings:{freeThreshold:4000,fee:500},
+  collectionVersions:{},
   promoCodes:[]
 });
 let state=defaults();
@@ -53,6 +57,8 @@ try {
     if(Array.isArray(stored.workCatalog)){state.workCatalog=cloneCatalog(stored.workCatalog);workCatalog.splice(0,workCatalog.length,...cloneCatalog(stored.workCatalog))}
     if(stored.deliverySettings&&typeof stored.deliverySettings==='object'&&!Array.isArray(stored.deliverySettings)){const freeThreshold=Number(stored.deliverySettings.freeThreshold),fee=Number(stored.deliverySettings.fee);state.deliverySettings={freeThreshold:Number.isFinite(freeThreshold)&&freeThreshold>=0?freeThreshold:4000,fee:Number.isFinite(fee)&&fee>=0?fee:500};}
     if(Array.isArray(stored.promoCodes))state.promoCodes=stored.promoCodes;
+    if(stored.collectionVersions)state.collectionVersions=stored.collectionVersions;
+    if(stored.flowIntegrityVersion===1)state.flowIntegrityVersion=1;
     if(stored.payrollSettings)state.payrollSettings=stored.payrollSettings;
     if(Array.isArray(stored.salaryAccruals))state.salaryAccruals=stored.salaryAccruals;
     if(stored.payrollVersion===1)state.payrollVersion=1;
@@ -97,6 +103,11 @@ async function initializeDatabase(){
 }
 
 if(databasePool)await initializeDatabase();
+state.collectionVersions||={};
+const normalizedCatalogState=normalizeWorkCatalog(state.workCatalog);
+if(JSON.stringify(normalizedCatalogState)!==JSON.stringify(state.workCatalog)){state.workCatalog=normalizedCatalogState;workCatalog.splice(0,workCatalog.length,...cloneCatalog(normalizedCatalogState));await persistState(['workCatalog']);}
+const repairedFlow=repairLegacyFlowState(state);
+if(repairedFlow!==state){state=repairedFlow;await persistState(['orderOverrides']);}
 const payrollInitialized=initializePayrollState(state);
 if(payrollInitialized!==state){state=payrollInitialized;await persistState(['salaryAccruals']);}
 
@@ -283,7 +294,7 @@ export function portalSnapshot(){return structuredClone(state)}
 
 async function normalizedRows(sql,params=[]){const result=await databasePool.query(sql,params);return result.rows.map(row=>row.data)}
 async function normalizedMap(sql,params=[]){const result=await databasePool.query(sql,params);return Object.fromEntries(result.rows.map(row=>[row.order_id,row.data]))}
-async function normalizedCatalog(){return normalizedRows('SELECT data FROM portal_work_catalog ORDER BY catalog_id')}
+async function normalizedCatalog(){return normalizedRows("SELECT data FROM portal_work_catalog ORDER BY data->>'position',catalog_id")}
 
 // Read model for authenticated GETs. Writes still update portal_state and the
 // normalized projection in one transaction, so this can be enabled without a
@@ -388,6 +399,7 @@ export function portalClient(id){return state.clients.find(client=>client.id===i
 export function portalEmployee(id){return state.employees.find(employee=>employee.id===id)}
 
 function validClinicDoctors(clinic){
+  if(clinic.clinicHiddenDoctorIds!==undefined&&(!Array.isArray(clinic.clinicHiddenDoctorIds)||clinic.clinicHiddenDoctorIds.length>200||!clinic.clinicHiddenDoctorIds.every(id=>typeof id==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(id))))return false;
   if(clinic.doctorsRevision!==undefined&&(!Number.isSafeInteger(clinic.doctorsRevision)||clinic.doctorsRevision<0))return false;
   if(clinic.doctors===undefined)return true;
   if(!Array.isArray(clinic.doctors)||clinic.doctors.length>200)return false;
@@ -396,8 +408,9 @@ function validClinicDoctors(clinic){
     if(!item||typeof item.id!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(item.id)||ids.has(item.id)||typeof item.name!=='string'||item.name.trim().length<2||item.name.length>120||/[<>\r\n]/.test(item.name)||typeof item.active!=='boolean')return false;
     if(item.specialty!==undefined&&(typeof item.specialty!=='string'||item.specialty.length>80||/[<>\r\n]/.test(item.specialty)))return false;
     ids.add(item.id);const name=item.name.trim().replace(/\s+/g,' ').toLocaleLowerCase('ru');
-    if(item.active&&names.has(name))return false;
-    if(item.active)names.add(name);return true;
+    const visible=item.active&&!(clinic.clinicHiddenDoctorIds||[]).includes(item.id);
+    if(visible&&names.has(name))return false;
+    if(visible)names.add(name);return true;
   });
 }
 
@@ -421,12 +434,15 @@ function validCollection(key,value){
 function eventFor(orderId,actor,action,details={}){
   return {id:`evt-${Date.now()}-${Math.random().toString(36).slice(2,9)}`,orderId,at:new Date().toISOString(),actor:actor?.name||actor?.role||'Система',actorRole:actor?.role||'system',action,...details};
 }
-export async function replacePortalCollection(key,value,actor={}){
+export async function replacePortalCollection(key,value,actor={},options={}){
   const prepared=key==='clients'&&Array.isArray(value)?assignTelegramCodes(value):value;
   if(!validCollection(key,prepared))throw new Error('invalid_collection');
   let next=structuredClone(prepared);
   saveQueue=saveQueue.catch(()=>{}).then(async()=>{
     const previous=state[key];
+    const previousVersions={...(state.collectionVersions||{})};
+    const previousOverrides=state.orderOverrides;
+    if(key==='workCatalog')next=normalizeWorkCatalog(next,previous).map((category,index)=>({...category,position:String(index).padStart(5,'0')}));
     const previousHistory=state.orderHistory;
     const previousAccruals=state.salaryAccruals;
     if(key==='payrollSettings'&&next.revision!==(previous?.revision||0))throw new Error('payroll_conflict');
@@ -434,21 +450,30 @@ export async function replacePortalCollection(key,value,actor={}){
       const before=(previous||[]).find(item=>item.id===client.id);
       if(!before)return client;
       if(!Object.hasOwn(client,'doctors'))return {...client,...(before.doctors?{doctors:before.doctors,doctorsRevision:before.doctorsRevision||0}:{})};
-      if(JSON.stringify(client.doctors)!==JSON.stringify(before.doctors||[])){
+      if(!samePortalValue(client.doctors,before.doctors||[])){
         if((client.doctorsRevision||0)!==(before.doctorsRevision||0))throw new Error('doctors_conflict');
         return {...client,doctorsRevision:(before.doctorsRevision||0)+1};
       }
       return {...client,doctorsRevision:before.doctorsRevision||0};
     });
     if(key==='orders')next=next.map(order=>{
+      if((previous||[]).some(item=>item.id===order.id))return order;
+      if(order.variants?.length)order={...order,variants:order.variants.map(variant=>{
+        const selection=resolveWorkSelection(variant.workId||variant.work,variant.serviceId||variant.workOption);
+        if(!selection.option)return variant;
+        const promo=state.promoCodes?.find(item=>item.active!==false&&item.code===order.promoCode)?.prices?.[`${selection.category.name}|||${selection.option.name}`];
+        return {...variant,workId:selection.category.id,serviceId:selection.option.id,pricingUnit:selection.category.pricingUnit,unitPrice:Number.isFinite(Number(promo))?Number(promo):Number(selection.option.price)};
+      })};
+
       if((previous||[]).some(item=>item.id===order.id)||!Object.hasOwn(order,'doctorId'))return order;
-      const clinic=state.clients.find(item=>item.id===order.clinicId),active=(clinic?.doctors||[]).filter(item=>item.active!==false);
+      const clinic=state.clients.find(item=>item.id===order.clinicId),active=availableClinicDoctors(clinic);
       if(!order.doctorId){if(active.length)throw new Error('invalid_doctor');return {...order,doctor:''};}
       const doctor=active.find(item=>item.id===order.doctorId);
       if(!doctor)throw new Error('invalid_doctor');
       return {...order,doctor:doctor.name,doctorSpecialty:doctor.specialty||''};
     });
 
+    next=versionCollection(key,next,previous,options.expectedVersion,previousVersions[key]||0);
     const generated=[];
     if(key==='orderOverrides'){
       const ids=new Set([...Object.keys(previous||{}),...Object.keys(next||{})]);
@@ -475,19 +500,22 @@ export async function replacePortalCollection(key,value,actor={}){
     }else if(key==='orders'){
       const oldById=new Map((previous||[]).map(order=>[order.id,order]));
       const newById=new Map(next.map(order=>[order.id,order]));
-      for(const order of next){const before=oldById.get(order.id);if(!before)generated.push(eventFor(order.id,actor,'order_created',{summary:`${orderWorkLabel(order)||'Заказ'} · ${order.patient||''}`}));else if(JSON.stringify(before)!==JSON.stringify(order))generated.push(eventFor(order.id,actor,'order_updated',{summary:'Изменены данные заказа'}))}
+      for(const order of next){const before=oldById.get(order.id);if(!before)generated.push(eventFor(order.id,actor,'order_created',{summary:`${orderWorkLabel(order)||'Заказ'} · ${order.patient||''}`}));else if(!samePortalValue(before,order))generated.push(eventFor(order.id,actor,'order_updated',{summary:'Изменены данные заказа'}))}
       for(const order of previous||[])if(!newById.has(order.id))generated.push(eventFor(order.id,actor,'order_deleted',{summary:'Заказ удалён'}));
     }
+    try {
+    state.collectionVersions={...previousVersions,[key]:(previousVersions[key]||0)+1};
     state[key]=key==='payrollSettings'?{...next,revision:(previous?.revision||0)+1,updatedAt:new Date().toISOString()}:next;
     if(key==='orderOverrides'){const accrued=collectPayrollAccruals(state,{previousOverrides:previous,actorRole:actor.role});if(accrued.length)state.salaryAccruals=[...(state.salaryAccruals||[]),...accrued];}
+    if(key==='employees'){const released=releaseEmployeeAssignments(state.orderOverrides,next);if(released!==state.orderOverrides){state.orderOverrides=versionCollection('orderOverrides',released,previousOverrides);state.collectionVersions.orderOverrides=(previousVersions.orderOverrides||0)+1;}}
     if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(next));
     if(generated.length)state.orderHistory=[...(state.orderHistory||[]),...generated].slice(-50000);
-    try {
       const changedKeys=new Set([key]);
+      if(state.orderOverrides!==previousOverrides)changedKeys.add('orderOverrides');
       if(generated.length)changedKeys.add('orderHistory');
       if(state.salaryAccruals!==previousAccruals)changedKeys.add('salaryAccruals');
       await persistState([...changedKeys]);
-    } catch(error){state[key]=previous;state.orderHistory=previousHistory;state.salaryAccruals=previousAccruals;throw error}
+    } catch(error){state[key]=previous;state.orderOverrides=previousOverrides;state.collectionVersions=previousVersions;state.orderHistory=previousHistory;state.salaryAccruals=previousAccruals;if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(previous));throw error}
   });
   await saveQueue;
   return portalSnapshot();
@@ -507,3 +535,16 @@ export async function recordPortalEvent(orderId,actor,action,details={}){
 
 // Reuse the existing PostgreSQL pool for the owner's private financial records.
 export function portalDatabasePool(){return databasePool;}
+
+export async function removePortalOrder(orderId,actor={}){
+ let removed;
+ saveQueue=saveQueue.catch(()=>{}).then(async()=>{
+  const before=state;
+  removed=state.orders.find(item=>item.id===orderId);
+  if(!removed)throw new Error('not_found');
+  const overrides={...state.orderOverrides};delete overrides[orderId];
+  state={...state,orders:state.orders.filter(item=>item.id!==orderId),orderOverrides:overrides,orderHistory:[...(state.orderHistory||[]),eventFor(orderId,actor,'order_deleted',{summary:'Заказ удалён'})].slice(-50000),collectionVersions:{...state.collectionVersions,orders:(state.collectionVersions?.orders||0)+1,orderOverrides:(state.collectionVersions?.orderOverrides||0)+1}};
+  try{await persistState(['orders','orderOverrides','orderHistory']);}catch(error){state=before;throw error;}
+ });
+ await saveQueue;return removed;
+}

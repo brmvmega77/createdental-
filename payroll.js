@@ -1,4 +1,4 @@
-import {priceUnitsForSelection} from './work-catalog.js';
+import {resolveWorkSelection,priceUnitsForSelection} from './work-catalog.js';
 
 export const payrollRoles=[{key:'cad',label:'CAD оператор',fallback:900},{key:'cam',label:'CAM оператор',fallback:450},{key:'esthetic',label:'Эстетист',fallback:450},{key:'gypsum',label:'Гипсовщик',fallback:450}];
 export const employeeRank=employee=>Number.isInteger(employee?.rank)&&employee.rank>=1&&employee.rank<=5?employee.rank:1;
@@ -9,12 +9,13 @@ export function payrollRole(employee){
   if(/красильщик|керамист|эстетист/i.test(value))return 'esthetic';
   return 'cam';
 }
-export const payrollServiceKey=(work,service)=>String(work||'')+'|||'+String(service||'');
+export const payrollServiceKey=(work,service)=>{const option=resolveWorkSelection(work,service).option;return option?.id?'service:'+option.id:String(work||'')+'|||'+String(service||'')};
 export function payrollCatalog(catalog=[]){
   return catalog.flatMap(category=>(category.options||[]).length?category.options.map(option=>({work:category.name,service:typeof option==='string'?option:option.name,key:payrollServiceKey(category.name,typeof option==='string'?option:option.name)})):Number.isFinite(category.price)?[{work:category.name,service:category.name,key:payrollServiceKey(category.name,category.name)}]:[]);
 }
 export function payrollRate(settings,role,rank,key){
-  const rate=settings?.rates?.[role]?.[key]?.[rank-1];
+  const rates=settings?.rates?.[role]||{};let rate=rates[key]?.[rank-1];
+  if(rate===undefined&&key.startsWith('service:')){for(const [oldKey,values] of Object.entries(rates)){const [work,service]=oldKey.split('|||');if(service&&payrollServiceKey(work,service)===key){rate=values?.[rank-1];break}}}
   return typeof rate==='number'&&Number.isFinite(rate)?rate:payrollRoles.find(item=>item.key===role)?.fallback??450;
 }
 export function validPayrollSettings(value){
@@ -54,7 +55,7 @@ export function collectPayrollAccruals(state,{previousOverrides={},legacy=false,
       }else{
         const variants=Array.isArray(order.variants)&&order.variants.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[],units:order.quantity}];
         lines=variants.map(variant=>{
-          const work=String(variant.work||order.work||''),service=String(variant.workOption||variant.material||work),key=payrollServiceKey(work,service),units=priceUnitsForSelection(work,variant.selectedTeeth||variant.teeth||[],variant.units),rate=payrollRate(state.payrollSettings,role.key,rank,key);
+          const work=String(variant.work||order.work||''),service=String(variant.workOption||variant.material||work),key=variant.serviceId?'service:'+variant.serviceId:payrollServiceKey(work,service),units=priceUnitsForSelection(variant.workId||work,variant.selectedTeeth||variant.teeth||[],variant.units,variant.pricingUnit),rate=payrollRate(state.payrollSettings,role.key,rank,key);
           return {key,work,service,units,rate,amount:roundMoney(rate*units)};
         });
       }

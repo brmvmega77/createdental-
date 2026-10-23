@@ -1,3 +1,4 @@
+const versionsByToken=new Map();
 const key='create-dental-portal-token';
 
 export function portalToken(){
@@ -29,6 +30,7 @@ async function request(path,options={}){
   let data;
   try {data=await response.json()} catch {throw new Error('Сервер вернул неверный ответ')}
   if(!response.ok){const error=new Error(data.error||'Ошибка связи с сервером');error.status=response.status;throw error}
+  if(data.collectionVersions)versionsByToken.set(portalToken(),data.collectionVersions);
   return data;
 }
 
@@ -36,7 +38,27 @@ export const loadPortal=(view='')=>request(view?`/api/portal?view=${encodeURICom
 // Large portal collections can be requested independently so a cabinet can
 // load only the data needed for its current page.
 export const loadPortalSection=section=>request(`/api/portal/${encodeURIComponent(section)}`);
-export const savePortal=(collection,value)=>request(`/api/portal/${collection}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
+function applySaved(collection,value,saved){
+ if(!saved||!value||typeof value!=='object')return;
+ if(Array.isArray(value)&&Array.isArray(saved))value.splice(0,value.length,...saved);
+ else if(!Array.isArray(value)){for(const key of Object.keys(value))delete value[key];Object.assign(value,saved);}
+ const cache={orderOverrides:'create-dental-tech-orders',clients:'create-dental-tech-clients',employees:'create-dental-employees'}[collection];
+ if(cache)localStorage.setItem(cache,JSON.stringify(value));
+}
+export async function savePortal(collection,value){
+ const token=portalToken(),version=versionsByToken.get(token)?.[collection];
+ try{
+  const data=await request(`/api/portal/${collection}`,{method:'PUT',headers:{'Content-Type':'application/json',...(version!==undefined?{'X-Portal-Version':String(version)}:{})},body:JSON.stringify(value)});
+  if(token!==portalToken())throw new Error('Сеанс изменился. Откройте кабинет заново.');
+  applySaved(collection,value,data.saved);
+  if(data.orderOverrides)localStorage.setItem('create-dental-tech-orders',JSON.stringify(data.orderOverrides));
+  return data;
+ }catch(error){
+  // Refresh rejected optimistic changes so the screen cannot pretend a save succeeded.
+  if(token===portalToken())try{const fresh=await loadPortal();if(token===portalToken())applySaved(collection,value,fresh[collection]);}catch{}
+  throw error;
+ }
+}
 export const loadOrderFiles=orderId=>request(`/api/orders/${encodeURIComponent(orderId)}/files`);
 export const sendOrderToMilling=orderId=>request(`/api/orders/${encodeURIComponent(orderId)}/milling`,{method:'POST'});
 export const deleteOrder=orderId=>request(`/api/orders/${encodeURIComponent(orderId)}`,{method:'DELETE'});

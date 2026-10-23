@@ -1,4 +1,18 @@
-export const workCatalog=[
+const jawPricedNames=new Set(['Каппы','Ложки прикуса','Сплинты','Хирургические шаблоны']);
+const stableId=(prefix,value)=>prefix+'-'+[...String(value)].reduce((hash,c)=>Math.imul(hash^c.charCodeAt(0),16777619)>>>0,2166136261).toString(36);
+export function normalizeWorkCatalog(catalog,previous=[]){
+ return catalog.map((category,index)=>{
+  const before=previous.find(item=>category.id?item.id===category.id:item.name===category.name);
+  const aliases=[...new Set([...(before?.aliases||[]),...(category.aliases||[]),...(before&&before.name!==category.name?[before.name]:[])])];
+  const id=category.id||before?.id||stableId('cat',category.name);
+  return {...category,id,aliases,position:String(index).padStart(5,'0'),pricingUnit:before?.pricingUnit||category.pricingUnit||(jawPricedNames.has(category.name)?'jaw':'tooth'),options:(category.options||[]).map(option=>{
+   if(typeof option==='string')option={name:option,price:null};
+   const old=before?.options?.find(item=>option.id?item.id===option.id:item.name===option.name);
+   return {...option,id:option.id||old?.id||stableId('svc',id+'|'+option.name),aliases:[...new Set([...(old?.aliases||[]),...(option.aliases||[]),...(old&&old.name!==option.name?[old.name]:[])])]};
+  })};
+ });
+}
+export const workCatalog=normalizeWorkCatalog([
   {name:'Планирование и диагностика',price:null,options:[
     {name:'Wax up цифровой',price:2000,productionDays:5},
     {name:'Wax up аналоговый',price:3000,productionDays:10},
@@ -51,15 +65,16 @@ export const workCatalog=[
     {name:'Шаблон под КТ рентгеноконтрастный',price:7000,productionDays:5}
   ]},
   {name:'Дополнительные работы',price:null,options:[]}
-];
+]);
 
 const jawPricedCategories=new Set(['Каппы','Ложки прикуса','Сплинты','Хирургические шаблоны']);
 const upperJawTeeth=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
 const lowerJawTeeth=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
 
-export function priceUnitsForSelection(work,teeth=[],units){
+export function priceUnitsForSelection(work,teeth=[],units,pricingUnit){
   if(units!==undefined&&units!==null&&units!==''&&Number.isFinite(Number(units)))return Math.max(1,Number(units));
-  if(jawPricedCategories.has(String(work||''))){
+  const category=workCatalog.find(item=>item.id===work||item.name===work||item.aliases?.includes(work));
+  if((pricingUnit||category?.pricingUnit)==='jaw'||!category&&!pricingUnit&&jawPricedCategories.has(String(work||''))){
     const selected=new Set(Array.isArray(teeth)?teeth.map(Number):[]);
     const jaws=[upperJawTeeth,lowerJawTeeth].filter(jaw=>jaw.every(tooth=>selected.has(tooth))).length;
     return Math.max(1,jaws);
@@ -70,17 +85,17 @@ export function priceUnitsForSelection(work,teeth=[],units){
 const normalizeCatalogText=value=>String(value||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/[^а-яa-z0-9]+/gi,' ').trim();
 
 export function resolveWorkSelection(workValue,optionValue=''){
-  const values=[optionValue,workValue].map(normalizeCatalogText).filter(Boolean);
-  let category=workCatalog.find(item=>normalizeCatalogText(item.name)===normalizeCatalogText(workValue))||null;
-  let option=null;
+ const matches=(item,value)=>[item.id,item.name,...(item.aliases||[])].some(name=>normalizeCatalogText(name)===normalizeCatalogText(value));
+ let category=workCatalog.find(item=>matches(item,workValue))||null;
+ let option=category?.options.find(item=>matches(item,optionValue))||null;
+ if(!option){
   for(const item of workCatalog){
-    const found=item.options.find(candidate=>values.includes(normalizeCatalogText(candidate.name)));
-    if(found){category=item;option=found;break}
+   if(category&&item!==category)continue;
+   const found=item.options.find(candidate=>matches(candidate,optionValue||workValue));
+   if(found){category=item;option=found;break;}
   }
-  if(category&&!option){
-    option=category.options.find(candidate=>normalizeCatalogText(candidate.name)===normalizeCatalogText(optionValue))||null;
-  }
-  return {category,option,price:option?.price??category?.price??null};
+ }
+ return {category,option,price:option?.price??category?.price??null};
 }
 
 export function catalogForPrompt(){

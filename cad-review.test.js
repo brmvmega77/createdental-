@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import {qualityApprovalChange} from './technician.js';
 import {spawn} from 'node:child_process';
 
 const sessionKey=token=>'sha256:'+createHash('sha256').update(token).digest('hex');
@@ -18,10 +19,14 @@ test('CAD requires the assigned modeler and a doctor decision',async context=>{
     orderOverrides:{'CAD-A':{stage:'Моделирование',assignee:'Modeler'},'CAD-B':{stage:'Моделирование',assignee:'Modeler'}},
     orderHistory:[],clientRequests:[],
     clients:[{id:'clinic-1',name:'Тестовая клиника',originalName:'Тестовая клиника',telegramCode:'CD-CL-12345678',approved:true}],
-    employees:[{id:'worker-1',name:'Modeler',originalName:'Modeler',status:'active'}]
+    employees:[{id:'worker-1',name:'Modeler',originalName:'Modeler',status:'active',specialty:'CAD оператор'}]
   };
   fs.writeFileSync(path.join(data,'portal.json'),JSON.stringify(portal));
   fs.writeFileSync(path.join(data,'accounts.json'),'[]');
+  const html='<!doctype html><html><body><canvas id="cad"></canvas></body></html>';
+  const seededFiles={};fs.mkdirSync(path.join(data,'order-files'));
+  for(const [index,id] of ['CAD-A','CAD-B'].entries()){const file={id:String(index+1).repeat(36),name:'cad.html',purpose:'cad-review',type:'text/html',size:html.length};seededFiles[id]=[file];fs.writeFileSync(path.join(data,'order-files',file.id),html);}
+  fs.writeFileSync(path.join(data,'order-files.json'),JSON.stringify(seededFiles));
   const expires=Date.now()+60000;
   fs.writeFileSync(path.join(data,'sessions.json'),JSON.stringify([
     [sessionKey('worker-token'),{role:'worker',subjectId:'worker-1',displayName:'Modeler',expires}],
@@ -29,7 +34,7 @@ test('CAD requires the assigned modeler and a doctor decision',async context=>{
     [sessionKey('chief-token'),{role:'technician',subjectId:'chief',displayName:'Главный техник',expires}]
   ]));
   const port=44000+Math.floor(Math.random()*1000);
-  const child=spawn(process.execPath,[path.resolve('server.js')],{cwd:temporary,env:{...process.env,PORT:String(port),HOST:'127.0.0.1'},stdio:['ignore','pipe','pipe']});
+  const child=spawn(process.execPath,[path.resolve('server.js')],{cwd:temporary,env:{...process.env,PORT:String(port),HOST:'127.0.0.1',PORTAL_DATABASE_URL:'',DATABASE_URL:''},stdio:['ignore','pipe','pipe']});
   context.after(async()=>{if(child.exitCode===null){const exited=new Promise(resolve=>child.once('exit',resolve));child.kill('SIGTERM');await exited}fs.rmSync(temporary,{recursive:true,force:true})});
   const started=await new Promise((resolve,reject)=>{
     let errors='';child.stderr.on('data',chunk=>{errors+=String(chunk)});
@@ -43,19 +48,12 @@ test('CAD requires the assigned modeler and a doctor decision',async context=>{
     const body=await response.json();
     return {response,body};
   };
-  const upload=async id=>{
-    const html='<!doctype html><html><body><canvas id="cad"></canvas><script>document.body.dataset.ready="1"</script></body></html>';
-    const result=await api(`/api/orders/${id}/files`,{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Upload-Name':'cad.html','X-File-Purpose':'cad-review'},body:html});
-    if(result.response.status===410){context.skip('Legacy direct upload endpoint is intentionally disabled; CAD upload is tested through the Yandex Disk flow.');return null}
-    assert.equal(result.response.status,201);
-    return {file:result.body.file,html};
-  };
-
+  const upload=async id=>({file:seededFiles[id][0],html});
   const first=await upload('CAD-A');
   if(!first)return;
   const submitted=await api('/api/orders/CAD-A/cad-review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',fileId:first.file.id})});
   assert.equal(submitted.response.status,201);
-  assert.equal(submitted.body.orderOverride.stage,'Согласование CAD');
+  assert.equal(submitted.body.orderOverride.stage,'Контроль качества');
   assert.equal(submitted.body.portal,undefined);
 
   const chiefPortal=await api('/api/portal',{token:'chief-token'});
@@ -63,6 +61,8 @@ test('CAD requires the assigned modeler and a doctor decision',async context=>{
   const bypass=await api('/api/portal/orderOverrides',{token:'chief-token',method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(chiefPortal.body.orderOverrides)});
   assert.equal(bypass.response.status,409);
 
+  async function approveChief(id){const portal=(await api('/api/portal',{token:'chief-token'})).body;const old=portal.orderOverrides[id];portal.orderOverrides[id]={...old,...qualityApprovalChange(old,'cad',new Date().toISOString())};const result=await api('/api/portal/orderOverrides',{token:'chief-token',method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(portal.orderOverrides)});assert.equal(result.response.status,200);}
+  await approveChief('CAD-A');
   const preview=await fetch(`http://127.0.0.1:${port}/api/order-files/${first.file.id}?content=1`,{headers:{'X-Portal-Token':'clinic-token'}});
   assert.equal(preview.status,200);
   assert.match(await preview.text(),/<canvas/);
@@ -74,6 +74,7 @@ test('CAD requires the assigned modeler and a doctor decision',async context=>{
 
   const second=await upload('CAD-B');
   await api('/api/orders/CAD-B/cad-review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',fileId:second.file.id})});
+  await approveChief('CAD-B');
   const missingComment=await api('/api/orders/CAD-B/cad-review',{token:'clinic-token',method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'return',comment:'нет'})});
   assert.equal(missingComment.response.status,400);
   const returned=await api('/api/orders/CAD-B/cad-review',{token:'clinic-token',method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'return',comment:'Исправить контакт на 11 зубе'})});

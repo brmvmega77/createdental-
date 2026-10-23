@@ -1,9 +1,9 @@
 import {createClinicMobileUI,clinicSections} from './assets/clinic-mobile-ui.js?v=clinic-info-4';
 import { seedOrders } from './seed-orders.js?v=mobile-fast-1';
-import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadReviewHtml} from './portal-client.js?v=reliability-retry-1';
+import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadReviewHtml} from './portal-client.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
-import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=reliability-retry-1';
-import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork,priceUnitsForSelection} from './work-catalog.js?v=jaw-price-1';
+import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=flow-integrity-1';
+import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork,priceUnitsForSelection} from './work-catalog.js';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
 import {orderWorkTypes,orderWorkLabel,orderEventSummary} from './order-list-utils.js?v=service-label-4';
 import {productionStages,compactStageLabel} from './production-stages.js?v=perf-split-1';
@@ -832,7 +832,10 @@ function clientRequestDialog(order){
   if(state.clientRequest?.orderId!==order.id)return '';
   if(state.clientRequest.type==='cancel')return `<div class="tech-dialog-backdrop"><section class="tech-dialog client-request-dialog" role="dialog" aria-modal="true"><h2>Запросить отмену заказа</h2><p>Заказ отменится после подтверждения главным техником.</p><form id="clinic-client-request-form"><input type="hidden" name="type" value="cancel"><label>Причина отмены<textarea name="reason" required minlength="3" rows="4" placeholder="Коротко укажите причину"></textarea></label><div class="order-rework-actions"><button type="button" class="btn outline" data-action="client-request-close">Назад</button><button type="submit" class="btn primary">Отправить запрос</button></div></form></section></div>`;
   const field=state.clientRequest.field||'patient';
-  return `<div class="tech-dialog-backdrop"><section class="tech-dialog client-request-dialog" role="dialog" aria-modal="true"><h2>Запросить правку</h2><p>Выберите один пункт. Изменение применится после подтверждения главным техником.</p><form id="clinic-client-request-form"><input type="hidden" name="type" value="edit"><label>Что изменить<select id="client-request-field" name="field"><option value="patient" ${field==='patient'?'selected':''}>ФИО пациента</option><option value="birth" ${field==='birth'?'selected':''}>Дата рождения</option><option value="teeth" ${field==='teeth'?'selected':''}>Зубы</option><option value="mode" ${field==='mode'?'selected':''}>Режим / челюсть</option><option value="service" ${field==='service'?'selected':''}>Услуга</option><option value="date" ${field==='date'?'selected':''}>Срок</option><option value="shade" ${field==='shade'?'selected':''}>Цвет</option><option value="comment" ${field==='comment'?'selected':''}>Комментарий</option></select></label>${clientRequestControl(order,field)}<div class="order-rework-actions"><button type="button" class="btn outline" data-action="client-request-close">Назад</button><button type="submit" class="btn primary">Отправить запрос</button></div></form></section></div>`;
+  const variants=order.variants?.length?order.variants:[{work:order.work,workOption:order.material}];
+  const position=Math.min(state.clientRequest.variantIndex||0,variants.length-1),selected=variants[position];
+  const positionField=['teeth','mode','service'].includes(field)?`<label>Позиция заказа<select id="client-request-position" name="variantIndex">${variants.map((v,index)=>`<option value="${index}" ${index===position?'selected':''}>${index+1}. ${escapeHtml(v.workOption||v.work)}</option>`).join('')}</select></label>`:'';
+  return `<div class="tech-dialog-backdrop"><section class="tech-dialog client-request-dialog" role="dialog" aria-modal="true"><h2>Запросить правку</h2><p>Выберите один пункт. Изменение применится после подтверждения главным техником.</p><form id="clinic-client-request-form"><input type="hidden" name="type" value="edit"><label>Что изменить<select id="client-request-field" name="field"><option value="patient" ${field==='patient'?'selected':''}>ФИО пациента</option><option value="birth" ${field==='birth'?'selected':''}>Дата рождения</option><option value="teeth" ${field==='teeth'?'selected':''}>Зубы</option><option value="mode" ${field==='mode'?'selected':''}>Режим / челюсть</option><option value="service" ${field==='service'?'selected':''}>Услуга</option><option value="date" ${field==='date'?'selected':''}>Срок</option><option value="shade" ${field==='shade'?'selected':''}>Цвет</option><option value="comment" ${field==='comment'?'selected':''}>Комментарий</option></select></label>${positionField}${clientRequestControl({...order,...selected,material:selected.workOption,teeth:selected.selectedTeeth||order.teeth},field)}<div class="order-rework-actions"><button type="button" class="btn outline" data-action="client-request-close">Назад</button><button type="submit" class="btn primary">Отправить запрос</button></div></form></section></div>`;
 }
 const orderUploadAccept='*/*';
 function orderUploadDialog(){
@@ -1151,11 +1154,11 @@ async function hydratePortal(){
   // history and logo payload is fetched in the background for detail pages.
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=menu-groups-3');
+      const {createTechnicianCabinet}=await import('./technician.js?v=flow-integrity-1');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},promoCodes:()=>portalPromoCodes,onPromoCodesUpdate:items=>{portalPromoCodes=structuredClone(items)},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=profile-layout-2');
+    const {createWorkerCabinet}=await import('./worker.js?v=flow-integrity-1');
     workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,orderHistory:()=>portalHistory,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   applyPortalData(data);
@@ -1401,6 +1404,7 @@ document.addEventListener('click',event=>{
 document.addEventListener('input',event=>{if(event.target.dataset.field)state.form[event.target.dataset.field]=event.target.value;if(event.target.id==='order-search'){state.query=event.target.value;const table=$('.table-wrap');if(table)table.outerHTML=orderTable(filteredOrders());}if(event.target.id==='chat-input')state.chatText=event.target.value;if(event.target.form?.id==='cad-return-form'&&event.target.name==='comment')state.cadReturnComment=event.target.value});
 document.addEventListener('change',async event=>{
   if(event.target.dataset.field)state.form[event.target.dataset.field]=event.target.value;
+  if(event.target.id==='client-request-position'){state.clientRequest={...state.clientRequest,variantIndex:Number(event.target.value)};render();return;}
   if(event.target.id==='client-request-field'){
     state.clientRequest={...state.clientRequest,field:event.target.value};
     render();
@@ -1464,7 +1468,7 @@ document.addEventListener('submit',async event=>{
   event.preventDefault();
   const form=event.target,data=new FormData(form),type=String(data.get('type')||''),body={type};
   if(type==='cancel')body.reason=String(data.get('reason')||'').trim();
-  else{body.field=String(data.get('field')||'');body.value=String(data.get('value')||'').trim()}
+  else{body.field=String(data.get('field')||'');body.value=String(data.get('value')||'').trim();if(data.has('variantIndex'))body.variantIndex=Number(data.get('variantIndex'))}
   const submit=form.querySelector('[type="submit"]');submit.disabled=true;
   try{
     const response=await fetch(`/api/orders/${encodeURIComponent(state.orderId)}/client-request`,{method:'POST',headers:{'Content-Type':'application/json','X-Portal-Token':portalToken()},body:JSON.stringify(body)});
