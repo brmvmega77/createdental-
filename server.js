@@ -24,6 +24,32 @@ const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || '127.0.0.1';
 const supportToken = process.env.SUPPORT_TOKEN || (process.env.SUPPORT_TOKEN_FILE ? fs.readFileSync(process.env.SUPPORT_TOKEN_FILE, 'utf8').trim() : '');
+const loginFailureBuckets=new Map();
+const loginFailureWindowMs=15*60*1000;
+const loginFailureLimit=10;
+function loginRateKeys(req,email){
+  const address=String(req.socket?.remoteAddress||'unknown').slice(0,100);
+  const identity=String(email||'').trim().toLowerCase().slice(0,200);
+  return [`ip:${address}`,`email:${identity}`];
+}
+function pruneLoginFailures(now=Date.now()){
+  for(const [key,bucket] of loginFailureBuckets){
+    bucket.failures=bucket.failures.filter(at=>now-at<loginFailureWindowMs);
+    if(!bucket.failures.length)loginFailureBuckets.delete(key);
+  }
+}
+function loginIsBlocked(req,email){
+  const now=Date.now();pruneLoginFailures(now);
+  return loginRateKeys(req,email).some(key=>(loginFailureBuckets.get(key)?.failures.length||0)>=loginFailureLimit);
+}
+function noteLoginFailure(req,email){
+  const now=Date.now();pruneLoginFailures(now);
+  for(const key of loginRateKeys(req,email)){
+    const bucket=loginFailureBuckets.get(key)||{failures:[]};
+    bucket.failures.push(now);loginFailureBuckets.set(key,bucket);
+  }
+}
+function clearLoginFailures(req,email){for(const key of loginRateKeys(req,email))loginFailureBuckets.delete(key)}
 // Lightweight in-process latency telemetry. It keeps a bounded rolling window
 // so p95 can be inspected without adding a metrics dependency to the request path.
 const apiMetricSamples=new Map();
@@ -1412,9 +1438,14 @@ async function handleAuth(req,res,url){
   }
   if(req.method==='POST'&&url.pathname==='/api/auth/login'){
     if(isOwnerOnlyEmail(body.email))return json(res,403,{error:'Для владельца откройте отдельный вход: /owner/login'});
+    if(loginIsBlocked(req,body.email))return json(res,429,{error:'Слишком много неудачных попыток. Повторите через 15 минут'});
     const account=login(body.email,body.password);
-    if(!account||account.role==='worker'&&portalEmployee(account.subjectId)?.status!=='active'||account.role==='clinic'&&!portalClient(account.subjectId))return json(res,401,{error:'Неверный email или пароль'});
-    if(account.role==='clinic'&&portalClient(account.subjectId).approved===false)return json(res,403,{error:'Кабинет ожидает подтверждения главным техником'});
+    if(!account||account.role==='worker'&&portalEmployee(account.subjectId)?.status!=='active'||account.role==='clinic'&&!portalClient(account.subjectId)){
+      noteLoginFailure(req,body.email);
+      return json(res,401,{error:'Неверный email или пароль'});
+    }
+    if(account.role==='clinic'&&portalClient(account.subjectId).approved===false){clearLoginFailures(req,body.email);return json(res,403,{error:'Кабинет ожидает подтверждения главным техником'})}
+    clearLoginFailures(req,body.email);
     try{return json(res,200,{token:issueSession(account.role,account.subjectId,account.displayName||account.email),user:publicUser({role:account.role,subjectId:account.subjectId})})}
     catch{return json(res,500,{error:'Не удалось безопасно сохранить сеанс'})}
   }
