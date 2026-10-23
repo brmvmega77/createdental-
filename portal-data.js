@@ -49,6 +49,7 @@ let state=defaults();
 let saveQueue=Promise.resolve();
 const databaseUrl=process.env.PORTAL_DATABASE_URL||process.env.DATABASE_URL||'';
 const databasePool=databaseUrl?new Pool({connectionString:databaseUrl,max:10,idleTimeoutMillis:30000,connectionTimeoutMillis:5000}):null;
+const portalSchemaVersion=1;
 
 try {
   const stored=JSON.parse(fs.readFileSync(file,'utf8'));
@@ -91,6 +92,7 @@ async function initializeDatabase(){
     updated_at timestamptz NOT NULL DEFAULT now()
   )`);
   await initializeRelationalSchema();
+  await initializeSchemaMigrations();
   const result=await databasePool.query('SELECT state FROM portal_state WHERE id=1');
   if(result.rows[0]?.state&&typeof result.rows[0].state==='object'){
     state=result.rows[0].state;
@@ -100,6 +102,21 @@ async function initializeDatabase(){
   }
   await databasePool.query('INSERT INTO portal_state (id,state) VALUES (1,$1::jsonb)',[JSON.stringify(state)]);
   await syncNormalizedState(databasePool,null,['all']);
+}
+
+async function initializeSchemaMigrations(){
+  await databasePool.query(`CREATE TABLE IF NOT EXISTS portal_schema_migrations (
+    version integer PRIMARY KEY,
+    applied_at timestamptz NOT NULL DEFAULT now()
+  )`);
+  const result=await databasePool.query('SELECT COALESCE(MAX(version),0)::integer AS version FROM portal_schema_migrations');
+  const current=Number(result.rows[0]?.version)||0;
+  if(current>portalSchemaVersion)throw new Error(`Unsupported portal database schema version ${current}; application supports ${portalSchemaVersion}`);
+  if(current<portalSchemaVersion){
+    // Version 1 records the schema created above. Future changes must add a
+    // new numbered migration before the version is increased.
+    await databasePool.query('INSERT INTO portal_schema_migrations (version) VALUES ($1) ON CONFLICT (version) DO NOTHING',[portalSchemaVersion]);
+  }
 }
 
 if(databasePool)await initializeDatabase();

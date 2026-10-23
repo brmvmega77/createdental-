@@ -68,6 +68,17 @@ export async function publishDiskResource(token,diskPath){
   return metadata.public_url;
 }
 
+export async function unpublishDiskResource(token,diskPath){
+  if(!token||!diskPath)return false;
+  const response=await fetch(`${apiRoot}${query('/resources/unpublish',{path:diskPath})}`,{
+    method:'PUT',headers:{Authorization:`OAuth ${token}`},signal:AbortSignal.timeout(30000)
+  });
+  const data=await response.json().catch(()=>({}));
+  if(response.ok||response.status===404||response.status===409)return true;
+  if(response.status===202&&data.href){await waitForOperation(token,data.href);return true}
+  throw diskError(data,response.status);
+}
+
 export async function moveDiskResource(token,fromPath,toPath){
   const slash=String(toPath).lastIndexOf('/');
   await ensureDiskFolder(token,slash>0?toPath.slice(0,slash):'/Клиенты');

@@ -16,7 +16,7 @@ import {removePortalOrder,portalSnapshot,portalSnapshotFor,portalSnapshotForData
 import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,updateChiefAccount,chiefAccountProfile,workerAccountProfile,updateWorkerAccount,isOwnerOnlyEmail,login,issueSession,sessionFor,revokeSession,revokeSubjectSessions,revokeOtherSubjectSessions,emailAvailableForEmployee} from './auth-data.js';
 import {createTelegramBridge} from './telegram-bot.js';
 import {createEmployeeTelegramBridge} from './employee-telegram-bot.js';
-import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource} from './yandex-disk-storage.js';
+import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource,unpublishDiskResource} from './yandex-disk-storage.js';
 import {workCatalog,rubles,orderDeadlineError,earliestDueDateForOrder,isWorkingDay,isoDateLocal,isValidIsoDate,estimateWork,resolveWorkSelection} from './work-catalog.js';
 import {orderWorkLabel} from './order-list-utils.js';
 
@@ -27,17 +27,39 @@ const supportToken = process.env.SUPPORT_TOKEN || (process.env.SUPPORT_TOKEN_FIL
 const loginFailureBuckets=new Map();
 const loginFailureWindowMs=15*60*1000;
 const loginFailureLimit=10;
+const loginFailureFile=process.env.LOGIN_RATE_LIMIT_FILE||path.join(process.env.DATA_DIR||path.join(root,'.data'),'login-rate-limit.json');
+let loginFailurePersistQueue=Promise.resolve();
+function loginRateFingerprint(value){return createHash('sha256').update(`create-dental-login:${value}`).digest('hex')}
 function loginRateKeys(req,email){
   const address=String(req.socket?.remoteAddress||'unknown').slice(0,100);
   const identity=String(email||'').trim().toLowerCase().slice(0,200);
-  return [`ip:${address}`,`email:${identity}`];
+  return [`ip:${loginRateFingerprint(address)}`,`email:${loginRateFingerprint(identity)}`];
 }
+try{
+  const stored=JSON.parse(fs.readFileSync(loginFailureFile,'utf8'));
+  for(const [key,failures] of Object.entries(stored||{})){
+    const valid=Array.isArray(failures)?failures.filter(item=>Number.isFinite(item)&&Date.now()-item<loginFailureWindowMs).slice(-loginFailureLimit):[];
+    if(valid.length)loginFailureBuckets.set(key,{failures:valid});
+  }
+}catch(error){if(error.code!=='ENOENT')console.error('Login limiter state load failed:',error.message)}
 function pruneLoginFailures(now=Date.now()){
   for(const [key,bucket] of loginFailureBuckets){
     bucket.failures=bucket.failures.filter(at=>now-at<loginFailureWindowMs);
     if(!bucket.failures.length)loginFailureBuckets.delete(key);
   }
 }
+function persistLoginFailures(){
+  loginFailurePersistQueue=loginFailurePersistQueue.catch(()=>{}).then(async()=>{
+    pruneLoginFailures();
+    await fs.promises.mkdir(path.dirname(loginFailureFile),{recursive:true,mode:0o700});
+    const snapshot=Object.fromEntries([...loginFailureBuckets].slice(-10000).map(([key,bucket])=>[key,bucket.failures]));
+    const temporary=loginFailureFile+'.tmp';
+    await fs.promises.writeFile(temporary,JSON.stringify(snapshot),{mode:0o600});
+    await fs.promises.rename(temporary,loginFailureFile);
+  });
+  return loginFailurePersistQueue;
+}
+function scheduleLoginFailurePersist(){void persistLoginFailures().catch(error=>console.error('Login limiter state save failed:',error.message))}
 function loginIsBlocked(req,email){
   const now=Date.now();pruneLoginFailures(now);
   return loginRateKeys(req,email).some(key=>(loginFailureBuckets.get(key)?.failures.length||0)>=loginFailureLimit);
@@ -48,8 +70,9 @@ function noteLoginFailure(req,email){
     const bucket=loginFailureBuckets.get(key)||{failures:[]};
     bucket.failures.push(now);loginFailureBuckets.set(key,bucket);
   }
+  scheduleLoginFailurePersist();
 }
-function clearLoginFailures(req,email){for(const key of loginRateKeys(req,email))loginFailureBuckets.delete(key)}
+function clearLoginFailures(req,email){for(const key of loginRateKeys(req,email))loginFailureBuckets.delete(key);scheduleLoginFailurePersist()}
 // Lightweight in-process latency telemetry. It keeps a bounded rolling window
 // so p95 can be inspected without adding a metrics dependency to the request path.
 const apiMetricSamples=new Map();
@@ -124,7 +147,7 @@ const integrationSecretFiles={
 const tlsKeyFile=process.env.TLS_KEY_FILE||'';
 const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
-const publicFiles = new Set(['/flow-rules.js','/collection-concurrency.js','/clinic-doctors.js','/order-revision.js','/payroll.js','/payroll-ui.js','/owner.js','/owner.css','/','/index.html','/app.js','/work-catalog.js','/money.js','/technician.js','/production-stages.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing.js']);
+const publicFiles = new Set(['/flow-rules.js','/collection-concurrency.js','/clinic-doctors.js','/order-revision.js','/payroll.js','/payroll-ui.js','/owner.js','/owner.css','/','/index.html','/index-boot.js','/app.js','/work-catalog.js','/money.js','/technician.js','/production-stages.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/cad-preview-boot.js','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing-boot.js','/landing.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon'};
 const sharedAttachmentTypes={
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream',
@@ -144,7 +167,7 @@ async function persistLargeUploadLinks(){
   largeUploadLinksQueue=largeUploadLinksQueue.catch(()=>{}).then(async()=>{await fs.promises.mkdir(path.dirname(largeUploadLinksFile),{recursive:true,mode:0o700});await fs.promises.writeFile(largeUploadLinksFile+'.tmp',JSON.stringify(Object.fromEntries(largeUploadLinks)),{mode:0o600});await fs.promises.rename(largeUploadLinksFile+'.tmp',largeUploadLinksFile)});
   await largeUploadLinksQueue;
 }
-const publicOrderFolderLinks=new Map();
+const orderFoldersReady=new Set();
 const cadPreviewLinks=new Map();
 const cadPreviewLinkLifetime=7*24*60*60*1000;
 const orderFileMigrationJobs=new Map();
@@ -249,6 +272,7 @@ function secureHeaders(req,res){
   res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
   res.setHeader('X-Frame-Options','DENY');
   res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');
+  res.setHeader('Content-Security-Policy',"default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https:; frame-src 'self' blob: https:");
   if(req.socket.encrypted||req.headers['x-forwarded-proto']==='https')res.setHeader('Strict-Transport-Security','max-age=31536000; includeSubDomains');
 }
 
@@ -585,13 +609,13 @@ async function handlePortal(req,res,url){
         }
       }
       if(newOrders.length){
-        const created=await Promise.allSettled(newOrders.map(order=>ensurePublicOrderFolder(order.id)));
+        const created=await Promise.allSettled(newOrders.map(order=>ensureOrderFolder(order.id)));
         const failed=created.find(result=>result.status==='rejected');
         if(failed){
           for(const order of newOrders)await removePortalOrder(order.id,{role:user.role,name:actorName(user)});
           const token=readIntegrationSecret('yandexDiskToken');
           await Promise.allSettled(newOrders.map(order=>deleteDiskResource(token,orderDiskFolder(order.id))));
-          for(const order of newOrders)publicOrderFolderLinks.delete(order.id);
+          for(const order of newOrders)orderFoldersReady.delete(order.id);
           throw new Error('order_folder_failed');
         }
       }
@@ -817,17 +841,22 @@ function sendTextEmail({to,subject,text,from='orders@createdental.io'}){
   });
 }
 
-async function ensurePublicOrderFolder(orderId){
+async function ensureOrderFolder(orderId){
   const key=String(orderId||'');
   if(!key)throw new Error('Не указан ID заказа');
-  if(publicOrderFolderLinks.has(key))return publicOrderFolderLinks.get(key);
+  if(orderFoldersReady.has(key))return '';
   const token=readIntegrationSecret('yandexDiskToken');
   if(!token)throw new Error('Яндекс Диск не подключён');
   const folder=orderDiskFolder(key);
   await ensureDiskFolder(token,folder);
-  const publicUrl=await publishDiskResource(token,folder);
-  publicOrderFolderLinks.set(key,publicUrl);
-  return publicUrl;
+  // Order folders are private. Each file is downloaded through an authenticated
+  // signed URL, so publishing the whole folder is unnecessary and leaks the
+  // order contents to anyone who obtains the public link.
+  await unpublishDiskResource(token,folder).catch(error=>{
+    if(!/not found|не найден|404/i.test(String(error.message)))throw error;
+  });
+  orderFoldersReady.add(key);
+  return '';
 }
 async function deleteOrderWithFolder(user,orderId){
   if(user.role!=='technician')throw new Error('forbidden');
@@ -841,7 +870,7 @@ async function deleteOrderWithFolder(user,orderId){
   let cleanupPending=false;
   try{await deleteDiskResource(token,orderDiskFolder(orderId));}
   catch(error){cleanupPending=true;console.error('Deleted order cloud cleanup failed:',error.message)}
-  publicOrderFolderLinks.delete(orderId);orderFileMigrationJobs.delete(orderId);
+  orderFoldersReady.delete(orderId);orderFileMigrationJobs.delete(orderId);
   const files=orderFiles[orderId]||[];
   for(const file of files)if(file.storage!=='yandex-disk')await fs.promises.unlink(path.join(uploadDir,file.id)).catch(()=>{});
   delete orderFiles[orderId];
@@ -856,7 +885,7 @@ async function ensureOrderFilesOnDisk(orderId){
   const job=(async()=>{
     const token=readIntegrationSecret('yandexDiskToken');
     if(!token)throw new Error('Яндекс Диск не подключён');
-    await ensurePublicOrderFolder(key);
+    await ensureOrderFolder(key);
     let changed=false;
     for(const file of legacy){
       const source=path.join(uploadDir,file.id),diskPath=`${orderDiskFolder(key)}/import-${safeDiskSegment(file.id)}-${cleanUploadName(file.name)}`;
@@ -924,7 +953,7 @@ async function completeDiskUpload(item,uploadedBy){
     const workerId=String(item.owner||'').startsWith('worker:')?String(item.owner).slice(7):'',employee=portalEmployee(workerId),details=portalSnapshot().orderOverrides[order.id]||{};
     if(!employee||!isCadOperatorEmployee(employee)||(details.cadOperator||details.assignee)!==employee.originalName||details.stage!=='Моделирование')throw new Error('CAD-файл можно отправить только CAD оператору на этапе «Моделирование»');
   }
-  await ensurePublicOrderFolder(item.orderId);
+  await ensureOrderFolder(item.orderId);
   const record={id,name:item.name,size:item.size,type:item.type,md5:metadata.md5||'',uploadedAt,uploadedBy,purpose:item.purpose,storage:'yandex-disk',diskPath:item.diskPath};
   orderFiles[item.orderId]=[...(orderFiles[item.orderId]||[]),record];await persistOrderFiles();
   await recordPortalEvent(item.orderId,{role:item.actorRole,name:uploadedBy},'file_uploaded',{summary:item.purpose==='result-photo'?'Добавлено фото готовой работы':item.purpose==='source-photo'?'Добавлены исходные фото от клиники':'Добавлен файл к заказу',fileName:item.name,purpose:item.purpose,clinicId:item.clinicId}).catch(()=>{});
@@ -935,7 +964,7 @@ async function beginDiskUpload(item){
   if(!token)throw new Error('Яндекс Диск не подключён');
   if(item.target==='message')await ensureDiskFolder(token,messageDiskFolder(item.clinicId));
   else if(item.target==='telegram-draft')await ensureDiskFolder(token,telegramDraftDiskFolder(item.clinicId,item.largeLinkKey));
-  else {await ensurePublicOrderFolder(item.orderId);if(item.purpose==='source-photo')await ensureDiskFolder(token,`${orderDiskFolder(item.orderId)}/Исходные фото`)}
+  else {await ensureOrderFolder(item.orderId);if(item.purpose==='source-photo')await ensureDiskFolder(token,`${orderDiskFolder(item.orderId)}/Исходные фото`)}
   const diskPath=newDiskPath(item),upload=await createDiskUpload(token,diskPath),id=randomBytes(18).toString('hex');
   diskUploadSessions.set(id,{...item,id,diskPath,createdAt:Date.now(),expiresAt:Date.now()+uploadSessionLifetime});
   return {mode:'direct',uploadId:id,href:upload.href,method:upload.method,expiresAt:new Date(Date.now()+uploadSessionLifetime).toISOString()};
@@ -945,7 +974,7 @@ async function uploadEmployeeCadFile({employee,order,name,type,data}){
   const description=validateUploadDescription({name,size:data.length,type,purpose:'cad-review'}),snapshot=portalSnapshot(),details=snapshot.orderOverrides[order.id]||{};
   if(!isCadOperatorEmployee(employee)||(details.cadOperator||details.assignee)!==employee.originalName||details.stage!=='Моделирование')throw new Error('CAD-файл можно загрузить только назначенному CAD оператору на этапе «Моделирование»');
   const token=readIntegrationSecret('yandexDiskToken');if(!token)throw new Error('Яндекс Диск не подключён');
-  await ensurePublicOrderFolder(order.id);
+  await ensureOrderFolder(order.id);
   const diskPath=newDiskPath({target:'order',orderId:order.id,clinicId:order.clinicId,name:description.name,purpose:'cad-review'}),upload=await createDiskUpload(token,diskPath);
   const response=await fetch(upload.href,{method:upload.method||'PUT',headers:{'Content-Type':description.type},body:data,signal:AbortSignal.timeout(120000)});
   if(!response.ok)throw new Error('Яндекс Диск не принял CAD-файл');
@@ -1083,7 +1112,7 @@ async function handleOrderFiles(req,res,url){
     if(req.method==='GET'){
       let folderUrl='';
       try{await ensureOrderFilesOnDisk(orderId)}catch(error){console.error('Legacy order file migration failed:',error.message)}
-      try{folderUrl=await ensurePublicOrderFolder(orderId)}catch(error){console.error('Yandex Disk folder publication failed:',error.message)}
+      try{folderUrl=await ensureOrderFolder(orderId)}catch(error){console.error('Yandex Disk folder publication failed:',error.message)}
       const rawFiles=orderFiles[orderId]||[];
       for(const file of rawFiles.filter(item=>item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html'))void readCadHtml({file}).catch(error=>console.error('CAD prefetch failed:',error.message));
       const visibleFiles=rawFiles.map(({id,name,size,type,uploadedAt,uploadedBy,purpose})=>({id,name,size,type,uploadedAt,uploadedBy,purpose:purpose||'order-file'}));
@@ -1493,7 +1522,7 @@ async function attachTelegramFileToOrder(orderId,clinicId,attachment,telegramAct
   const order=portalSnapshot().orders.find(item=>item.id===orderId&&item.clinicId===clinicId);
   const source=clinicMessageFiles[String(attachment?.id||'')];
   if(!order||!source||source.clinicId!==clinicId||!source.orderEligible)throw new Error('Файл или заказ не найден');
-  await ensurePublicOrderFolder(orderId);
+  await ensureOrderFolder(orderId);
   const existing=(orderFiles[orderId]||[]).find(file=>telegramActionId&&file.telegramActionId===telegramActionId&&file.sourceAttachmentId===source.id);
   if(existing)return existing;
   const duplicate=duplicateOrderFile(orderId,source);
@@ -1862,7 +1891,7 @@ await fs.promises.mkdir(uploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(uploadDir,0o700);
 await fs.promises.mkdir(clinicMessageUploadDir,{recursive:true,mode:0o700});
 await fs.promises.chmod(clinicMessageUploadDir,0o700);
-telegramBridge=createTelegramBridge({onClinicMessage:appendTelegramClinicMessage,onBotMessage:appendTelegramClinicMessage,saveTelegramAttachment,attachOrderFile:attachTelegramFileToOrder,loadClinicAttachment:loadTelegramAttachment,createLargeUploadLink,createLargeUploadDraftLink,getLargeUploadDraftStatus,claimLargeUploadDraft,createCadPreviewLink,onOrderCreated:ensurePublicOrderFolder});
+telegramBridge=createTelegramBridge({onClinicMessage:appendTelegramClinicMessage,onBotMessage:appendTelegramClinicMessage,saveTelegramAttachment,attachOrderFile:attachTelegramFileToOrder,loadClinicAttachment:loadTelegramAttachment,createLargeUploadLink,createLargeUploadDraftLink,getLargeUploadDraftStatus,claimLargeUploadDraft,createCadPreviewLink,onOrderCreated:ensureOrderFolder});
 employeeTelegramBridge=createEmployeeTelegramBridge({
   tokenFile:integrationSecretFiles.employeeTelegramBotToken,
   uploadCadFile:uploadEmployeeCadFile,
@@ -1883,7 +1912,7 @@ server.listen(port,host,()=>{
   void (async()=>{
     for(const order of portalSnapshot().orders){
       await ensureOrderFilesOnDisk(order.id).catch(error=>console.error('Legacy order file migration failed:',error.message));
-      await ensurePublicOrderFolder(order.id).catch(error=>console.error('Yandex Disk folder publication failed:',error.message));
+      await ensureOrderFolder(order.id).catch(error=>console.error('Yandex Disk folder publication failed:',error.message));
     }
   })();
 });
