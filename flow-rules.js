@@ -96,3 +96,23 @@ export function reworkRouteChange(order,kind){
  if(roles.includes('cad')&&order.cadReview)change.cadReview={...order.cadReview,status:'returned',comment:order.reworkReason||''};
  return change;
 }
+
+export function assignmentChange(before,next){
+ const roles=Object.entries(assignments).filter(([,fields])=>{
+  const a=fields.map(field=>before[field]).find(Boolean)||'',b=fields.map(field=>next[field]).find(Boolean)||'';
+  return a!==b;
+ }).map(([role])=>role);
+ // The generic assignee is a legacy fallback, not a separate CAD reassignment.
+ if(before.cadOperator===next.cadOperator&&before.cadOperator)roles.splice(roles.indexOf('cad')<0?roles.length:roles.indexOf('cad'),1);
+ if(!roles.length)return next;
+ const checked=before.qualityRequest?.kind==='final'?'esthetic':before.qualityRequest?.kind;
+ if(before.stage==='Контроль качества'&&roles.includes(checked)||before.stage==='Согласование CAD'&&roles.includes('cad'))throw new Error('assignment_under_review');
+ const result={...next};
+ for(const role of roles){
+  result[statuses[role]]='';if(role==='esthetic')result.ceramicistStatus='';
+  const acceptanceRole={cam:'frame',esthetic:'painter'}[role]||role;
+  result.workerAcceptances=Object.fromEntries(Object.entries(result.workerAcceptances||{}).filter(([,item])=>item?.role!==acceptanceRole));
+  if((role==='cad'&&before.stage==='Моделирование')||(role==='preprod'&&before.stage==='Препрод'))result.stage='Подготовка';
+ }
+ result.technicianStatus='';return result;
+}

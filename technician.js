@@ -1,3 +1,4 @@
+import {mergeOrderVariant,orderVariants,reviseOrderVariants} from './order-revision.js';
 import {reworkRouteChange,qualityReturnChange as qualityReworkChange} from './flow-rules.js';
 import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
@@ -31,7 +32,7 @@ export const stages = ['Черновик из Telegram','Ожидает расп
 export const manufacturingStatuses = ['В работе у Каркасиста','В работе у Красильщика'];
 export function qualityApprovalChange(order,expectedKind,qualityApprovedAt){
   const request=order.qualityRequest,final=request?.kind==='final';
-  if(order.stage!=='Контроль качества'||(request?.kind||'')!==expectedKind)return null;
+  if(order.stage!=='Контроль качества'||!['cad','preprod','cam','esthetic','final'].includes(request?.kind)||request.kind!==expectedKind)return null;
   if(request?.kind==='cad')return {stage:'Согласование CAD',qualityRequest:null,cadOperatorStatus:'Согласование с врачом'};
   else if(request?.kind==='preprod')return {stage:order.productionType==='analog'?'Моделирование':'Изготовление',manufacturingStatus:order.productionType==='analog'?'':manufacturingStatuses[0],qualityRequest:null,preprodTechnicianStatus:'Работа сдана',technicianStatus:'Принял работу',qualityApprovedAt};
   else if(request?.kind==='cam')return {stage:'Изготовление',manufacturingStatus:manufacturingStatuses[1],qualityRequest:null,frameTechnicianStatus:'Работа сдана',painterStatus:'',ceramicistStatus:'',technicianStatus:'',qualityApprovedAt};
@@ -219,7 +220,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(!current)return;
     overrides[id]={...(overrides[id]||{}),...change};
     localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
-    savePortal('orderOverrides',overrides).catch(error=>{render();toast('Не удалось сохранить этап на сервере: '+error.message)});
+    savePortal('orderOverrides',overrides).then(()=>render()).catch(error=>{render();toast('Не удалось сохранить этап на сервере: '+error.message)});
     render();
   }
 
@@ -418,11 +419,14 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   }
 
   function editVariantPrice(variant){
-    return estimateWork({work:variant.work,option:variant.workOption,teeth:variant.selectedTeeth,units:surgicalVariantUnits(variant)}).amount;
+    const units=priceUnitsForSelection(variant.workId||variant.work,variant.selectedTeeth,surgicalVariantUnits(variant),variant.pricingUnit);
+    return Number.isFinite(variant.unitPrice)?Math.round(variant.unitPrice*units*100)/100:estimateWork({work:variant.work,option:variant.workOption,teeth:variant.selectedTeeth,units:surgicalVariantUnits(variant)}).amount;
   }
   function editVariantFromCard(card){
     const service=String(card.querySelector('[data-edit-service]')?.value||'').split('|'),mode=card.querySelector('[data-edit-mode]')?.value||'Одиночка',jaw=card.querySelector('[data-edit-jaw]')?.value||'';let teeth=[...card.querySelectorAll('[data-edit-tooth]:checked')].map(input=>Number(input.value)).filter(Boolean).sort((a,b)=>a-b);if(mode==='Челюсть')teeth=jaw==='upper'?[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28]:jaw==='lower'?[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38]:[];
-    const variant={work:service[0]||'',workOption:service[1]||'',toothMode:mode,selectedTeeth:teeth,bridgeRanges:mode==='Мост'?[teeth]:[]};
+    const original=state.editOrderVariants?.[Number(card.dataset.editVariant)];
+    const variant=mergeOrderVariant(original,{work:service[0]||'',workOption:service[1]||'',toothMode:mode,selectedTeeth:teeth,bridgeRanges:mode==='Мост'?[teeth]:[]});
+    if(original?.sourcePosition!==undefined)variant.sourcePosition=original.sourcePosition;
     if(isSurgicalSocket(variant))variant.units=Math.max(1,Number(card.dataset.units)||1);
     return variant;
   }
@@ -703,18 +707,20 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       return !query||haystack.some(value=>value.includes(query));
     });
     const cards=visibleRequests.map(request=>{
-      const order=orderById(request.orderId),clinic=clients.find(item=>item.id===request.clinicId),changes=Object.entries(request.changes||{});
+      const order=orderById(request.orderId),clinic=clients.find(item=>item.id===request.clinicId),changes=Object.entries(request.changes||{}).filter(([field])=>!['variants','servicesTotal','deliveryFee'].includes(field));
       const details=request.type==='cancel'
         ?`<div class="tech-request-reason"><span>Причина отмены</span><strong>${safe(request.reason||request.summary||'Не указана')}</strong></div>`
         :request.reason&&!changes.length
           ?`<div class="tech-request-reason"><span>Просьба клиента</span><strong>${safe(request.reason)}</strong></div>`
         :`<div class="tech-request-changes">${changes.map(([field,value])=>`<div><span>${safe(requestFieldLabel(field))}</span><del>${safe(Object.prototype.hasOwnProperty.call(request.before||{},field)?requestValue(request.before[field]):currentRequestValue(order,field))}</del><b>→</b><ins>${safe(requestValue(value))}</ins></div>`).join('')||'<p class="tech-empty">Изменения не распознаны</p>'}</div>`;
       const archived=isArchived(request);
+      const needsPosition=!request.changes?.variants&&['work','material','teeth','toothMode'].some(key=>Object.hasOwn(request.changes||{},key))&&(order?.variants?.length||0)>1&&request.variantIndex===undefined;
+      const positionPicker=needsPosition?`<label class="tech-assign">Позиция заказа<select data-client-request-position="${safe(request.id)}"><option value="">Выберите услугу</option>${order.variants.map((v,index)=>`<option value="${index}">${index+1}. ${safe(v.workOption||v.work)}</option>`).join('')}</select></label>`:'';
       const actions=request.status==='pending'
         ?`<div class="tech-request-actions"><button class="btn outline" data-tech-client-request="reject" data-request-id="${safe(request.id)}">Отклонить</button><button class="btn primary" data-tech-client-request="approve" data-request-id="${safe(request.id)}">Одобрить</button></div>`
         :`<div class="tech-request-reviewed">Решение: ${request.decision==='rejected'||request.status==='rejected'?'Отклонено':'Одобрено'} · Create Dental Team · ${shortDate(request.reviewedAt)}</div>`;
       const sender=request.confirmedBy&&request.confirmedBy!==request.requestedBy?`<span>Отправил запрос: <strong>${safe('Create Dental Team')}</strong></span>`:'';
-      return `<article class="tech-request-card ${safe(archived?'archived':request.status)}"><header><div><span class="tech-request-type">${safe(typeLabel[request.type]||'Правка')}</span><h2>${safe(order?.patient||request.orderId)}</h2><p>${safe(clinic?.name||order?.clinic||'Клиника')} · заказ ${safe(request.orderId)}</p></div><span class="tech-request-status ${safe(archived?'archived':request.status)}">${archived?'Архив':safe(statusLabel[request.status]||request.status)}</span></header><div class="tech-request-meta"><span>Запросил: <strong>${safe(request.requestedBy||'Клиент')}</strong></span>${sender}<span>${shortDate(request.createdAt)}</span></div>${details}${actions}</article>`;
+      return `<article class="tech-request-card ${safe(archived?'archived':request.status)}"><header><div><span class="tech-request-type">${safe(typeLabel[request.type]||'Правка')}</span><h2>${safe(order?.patient||request.orderId)}</h2><p>${safe(clinic?.name||order?.clinic||'Клиника')} · заказ ${safe(request.orderId)}</p></div><span class="tech-request-status ${safe(archived?'archived':request.status)}">${archived?'Архив':safe(statusLabel[request.status]||request.status)}</span></header><div class="tech-request-meta"><span>Запросил: <strong>${safe(request.requestedBy||'Клиент')}</strong></span>${sender}<span>${shortDate(request.createdAt)}</span></div>${Number.isInteger(request.variantIndex)?`<p>Позиция ${request.variantIndex+1}: ${safe(order?.variants?.[request.variantIndex]?.workOption||'Услуга заказа')}</p>`:''}${details}${request.status==='pending'?positionPicker:''}${actions}</article>`;
     }).join('');
     const filterMarkup=`<section class="tech-panel tech-request-filter-panel"><div class="tech-order-tools"><div class="tech-segment tech-request-filter-tabs">${requestFilters.map(([key,label])=>`<button class="${state.requestFilter===key?'active':''}" data-tech-request-filter="${key}">${label}</button>`).join('')}</div><div class="tech-order-searchbar"><input id="tech-request-search" aria-label="Поиск правок от клиентов" placeholder="Поиск по заказу, клинике или технику..." value="${safe(state.requestSearch)}">${orderFilterPanel(requestOrders)}</div></div></section>`;
     return `<div class="tech-heading"><div><span class="tech-eyebrow">СОГЛАСОВАНИЕ</span><h1>Правки от клиентов</h1></div><div class="tech-task-count"><strong>${pending}</strong><span>ожидают решения</span></div></div>${filterMarkup}<div class="tech-request-list">${cards||'<section class="tech-panel tech-empty">Запросов в этом разделе пока нет</section>'}</div>`;
@@ -1093,7 +1099,9 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       const action=clientRequestAction.dataset.techClientRequest,id=clientRequestAction.dataset.requestId;
       clientRequestAction.disabled=true;
       try{
-        const response=await fetch(`/api/client-requests/${encodeURIComponent(id)}/${action}`,{method:'POST',headers:{'X-Portal-Token':portalToken()}});
+        const request=clientRequests().find(item=>item.id===id),order=orders.find(item=>item.id===request?.orderId),position=root().querySelector(`[data-client-request-position="${id}"]`);
+        if(action==='approve'&&position&&!position.value)throw new Error('Выберите позицию заказа');
+        const response=await fetch(`/api/client-requests/${encodeURIComponent(id)}/${action}`,{method:'POST',headers:{'X-Portal-Token':portalToken(),'Content-Type':'application/json'},body:JSON.stringify({orderRevision:order?._revision||0,...(position?{variantIndex:Number(position.value)}:{})})});
         const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Не удалось обработать запрос');
         if(data.portal){
           if(Array.isArray(data.portal.orders))orders.splice(0,orders.length,...data.portal.orders);
@@ -1240,8 +1248,8 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
         }catch(error){if(popup)popup.close();toast('Не удалось открыть папку: '+error.message)}
         return;
       }
-      if(action==='edit'){const order=orderById(id),fallback=order?{toothMode:order.toothMode||'Одиночка',bridgeRanges:order.bridgeRanges||[],selectedTeeth:[...(order.teeth||[])],work:order.work,workOption:order.material}:null;state.editOrderId=id;state.editOrderVariants=(order?.variants?.length?order.variants:[fallback]).filter(Boolean).map(variant=>({...variant,selectedTeeth:[...(variant.selectedTeeth||[])],bridgeRanges:(variant.bridgeRanges||[]).map(range=>[...range])}));state.confirmOrderDeleteId=null;render();return}
-      if(action==='add-edit-variant'){if((state.editOrderVariants||[]).length>=10)return toast('В одном заказе можно добавить до 10 услуг');state.editOrderVariants=[...(state.editOrderVariants||[]),{toothMode:'Одиночка',bridgeRanges:[],selectedTeeth:[],work:'',workOption:''}];render();return}
+      if(action==='edit'){const order=orderById(id),fallback=order?{toothMode:order.toothMode||'Одиночка',bridgeRanges:order.bridgeRanges||[],selectedTeeth:[...(order.teeth||[])],work:order.work,workOption:order.material}:null;state.editOrderId=id;state.editOrderVariants=order?orderVariants(order).map((variant,index)=>({...variant,sourcePosition:index})):[];state.confirmOrderDeleteId=null;render();return}
+      if(action==='add-edit-variant'){if((state.editOrderVariants||[]).length>=10)return toast('В одном заказе можно добавить до 10 услуг');state.editOrderVariants=[...(state.editOrderVariants||[]),{sourcePosition:-1,toothMode:'Одиночка',bridgeRanges:[],selectedTeeth:[],work:'',workOption:''}];render();return}
       if(action==='remove-edit-variant'){if((state.editOrderVariants||[]).length<=1)return toast('Оставьте хотя бы одну услугу');const index=Number(orderAction.dataset.index);state.editOrderVariants=state.editOrderVariants.filter((_,position)=>position!==index);render();return}
       if(action==='delete'){state.confirmOrderDeleteId=id;state.editOrderId=null;state.editOrderVariants=null;render();return}
       if(action==='open-upload'){state.orderUpload={orderId:id||state.orderId,uploading:false,files:[]};render();return}
@@ -1469,9 +1477,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(role==='preprod'&&name&&(!current.productionType||current.productionType==='digital'))return toast('Для цифрового заказа назначается CAD оператор');
       if(role==='frame'&&name&&!(current.cadReview?.status==='approved'||['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(current.stage)))return toast('Сначала завершите CAD и его согласование');
       if(role==='painter'&&name&&!(current.stage==='Изготовление'&&current.manufacturingStatus===manufacturingStatuses[1]||['Контроль качества','Работа принята','В доставке','Принято доктором'].includes(current.stage)))return toast('Сначала завершите работу CAM оператора и его ОТК');
-      const reassignedFrame=role==='frame'&&name!==current.frameTechnicianKey;
-      const frameReset=reassignedFrame?{frameTechnicianStatus:'',technicianStatus:'',qualityRequest:null,workerAcceptances:Object.fromEntries(Object.entries(current.workerAcceptances||{}).filter(([,item])=>item?.role!=='frame'))}:{};
-      const change=role==='cad'?{cadOperator:name,assignee:current.frameTechnicianKey||current.painterKey||name||''}:role==='preprod'?{preprodTechnician:name,assignee:name||current.cadOperatorKey||''}:role==='frame'?{...frameReset,frameTechnician:name,technician:name,assignee:name||current.painterKey||current.cadOperatorKey||''}:{painter:name,ceramicist:name,assignee:current.frameTechnicianKey||name||current.cadOperatorKey||''};
+      const change=role==='cad'?{cadOperator:name,assignee:current.frameTechnicianKey||current.painterKey||name||''}:role==='preprod'?{preprodTechnician:name,assignee:name||current.cadOperatorKey||''}:role==='frame'?{frameTechnician:name,technician:name,assignee:name||current.painterKey||current.cadOperatorKey||''}:{painter:name,ceramicist:name,assignee:current.frameTechnicianKey||name||current.cadOperatorKey||''};
       saveOrder(id,change);
     }
   });
@@ -1481,11 +1487,16 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     event.preventDefault();
     const form=event.target,date=form.elements.namedItem('date').value.trim(),valid=new Set([11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,31,32,33,34,35,36,37,38,41,42,43,44,45,46,47,48]),upper=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28],lower=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
     if(!/^\d{2}\.\d{2}\.\d{4}$/.test(date))return toast('Укажите срок в формате дд.мм.гггг');
-    const variants=[...form.querySelectorAll('[data-edit-variant]')].map(card=>{const service=String(card.querySelector('[data-edit-service]')?.value||'').split('|'),mode=card.querySelector('[data-edit-mode]')?.value||'Одиночка',jaw=card.querySelector('[data-edit-jaw]')?.value||'';let teeth=[...card.querySelectorAll('[data-edit-tooth]:checked')].map(input=>Number(input.value)).filter(tooth=>valid.has(tooth));if(mode==='Челюсть')teeth=jaw==='upper'?[...upper]:jaw==='lower'?[...lower]:[];teeth=[...new Set(teeth)].sort((a,b)=>a-b);const variant={work:service[0]||'',workOption:service[1]||'',toothMode:mode,bridgeRanges:mode==='Мост'?[teeth]:[],selectedTeeth:teeth};if(isSurgicalSocket(variant))variant.units=Math.max(1,Number(card.dataset.units)||1);return variant});
+    const variants=[...form.querySelectorAll('[data-edit-variant]')].map(editVariantFromCard);
     if(variants.some(variant=>!variant.work||!variant.workOption))return toast('Выберите услугу для каждой позиции');
     if(variants.some(variant=>!variant.selectedTeeth.length))return toast('Выберите зубы для каждой услуги');
-    const amounts=variants.map(editVariantPrice),total=amounts.every(Number.isFinite)?amounts.reduce((sum,amount)=>sum+amount,0):null,teeth=[...new Set(variants.flatMap(variant=>variant.selectedTeeth))].sort((a,b)=>a-b),quantity=variants.reduce((sum,variant)=>sum+(surgicalVariantUnits(variant)??Math.max(1,variant.selectedTeeth.length)),0),first=variants[0],shade=form.elements.namedItem('shade').value.trim();
-    await saveOrderRecord(state.editOrderId,{patient:form.elements.namedItem('patient').value.trim(),birth:form.elements.namedItem('birth').value,toothMode:variants.length>1?'Несколько услуг':first.toothMode,bridgeRanges:variants.flatMap(variant=>variant.bridgeRanges||[]),work:variants.length>1?`Несколько услуг (${variants.length})`:first.work,material:variants.length>1?variants.map(variant=>variant.workOption).join(' · '):first.workOption,date,sum:total===null?form.elements.namedItem('sum')?.value.trim()||'Стоимость уточняется':rubles(total),quantity,teeth,shade,comment:form.elements.namedItem('comment').value.trim(),variants});
+    const existing=orders.find(order=>order.id===state.editOrderId);
+    try{
+      const promo=promoCodes().find(item=>item.active!==false&&item.code===existing?.promoCode);
+      const revised=reviseOrderVariants(existing,variants,{deliverySettings:deliverySettings(),promoPrices:promo?.prices||{}});
+      const saved=await saveOrderRecord(state.editOrderId,{patient:form.elements.namedItem('patient').value.trim(),birth:form.elements.namedItem('birth').value,date,shade:form.elements.namedItem('shade').value.trim(),comment:form.elements.namedItem('comment').value.trim(),...revised});
+      if(!saved)return;
+    }catch(error){return toast(error.message)}
     state.editOrderId=null;state.editOrderVariants=null;
   });
   document.addEventListener('submit',async event=>{

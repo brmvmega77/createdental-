@@ -122,6 +122,7 @@ assert.equal((await get()).orderOverrides.HAPPY.stage,'Принято докто
 ok(await updateOwn('preprod','ANALOG',{stage:'Препрод',preprodTechnicianStatus:'В работе',technicianStatus:'В работе'}));
 ok(await updateOwn('preprod','ANALOG',{stage:'Контроль качества',preprodTechnicianStatus:'ОТК',technicianStatus:'ОТК',qualityRequest:{kind:'preprod',employeeId:'preprod',requestedAt:new Date().toISOString()}}));ok(await approveQuality('preprod','ANALOG'));
 all=await get();all.orderOverrides.ANALOG.cadOperator=names.cad;ok(await api('/api/portal/orderOverrides','chief',all.orderOverrides));
+ok(await updateOwn('cad','ANALOG',{stage:'Моделирование',cadOperatorStatus:'В работе',technicianStatus:'В работе'}));
 ok(await api('/api/orders/ANALOG/cad-review','cad',{action:'submit',fileId:'abcdef1234567890abcdef12'},'POST'));ok(await approveQuality('cad','ANALOG'));ok(await api('/api/orders/ANALOG/cad-review','a',{action:'approve'},'POST'));
 assert.equal((await get()).orderOverrides.ANALOG.stage,'Изготовление');
 all=await get();ok(await api('/api/portal/employees','chief',all.employees.map(e=>e.id==='preprod'?{...e,status:'fired'}:e)));all=await get();assert.equal(all.orderOverrides.ANALOG.preprodTechnician,'');assert.equal(all.orderOverrides.ANALOG.cadOperator,names.cad);assert.equal(all.orderOverrides.ANALOG.stage,'Изготовление');

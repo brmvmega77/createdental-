@@ -1,3 +1,4 @@
+import {hasServiceChanges,reviseOrderServices} from './order-revision.js';
 import {cadDecisionChange} from './flow-rules.js';
 import {availableClinicDoctors} from './clinic-doctors.js';
 import fs from 'node:fs';
@@ -8,7 +9,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createRequire} from 'node:module';
 import {portalSnapshot,portalClient,replacePortalCollection,recordPortalEvent} from './portal-data.js';
-import {catalogForPrompt,resolveWorkSelection,estimateWork,rubles,earliestDueDateForOrder,productionDaysForOrder,isWorkingDay,isoDateLocal} from './work-catalog.js';
+import {catalogForPrompt,resolveWorkSelection,estimateWork,orderDeadlineError,rubles,earliestDueDateForOrder,productionDaysForOrder,isWorkingDay,isoDateLocal} from './work-catalog.js';
 import {orderWorkLabel} from './order-list-utils.js';
 
 const require=createRequire(import.meta.url);
@@ -23,7 +24,7 @@ const validTeeth=new Set([...upperTeeth,...lowerTeeth]);
 // the upper jaw, while the two prosthetic base options do not require tooth input.
 const jawSplitCategories=new Set(['Каппы','Ложки прикуса','Сплинты','Хирургические шаблоны']);
 const prostheticNoTeethOptions=new Set(['Титановое основание Geo Medi','Титановое основание Аналог']);
-function isJawSplitSelection(work,option){return jawSplitCategories.has(String(work||''))&&Boolean(option)}
+function isJawSplitSelection(work,option){const selection=resolveWorkSelection(work,option);return selection.category?.pricingUnit==='jaw'&&Boolean(selection.option)}
 function isNoTeethSelection(work,option){return String(work||'')==='Протетика'&&prostheticNoTeethOptions.has(String(option||''))}
 const allowedIntents=new Set(['create_order','update_order','cancel_order','status_request','accept_order','rework_order','general_message','clarify']);
 const botCommands=[
@@ -932,7 +933,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
   }
   function rememberGuidedAction(chatId,userId,clinicId,orderId,mode,extra={}){
     const key=contextKey(chatId,userId),previous=state.guided[key];
-    state.guided[key]={clinicId,orderId,mode,...extra,attachments:extra.attachments??previous?.attachments??[],doctorChoices:extra.doctorChoices??previous?.doctorChoices??[],doctorPage:extra.doctorPage??previous?.doctorPage??0,draftUploadKey:Object.prototype.hasOwnProperty.call(extra,'draftUploadKey')?extra.draftUploadKey:(previous?.draftUploadKey||''),draftUploadHref:Object.prototype.hasOwnProperty.call(extra,'draftUploadHref')?extra.draftUploadHref:(previous?.draftUploadHref||''),expiresAt:Date.now()+30*60*1000};
+    state.guided[key]={clinicId,orderId,mode,...(mode==='edit'&&previous?.mode==='edit'&&previous.orderId===orderId?{variantIndex:previous.variantIndex,baseOrderRevision:previous.baseOrderRevision}:{}),...extra,attachments:extra.attachments??previous?.attachments??[],doctorChoices:extra.doctorChoices??previous?.doctorChoices??[],doctorPage:extra.doctorPage??previous?.doctorPage??0,draftUploadKey:Object.prototype.hasOwnProperty.call(extra,'draftUploadKey')?extra.draftUploadKey:(previous?.draftUploadKey||''),draftUploadHref:Object.prototype.hasOwnProperty.call(extra,'draftUploadHref')?extra.draftUploadHref:(previous?.draftUploadHref||''),expiresAt:Date.now()+30*60*1000};
   }
   function currentGuidedAction(chatId,userId,clinicId){
     const key=contextKey(chatId,userId),item=state.guided[key];
@@ -1151,7 +1152,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     if(analysis.intent==='accept_order'&&orderStage(snapshot,order)!=='В доставке')return send(message.chat.id,`Сейчас заказ ${order.id} находится на этапе «${orderStage(snapshot,order)}». Принять работу можно после перевода в доставку.`);
     if(analysis.intent==='rework_order'&&orderStage(snapshot,order)!=='В доставке')return send(message.chat.id,`Сейчас заказ ${order.id} находится на этапе «${orderStage(snapshot,order)}». Запрос доработки доступен после доставки.`);
     const id=randomBytes(10).toString('hex');
-    state.pending[id]={id,chatId:String(message.chat.id),clinicId:clinic.id,userId:String(message.from?.id||''),actor:actorName(message),analysis,orderId:order?.id||'',targetOrderId:analysis.intent==='create_order'?orderId():'',attachments:incomingAttachments,draftUploadKey,createdAt:new Date().toISOString(),expiresAt:Date.now()+24*60*60*1000};
+    state.pending[id]={id,chatId:String(message.chat.id),clinicId:clinic.id,userId:String(message.from?.id||''),actor:actorName(message),analysis,orderId:order?.id||'',...(order?{baseOrderRevision:order._revision||0}:{}),targetOrderId:analysis.intent==='create_order'?orderId():'',attachments:incomingAttachments,draftUploadKey,createdAt:new Date().toISOString(),expiresAt:Date.now()+24*60*60*1000};
     state.messageActions[sourceKey]={id,at:new Date().toISOString()};
     for(const [key,item] of Object.entries(state.pending))if(item.expiresAt<Date.now())delete state.pending[key];
     for(const [key,item] of Object.entries(state.messageActions))if(Date.parse(item?.at||0)<Date.now()-30*24*60*60*1000)delete state.messageActions[key];
@@ -1159,6 +1160,14 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
     return sendConfirmation(state.pending[id],order,clinic);
   }
 
+  async function promptEditPosition(error,item){
+    if(error.code!=='variant_required')return false;
+    const order=portalSnapshot().orders.find(order=>order.id===item.orderId&&order.clinicId===item.clinicId);
+    if(!order?.variants?.length)return false;
+    item.baseOrderRevision=order._revision||0;state.pending[item.id]=item;await saveState();
+    await send(item.chatId,'К какой позиции заказа применить эту правку?',{reply_markup:{inline_keyboard:order.variants.map((variant,index)=>[{text:`${index+1}. ${variant.workOption||variant.work}`,callback_data:`tgvariant:${item.id}:${index}`}])}});
+    return true;
+  }
   async function executePending(item,callback){
     const snapshot=portalSnapshot(),clinic=portalClient(item.clinicId),analysis=item.analysis;
     if(!clinic)throw new Error('Клиника больше не найдена');
@@ -1171,6 +1180,9 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       return attached===files.length?` Прикреплено файлов: ${attached}.`:` Прикреплено файлов: ${attached} из ${files.length}.`;
     };
     const enqueueClientRequest=async(order,changes={},reason='')=>{
+      if(item.baseOrderRevision!==undefined&&item.baseOrderRevision!==(order._revision||0))throw new Error('Заказ изменился. Откройте его заново и повторите правку.');
+      if(hasServiceChanges(changes)){const promo=snapshot.promoCodes?.find(rule=>rule.active!==false&&rule.code===order.promoCode);changes={...changes,...reviseOrderServices(order,changes,{variantIndex:item.variantIndex,deliverySettings:snapshot.deliverySettings,promoPrices:promo?.prices||{}})};}
+      if(changes.date){const issue=orderDeadlineError({...order,...changes},changes.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)throw new Error(issue);}
       const current=portalSnapshot();
       const existing=current.clientRequests.find(request=>request.telegramActionId===item.id);
       if(existing)return existing;
@@ -1178,6 +1190,8 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       const request={
         id:`cr-${randomBytes(10).toString('hex')}`,
         orderId:order.id,
+        baseOrderRevision:order._revision||0,
+        ...(item.variantIndex!==undefined?{variantIndex:item.variantIndex}:{}),
         clinicId:clinic.id,
         type,
         status:'pending',
@@ -1250,10 +1264,6 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       if(changes.date){
         const deadlineError=telegramDeadlineError(order,analysis.fields.dueDate,new Date());
         if(deadlineError)throw new Error(deadlineError);
-      }
-      if(['work','material','teeth','toothMode'].some(key=>Object.prototype.hasOwnProperty.call(changes,key))){
-        const estimate=priceEstimate(analysis,order);
-        if(estimate.amount!==null){changes.quantity=estimate.units;changes.sum=estimate.text}
       }
       const request=await enqueueClientRequest(order,changes);
       const attachmentResult=await attach(order.id);
@@ -1540,29 +1550,37 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         return answerCallback(callback.id,'Не удалось сохранить решение');
       }
     }
-    if(action==='tgoldedit'&&id&&value){
+    if(['tgoldedit','tgoldvariant'].includes(action)&&id&&value){
       const clinic=boundClinicForMessage(callback.message||{});if(!clinic)return answerCallback(callback.id,'Чат не подключён');
-      const order=activeOrdersForClinic(portalSnapshot(),clinic.id).find(item=>item.id===value);if(!order)return answerCallback(callback.id,'Заказ не найден');
+      const [requestedOrder,rawPosition]=String(value).split('|');
+      const order=activeOrdersForClinic(portalSnapshot(),clinic.id).find(item=>item.id===requestedOrder);if(!order)return answerCallback(callback.id,'Заказ не найден');
+      const variantIndex=action==='tgoldvariant'?Number(rawPosition):undefined;
+      if(['mode','teeth','service'].includes(id)&&(order.variants?.length||0)>1&&variantIndex===undefined){
+        await answerCallback(callback.id,'Выберите услугу');
+        return send(callback.message.chat.id,'Какую позицию заказа нужно изменить?',{reply_markup:{inline_keyboard:order.variants.map((variant,index)=>[{text:`${index+1}. ${variant.workOption||variant.work}`,callback_data:`tgoldvariant:${id}:${order.id}|${index}`}])}});
+      }
+      if(variantIndex!==undefined&&(!Number.isInteger(variantIndex)||!order.variants?.[variantIndex]))return answerCallback(callback.id,'Позиция не найдена');
+      const positionState={variantIndex,baseOrderRevision:order._revision||0},target=order.variants?.[variantIndex]||{selectedTeeth:order.teeth};
       const prompts={patient:'Напишите новое ФИО пациента.',birth:'Напишите новую дату рождения пациента.',due:'Напишите новый срок с днём и месяцем.',comment:'Напишите комментарий к заказу.'};
       if(id==='mode'){
-        rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,order.id,'edit',{field:'mode',editTeeth:[]});await saveState();await answerCallback(callback.id,'Выберите режим');
+        rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,order.id,'edit',{...positionState,field:'mode',editTeeth:[]});await saveState();await answerCallback(callback.id,'Выберите режим');
         return send(callback.message.chat.id,'Выберите новый режим работы:',{reply_markup:editModeMarkup(order.id)});
       }
       if(id==='teeth'){
-        const selected=safeTeeth(order.teeth||order.variants?.flatMap(item=>item.selectedTeeth||[])||[]);
-        rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,order.id,'edit',{field:'teeth',editTeeth:selected});await saveState();await answerCallback(callback.id,'Выберите зубы');
+        const selected=safeTeeth(target.selectedTeeth||[]);
+        rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,order.id,'edit',{...positionState,field:'teeth',editMode:target.toothMode==='Мост'?'bridge':'',editTeeth:selected});await saveState();await answerCallback(callback.id,'Выберите зубы');
         return send(callback.message.chat.id,`Выберите зубы. Уже выбраны: ${selected.length?selected.join(', '):'нет'}.`,{reply_markup:editTeethMarkup(order.id,selected)});
       }
       if(id==='service'){
-        rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,order.id,'edit',{field:'service',editServiceCategory:''});await saveState();await answerCallback(callback.id,'Выберите раздел');
+        rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,order.id,'edit',{...positionState,field:'service',editServiceCategory:''});await saveState();await answerCallback(callback.id,'Выберите раздел');
         return send(callback.message.chat.id,'Выберите раздел новой услуги:',{reply_markup:editServiceCategoryMarkup(order.id)});
       }
       if(id==='shade'){
-        rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,order.id,'edit',{field:'shade'});await saveState();await answerCallback(callback.id,'Выберите цвет');
+        rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,order.id,'edit',{...positionState,field:'shade'});await saveState();await answerCallback(callback.id,'Выберите цвет');
         return send(callback.message.chat.id,'Выберите новый цвет:',{reply_markup:editShadeMarkup(order.id)});
       }
       if(!prompts[id])return answerCallback(callback.id,'Пункт не найден');
-      rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,order.id,'edit',{field:id});await saveState();await answerCallback(callback.id,'Жду новое значение');
+      rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,order.id,'edit',{...positionState,field:id});await saveState();await answerCallback(callback.id,'Жду новое значение');
       return send(callback.message.chat.id,prompts[id],{reply_markup:{inline_keyboard:editChoiceBack(order.id)}});
     }
     if(action==='tgoldchoice'&&id&&value){
@@ -1574,7 +1592,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       const editState={...guided};
       const applyEdit=async(fields,summary)=>{
         const actionId=randomBytes(10).toString('hex');
-        const item={id:actionId,chatId:String(message.chat.id),clinicId:clinic.id,userId:String(callback.from?.id||''),actor:actorName({from:callback.from}),analysis:normalizeAnalysis({intent:'update_order',orderId:order.id,fields,summary}),orderId:order.id,attachments:[],createdAt:new Date().toISOString(),expiresAt:Date.now()+24*60*60*1000};
+        const item={id:actionId,chatId:String(message.chat.id),clinicId:clinic.id,userId:String(callback.from?.id||''),actor:actorName({from:callback.from}),analysis:normalizeAnalysis({intent:'update_order',orderId:order.id,fields,summary}),orderId:order.id,variantIndex:guided.variantIndex,baseOrderRevision:guided.baseOrderRevision,attachments:[],createdAt:new Date().toISOString(),expiresAt:Date.now()+24*60*60*1000};
         delete state.guided[contextKey(message.chat.id,callback.from?.id)];
         try{
           const result=await executePending(item,{from:callback.from});
@@ -1582,6 +1600,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
           await answerCallback(callback.id,'Изменение отправлено');
           return send(message.chat.id,`${result}\nЗапросил изменение: ${actorName({from:callback.from})}`);
         }catch(error){
+          if(await promptEditPosition(error,item))return;
           await saveState().catch(()=>{});await answerCallback(callback.id,'Не удалось сохранить изменение');
           return send(message.chat.id,`Не удалось изменить заказ: ${cleanText(error.message,500)}`);
         }
@@ -1633,12 +1652,18 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       }
       return answerCallback(callback.id,'Неизвестный выбор');
     }
-    if(!['tgconfirm','tgreject','tgedit','tgeditfield','tgeditservice','tgeditvariantdue','tgaddservice','tgcartadd','tgcartconfirm','tgpick','tgreselect','tgextra','tgextraback','tgdoctorchange'].includes(action)||!id)return;
+    if(!['tgvariant','tgconfirm','tgreject','tgedit','tgeditfield','tgeditservice','tgeditvariantdue','tgaddservice','tgcartadd','tgcartconfirm','tgpick','tgreselect','tgextra','tgextraback','tgdoctorchange'].includes(action)||!id)return;
     const item=state.pending[id];
     if(!item&&state.completed[id])return answerCallback(callback.id,'Это действие уже выполнено');
     if(!item||item.expiresAt<Date.now()){if(item){delete state.pending[id];await saveState()}return answerCallback(callback.id,'Подтверждение устарело');}
     if(String(callback.message?.chat?.id)!==item.chatId)return answerCallback(callback.id,'Это подтверждение относится к другому чату');
     if(!canConfirm(item,callback))return answerCallback(callback.id,'Подтвердить может автор запроса или команда Create Dental');
+    if(action==='tgvariant'){
+      const order=portalSnapshot().orders.find(order=>order.id===item.orderId&&order.clinicId===item.clinicId),position=Number(value);
+      if(!order||!Number.isInteger(position)||!order.variants?.[position])return answerCallback(callback.id,'Позиция не найдена');
+      if(item.baseOrderRevision!==(order._revision||0))return answerCallback(callback.id,'Заказ изменился. Создайте правку заново.');
+      item.variantIndex=position;await saveState();
+    }
     if(action==='tgdoctorchange'){
       if(item.analysis.intent!=='create_order')return answerCallback(callback.id,'Врач указывается только при создании заказа');
       const analysis=normalizeAnalysis(item.analysis),picker=doctorPrompt(portalClient(item.clinicId),analysis.fields.doctorId,0);
@@ -1778,6 +1803,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       }
       await send(item.chatId,`${result}${uploadHint}\n${['update_order','cancel_order'].includes(item.analysis.intent)?'Запрос отправил':'Подтвердил'}: ${actorName({from:callback.from})}`,uploadMarkup);
     }catch(error){
+      if(await promptEditPosition(error,item))return;
       const reason=cleanText(error.message,700);
       if(item.analysis.intent==='create_order'&&/действующего врача|Выберите врача/i.test(reason)){
         const analysis=normalizeAnalysis(item.analysis),picker=doctorPrompt(portalClient(item.clinicId),analysis.fields.doctorId,0);
@@ -1911,13 +1937,13 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         else if(field==='due'){
           const dueDate=parseTelegramDate(sourceText);
           if(!dueDate){
-            rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,guided.orderId,'edit',{field});await saveState();
+            rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,guided.orderId,'edit',{field,variantIndex:guided.variantIndex,baseOrderRevision:guided.baseOrderRevision});await saveState();
             return send(message.chat.id,'Не удалось распознать дату. Укажите день и месяц, например: «22 октября» или «22.10.2026».',{reply_markup:guidedNavigationMarkup()});
           }
           const order=activeOrdersForClinic(portalSnapshot(),clinic.id).find(item=>item.id===guided.orderId);
           const deadlineError=order?telegramDeadlineError(order,dueDate,new Date()):'';
           if(deadlineError){
-            rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,guided.orderId,'edit',{field});await saveState();
+            rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,guided.orderId,'edit',{field,variantIndex:guided.variantIndex,baseOrderRevision:guided.baseOrderRevision});await saveState();
             return send(message.chat.id,`${deadlineError}\n\nУкажите другую дату, начиная с минимально допустимой.`,{reply_markup:guidedNavigationMarkup()});
           }
           parsed.fields.dueDate=dueDate;
@@ -1935,7 +1961,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         if(field==='shade'&&source.shade)fields.shade=source.shade;
         if(field==='due'&&source.dueDate)fields.dueDate=source.dueDate;
         if(field==='comment'&&source.comment)fields.comment=source.comment;
-        if(!Object.keys(fields).length){rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,guided.orderId,'edit',{field});await saveState();return send(message.chat.id,'Не удалось распознать новое значение. Напишите его ещё раз одним сообщением.')}
+        if(!Object.keys(fields).length){rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,guided.orderId,'edit',{field,variantIndex:guided.variantIndex,baseOrderRevision:guided.baseOrderRevision});await saveState();return send(message.chat.id,'Не удалось распознать новое значение. Напишите его ещё раз одним сообщением.')}
         guidedAnalysis=normalizeAnalysis({intent:'update_order',orderId:guided.orderId,fields,summary:`Изменение поля заказа ${guided.orderId}`});doneByLabel='Запросил изменение';
       }else if(guided.mode==='cancel'){
         const reason=cleanText(sourceText,1800);
@@ -2059,13 +2085,14 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
         }else if(guided.mode==='new')sourceText=`Создай новый заказ. ${sourceText}`;
       }else{
         const id=randomBytes(10).toString('hex');
-        const item={id,chatId:String(message.chat.id),clinicId:clinic.id,userId:String(message.from?.id||''),actor:actorName(message),analysis:guidedAnalysis,orderId:guided.orderId,attachments:[],createdAt:new Date().toISOString(),expiresAt:Date.now()+24*60*60*1000};
+        const item={id,chatId:String(message.chat.id),clinicId:clinic.id,userId:String(message.from?.id||''),actor:actorName(message),analysis:guidedAnalysis,orderId:guided.orderId,variantIndex:guided.variantIndex,baseOrderRevision:guided.baseOrderRevision,attachments:[],createdAt:new Date().toISOString(),expiresAt:Date.now()+24*60*60*1000};
         try{
           const result=await executePending(item,{from:message.from});
           state.completed[id]={at:new Date().toISOString(),result};
           await saveState();
           return send(message.chat.id,`${result}\n${doneByLabel}: ${actorName(message)}`);
         }catch(error){
+          if(await promptEditPosition(error,item))return;
           if((guided.mode==='edit'&&guided.field==='due')||guided.mode==='due'){
             rememberGuidedAction(message.chat.id,message.from?.id,clinic.id,guided.orderId,guided.mode,{field:guided.field});await saveState().catch(()=>{});
             return send(message.chat.id,`Не удалось изменить срок: ${cleanText(error.message,500)}\n\nУкажите другую дату или нажмите «Назад».`,{reply_markup:guidedNavigationMarkup()});

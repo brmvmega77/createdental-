@@ -1,6 +1,6 @@
 import {samePortalValue} from './collection-concurrency.js';
-import {reviseOrderServices} from './order-revision.js';
-import {cadDecisionChange,workerTransitionAllowed} from './flow-rules.js';
+import {clientRequestConflict,reviseOrderVariants,reviseOrderServices} from './order-revision.js';
+import {assignmentChange,cadDecisionChange,workerTransitionAllowed} from './flow-rules.js';
 import {handlePayroll} from './payroll-api.js';
 import {handleOwner} from './owner-api.js';
 import {camCanAccept,camCanSubmitQuality,camAfterMilling} from './cam-workflow.js';
@@ -17,7 +17,7 @@ import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,up
 import {createTelegramBridge} from './telegram-bot.js';
 import {createEmployeeTelegramBridge} from './employee-telegram-bot.js';
 import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource} from './yandex-disk-storage.js';
-import {workCatalog,rubles,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork} from './work-catalog.js';
+import {workCatalog,rubles,orderDeadlineError,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork} from './work-catalog.js';
 import {orderWorkLabel} from './order-list-utils.js';
 
 const root = process.cwd();
@@ -126,20 +126,8 @@ const cadHtmlCache=new Map();
 const cadHtmlInflight=new Map();
 let cadHtmlCacheBytes=0;
 const cadHtmlCacheLimit=24*1024*1024;
-function orderDateAsLocal(value){
-  const match=String(value||'').match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-  if(!match)return null;
-  const date=new Date(Number(match[3]),Number(match[2])-1,Number(match[1]));
-  return date.getFullYear()===Number(match[3])&&date.getMonth()===Number(match[2])-1&&date.getDate()===Number(match[1])?date:null;
-}
-function orderDeadlineValidation(order){
-  const due=orderDateAsLocal(order?.date);
-  if(!due||!isWorkingDay(due))return 'Срок заказа должен приходиться на рабочий день';
-  const acceptedAt=order?.acceptedAt||order?.createdAt||new Date();
-  const minimum=earliestDueDateForOrder(order,acceptedAt);
-  if(minimum&&isoDateLocal(due)<isoDateLocal(minimum))return `Минимальный срок для выбранных услуг — ${isoDateLocal(minimum).split('-').reverse().join('.')}`;
-  return '';
-}
+function orderDeadlineValidation(order){return orderDeadlineError(order)}
+
 function rememberCadHtml(id,html){
   const size=Buffer.byteLength(html,'utf8');
   if(size>cadHtmlCacheLimit)return;
@@ -507,6 +495,7 @@ async function handlePortal(req,res,url){
         return orderDeadlineValidation({...order,acceptedAt:new Date()});
       }).find(Boolean);
       if(acceptanceDeadlineViolation)return json(res,409,{error:acceptanceDeadlineViolation});
+      if([...ids].some(id=>snapshot.orderOverrides[id]?.stage==='Контроль качества'&&!snapshot.orderOverrides[id].qualityRequest?.kind&&value[id]&&(value[id].stage!=='Контроль качества'||value[id].qualityRequest?.kind)))return json(res,409,{error:'Этап ОТК не определён. Верните заказ на конкретный этап доработки.'});
       const cadQualityBypass=[...ids].find(id=>{
         const old=snapshot.orderOverrides[id]||{},next=value[id];
         if(old.stage!=='Контроль качества'||old.qualityRequest?.kind!=='cad'||!next||next.stage===old.stage)return false;
@@ -529,11 +518,9 @@ async function handlePortal(req,res,url){
         }
       }
       const normalizedOverrides={...value};
-      for(const id of ids){
-        const old=snapshot.orderOverrides[id]||{},next=value[id];
-        if(!next||next.frameTechnician===old.frameTechnician)continue;
-        normalizedOverrides[id]={...next,frameTechnicianStatus:'',technicianStatus:'',qualityRequest:next.qualityRequest?.kind==='cam'?null:next.qualityRequest,workerAcceptances:Object.fromEntries(Object.entries(next.workerAcceptances||{}).filter(([,item])=>item?.role!=='frame'))};
-      }
+      try{for(const id of ids){if(value[id])normalizedOverrides[id]=assignmentChange(snapshot.orderOverrides[id]||{},value[id]);}}
+      catch(error){return json(res,409,{error:error.message==='assignment_under_review'?'Сначала примите работу на ОТК или верните её на доработку, затем переназначьте исполнителя.':error.message})}
+
       value=normalizedOverrides;
     }
     if(user.role==='technician'&&key==='clients'&&Array.isArray(value)){
@@ -543,6 +530,15 @@ async function handlePortal(req,res,url){
         const previous=snapshot.clients.find(item=>item.id===client?.id);
         return client&&previous?.logo&& !Object.prototype.hasOwnProperty.call(client,'logo')?{...client,logo:previous.logo}:client;
       });
+    }
+    if(user.role==='technician'&&key==='orders'&&Array.isArray(value)){
+      try{value=value.map(order=>{
+        const before=snapshot.orders.find(item=>item.id===order.id);if(!before)return order;
+        const promo=snapshot.promoCodes?.find(item=>item.active!==false&&item.code===before.promoCode);
+        const updated=order.variants?{...order,...reviseOrderVariants(before,order.variants,{deliverySettings:snapshot.deliverySettings,promoPrices:promo?.prices||{}})}:order;
+        if(updated.date!==before.date){const issue=orderDeadlineError(updated,updated.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)throw new Error(issue);}
+        return updated;
+      });}catch(error){return json(res,400,{error:error.message})}
     }
     const newOrders=key==='orders'&&Array.isArray(value)?value.filter(order=>!snapshot.orders.some(existing=>existing.id===order.id)):[];
     try {
@@ -603,7 +599,7 @@ const permanentTeethSet=new Set(permanentTeeth);
 const upperJaw=permanentTeeth.filter(tooth=>tooth<30);
 const lowerJaw=permanentTeeth.filter(tooth=>tooth>30);
 function cleanRequestText(value,maximum=2000){return String(value??'').replace(/[<>]/g,'').trim().slice(0,maximum)}
-function requestPrice(work,material,teeth){const estimate=estimateWork({work,option:material,teeth});return estimate.amount===null?null:rubles(estimate.amount)}
+
 
 async function handleClientRequestCreate(req,res,url){
   const user=session(req);
@@ -637,14 +633,14 @@ async function handleClientRequestCreate(req,res,url){
     }else if(field==='teeth'){
       const teeth=[...new Set(String(value||'').split(/[^0-9]+/).filter(Boolean).map(Number))].filter(tooth=>permanentTeethSet.has(tooth));
       if(!teeth.length)return json(res,400,{error:'Укажите номера зубов через запятую'});
-      changes={teeth,quantity:teeth.length};const priced=requestPrice(order.work,order.material,teeth);if(priced)changes.sum=priced;summary=`Зубы: ${teeth.join(', ')}`;
+      changes={teeth};summary=`Зубы: ${teeth.join(', ')}`;
     }else if(field==='mode'){
       const mode=cleanRequestText(value,30);
       if(!['single','bridge','upper','lower'].includes(mode))return json(res,400,{error:'Выберите режим'});
       if(mode==='upper'||mode==='lower'){
         const teeth=mode==='upper'?upperJaw:lowerJaw;
-        changes={toothMode:'Челюсть',teeth,quantity:teeth.length,bridgeRanges:[]};const priced=requestPrice(order.work,order.material,teeth);if(priced)changes.sum=priced;summary=`Режим: ${mode==='upper'?'верхняя челюсть':'нижняя челюсть'}`;
-      }else{changes={toothMode:mode==='bridge'?'Мост':'Одиночка',bridgeRanges:mode==='bridge'?[order.teeth||[]]:[]};summary=`Режим: ${changes.toothMode}`}
+        changes={toothMode:'Челюсть',teeth,bridgeRanges:[]};summary=`Режим: ${mode==='upper'?'верхняя челюсть':'нижняя челюсть'}`;
+      }else{changes={toothMode:mode==='bridge'?'Мост':'Одиночка'};summary=`Режим: ${changes.toothMode}`}
     }else if(field==='service'){
       const [work,material]=String(value||'').split('|||').map(item=>cleanRequestText(item,200));
       const category=workCatalog.find(item=>item.name===work),option=category?.options.find(item=>item.name===material);
@@ -664,9 +660,10 @@ async function handleClientRequestCreate(req,res,url){
     const promoRule=snapshot.promoCodes?.find(item=>item.active!==false&&item.code===order.promoCode);
     try{changes=reviseOrderServices(order,changes,{variantIndex:body.variantIndex,deliverySettings:snapshot.deliverySettings,promoPrices:promoRule?.prices||{}})}catch(error){return json(res,400,{error:error.message})}
   }
+  if(changes.date){const issue=orderDeadlineError({...order,...changes},changes.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)return json(res,400,{error:issue});}
   if(snapshot.clientRequests.some(item=>item.orderId===order.id&&item.type===requestType&&item.status==='pending'))return json(res,409,{error:requestType==='cancel'?'Запрос на отмену уже ожидает решения':requestType==='deadline'?'Запрос на изменение срока уже ожидает решения':'По заказу уже есть правка, ожидающая решения'});
   const before=Object.fromEntries(Object.keys(changes).map(key=>[key,order[key]??'']));
-  const request={id:`cr-${randomBytes(10).toString('hex')}`,baseOrderRevision:order._revision||0,orderId:order.id,clinicId:order.clinicId,type:requestType,status:'pending',requestedBy,confirmedBy:requestedBy,summary,reason,changes,before,createdAt,source:'portal'};
+  const request={id:`cr-${randomBytes(10).toString('hex')}`,baseOrderRevision:order._revision||0,...(body.variantIndex!==undefined?{variantIndex:Number(body.variantIndex)}:{}),orderId:order.id,clinicId:order.clinicId,type:requestType,status:'pending',requestedBy,confirmedBy:requestedBy,summary,reason,changes,before,createdAt,source:'portal'};
   try{
     await replacePortalCollection('clientRequests',[request,...snapshot.clientRequests],{role:'clinic',name:requestedBy});
     await recordPortalEvent(order.id,{role:'clinic',name:requestedBy},'client_change_requested',{clinicId:order.clinicId,summary:`Запрошено ${clientRequestLabel(requestType)}`,clientRequestId:request.id}).catch(()=>{});
@@ -681,13 +678,14 @@ async function handleClientRequestDecision(req,res,url){
   if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
   const match=url.pathname.match(/^\/api\/client-requests\/([A-Za-z0-9_-]{1,80})\/(approve|reject)$/);
   if(!match)return json(res,404,{error:'Запрос не найден'});
+  let decisionBody={};try{decisionBody=await readBody(req,12000)}catch{return json(res,400,{error:'Неверные данные решения'})}
   const [,requestId,decision]=match,snapshot=portalSnapshot();
   const request=snapshot.clientRequests.find(item=>item.id===requestId);
   if(!request)return json(res,404,{error:'Запрос не найден'});
   if(request.status!=='pending')return json(res,409,{error:'По этому запросу уже принято решение'});
   const order=snapshot.orders.find(item=>item.id===request.orderId&&item.clinicId===request.clinicId);
   if(!order)return json(res,404,{error:'Заказ не найден'});
-  if(decision==='approve'&&request.baseOrderRevision!==undefined&&request.baseOrderRevision!==(order._revision||0))return json(res,409,{error:'Заказ изменился после создания запроса. Проверьте актуальные данные и создайте новый запрос.'});
+  if(decision==='approve'&&clientRequestConflict(request,order)&&!(request.baseOrderRevision===undefined&&!Object.keys(request.before||{}).length&&decisionBody.orderRevision===(order._revision||0)))return json(res,409,{error:'Заказ изменился после создания запроса. Проверьте актуальные данные и создайте новый запрос.'});
   const reviewedAt=new Date().toISOString(),reviewedBy=actorName(user),status='archived',decisionResult=decision==='approve'?'approved':'rejected';
   try{
     if(decision==='approve'){
@@ -699,8 +697,9 @@ async function handleClientRequestDecision(req,res,url){
       }else{
         const allowed=new Set(['patient','birth','work','material','teeth','quantity','toothMode','date','shade','comment','sum','bridgeRanges','variants','servicesTotal','deliveryFee']);
         const changes=Object.fromEntries(Object.entries(request.changes||{}).filter(([key])=>allowed.has(key)));
-        if(!changes.variants&&['work','material','teeth','toothMode'].some(key=>Object.hasOwn(changes,key))){const revised=reviseOrderServices(order,changes,{variantIndex:request.variantIndex,deliverySettings:snapshot.deliverySettings});Object.assign(changes,revised);}
+        if(!changes.variants&&['work','material','teeth','toothMode'].some(key=>Object.hasOwn(changes,key))){const revised=reviseOrderServices(order,changes,{variantIndex:request.variantIndex??decisionBody.variantIndex,deliverySettings:snapshot.deliverySettings,promoPrices:snapshot.promoCodes?.find(item=>item.active!==false&&item.code===order.promoCode)?.prices||{}});Object.assign(changes,revised);}
         const updated={...order,...changes,id:order.id,clinicId:order.clinicId,createdAt:order.createdAt,updatedAt:reviewedAt};
+        if(changes.date){const issue=orderDeadlineError(updated,updated.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)return json(res,400,{error:issue});}
         await replacePortalCollection('orders',snapshot.orders.map(item=>item.id===order.id?updated:item),{role:'technician',name:reviewedBy});
       }
     }
@@ -711,7 +710,7 @@ async function handleClientRequestDecision(req,res,url){
     const resultText=decision==='approve'?`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} одобрен главным техником.`:`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} отклонён главным техником.`;
     void telegramBridge?.sendAutomatedMessage(order.clinicId,resultText).catch(error=>console.error('Telegram client request notification failed:',error.message));
     return json(res,200,{ok:true,request:reviewed.find(item=>item.id===request.id),portal:portalSnapshot()});
-  }catch(error){console.error('Client request decision failed:',error.message);return json(res,500,{error:'Не удалось обработать запрос'})}
+  }catch(error){if(error.status===400)return json(res,400,{error:error.message});if(error.message==='collection_conflict')return json(res,409,{error:'Данные заказа изменились. Обновите страницу.'});console.error('Client request decision failed:',error.message);return json(res,500,{error:'Не удалось обработать запрос'})}
 }
 
 async function persistOrderFiles(){

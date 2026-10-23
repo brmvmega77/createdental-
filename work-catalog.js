@@ -148,3 +148,14 @@ export function estimateWork({work='',option='',teeth=[],units}={}){
   const amount=Number.isFinite(selection.price)?selection.price*quantity:null;
   return {...selection,units:quantity,amount,text:amount===null?'Стоимость уточняется':rubles(amount)};
 }
+
+export function orderDeadlineError(order,dateValue=order.date,{referenceDate=order.acceptedAt||order.createdAt||new Date(),notBefore}={}){
+ const raw=String(dateValue||''),parts=/^\d{4}-\d{2}-\d{2}$/.test(raw)?raw.split('-').map(Number):/^\d{2}\.\d{2}\.\d{4}$/.test(raw)?raw.split('.').reverse().map(Number):[];
+ if(parts.length!==3)return 'Укажите корректную дату срока';
+ const due=new Date(parts[0],parts[1]-1,parts[2]);
+ if(due.getFullYear()!==parts[0]||due.getMonth()!==parts[1]-1||due.getDate()!==parts[2])return 'Укажите корректную дату срока';
+ if(!isWorkingDay(due))return 'Срок заказа должен приходиться на рабочий день';
+ if(notBefore&&isoDateLocal(due)<isoDateLocal(notBefore))return 'Срок заказа не может быть в прошлом';
+ const minimum=earliestDueDateForOrder(order,referenceDate);
+ return minimum&&isoDateLocal(due)<isoDateLocal(minimum)?`Минимальный срок для выбранных услуг — ${isoDateLocal(minimum).split('-').reverse().join('.')}`:'';
+}
