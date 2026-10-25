@@ -2,7 +2,7 @@ import {employeeFlowRole} from './flow-rules.js';
 import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camCanAccept,camCanSubmitQuality} from './cam-workflow.js?v=cam-flow-2';
-import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=yandex-folders-1';
+import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=employee-type-1';
 import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadReviewHtml,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
@@ -19,16 +19,16 @@ const shortDate=value=>value?new Date(value).toLocaleDateString('ru-RU'):'—';
 const dateKey=value=>String(value||'').includes('.')?String(value).split('.').reverse().join('-'):String(value||'');
 const displayActor=event=>event?.actor||(event?.actorRole==='clinic'?'Клиент':'Create Dental Team');
 const isCadOperatorEmployee=employee=>/cad\s*\/?\s*cam|cadcam|cad\s*оператор|моделировщик/i.test(String(employee?.specialty||''));
-const workerSpecialtyLabel=employee=>{if(isCadOperatorEmployee(employee))return 'CAD/CAM оператор';const value=String(employee?.specialty||'').trim();if(/гипсов|препрод|pre\s*prod|предпрод/i.test(value))return 'Препрод техник';if(/зубной\s+техник|каркасист|cam\s*оператор/i.test(value)||!value)return 'Каркасист';if(/красильщик|керамист|эстетист/i.test(value))return 'Красильщик';return value};
-const workerSpecialtyDisplayLabel=employee=>({'Каркасист':'CAM оператор','Красильщик':'Эстетист','CAD/CAM оператор':'CAD оператор','Препрод техник':'Гипсовщик'}[workerSpecialtyLabel(employee)]||workerSpecialtyLabel(employee));
+const workerSpecialtyLabel=employee=>{if(isCadOperatorEmployee(employee))return 'CAD/CAM оператор';const value=String(employee?.specialty||'').trim();if(/техник\s+первой\s+категории/i.test(value))return 'Техник первой категории';if(/гипсов|препрод|pre\s*prod|предпрод/i.test(value))return 'Препрод техник';if(/зубной\s+техник|каркасист|cam\s*оператор/i.test(value)||!value)return 'Каркасист';if(/красильщик|керамист|эстетист/i.test(value))return 'Красильщик';return value};
+const workerSpecialtyDisplayLabel=employee=>({'Каркасист':'CAM оператор','Красильщик':'Эстетист','CAD/CAM оператор':'CAD оператор','Препрод техник':'Гипсовщик','Техник первой категории':'Техник первой категории'}[workerSpecialtyLabel(employee)]||workerSpecialtyLabel(employee));
 const workerDisplayStatus=status=>status==='Принял работу'?'В работе':status==='Работа сдана'?'Передал дальше':status;
 const workerQualityStageTitle=kind=>({cad:'ОТК — CAD оператор',preprod:'ОТК — препрод техник',cam:'ОТК — CAM оператор',esthetic:'ОТК — эстетист',final:'Финальная ОТК'}[kind]||'ОТК');
 const workerDisplayStage=(stage,order)=>stage==='Контроль качества'&&order?.qualityRequest?.kind?workerQualityStageTitle(order.qualityRequest.kind):({'Согласование CAD':'CAD на согласовании у врача','На согласовании':'CAD на согласовании у врача','Работа принята':'Принято врачом','В доставке':'Доставка в клинику','В пути к вам':'Доставка в клинику','Принято доктором':'Принято врачом','Принято':'Принято врачом','Готово к выдаче':'Принято врачом','На доработке':'Доработка и эстетика'}[stage]||stage);
 const specialistProgress=status=>({'Ожидает принятия':0,'Принял работу':50,'Принял в работу':50,'В работе':50,'ОТК':75,'Согласование с врачом':90,'Работа сдана':100,'Передал дальше':100}[status]||0);
 const isPreprodEmployee=employee=>workerSpecialtyLabel(employee)==='Препрод техник';
-const isFrameEmployee=employee=>workerSpecialtyLabel(employee)==='Каркасист';
+const isFrameEmployee=employee=>['Каркасист','Техник первой категории'].includes(workerSpecialtyLabel(employee));
 const isPainterEmployee=employee=>workerSpecialtyLabel(employee)==='Красильщик';
-const workerCabinetLabel=employee=>isCadOperatorEmployee(employee)?'КАБИНЕТ CAD ОПЕРАТОРА':isPreprodEmployee(employee)?'КАБИНЕТ ГИПСОВЩИКА':isPainterEmployee(employee)?'КАБИНЕТ ЭСТЕТИСТА':'КАБИНЕТ CAM ОПЕРАТОРА';
+const workerCabinetLabel=employee=>isCadOperatorEmployee(employee)?'КАБИНЕТ CAD ОПЕРАТОРА':isPreprodEmployee(employee)?'КАБИНЕТ ГИПСОВЩИКА':isPainterEmployee(employee)?'КАБИНЕТ ЭСТЕТИСТА':workerSpecialtyLabel(employee)==='Техник первой категории'?'КАБИНЕТ ТЕХНИКА ПЕРВОЙ КАТЕГОРИИ':'КАБИНЕТ CAM ОПЕРАТОРА';
 const cadOperatorStages=[
   {label:'Ожидает принятия',matches:['Черновик из Telegram','Ожидает распределения','Подготовка']},
   {label:'В работе',matches:['Моделирование']},

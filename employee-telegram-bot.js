@@ -9,12 +9,12 @@ import {employeePayrollProfile,employeePayrollText} from './payroll-telegram.js'
 
 const clean=value=>String(value??'').replace(/[<>]/g,'').trim().slice(0,500);
 const isCad=employee=>/cad\s*\/?\s*cam|cadcam|cad\s*оператор|моделировщик/i.test(String(employee?.specialty||''));
-const employeeRoleKey=employee=>{if(isCad(employee))return 'CAD/CAM оператор';const value=String(employee?.specialty||'').trim();if(/гипсов|препрод|pre\s*prod|предпрод/i.test(value))return 'Препрод техник';if(/зубной\s+техник|каркасист|cam\s*оператор/i.test(value)||!value)return 'Каркасист';if(/красильщик|керамист|эстетист/i.test(value))return 'Красильщик';return value};
-const employeeRoleLabel=employee=>({'Каркасист':'CAM оператор','Красильщик':'Эстетист','CAD/CAM оператор':'CAD оператор','Препрод техник':'Гипсовщик'}[employeeRoleKey(employee)]||employeeRoleKey(employee));
+const employeeRoleKey=employee=>{if(isCad(employee))return 'CAD/CAM оператор';const value=String(employee?.specialty||'').trim();if(/техник\s+первой\s+категории/i.test(value))return 'Техник первой категории';if(/гипсов|препрод|pre\s*prod|предпрод/i.test(value))return 'Препрод техник';if(/зубной\s+техник|каркасист|cam\s*оператор/i.test(value)||!value)return 'Каркасист';if(/красильщик|керамист|эстетист/i.test(value))return 'Красильщик';return value};
+const employeeRoleLabel=employee=>({'Каркасист':'CAM оператор','Красильщик':'Эстетист','CAD/CAM оператор':'CAD оператор','Препрод техник':'Гипсовщик','Техник первой категории':'Техник первой категории'}[employeeRoleKey(employee)]||employeeRoleKey(employee));
 const displayEmployeeStatus=status=>status==='Принял работу'?'В работе':status==='Работа сдана'?'Передал дальше':status;
 const employeeProgress=status=>({'Ожидает принятия':0,'Принял работу':50,'Принял в работу':50,'В работе':50,'ОТК':75,'Согласование с врачом':90,'Работа сдана':100,'Передал дальше':100}[status]||0);
 const isPreprod=employee=>employeeRoleKey(employee)==='Препрод техник';
-const isFrame=employee=>employeeRoleKey(employee)==='Каркасист';
+const isFrame=employee=>['Каркасист','Техник первой категории'].includes(employeeRoleKey(employee));
 const isPainter=employee=>employeeRoleKey(employee)==='Красильщик';
 const now=()=>new Date().toISOString();
 const require=createRequire(import.meta.url);
