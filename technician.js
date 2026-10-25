@@ -860,12 +860,12 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const newOrders=allOrders().filter(order=>['Черновик из Telegram','Ожидает распределения','Ожидает подтверждения'].includes(order.stage)).length;
     const intakeOrders=allOrders().filter(order=>order.stage==='Контроль качества').length;
     const newClients=clients.filter(client=>client.approved===false).length;
-    const crmItems=[['orders','Заказы','orders',newOrders],['clients','Клиентская база','clinic',newClients],['messages','Сообщения','message']];
-    const managementItems=[['pulse','Пульс компании','pulse'],['tasks','Задачи','check',tasks().filter(task=>task.status!=='done').length],['team','Команда','user'],['pricing','Прайс и сроки','wallet'],['salary','Зарплаты','wallet']];
-    const productionItems=[['production','Производство','grid'],['requests','Клиентские правки','file',pendingRequests],['intake','Отдел качества','check',intakeOrders]];
+    const crmItems=[['orders','Заказы','orders',newOrders],['clients','Клиентская база','users',newClients],['messages','Сообщения','message']];
+    const managementItems=[['pulse','Пульс компании','pulse'],['tasks','Задачи','check',tasks().filter(task=>task.status!=='done').length],['team','Команда','user'],['pricing','Прайс и сроки','tag'],['salary','Зарплаты','wallet']];
+    const productionItems=[['production','Производство','layers'],['requests','Клиентские правки','file',pendingRequests],['intake','Отдел качества','shieldCheck',intakeOrders]];
     const navButton=([page,label,ico,count])=>`<button class="nav-link ${navPage===page?'active':''}" data-tech-page="${page}" data-sidebar-label="${label}" title="${label}">${icon(ico,20)}<span>${label}</span>${count?`<i class="tech-nav-count">${count>99?'99+':count}</i>`:''}</button>`;
     const navGroup=(label,ico,items)=>`<details class="tech-nav-group" ${items.some(([page])=>page===navPage)?'open':''}><summary data-sidebar-label="${label}" title="${label}">${icon(ico,20)}<span>${label}</span>${icon('chevron',14)}</summary><div class="tech-nav-group-items">${items.map(navButton).join('')}</div></details>`;
-    const navMarkup=[navButton(['overview','Обзор','home']),navGroup('CRM','clinic',crmItems),navGroup('Менеджмент','grid',managementItems),navGroup('Производство','grid',productionItems),navButton(['profile','Профиль','user'])].join('');
+    const navMarkup=[navButton(['overview','Обзор','home']),navGroup('CRM','clinic',crmItems),navGroup('Менеджмент','grid',managementItems),navGroup('Производство','factory',productionItems),navButton(['profile','Профиль','profile'])].join('');
     const profile=chiefProfile();
     const avatar=profile.avatar?`<span class="avatar"><img src="${safe(profile.avatar)}" alt=""></span>`:`<span class="avatar">${safe(initials(profile.displayName||'Главный техник'))}</span>`;
     const mobileItems=[['overview','Обзор','home'],['orders','Заказы','orders',newOrders],['production','Цех','grid'],['messages','Сообщения','message']];

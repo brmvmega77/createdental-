@@ -21,6 +21,12 @@ const icons = {
   message:'<path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3a2 2 0 0 1-1-2V6a2 2 0 0 1 2-2z"/><path d="M8 9h8M8 13h5"/>',
   book:'<path d="M12 6c-2.4-1.5-5.4-1.7-9-.8v14c3.6-.9 6.6-.7 9 .8 2.4-1.5 5.4-1.7 9-.8v-14c-3.6-.9-6.6-.7-9 .8zM12 6v14"/>',
   clinic:'<path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5M9 10h6M12 7v6"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  factory:'<path d="M3 21V9l6 3V8l6 4V5h6v16"/><path d="M3 21h18M7 17h.01M11 17h.01M16 17h.01M20 17h.01"/>',
+  layers:'<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>',
+  shieldCheck:'<path d="M12 3 20 6v5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6l8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/>',
+  tag:'<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V4h9l8.6 8.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="8.5" r="1"/>',
+  profile:'<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9" r="3"/><path d="M8 17c1.2-1.8 2.5-2.5 4-2.5s2.8.7 4 2.5"/>',
   bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
   chevron:'<path d="m9 18 6-6-6-6"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/>',
@@ -37,7 +43,7 @@ const icons = {
   ,wallet:'<path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6.5A2.5 2.5 0 0 1 4 16.5z"/><path d="M4 8h15M16 13h5"/><circle cx="16" cy="13" r=".8" fill="currentColor" stroke="none"/>',
   edit:'<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="m14.5 7.5 2 2"/>'
 };
-const icon = (name,size=18) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]}</svg>`;
+const icon = (name,size=18) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]||icons.home}</svg>`;
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const displayActor = (event) => event?.actorRole === 'clinic' ? 'Вы' : 'Create Dental Team';
 const assets = '/assets/';
@@ -1154,7 +1160,7 @@ async function hydratePortal(){
   // history and logo payload is fetched in the background for detail pages.
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=employee-type-3');
+      const {createTechnicianCabinet}=await import('./technician.js?v=sidebar-icons-1');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},promoCodes:()=>portalPromoCodes,onPromoCodesUpdate:items=>{portalPromoCodes=structuredClone(items)},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
