@@ -314,7 +314,7 @@ function isPainterEmployee(employee){
 const isCeramicistEmployee=isPainterEmployee;
 function isFrameEmployee(employee){
   const value=String(employee?.specialty||'').trim();
-  return !isCadOperatorEmployee(employee)&&!isPreprodEmployee(employee)&&(!value||/зубной\s+техник|каркасист|cam\s*оператор|техник\s+первой\s+категории/i.test(value));
+  return !isCadOperatorEmployee(employee)&&!isPreprodEmployee(employee)&&(!value||/зубной\s+техник|каркасист|cam\s*оператор/i.test(value));
 }
 function publicUser(user){
   if(user?.role==='technician'&&user.subjectId==='chief')return {...user,...chiefAccountProfile()};

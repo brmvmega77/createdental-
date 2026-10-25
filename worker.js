@@ -2,7 +2,7 @@ import {employeeFlowRole} from './flow-rules.js';
 import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camCanAccept,camCanSubmitQuality} from './cam-workflow.js?v=cam-flow-2';
-import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=employee-type-1';
+import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=employee-type-2';
 import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadReviewHtml,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
@@ -26,7 +26,7 @@ const workerQualityStageTitle=kind=>({cad:'ОТК — CAD оператор',prep
 const workerDisplayStage=(stage,order)=>stage==='Контроль качества'&&order?.qualityRequest?.kind?workerQualityStageTitle(order.qualityRequest.kind):({'Согласование CAD':'CAD на согласовании у врача','На согласовании':'CAD на согласовании у врача','Работа принята':'Принято врачом','В доставке':'Доставка в клинику','В пути к вам':'Доставка в клинику','Принято доктором':'Принято врачом','Принято':'Принято врачом','Готово к выдаче':'Принято врачом','На доработке':'Доработка и эстетика'}[stage]||stage);
 const specialistProgress=status=>({'Ожидает принятия':0,'Принял работу':50,'Принял в работу':50,'В работе':50,'ОТК':75,'Согласование с врачом':90,'Работа сдана':100,'Передал дальше':100}[status]||0);
 const isPreprodEmployee=employee=>workerSpecialtyLabel(employee)==='Препрод техник';
-const isFrameEmployee=employee=>['Каркасист','Техник первой категории'].includes(workerSpecialtyLabel(employee));
+const isFrameEmployee=employee=>workerSpecialtyLabel(employee)==='Каркасист';
 const isPainterEmployee=employee=>workerSpecialtyLabel(employee)==='Красильщик';
 const workerCabinetLabel=employee=>isCadOperatorEmployee(employee)?'КАБИНЕТ CAD ОПЕРАТОРА':isPreprodEmployee(employee)?'КАБИНЕТ ГИПСОВЩИКА':isPainterEmployee(employee)?'КАБИНЕТ ЭСТЕТИСТА':workerSpecialtyLabel(employee)==='Техник первой категории'?'КАБИНЕТ ТЕХНИКА ПЕРВОЙ КАТЕГОРИИ':'КАБИНЕТ CAM ОПЕРАТОРА';
 const cadOperatorStages=[

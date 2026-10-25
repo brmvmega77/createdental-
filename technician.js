@@ -72,7 +72,7 @@ const normalizeEmployeeSpecialty = value => {const text=String(value||'').trim()
 const employeeSpecialtyLabel = value => normalizeEmployeeSpecialty(value);
 const employeeSpecialtyDisplayLabel = value => ({'Каркасист':'CAM оператор','Красильщик':'Эстетист','CAD/CAM оператор':'CAD оператор','Препрод техник':'Гипсовщик','Техник первой категории':'Техник первой категории'}[normalizeEmployeeSpecialty(value)]||normalizeEmployeeSpecialty(value));
 const isPreprodEmployee = employee => employeeSpecialtyLabel(employee?.specialty)==='Препрод техник';
-const isFrameEmployee = employee => ['Каркасист','Техник первой категории'].includes(employeeSpecialtyLabel(employee?.specialty));
+const isFrameEmployee = employee => employeeSpecialtyLabel(employee?.specialty)==='Каркасист';
 const isPainterEmployee = employee => employeeSpecialtyLabel(employee?.specialty)==='Красильщик';
 const initials = value => String(value||'ГТ').trim().split(/\s+/).map(part=>part[0]).join('').slice(0,2).toUpperCase()||'ГТ';
 const shortDate = value => value ? new Date(value).toLocaleDateString('ru-RU') : '—';

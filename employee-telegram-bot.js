@@ -14,7 +14,7 @@ const employeeRoleLabel=employee=>({'Каркасист':'CAM оператор',
 const displayEmployeeStatus=status=>status==='Принял работу'?'В работе':status==='Работа сдана'?'Передал дальше':status;
 const employeeProgress=status=>({'Ожидает принятия':0,'Принял работу':50,'Принял в работу':50,'В работе':50,'ОТК':75,'Согласование с врачом':90,'Работа сдана':100,'Передал дальше':100}[status]||0);
 const isPreprod=employee=>employeeRoleKey(employee)==='Препрод техник';
-const isFrame=employee=>['Каркасист','Техник первой категории'].includes(employeeRoleKey(employee));
+const isFrame=employee=>employeeRoleKey(employee)==='Каркасист';
 const isPainter=employee=>employeeRoleKey(employee)==='Красильщик';
 const now=()=>new Date().toISOString();
 const require=createRequire(import.meta.url);

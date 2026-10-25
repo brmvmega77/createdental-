@@ -6,13 +6,15 @@ export function employeeFlowRole(employee){
  if(/cad\s*\/?\s*cam|cadcam|cad\s*оператор|моделировщик/i.test(text))return 'cad';
  if(/гипсов|препрод|pre\s*prod|предпрод/i.test(text))return 'preprod';
  if(/красильщик|керамист|эстетист/i.test(text))return 'esthetic';
+ if(/техник\s+первой\s+категории/i.test(text))return 'unassigned';
  return 'cam';
 }
-const assignments={cad:['cadOperator','assignee'],preprod:['preprodTechnician'],cam:['frameTechnician','technician'],esthetic:['painter','ceramicist']};
+const assignments={cad:['cadOperator','assignee'],preprod:['preprodTechnician'],cam:['frameTechnician','technician'],esthetic:['painter','ceramicist'],unassigned:[]};
 const statuses={cad:'cadOperatorStatus',preprod:'preprodTechnicianStatus',cam:'frameTechnicianStatus',esthetic:'painterStatus'};
 export function workerTransitionAllowed(old,next,employee){
  if(!old||!next||!employee)return false;
  const role=employeeFlowRole(employee),name=employee.originalName;
+ if(role==='unassigned')return false;
  if(!assignments[role].some(field=>old[field]===name))return false;
  const field=statuses[role];
  const allowed=new Set(['stage',field,'technicianStatus','workerAcceptances']);
