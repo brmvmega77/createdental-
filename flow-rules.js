@@ -6,26 +6,26 @@ export function employeeFlowRole(employee){
  if(/cad\s*\/?\s*cam|cadcam|cad\s*оператор|моделировщик/i.test(text))return 'cad';
  if(/гипсов|препрод|pre\s*prod|предпрод/i.test(text))return 'preprod';
  if(/красильщик|керамист|эстетист/i.test(text))return 'esthetic';
- if(/техник\s+первой\s+категории/i.test(text))return 'unassigned';
+ if(/техник\s+первой\s+категории/i.test(text))return 'category1';
  return 'cam';
 }
-const assignments={cad:['cadOperator','assignee'],preprod:['preprodTechnician'],cam:['frameTechnician','technician'],esthetic:['painter','ceramicist'],unassigned:[]};
-const statuses={cad:'cadOperatorStatus',preprod:'preprodTechnicianStatus',cam:'frameTechnicianStatus',esthetic:'painterStatus'};
+const assignments={cad:['cadOperator','assignee'],preprod:['preprodTechnician'],cam:['frameTechnician','technician'],esthetic:['painter','ceramicist'],category1:['category1Technician']};
+const statuses={cad:'cadOperatorStatus',preprod:'preprodTechnicianStatus',cam:'frameTechnicianStatus',esthetic:'painterStatus',category1:'category1TechnicianStatus'};
 export function workerTransitionAllowed(old,next,employee){
  if(!old||!next||!employee)return false;
  const role=employeeFlowRole(employee),name=employee.originalName;
- if(role==='unassigned')return false;
  if(!assignments[role].some(field=>old[field]===name))return false;
  const field=statuses[role];
  const allowed=new Set(['stage',field,'technicianStatus','workerAcceptances']);
+ if(role==='category1')allowed.add('category1TechnicianStatus');
  if(role==='esthetic')allowed.add('ceramicistStatus');
- const starting=role==='cad'?old.stage==='Подготовка':role==='preprod'?old.stage==='Подготовка':old.stage==='Изготовление'&&old.manufacturingStatus===(role==='cam'?'В работе у Каркасиста':'В работе у Красильщика');
+ const starting=role==='cad'?old.stage==='Подготовка':role==='preprod'?old.stage==='Подготовка':role==='category1'?old.stage==='Техник первой категории':old.stage==='Изготовление'&&old.manufacturingStatus===(role==='cam'?'В работе у Каркасиста':'В работе у Красильщика');
  const resuming=old.stage==='На доработке'&&old.reworkKind===role&&!old.reworkNeedsAssignment;
- const target=role==='cad'?'Моделирование':role==='preprod'?'Препрод':'Изготовление';
+ const target=role==='cad'?'Моделирование':role==='preprod'?'Препрод':role==='category1'?'Техник первой категории':'Изготовление';
  const status=old[field]||(role==='esthetic'?old.ceramicistStatus:'')||'';
  const legacyAccepted=old.stage===target&&['Принял работу','Принял в работу'].includes(status);
  const accept=(starting||resuming||legacyAccepted)&&next.stage===target&&next[field]==='В работе'&&!['В работе','ОТК','Работа сдана'].includes(status)&&(role!=='cam'||camCanAccept(old));
- if(resuming){allowed.add('manufacturingStatus');const targetManufacturing=role==='cam'?'В работе у Каркасиста':role==='esthetic'?'В работе у Красильщика':'';if(next.manufacturingStatus!==targetManufacturing)return false;}
+ if(resuming){allowed.add('manufacturingStatus');const targetManufacturing=role==='cam'?'В работе у Каркасиста':role==='esthetic'?'В работе у Красильщика':'';if(role!=='category1'&&next.manufacturingStatus!==targetManufacturing)return false;}
  const working=old.stage===target&&status==='В работе';
  const submit=role!=='cad'&&working&&next.stage==='Контроль качества'&&next[field]==='ОТК'&&next.qualityRequest?.kind===role&&next.qualityRequest?.employeeId===employee.id&&(role!=='cam'||camCanSubmitQuality(old));
  if(submit)allowed.add('qualityRequest');
@@ -41,11 +41,12 @@ export function workerTransitionAllowed(old,next,employee){
 export function qualityReturnChange(order,category,reason,at){
  const request=order?.qualityRequest;
  if(order?.stage!=='Контроль качества'||!request?.kind||!category||!reason?.trim())return null;
- const detail=`${category}: ${reason.trim()}`,kind=request.kind==='final'?'esthetic':request.kind;
+ const detail=`${category}: ${reason.trim()}`,kind=request.kind==='final'?(order.category1Technician?'category1':'esthetic'):request.kind;
  const shared={qualityRequest:null,reworkKind:kind,reworkReason:detail,reworkAt:at,reworkNeedsAssignment:false,qualityDecision:{kind:request.kind,result:'rejected',reasonCategory:category,reason:reason.trim(),at,requestedAt:request.requestedAt||''}};
  if(kind==='cad')return {...shared,stage:'Моделирование',cadOperatorStatus:'В работе',cadReview:{...(order.cadReview||{}),status:'returned',comment:detail,reviewedAt:at}};
  const role=kind==='preprod'?'preprod':kind;
- return {...shared,stage:'На доработке',manufacturingStatus:kind==='cam'?'В работе у Каркасиста':kind==='esthetic'?'В работе у Красильщика':'',[statuses[role]]:'',...(kind==='esthetic'?{ceramicistStatus:''}:{}),technicianStatus:'',workerAcceptances:Object.fromEntries(Object.entries(order.workerAcceptances||{}).filter(([,item])=>item?.role!==(kind==='cam'?'frame':kind==='esthetic'?'painter':'preprod')))};
+ const acceptanceRole=kind==='cam'?'frame':kind==='esthetic'?'painter':kind;
+ return {...shared,stage:kind==='category1'?'Техник первой категории':'На доработке',manufacturingStatus:kind==='cam'?'В работе у Каркасиста':kind==='esthetic'?'В работе у Красильщика':'',[statuses[role]]:'',...(kind==='esthetic'?{ceramicistStatus:''}:{}),technicianStatus:'',workerAcceptances:Object.fromEntries(Object.entries(order.workerAcceptances||{}).filter(([,item])=>item?.role!==acceptanceRole))};
 }
 export function releaseEmployeeAssignments(overrides,employees){
  const unavailable=new Set(employees.filter(item=>item.status!=='active'||item.deleted).map(item=>item.originalName).filter(Boolean));
@@ -90,11 +91,12 @@ export function cadDecisionChange(order,approved,review){
  return {...shared,manufacturingStatus:'В работе у Каркасиста',frameTechnicianStatus:'',painterStatus:'',ceramicistStatus:'',technicianStatus:'',workerAcceptances:Object.fromEntries(Object.entries(order.workerAcceptances||{}).filter(([,item])=>item?.role==='cad'||item?.role==='preprod')),...(['cad','preprod'].includes(order.reworkKind)?{milling:{}}:{})};
 }
 export function reworkRouteChange(order,kind){
- if(order.stage!=='На доработке'||!['cad','preprod','cam','esthetic'].includes(kind))return null;
- const roles=kind==='preprod'?['preprod','cad','cam','esthetic']:kind==='cad'?['cad','cam','esthetic']:kind==='cam'?['cam','esthetic']:['esthetic'];
- const change={stage:['cad','preprod'].includes(kind)?'Подготовка':'Изготовление',reworkKind:kind,reworkNeedsAssignment:false,manufacturingStatus:kind==='cam'?'В работе у Каркасиста':kind==='esthetic'?'В работе у Красильщика':'',technicianStatus:'',qualityRequest:null,workerAcceptances:Object.fromEntries(Object.entries(order.workerAcceptances||{}).filter(([,item])=>!roles.includes(({frame:'cam',painter:'esthetic'})[item?.role]||item?.role)))};
+ if(!['На доработке','Техник первой категории'].includes(order.stage)||!['cad','preprod','cam','esthetic','category1'].includes(kind))return null;
+ const roles=kind==='preprod'?['preprod','cad','cam','category1','esthetic']:kind==='cad'?['cad','cam','category1','esthetic']:kind==='cam'?['cam','category1','esthetic']:kind==='category1'?['category1']:['esthetic'];
+ const change={stage:['cad','preprod'].includes(kind)?'Подготовка':kind==='category1'?'Техник первой категории':'Изготовление',reworkKind:kind,reworkNeedsAssignment:false,manufacturingStatus:kind==='cam'?'В работе у Каркасиста':kind==='esthetic'?'В работе у Красильщика':'',technicianStatus:'',qualityRequest:null,workerAcceptances:Object.fromEntries(Object.entries(order.workerAcceptances||{}).filter(([,item])=>!roles.includes(({frame:'cam',painter:'esthetic'})[item?.role]||item?.role)))};
  for(const role of roles)change[statuses[role]]='';
  if(roles.includes('esthetic'))change.ceramicistStatus='';
+ if(roles.includes('category1'))change.category1TechnicianStatus='';
  if(roles.includes('cad')&&order.cadReview)change.cadReview={...order.cadReview,status:'returned',comment:order.reworkReason||''};
  return change;
 }

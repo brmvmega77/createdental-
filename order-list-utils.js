@@ -22,7 +22,7 @@ export function orderParticipants(order, employees = [], history = []) {
     const previous = participants.get(id);
     participants.set(id, {id, name, participated: participated || !!previous?.participated});
   };
-  for (const field of ['preprodTechnicianKey', 'preprodTechnician', 'preprod', 'cadOperatorKey', 'cadOperator', 'frameTechnicianKey', 'frameTechnician', 'technician', 'painterKey', 'painter', 'ceramicist', 'assigneeKey', 'assignee']) {
+  for (const field of ['preprodTechnicianKey', 'preprodTechnician', 'preprod', 'cadOperatorKey', 'cadOperator', 'frameTechnicianKey', 'frameTechnician', 'technician', 'category1TechnicianKey', 'category1Technician', 'painterKey', 'painter', 'ceramicist', 'assigneeKey', 'assignee']) {
     add(order[field]);
   }
   for (const [id, acceptance] of Object.entries(order.workerAcceptances || {})) {

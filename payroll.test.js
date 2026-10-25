@@ -6,7 +6,7 @@ const employee={id:'staff-1',name:'Техник',originalName:'Техник',spe
 const order={id:'CD-PAY',clinic:'Клиника',quantity:2,createdAt:at,variants:[{work:'Реставрации',workOption:'Коронка',selectedTeeth:[16,17]}]};
 const state=()=>({employees:[{...employee}],orders:[structuredClone(order)],orderOverrides:{'CD-PAY':{frameTechnician:'Техник',frameTechnicianStatus:'Работа сдана',qualityApprovedAt:at}},salaryAccruals:[],payrollSettings:{revision:1,rates:{cam:{[key]:[100,200,325.5,400,500]}}}});
 test('specialties and ranks map to four separate compensation roles',()=>{
- for(const [specialty,role] of [['CAD/CAM оператор','cad'],['CAD оператор','cad'],['CAM оператор','cam'],['Красильщик','esthetic'],['Эстетист','esthetic'],['Препрод техник','gypsum'],['Гипсовщик','gypsum']])assert.equal(payrollRole({specialty}),role);
+ for(const [specialty,role] of [['CAD/CAM оператор','cad'],['CAD оператор','cad'],['CAM оператор','cam'],['Красильщик','esthetic'],['Эстетист','esthetic'],['Препрод техник','gypsum'],['Гипсовщик','gypsum'],['Техник первой категории','category1']])assert.equal(payrollRole({specialty}),role);
  assert.equal(employeeRank({}),1);assert.equal(employeeRank({rank:5}),5);assert.equal(employeeRank({rank:6}),1);
 });
 test('custom rates are per role, service and rank; explicit zero is preserved',()=>{

@@ -22,8 +22,9 @@ function specialistKey(order) {
   if (order.stage === 'Препрод') return order.preprodTechnicianKey || '';
   if (order.stage === 'Изготовление') return order.manufacturingStatus === 'В работе у Красильщика'
     ? order.painterKey || '' : order.frameTechnicianKey || '';
+  if (order.stage === 'Техник первой категории') return order.category1TechnicianKey || order.category1Technician || '';
   if (order.stage === 'На доработке') return order.reworkKind === 'preprod' ? order.preprodTechnicianKey || ''
-    : order.reworkKind === 'cam' ? order.frameTechnicianKey || '' : order.painterKey || '';
+    : order.reworkKind === 'cam' ? order.frameTechnicianKey || '' : order.reworkKind === 'category1' ? order.category1TechnicianKey || order.category1Technician || '' : order.painterKey || '';
   return null;
 }
 

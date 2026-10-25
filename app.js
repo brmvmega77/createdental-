@@ -6,7 +6,7 @@ import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCente
 import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork,priceUnitsForSelection} from './work-catalog.js';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
 import {orderWorkTypes,orderWorkLabel,orderEventSummary} from './order-list-utils.js?v=service-label-4';
-import {productionStages,compactStageLabel} from './production-stages.js?v=perf-split-1';
+import {productionStages,compactStageLabel} from './production-stages.js?v=perf-split-2';
 import {SURGICAL_TEMPLATE_CATEGORY,SURGICAL_SOCKET_OPTION,SURGICAL_SOCKETS_PER_JAW,adjustSurgicalSockets,isSurgicalTemplate,isSurgicalSocket,hasSurgicalJaw,maxSurgicalSockets,surgicalVariantUnits,groupSurgicalSockets} from '/assets/surgical-template-utils.js?v=surgical-sockets-3';
 import './location-assist.js?v=country-cities-1';
 
@@ -1154,11 +1154,11 @@ async function hydratePortal(){
   // history and logo payload is fetched in the background for detail pages.
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=employee-type-2');
+      const {createTechnicianCabinet}=await import('./technician.js?v=employee-type-3');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},promoCodes:()=>portalPromoCodes,onPromoCodesUpdate:items=>{portalPromoCodes=structuredClone(items)},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=employee-type-2');
+    const {createWorkerCabinet}=await import('./worker.js?v=employee-type-3');
     workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,orderHistory:()=>portalHistory,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   applyPortalData(data);

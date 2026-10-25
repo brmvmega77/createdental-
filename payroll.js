@@ -1,12 +1,13 @@
 import {resolveWorkSelection,priceUnitsForSelection} from './work-catalog.js';
 
-export const payrollRoles=[{key:'cad',label:'CAD оператор',fallback:900},{key:'cam',label:'CAM оператор',fallback:450},{key:'esthetic',label:'Эстетист',fallback:450},{key:'gypsum',label:'Гипсовщик',fallback:450}];
+export const payrollRoles=[{key:'cad',label:'CAD оператор',fallback:900},{key:'cam',label:'CAM оператор',fallback:450},{key:'category1',label:'Техник первой категории',fallback:450},{key:'esthetic',label:'Эстетист',fallback:450},{key:'gypsum',label:'Гипсовщик',fallback:450}];
 export const employeeRank=employee=>Number.isInteger(employee?.rank)&&employee.rank>=1&&employee.rank<=5?employee.rank:1;
 export function payrollRole(employee){
   const value=String(employee?.specialty||'');
   if(/cad|кад|моделировщик/i.test(value))return 'cad';
   if(/гипсов|препрод|pre\s*prod|предпрод/i.test(value))return 'gypsum';
   if(/красильщик|керамист|эстетист/i.test(value))return 'esthetic';
+  if(/техник\s+первой\s+категории/i.test(value))return 'category1';
   return 'cam';
 }
 export const payrollServiceKey=(work,service)=>{const option=resolveWorkSelection(work,service).option;return option?.id?'service:'+option.id:String(work||'')+'|||'+String(service||'')};
@@ -23,10 +24,10 @@ export function validPayrollSettings(value){
   return Object.entries(value.rates).every(([role,rates])=>payrollRoles.some(item=>item.key===role)&&rates&&typeof rates==='object'&&!Array.isArray(rates)&&Object.keys(rates).length<=10000&&Object.entries(rates).every(([key,values])=>key.length>0&&key.length<=600&&!/[<>]/.test(key)&&Array.isArray(values)&&values.length===5&&values.every(rate=>rate===null||typeof rate==='number'&&Number.isFinite(rate)&&rate>=0&&rate<=10000000&&Math.abs(rate*100-Math.round(rate*100))<0.000001)));
 }
 const roundMoney=amount=>Math.round(amount*100)/100;
-const fields={cad:['cadOperator','assignee'],cam:['frameTechnician','technician'],esthetic:['painter','ceramicist'],gypsum:['preprodTechnician']};
+const fields={cad:['cadOperator','assignee'],cam:['frameTechnician','technician'],category1:['category1Technician'],esthetic:['painter','ceramicist'],gypsum:['preprodTechnician']};
 function completion(detail,role){
   if(role==='cad')return detail?.cadReview?.status==='approved'&&detail.cadReview.reviewedAt?detail.cadReview.reviewedAt:'';
-  const status=role==='cam'?detail?.frameTechnicianStatus:role==='esthetic'?(detail?.painterStatus||detail?.ceramicistStatus):detail?.preprodTechnicianStatus;
+  const status=role==='cam'?detail?.frameTechnicianStatus:role==='category1'?detail?.category1TechnicianStatus:role==='esthetic'?(detail?.painterStatus||detail?.ceramicistStatus):detail?.preprodTechnicianStatus;
   if(status!=='Работа сдана')return '';
   return (role==='esthetic'?detail.estheticQualityApprovedAt:'')||detail.qualityApprovedAt||detail.completedAt||detail.reworkAt||'';
 }
@@ -42,7 +43,7 @@ export function collectPayrollAccruals(state,{previousOverrides={},legacy=false,
       const at=completion(detail,role.key);
       if(!at&&!legacy)continue;
       // Old production data can have a submitted status without a timestamp.
-      const statusDone=role.key==='cad'?Boolean(at):role.key==='cam'?detail.frameTechnicianStatus==='Работа сдана':role.key==='esthetic'?(detail.painterStatus||detail.ceramicistStatus)==='Работа сдана':detail.preprodTechnicianStatus==='Работа сдана';
+      const statusDone=role.key==='cad'?Boolean(at):role.key==='cam'?detail.frameTechnicianStatus==='Работа сдана':role.key==='category1'?detail.category1TechnicianStatus==='Работа сдана':role.key==='esthetic'?(detail.painterStatus||detail.ceramicistStatus)==='Работа сдана':detail.preprodTechnicianStatus==='Работа сдана';
       if(!statusDone||!legacy&&completion(previousOverrides[order.id]||{},role.key))continue;
       const submitted=previousOverrides[order.id]?.qualityRequest,submittedRole=submitted?.kind==='preprod'?'gypsum':submitted?.kind;
       const reference=fields[role.key].map(field=>detail[field]).find(Boolean)||(submittedRole===role.key?submitted.employeeId:'')||(role.key==='cad'?(detail.cadReview?.employeeId||detail.cadReview?.sentBy):'');

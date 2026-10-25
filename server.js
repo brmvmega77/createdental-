@@ -147,7 +147,7 @@ const integrationSecretFiles={
 const tlsKeyFile=process.env.TLS_KEY_FILE||'';
 const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
-const publicFiles = new Set(['/flow-rules.js','/collection-concurrency.js','/clinic-doctors.js','/order-revision.js','/payroll.js','/payroll-ui.js','/owner.js','/owner.css','/','/index.html','/index-boot.js','/app.js','/work-catalog.js','/money.js','/technician.js','/production-stages.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/cad-preview-boot.js','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing-boot.js','/landing.js']);
+const publicFiles = new Set(['/flow-rules.js','/collection-concurrency.js','/clinic-doctors.js','/order-revision.js','/payroll.js','/payroll-ui.js','/owner.js','/owner.css','/','/index.html','/index-boot.js','/app.js','/work-catalog.js','/money.js','/technician.js','/production-stages.js','/production-routes.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/cad-preview-boot.js','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing-boot.js','/landing.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon'};
 const sharedAttachmentTypes={
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream',
@@ -296,7 +296,7 @@ function canAccessOrder(user,order){
   if(user.role==='technician')return true;
   if(user.role==='clinic')return order.clinicId===user.subjectId;
   const employee=portalEmployee(user.subjectId),details=portalSnapshot().orderOverrides[order.id]||{};
-  return user.role==='worker'&&employee&&[details.assignee,details.cadOperator,details.preprodTechnician,details.technician,details.frameTechnician,details.painter,details.ceramicist].includes(employee.originalName);
+  return user.role==='worker'&&employee&&[details.assignee,details.cadOperator,details.preprodTechnician,details.technician,details.frameTechnician,details.category1Technician,details.painter,details.ceramicist].includes(employee.originalName);
 }
 function actorName(user){
   if(user?.role==='clinic')return portalClient(user.subjectId)?.name||user.displayName||'Клиника';
@@ -311,6 +311,7 @@ function isPainterEmployee(employee){
   const value=String(employee?.specialty||'').trim();
   return /красильщик|керамист|эстетист/i.test(value);
 }
+function isCategory1Employee(employee){return /техник\s+первой\s+категории/i.test(String(employee?.specialty||''));}
 const isCeramicistEmployee=isPainterEmployee;
 function isFrameEmployee(employee){
   const value=String(employee?.specialty||'').trim();
@@ -325,7 +326,7 @@ function publicUser(user){
   return user;
 }
 function publicClinicOverride(detail={}){
-  const {assignee,cadOperator,preprodTechnician,technician,frameTechnician,painter,ceramicist,frameTechnicianStatus,painterStatus,ceramicistStatus,manufacturingStatus,milling,...visible}=detail||{};
+  const {assignee,cadOperator,preprodTechnician,technician,frameTechnician,category1Technician,painter,ceramicist,frameTechnicianStatus,category1TechnicianStatus,painterStatus,ceramicistStatus,manufacturingStatus,milling,...visible}=detail||{};
   return {...visible,assigned:Boolean(assignee&&assignee!=='Не назначен')};
 }
 function publicClinicHistoryEvent(event){
@@ -528,12 +529,13 @@ async function handlePortal(req,res,url){
       const assignmentViolation=[...ids].find(id=>{
         const old=snapshot.orderOverrides[id]||{},next=value[id]||{};
         const oldStage=old.stage==='Черновик из Telegram'?'Ожидает распределения':old.stage;
-        const technicianChanged=next.technician!==old.technician||next.preprodTechnician!==old.preprodTechnician||next.frameTechnician!==old.frameTechnician||next.painter!==old.painter||next.ceramicist!==old.ceramicist;
+        const technicianChanged=next.technician!==old.technician||next.preprodTechnician!==old.preprodTechnician||next.frameTechnician!==old.frameTechnician||next.category1Technician!==old.category1Technician||next.painter!==old.painter||next.ceramicist!==old.ceramicist;
         const cadChanged=next.cadOperator!==old.cadOperator;
         const order=snapshot.orders.find(item=>item.id===id),analog=order?.productionType==='analog';
         const firstAnalogAssigned=analog&&next.preprodTechnician&&['Подготовка','Препрод'].includes(oldStage);
-        const analogProductionAssigned=analog&&(next.frameTechnician||next.painter||next.ceramicist)&&['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(oldStage);
-        if(technicianChanged&&(next.technician||next.frameTechnician||next.painter||next.ceramicist||next.preprodTechnician)&&!cadConfirmed(next)&&!cadConfirmed(old)&&!firstAnalogAssigned&&!analogProductionAssigned)return true;
+        const category1Assigned=next.category1Technician&&oldStage==='Техник первой категории';
+        const analogProductionAssigned=analog&&(next.frameTechnician||next.category1Technician||next.painter||next.ceramicist)&&['Изготовление','Техник первой категории','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(oldStage);
+        if(technicianChanged&&(next.technician||next.frameTechnician||next.category1Technician||next.painter||next.ceramicist||next.preprodTechnician)&&!cadConfirmed(next)&&!cadConfirmed(old)&&!firstAnalogAssigned&&!analogProductionAssigned&&!category1Assigned)return true;
         if(cadChanged&&next.cadOperator&&oldStage==='Ожидает распределения')return true;
         return false;
       });
@@ -622,7 +624,7 @@ async function handlePortal(req,res,url){
       if(key==='employees')for(const employee of value)if(employee.status!=='active'){revokeSubjectSessions('worker',employee.id);void employeeTelegramBridge?.revokeEmployee(employee.id).catch(error=>console.error('Employee Telegram revoke failed:',error.message))}
       if(key==='orderOverrides')for(const [id,detail] of Object.entries(value)){
         const before=snapshot.orderOverrides[id]||{};
-        if(detail&&(detail.assignee!==before.assignee||detail.technician!==before.technician||detail.preprodTechnician!==before.preprodTechnician||detail.frameTechnician!==before.frameTechnician||detail.painter!==before.painter||detail.ceramicist!==before.ceramicist||detail.cadOperator!==before.cadOperator||detail.milling?.completedAt&&!before.milling?.completedAt)){const order=snapshot.orders.find(item=>item.id===id);if(order)void employeeTelegramBridge?.notifyAssignment(order,detail,before).catch(error=>console.error('Employee Telegram assignment notification failed:',error.message))}
+        if(detail&&(detail.assignee!==before.assignee||detail.technician!==before.technician||detail.preprodTechnician!==before.preprodTechnician||detail.frameTechnician!==before.frameTechnician||detail.category1Technician!==before.category1Technician||detail.painter!==before.painter||detail.ceramicist!==before.ceramicist||detail.cadOperator!==before.cadOperator||detail.milling?.completedAt&&!before.milling?.completedAt)){const order=snapshot.orders.find(item=>item.id===id);if(order)void employeeTelegramBridge?.notifyAssignment(order,detail,before).catch(error=>console.error('Employee Telegram assignment notification failed:',error.message))}
         if(detail?.stage==='Согласование CAD'&&before.stage!=='Согласование CAD'){
           const order=snapshot.orders.find(item=>item.id===id),previewUrl=createCadPreviewLink(order&&{...order,cadReview:detail.cadReview});
           if(order&&previewUrl)void telegramBridge?.sendAutomatedMessage(order.clinicId,`CAD по заказу ${order.id} готов к согласованию врача.`,{reply_markup:{inline_keyboard:[[{text:'Открыть CAD',url:previewUrl}],[{text:'✅ Принять заказ',callback_data:`tgcad:approve:${order.id}`}],[{text:'↩️ Вернуть заказ',callback_data:`tgcad:return:${order.id}`}]]}}).catch(error=>console.error('Telegram CAD notification failed:',error.message));

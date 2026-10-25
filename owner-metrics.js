@@ -33,7 +33,8 @@ function assignment(order){
   if(order.stage==='Моделирование')return order.cadOperator||order.assignee||'';
   if(order.stage==='Препрод')return order.preprodTechnician||order.preprod||'';
   if(order.stage==='Изготовление')return /Красильщик|Эстетист/i.test(order.manufacturingStatus||'')?order.painter||order.ceramicist||'':order.frameTechnician||order.technician||order.assignee||'';
-  if(order.stage==='На доработке')return order.reworkKind==='preprod'?order.preprodTechnician||'':order.reworkKind==='cad'?order.cadOperator||'':order.reworkKind==='cam'?order.frameTechnician||order.technician||'':order.painter||order.ceramicist||'';
+  if(order.stage==='Техник первой категории')return order.category1Technician||order.assignee||'';
+  if(order.stage==='На доработке')return order.reworkKind==='preprod'?order.preprodTechnician||'':order.reworkKind==='cad'?order.cadOperator||'':order.reworkKind==='cam'?order.frameTechnician||order.technician||'':order.reworkKind==='category1'?order.category1Technician||'':order.painter||order.ceramicist||'';
   return order.assignee||'';
 }
 export function buildOwnerReport(snapshot,ledger,period,now=new Date()) {
