@@ -432,7 +432,7 @@ async function portalViewForUser(user,view=''){
     const employee=portalEmployee(user.subjectId);
     snapshot.orders=snapshot.orders.filter(item=>{
       const details=snapshot.orderOverrides[item.id]||{};
-      return employee&&[details.assignee,details.cadOperator,details.preprodTechnician,details.technician,details.frameTechnician,details.painter,details.ceramicist].includes(employee.originalName);
+      return employee&&[details.assignee,details.cadOperator,details.preprodTechnician,details.technician,details.frameTechnician,details.category1Technician,details.painter,details.ceramicist].includes(employee.originalName);
     });
     snapshot.clients=[];
     snapshot.employees=employee?[employee]:[];

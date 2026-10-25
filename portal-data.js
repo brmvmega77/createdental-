@@ -339,7 +339,7 @@ export async function portalSnapshotForDatabase(role,subjectId,view=''){
     const employee=employeeRows.rows[0]?.data;
     if(!employee)return {orders:[],orderOverrides:{},orderHistory:[],clientRequests:[],tasks:[],clients:[],employees:[],workCatalog:await normalizedCatalog(),deliverySettings:state.deliverySettings,promoCodes:state.promoCodes};
     const name=employee.originalName;
-    const overrideRows=await databasePool.query(`SELECT order_id,data FROM portal_order_overrides WHERE data->>'assignee'=$1 OR data->>'cadOperator'=$1 OR data->>'preprodTechnician'=$1 OR data->>'technician'=$1 OR data->>'frameTechnician'=$1 OR data->>'painter'=$1 OR data->>'ceramicist'=$1`,[name]);
+    const overrideRows=await databasePool.query(`SELECT order_id,data FROM portal_order_overrides WHERE data->>'assignee'=$1 OR data->>'cadOperator'=$1 OR data->>'preprodTechnician'=$1 OR data->>'technician'=$1 OR data->>'frameTechnician'=$1 OR data->>'category1Technician'=$1 OR data->>'painter'=$1 OR data->>'ceramicist'=$1`,[name]);
     const ids=overrideRows.rows.map(row=>row.order_id);
     const [orders,orderHistory,tasks,workCatalog]=await Promise.all([
       ids.length?normalizedRows('SELECT data FROM portal_orders WHERE order_id=ANY($1::text[]) ORDER BY created_at DESC NULLS LAST',[ids]):Promise.resolve([]),
@@ -394,7 +394,7 @@ export function portalSnapshotFor(role,subjectId,view=''){
   }
   if(role==='worker'){
     const employee=state.employees.find(item=>item.id===subjectId),name=employee?.originalName;
-    const assignedRoles=new Set(['assignee','cadOperator','preprodTechnician','technician','frameTechnician','painter','ceramicist']);
+    const assignedRoles=new Set(['assignee','cadOperator','preprodTechnician','technician','frameTechnician','category1Technician','painter','ceramicist']);
     const orders=state.orders.filter(order=>{
       const details=state.orderOverrides[order.id]||{};
       return name&&[...assignedRoles].some(field=>details[field]===name);
