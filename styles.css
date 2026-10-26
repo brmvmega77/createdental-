@@ -2577,6 +2577,59 @@ html[data-theme="dark"] .pulse-layout,html[data-theme="dark"] .pulse-detail-grid
 html[data-theme="dark"] .pulse-ring>div{background:#202428}
 @media(max-width:1050px){.pulse-detail-grid{grid-template-columns:1fr}}
 @media(max-width:760px){.pulse-metrics{grid-template-columns:1fr}.pulse-metric,.pulse-metric:first-child,.pulse-metric:last-child{padding:15px 0;border-right:0;border-bottom:1px solid var(--pulse-line)}.pulse-metric:last-child{border-bottom:0}.pulse-score-head{gap:13px}.pulse-ring{flex-basis:84px;width:84px;height:84px;padding:6px}.pulse-ring strong{font-size:23px}.pulse-score-head h2{font-size:17px}.pulse-order{flex-wrap:wrap}.pulse-order em{order:3;width:100%}}
+
+/* Production route builder: a focused master-detail editor keeps the full route visible only for the selected service. */
+.production-route-workspace{display:grid;grid-template-columns:minmax(250px,310px) minmax(0,1fr);gap:16px;align-items:start}
+.production-route-picker,.production-route-editor{min-width:0;border:1px solid #e7eaed;border-radius:12px;background:#fff}
+.production-route-picker{position:sticky;top:16px;overflow:hidden}
+.production-route-picker-head{display:grid;gap:12px;padding:16px;border-bottom:1px solid #edf0f2}
+.production-route-picker-head>div{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.production-route-picker-head h3{margin:0;color:#333;font-size:15px;letter-spacing:-.01em}
+.production-route-picker-head span{color:#929aa2;font-size:11px;font-weight:650}
+.production-route-picker-head input,.production-route-category-filter select{width:100%;height:38px;border:1px solid #dfe4e8;border-radius:8px;background:#fff;color:#333;padding:0 10px;font:600 12px/1 system-ui,sans-serif}
+.production-route-picker-head input:focus,.production-route-category-filter select:focus{outline:2px solid #b7c9d7;outline-offset:1px}
+.production-route-category-filter{display:grid;gap:6px;padding:14px 16px 8px;color:#929aa2;font-size:10px;font-weight:750;letter-spacing:.04em;text-transform:uppercase}
+.production-route-category-filter select{font-size:12px;letter-spacing:0;text-transform:none}
+.production-route-services{display:grid;gap:4px;max-height:620px;overflow:auto;padding:8px}
+.production-route-service{display:grid;gap:4px;width:100%;padding:11px 10px;border:1px solid transparent;border-radius:9px;background:transparent;color:#333;text-align:left;cursor:pointer;transition:background .15s ease,border-color .15s ease}
+.production-route-service:hover{background:#f7f8fa;border-color:#e2e7eb}
+.production-route-service.active{background:#f3f6f8;border-color:#cbd7df;box-shadow:inset 3px 0 #7d8d99}
+.production-route-service strong{overflow:hidden;font-size:12px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap}
+.production-route-service small{overflow:hidden;color:#929aa2;font-size:10px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.production-route-service-summary{display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;margin-top:2px}
+.production-route-service-summary span,.production-route-service-summary b{display:inline-block;max-width:78px;overflow:hidden;padding:3px 5px;border:1px solid #e1e5e8;border-radius:5px;color:#747d85;font-size:9px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+.production-route-service-summary b{border-color:transparent;background:#f0f2f4;color:#929aa2}
+.production-route-editor{padding:20px}
+.production-route-editor-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:18px;border-bottom:1px solid #edf0f2}
+.production-route-editor-head h2{margin:5px 0 4px;color:#333;font-size:21px;letter-spacing:-.025em}
+.production-route-editor-head p{margin:0;color:#929aa2;font-size:11px;font-weight:600}
+.production-route-template{display:grid;gap:12px;margin:18px 0;padding:14px;border:1px solid #edf0f2;border-radius:10px;background:#fafbfc}
+.production-route-template>div:first-child{display:grid;gap:3px}
+.production-route-template strong{color:#4d555c;font-size:12px}
+.production-route-template span{color:#929aa2;font-size:10px;font-weight:600}
+.production-route-template-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.production-route-template-button{display:grid;gap:4px;min-height:58px;padding:9px 10px;border:1px solid #dfe5e9;border-radius:8px;background:#fff;color:#4d555c;text-align:left;cursor:pointer;transition:border-color .15s ease,background .15s ease}
+.production-route-template-button:hover,.production-route-template-button:focus-visible{border-color:#aabdc9;background:#f5f8fa;outline:none}
+.production-route-template-button strong{font-size:11px}
+.production-route-template-button small{color:#929aa2;font-size:9px;line-height:1.3}
+.production-route-editor .production-route-stages{padding:15px 0 4px;gap:7px}
+.production-route-editor .production-route-add{margin-top:12px;padding-top:12px;border-top:1px solid #edf0f2}
+.production-route-editor-hint{margin:16px 0 0;color:#929aa2;font-size:11px;line-height:1.5}
+.production-route-editor-empty{display:grid;place-items:center;min-height:340px;gap:7px;color:#929aa2;text-align:center}
+.production-route-editor-empty strong{color:#555e65;font-size:15px}
+.production-route-editor-empty span{font-size:11px}
+html[data-theme="dark"] .production-route-picker,html[data-theme="dark"] .production-route-editor{border-color:#343a41;background:#202428}
+html[data-theme="dark"] .production-route-picker-head,html[data-theme="dark"] .production-route-editor-head,html[data-theme="dark"] .production-route-editor .production-route-add{border-color:#343a41}
+html[data-theme="dark"] .production-route-picker-head h3,html[data-theme="dark"] .production-route-editor-head h2,html[data-theme="dark"] .production-route-template strong,html[data-theme="dark"] .production-route-service,html[data-theme="dark"] .production-route-editor-empty strong{color:#eef0f2}
+html[data-theme="dark"] .production-route-picker-head input,html[data-theme="dark"] .production-route-category-filter select,html[data-theme="dark"] .production-route-template-button{border-color:#3a4047;background:#1b1e22;color:#eef0f2}
+html[data-theme="dark"] .production-route-service:hover{background:#292e34;border-color:#3a4047}
+html[data-theme="dark"] .production-route-service.active{background:#2c3339;border-color:#68737e}
+html[data-theme="dark"] .production-route-template{border-color:#343a41;background:#24282d}
+html[data-theme="dark"] .production-route-template-button:hover,html[data-theme="dark"] .production-route-template-button:focus-visible{border-color:#68737e;background:#2c3339}
+html[data-theme="dark"] .production-route-service-summary span{border-color:#3a4047;color:#b7bec6}
+html[data-theme="dark"] .production-route-service-summary b{background:#30363d;color:#b7bec6}
+@media(max-width:900px){.production-route-workspace{grid-template-columns:minmax(220px,280px) minmax(0,1fr)}.production-route-template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.production-route-picker{position:static}.production-route-workspace{grid-template-columns:1fr}.production-route-services{max-height:290px}.production-route-editor{padding:15px}.production-route-editor-head{display:grid;gap:10px}.production-route-editor-head .tech-pricing-count{justify-self:start}.production-route-template-grid{grid-template-columns:1fr 1fr}.production-route-editor .production-route-stages{gap:4px}.production-route-editor .production-route-toggle{font-size:10px;padding:6px 5px}}
 /* Company pulse: compact cards and actionable quality controls in both themes. */
 .pulse-metrics{grid-template-columns:repeat(5,minmax(0,1fr))}
 .pulse-metric{padding-left:14px;padding-right:14px}
