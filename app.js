@@ -85,7 +85,7 @@ const prostheticNoTeethOptions=new Set(['Титановое основание G
 // active as soon as the category is chosen, even before the specific service
 // option is selected, so choosing teeth and choosing a service work in either
 // order without exposing individual-tooth selection.
-const isJawSplitSelection=(work,option)=>jawSplitCategories.has(work);
+const isJawSplitSelection=(work,option)=>jawSplitCategories.has(work)||workCatalog.find(item=>item.name===work)?.pricingUnit==='jaw';
 const isNoTeethSelection=(work,option)=>work==='Протетика'&&prostheticNoTeethOptions.has(option);
 const currentUsesJawSplit=()=>isJawSplitSelection(state.work,state.workOption);
 const currentNeedsNoTeeth=()=>isNoTeethSelection(state.work,state.workOption);
