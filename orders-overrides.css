@@ -458,8 +458,10 @@ html[data-theme="dark"] .tech-assign-rollback .btn{
 
 /* The source PDF is a compact landscape sheet (595 x 419 pt), so keep one order on one page. */
 @media print{
-  @page{size:210mm 148mm;margin:3mm}
-  .order-print-sheet{min-height:142mm!important;height:142mm!important;padding:0!important;overflow:hidden!important}
+  /* Keep the single work order, but give it enough vertical room for every
+     tooth/service line instead of squeezing or clipping the lower rows. */
+  @page{size:210mm 220mm;margin:3mm}
+  .order-print-sheet{min-height:214mm!important;height:auto!important;padding:0!important;overflow:visible!important}
   .order-print-project{font-size:13pt!important;margin-bottom:2mm!important}
   .order-print-top{grid-template-columns:minmax(0,1fr) 43mm!important;gap:5mm!important}
   .order-print-line-field{height:5.8mm!important;font-size:8.5pt!important}
@@ -482,10 +484,10 @@ html[data-theme="dark"] .tech-assign-rollback .btn{
   .order-print-top{grid-template-columns:minmax(0,1fr) 92mm!important;gap:4mm!important}
   .order-print-brand img{width:92mm!important;height:36mm!important}
   .order-print-brand{font-size:7.5pt!important;gap:.5mm!important}
-  .order-print-side{height:56mm!important}
-  .order-print-jaw{height:56mm!important}
-  .order-print-jaw .tooth-chart{width:35mm!important;height:56mm!important}
-  .order-print-jaw .tooth-chart svg{width:35mm!important;height:56mm!important}
+  .order-print-side{height:136mm!important;grid-template-rows:repeat(16,minmax(8.5mm,1fr))!important}
+  .order-print-jaw{height:136mm!important}
+  .order-print-jaw .tooth-chart{width:35mm!important;height:136mm!important}
+  .order-print-jaw .tooth-chart svg{width:35mm!important;height:136mm!important}
   .order-print-bottom{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 20mm!important;gap:4mm!important;align-items:end!important}
   .order-print-qr{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-end!important;gap:.5mm!important;width:20mm!important}
   .order-print-qr img{display:block!important;width:18mm!important;height:18mm!important;object-fit:contain!important}
@@ -494,7 +496,7 @@ html[data-theme="dark"] .tech-assign-rollback .btn{
   .order-print-side-left .order-print-line-content{justify-content:flex-end!important}
   .order-print-side-right .order-print-line-content{justify-content:flex-start!important}
   .order-print-line-content>span{flex:0 0 auto!important}
-  .order-print-line-content>b{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:5.5pt!important;font-weight:400!important}
+  .order-print-line-content>b{min-width:0!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.05!important;font-size:5.5pt!important;font-weight:400!important}
 }
 
 /* The print action uses the same clearly visible outline as the other detail actions. */
