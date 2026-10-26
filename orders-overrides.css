@@ -658,6 +658,66 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
   }
 }
 
+/* The chief order table has two intentional modes. Their grid tracks must
+   follow the corresponding semantic headers, including the extra doctor
+   column in the full production-work list. */
+@media(min-width:761px){
+  .tech-orders-table-list thead tr,
+  .tech-orders-table-list tbody tr{
+    grid-template-columns:11fr 8fr 8fr 9fr 14fr 12fr 9fr 8fr 9fr 8fr 4fr!important;
+  }
+  .tech-orders-table-grouped thead tr,
+  .tech-orders-table-grouped tbody tr{
+    grid-template-columns:3fr 15fr 12fr 8fr 11fr 17fr 9fr 11fr 10fr 4fr!important;
+  }
+  .tech-orders-table-grouped .tech-order-group-row{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .tech-orders-table-grouped .tech-order-group-row td{
+    display:block!important;
+    grid-column:1/-1!important;
+    width:100%!important;
+    max-width:none!important;
+  }
+  .tech-orders-table-grouped tbody tr:not(.tech-order-group-row) td:nth-child(3){
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    justify-content:center!important;
+    white-space:normal!important;
+  }
+  .tech-orders-table-grouped tbody tr:not(.tech-order-group-row) td:nth-child(3) strong,
+  .tech-orders-table-grouped tbody tr:not(.tech-order-group-row) td:nth-child(3) small{
+    display:block!important;
+    line-height:1.3!important;
+  }
+  .tech-orders-table-list td:nth-child(9) .tech-stage,
+  .tech-orders-table-grouped td:nth-child(8) .tech-stage{
+    display:inline-block!important;
+    max-width:100%!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  .tech-orders-table-list td:nth-child(10) .tech-order-participants,
+  .tech-orders-table-grouped td:nth-child(9) .tech-order-participants{
+    display:block!important;
+    max-width:100%!important;
+    overflow:hidden!important;
+    white-space:nowrap!important;
+    text-overflow:ellipsis!important;
+  }
+  .tech-orders-table-list td:nth-child(11) .tech-order-actions,
+  .tech-orders-table-grouped td:nth-child(10) .tech-order-actions{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex-wrap:nowrap!important;
+    gap:5px!important;
+    width:100%!important;
+    overflow:visible!important;
+  }
+}
+
 /* Print narяд uses the same medium-gray selected teeth as the order card. */
 @media print{
   .order-print-jaw .tooth.selected .tooth-image{filter:brightness(.65) saturate(0)!important}
@@ -707,4 +767,259 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
     width:45mm!important;height:68mm!important;max-height:none!important;
   }
   .order-print-bottom{break-inside:avoid!important;page-break-inside:avoid!important}
+}
+
+/* Grouped view: one calm parent surface with a clearly nested production list. */
+@media(min-width:761px){
+  .tech-orders-table-grouped tbody tr.tech-order-group-row{
+    margin-top:14px;
+    border:1px solid #e6e6e6;
+    border-radius:12px;
+    overflow:hidden;
+    background:#f8f8f8;
+  }
+  .tech-orders-table-grouped tbody tr.tech-order-group-row:first-child{margin-top:0}
+  .tech-orders-table-grouped tbody tr.tech-order-group-row td{
+    border:0!important;
+    background:#f8f8f8!important;
+  }
+  .tech-orders-table-grouped .tech-order-group-summary{
+    min-height:76px;
+    padding:14px 18px;
+    background:transparent;
+  }
+  .tech-orders-table-grouped .tech-order-group-summary:hover{background:#f2f2f2}
+  .tech-orders-table-grouped .tech-order-group-primary strong{font-size:13px;letter-spacing:-.01em}
+  .tech-orders-table-grouped .tech-order-group-primary small{color:#707070}
+  .tech-orders-table-grouped .tech-order-group-stat{color:#6f6f6f}
+  .tech-orders-table-grouped .tech-order-group-count b{font-size:14px}
+  .tech-orders-table-grouped tbody tr.tech-order-child-row{
+    margin-inline:12px;
+    border-left:1px solid #e6e6e6;
+    border-right:1px solid #e6e6e6;
+    background:#fff;
+  }
+  .tech-orders-table-grouped tbody tr.tech-order-child-row td{
+    padding-top:14px!important;
+    padding-bottom:14px!important;
+    border-bottom:1px solid #eeeeee!important;
+    background:#fff!important;
+  }
+  .tech-orders-table-grouped tbody tr.tech-order-child-first{
+    border-top:1px solid #e6e6e6;
+    border-top-left-radius:9px;
+    border-top-right-radius:9px;
+  }
+  .tech-orders-table-grouped tbody tr.tech-order-child-last{
+    border-bottom:1px solid #e6e6e6;
+    border-bottom-left-radius:9px;
+    border-bottom-right-radius:9px;
+    margin-bottom:12px;
+  }
+  .tech-orders-table-grouped tbody tr.tech-order-child-row:hover td{background:#fbfbfb!important}
+  .tech-orders-table-grouped .tech-order-child-row td:first-child{padding-left:18px!important}
+  .tech-orders-table-grouped .tech-order-child-mark{color:#9a9a9a;font-size:15px}
+  .tech-orders-table-grouped .tech-order-child-placeholder{color:#b3b3b3}
+  .tech-orders-table-grouped .tech-order-child-service{font-size:13px;line-height:1.35;color:#3f3f3f;font-weight:650}
+  .tech-orders-table-grouped .tech-order-child-row td:nth-child(2){color:#5f5f5f;font-weight:600}
+  .tech-orders-table-grouped .tech-order-child-row td:nth-child(3),
+  .tech-orders-table-grouped .tech-order-child-row td:nth-child(4),
+  .tech-orders-table-grouped .tech-order-child-row td:nth-child(5){color:#adadad}
+  .tech-orders-table-grouped .tech-order-child-row td:nth-child(7){color:#6e6e6e}
+}
+
+/* A single-work order still belongs to the grouped view: keep its card rhythm
+   identical to multi-work clinical orders, without a misleading expand affordance. */
+@media(min-width:761px){
+  .tech-orders-table-grouped tbody tr.tech-order-single-row{
+    margin-top:14px;
+    border:1px solid #e6e6e6;
+    border-radius:12px;
+    overflow:hidden;
+    background:#fff;
+  }
+  .tech-orders-table-grouped tbody tr.tech-order-single-row:first-child{margin-top:0}
+  .tech-orders-table-grouped tbody tr.tech-order-single-row td{
+    padding-top:17px!important;
+    padding-bottom:17px!important;
+    border:0!important;
+    background:#fff!important;
+  }
+  .tech-orders-table-grouped tbody tr.tech-order-single-row:hover td{background:#fbfbfb!important}
+  .tech-orders-table-grouped tbody tr.tech-order-single-row td:first-child{padding-left:18px!important}
+  .tech-orders-table-grouped tbody tr.tech-order-single-row td:nth-child(2){font-weight:600;color:#3f3f3f}
+}
+
+/* Between tablet and desktop, keep the controls and every table column inside
+   the panel instead of letting the right edge disappear off-screen. */
+@media(min-width:761px) and (max-width:900px){
+  .tech-order-tools>.tech-order-searchbar{
+    display:grid!important;
+    grid-template-columns:auto auto minmax(180px,1fr)!important;
+    grid-template-rows:38px!important;
+    gap:8px!important;
+    align-items:center!important;
+    min-width:0!important;
+    width:100%!important;
+  }
+  .tech-order-tools>.tech-order-searchbar .tech-order-view-toggle{
+    grid-column:1!important;
+    grid-row:1!important;
+    width:max-content!important;
+    max-width:100%!important;
+  }
+  .tech-order-searchbar .tech-order-view-toggle button{
+    min-height:30px!important;
+    padding-inline:10px!important;
+    font-size:11px!important;
+  }
+  .tech-order-tools>.tech-order-searchbar .tech-filter-button{
+    grid-column:2!important;
+    grid-row:1!important;
+    width:auto!important;
+    min-width:92px!important;
+    min-height:38px!important;
+    white-space:nowrap!important;
+  }
+  .tech-order-tools>.tech-order-searchbar input#tech-search{
+    grid-column:3!important;
+    grid-row:1!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+  }
+  .tech-order-searchbar:has(.tech-order-filter-panel){grid-template-rows:38px auto!important}
+  .tech-order-searchbar:has(.tech-order-filter-panel) .tech-order-filter-panel{grid-column:1/-1!important;grid-row:2!important}
+
+  .tech-orders-table-wrap{overflow:visible!important}
+  .tech-orders-table-list thead tr,
+  .tech-orders-table-list tbody tr{
+    grid-template-columns:10fr 8fr 7fr 8fr 13fr 11fr 8fr 8fr 10fr 7fr 10fr!important;
+  }
+  .tech-orders-table-grouped thead tr,
+  .tech-orders-table-grouped tbody tr{
+    grid-template-columns:3fr 13fr 10fr 7fr 10fr 14fr 9fr 10fr 12fr 12fr!important;
+  }
+  .tech-orders-table-grouped .tech-order-group-summary{
+    grid-template-columns:3fr 13fr 10fr 7fr 10fr 14fr 9fr 10fr 12fr 12fr!important;
+  }
+  .tech-orders-table td.tech-order-actions-cell .tech-order-actions{
+    justify-content:flex-start!important;
+    gap:2px!important;
+    overflow:visible!important;
+  }
+  .tech-orders-table td.tech-order-actions-cell .tech-icon-btn{
+    width:22px!important;
+    height:28px!important;
+    flex:0 0 22px!important;
+  }
+  .tech-orders-table td.tech-order-actions-cell{padding-inline:3px!important;overflow:visible!important}
+  .tech-orders-table th,.tech-orders-table td{padding-inline:7px!important}
+}
+
+/* Final wide-screen order table pass: keep the controls in one line and give
+   the action cell enough room for all three buttons. */
+@media(min-width:901px){
+  .tech-order-tools{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(360px,620px)!important;
+    gap:12px!important;
+    align-items:start!important;
+  }
+  .tech-order-tools>.tech-segment{
+    grid-column:1!important;
+    grid-row:1!important;
+    min-width:0!important;
+    max-width:100%!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    flex-wrap:nowrap!important;
+  }
+  .tech-order-tools>.tech-order-searchbar{
+    display:grid!important;
+    grid-template-columns:auto auto minmax(220px,1fr)!important;
+    grid-template-rows:36px!important;
+    gap:8px!important;
+    align-items:center!important;
+    flex:1 1 520px!important;
+    width:100%!important;
+    min-width:0!important;
+  }
+  .tech-order-tools>.tech-order-searchbar .tech-order-view-toggle{
+    grid-column:1!important;
+    grid-row:1!important;
+    width:max-content!important;
+    max-width:100%!important;
+  }
+  .tech-order-tools>.tech-order-searchbar .tech-filter-button{
+    grid-column:2!important;
+    grid-row:1!important;
+    width:auto!important;
+    min-width:96px!important;
+    min-height:36px!important;
+    white-space:nowrap!important;
+  }
+  .tech-order-tools>.tech-order-searchbar input#tech-search{
+    grid-column:3!important;
+    grid-row:1!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+  }
+  .tech-order-searchbar:has(.tech-order-filter-panel){grid-template-rows:36px auto!important}
+  .tech-order-searchbar:has(.tech-order-filter-panel) .tech-order-filter-panel{grid-column:1/-1!important;grid-row:2!important}
+
+  .tech-orders-table-list thead tr,
+  .tech-orders-table-list tbody tr{
+    grid-template-columns:11fr 8fr 8fr 9fr 12fr 11fr 8fr 8fr 9fr 8fr 8fr!important;
+  }
+  .tech-orders-table-list td.tech-order-actions-cell .tech-order-actions{
+    justify-content:flex-start!important;
+    gap:3px!important;
+    overflow:visible!important;
+  }
+  .tech-orders-table-list td.tech-order-actions-cell .tech-icon-btn{
+    width:24px!important;
+    height:28px!important;
+    flex:0 0 24px!important;
+  }
+  .tech-orders-table-list td.tech-order-actions-cell{padding-inline:4px!important;overflow:visible!important}
+}
+
+/* The view switch belongs to the page controls, above the data panel, so it
+   does not compete with status tabs, search, or the table columns. */
+.tech-order-viewbar{
+  display:flex!important;
+  justify-content:flex-end!important;
+  align-items:center!important;
+  min-height:36px!important;
+  margin:0 0 10px!important;
+}
+.tech-order-viewbar .tech-order-view-toggle{
+  width:max-content!important;
+  max-width:100%!important;
+  margin:0!important;
+}
+@media(max-width:760px){
+  .tech-order-viewbar{justify-content:flex-start!important;margin-bottom:8px!important}
+  .tech-order-viewbar .tech-order-view-toggle{overflow-x:auto!important;flex-wrap:nowrap!important}
+}
+
+/* Group summaries and child rows share one table grid. Child rows are inset
+   by 12px; matching that inset and removing the summary-only gaps keeps
+   services, deadlines, stages, and employees on the same vertical tracks. */
+@media(min-width:761px){
+  .tech-orders-table-grouped .tech-order-group-summary{
+    width:100%!important;
+    margin:0!important;
+    padding-inline:12px!important;
+    column-gap:0!important;
+  }
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-type{grid-column:5!important;grid-row:1!important}
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-work{grid-column:6!important;grid-row:1!important}
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-people{grid-column:9!important;grid-row:1!important}
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-chevron,
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-primary,
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-stat,
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-stage{position:relative;left:12px!important}
 }
