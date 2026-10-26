@@ -1,6 +1,7 @@
 const {default:qrcode}=await import(import.meta.url.startsWith('file:')
   ? './public/assets/vendor/qrcode-generator.js'
   : './assets/vendor/qrcode-generator.js?v=2.0.4');
+import {orderVariantConstructionLabel} from './order-list-utils.js?v=order-fields-1';
 
 const escapeValue = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
@@ -45,7 +46,7 @@ function qrMarkup(order){
   return `<div class="order-print-qr">${svg}<small>Карточка заказа</small></div>`;
 }
 function serviceName(order,variant){
-  return variant?.workOption||order?.material||variant?.work||order?.work||'';
+  return orderVariantConstructionLabel(variant,order)==='—'?'':orderVariantConstructionLabel(variant,order);
 }
 function servicesByTooth(order,variant){
   const services=new Map();
