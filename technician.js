@@ -10,7 +10,7 @@ import {routeFromPath,pathFor,navigate} from './routes.js?v=production-builder-1
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,estimateWork,priceUnitsForSelection,camMethodLabel,camMethodForOrder} from './work-catalog.js?v=cam-settings-1';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
-import {openOrderPrint} from './order-print.js?v=order-print-26';
+import {openOrderPrint} from './order-print.js?v=order-print-27';
 const surgicalTemplateUtilities = await import(import.meta.url.startsWith('file:')
   ? './public/assets/surgical-template-utils.js'
   : '/assets/surgical-template-utils.js?v=surgical-sockets-4');
