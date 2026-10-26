@@ -676,13 +676,18 @@ function clinicStageValue(details={}){
   return ({'Новый':'Ожидает распределения','В работе':'Изготовление','Моделирование':'Моделирование','На согласовании':'Согласование CAD','Согласование':'Согласование CAD','На доработке':'На доработке','В пути к вам':'В доставке','Принято':'Принято доктором','Работа принята':'Работа принята'}[String(details.status||'').trim()]||'Ожидает распределения');
 }
 function clinicVisibleProductionStages(details={}){
-  const restoration=clinicHasRestoration(details),stage=clinicStageValue(details);
-  return productionStages.filter(item=>{
+  const restoration=clinicHasRestoration(details),stage=clinicStageValue(details),filtered=productionStages.filter(item=>{
     if(details.productionType!=='analog'&&item.label==='Аналоговая подготовка')return false;
     if(restoration&&item.label==='Техник первой категории')return false;
     if(item.label==='Доработка и эстетика')return restoration||stage==='На доработке';
     return true;
   }).map(item=>item.label==='Доработка и эстетика'&&!restoration?{...item,label:'Доработка'}:item);
+  if(details.productionType!=='analog')return filtered;
+  const preprod=filtered.find(item=>item.label==='Аналоговая подготовка');
+  if(!preprod)return filtered;
+  const rest=filtered.filter(item=>item!==preprod),reception=rest.findIndex(item=>item.label==='Приём / Доставка');
+  rest.splice(reception>=0?reception+1:0,0,preprod);
+  return rest;
 }
 function clinicOrderProgress(details){
   const stage=clinicStageValue(details),stages=clinicVisibleProductionStages(details),index=stages.findIndex(item=>item.matches.includes(stage));
