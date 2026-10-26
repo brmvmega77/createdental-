@@ -1,6 +1,7 @@
 import {camMethodForOrder} from './work-catalog.js';
 
 export const camWorkflowStages=['Отправлено на фрезеровку','Ожидает принятия','В работе','ОТК','Передал дальше'];
+export const genericCamWorkflowStages=['Ожидает принятия','В работе','ОТК','Передал дальше'];
 
 const workStatuses=['Принял работу','Принял в работу','В работе'];
 export function camWorkflowStatus(order={}){
@@ -18,10 +19,14 @@ export function camCanAccept(order={}){
 export function camCanSubmitQuality(order={}){
   return order.stage==='Изготовление'&&order.manufacturingStatus==='В работе у Каркасиста'&&(camMethodForOrder(order)==='manufacturing'||Boolean(order.milling?.completedAt))&&camWorkflowStatus(order)==='В работе';
 }
+export function camWorkflowStagesForOrder(order={}){
+  return camMethodForOrder(order)==='manufacturing'?genericCamWorkflowStages:camWorkflowStages;
+}
 export function camAfterMilling(order={},completedAt){
   return {...order,milling:{...order.milling,completedAt},frameTechnicianStatus:'',technicianStatus:'',workerAcceptances:Object.fromEntries(Object.entries(order.workerAcceptances||{}).filter(([,item])=>item?.role!=='frame'))};
 }
 export function camWorkflowProgress(order={}){
-  const index=camWorkflowStages.indexOf(camWorkflowStatus(order));
-  return index<0?0:(index+1)*20;
+  const stages=camWorkflowStagesForOrder(order),index=stages.indexOf(camWorkflowStatus(order));
+  if(index<0)return 0;
+  return stages.length===4?Math.round(index/3*100):(index+1)*20;
 }

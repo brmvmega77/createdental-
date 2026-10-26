@@ -1,7 +1,7 @@
 import {employeeFlowRole} from './flow-rules.js';
 import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
-import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camCanAccept,camCanSubmitQuality} from './cam-workflow.js?v=cam-settings-1';
+import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camCanAccept,camCanSubmitQuality,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
 import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=cam-settings-1';
 import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadReviewHtml,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
@@ -62,7 +62,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   }
   const isCadOperator=()=>isCadOperatorEmployee(current());
   const isPreprod=()=>isPreprodEmployee(current());
-  const visibleProductionStages=()=>isCadOperator()?cadOperatorStages:isPreprodEmployee(current())?preprodStages:isFrameEmployee(current())?camWorkflowStages.map(label=>({label})):technicianStages;
+  const visibleProductionStages=order=>isCadOperator()?cadOperatorStages:isPreprodEmployee(current())?preprodStages:isFrameEmployee(current())?camWorkflowStagesForOrder(order).map(label=>({label})):technicianStages;
   const avatarKey=()=>`create-dental-worker-avatar-${state.employeeId||currentUser()?.subjectId||'worker'}`;
   function storedAvatar(){try{return localStorage.getItem(avatarKey())||''}catch{return ''}}
   function storeAvatar(avatar){try{avatar?localStorage.setItem(avatarKey(),avatar):localStorage.removeItem(avatarKey())}catch{/* Local storage can be full or unavailable. */}}
@@ -275,7 +275,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     const order=myOrders().find(item=>item.id===state.orderId);
     const timeline=root().querySelector('.worker-detail-side .tech-timeline');
     if(!order||!timeline)return;
-    const stagesForWorker=visibleProductionStages(),currentIndex=isCadOperator()?stagesForWorker.findIndex(item=>item.matches.includes(order.stage)):stagesForWorker.findIndex(item=>item.label===technicianStatus(order));
+    const stagesForWorker=visibleProductionStages(order),currentIndex=isCadOperator()?stagesForWorker.findIndex(item=>item.matches.includes(order.stage)):stagesForWorker.findIndex(item=>item.label===technicianStatus(order));
     const progress=isFrameEmployee(current())?camWorkflowProgress(order):specialistProgress(isCadOperator()?workerStageLabel(order):technicianStatus(order));
     const progressValue=root().querySelector('[data-worker-stage-progress-value]'),progressBar=root().querySelector('[data-worker-stage-progress-bar]');
     if(progressValue)progressValue.textContent=`${progress}%`;
