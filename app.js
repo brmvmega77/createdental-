@@ -674,6 +674,7 @@ function clinicVisibleProductionStages(details={}){
   const restoration=clinicHasRestoration(details);
   return productionStages.filter(item=>{
     if(details.productionType!=='analog'&&item.label==='Аналоговая подготовка')return false;
+    if(restoration&&item.label==='Техник первой категории')return false;
     if(item.label==='Доработка и эстетика')return restoration||details.stage==='На доработке';
     return true;
   }).map(item=>item.label==='Доработка и эстетика'&&!restoration?{...item,label:'Доработка'}:item);
