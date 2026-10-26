@@ -1010,7 +1010,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       cad:order.stage==='Подготовка'?(displayStatus(order.cadOperatorStatus)||'Ожидает принятия'):order.stage==='Моделирование'?(displayStatus(order.cadOperatorStatus)||'В работе'):order.stage==='Контроль качества'&&qualityKind==='cad'?'ОТК':order.stage==='Согласование CAD'?'Согласование с врачом':['Изготовление','Работа принята','В доставке','Принято доктором'].includes(order.stage)?'Передал дальше':'',
       frame:preManufacturingQuality?'':order.frameTechnician||order.technician?camWorkflowStatus(order):'',
       painter:preManufacturingQuality?'':displayStatus(order.painterStatus||order.ceramicistStatus)||(order.stage==='Контроль качества'&&qualityKind==='esthetic'?'ОТК':order.stage==='Работа принята'?'Передал дальше':''),
-      category1:displayStatus(order.category1TechnicianStatus)||(order.stage==='Техник первой категории'?'В работе':order.stage==='Контроль качества'&&qualityKind==='category1'?'ОТК':['Работа принята','В доставке','Принято доктором'].includes(order.stage)?'Передал дальше':'')
+      category1:displayStatus(order.category1TechnicianStatus)||(order.stage==='Техник первой категории'?'Ожидает принятия':order.stage==='Контроль качества'&&qualityKind==='category1'?'ОТК':['Работа принята','В доставке','Принято доктором'].includes(order.stage)?'Передал дальше':'')
     };
     const roleState=role=>{
       if(role==='preprod'&&order.stage==='Препрод')return 'Сейчас работает';
@@ -1021,7 +1021,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(role==='frame'&&roleStatus.frame==='Передал дальше')return 'Передал дальше';
       if(role==='painter'&&roleStatus.painter==='Передал дальше')return 'Передал дальше';
       if(role==='painter'&&order.stage==='Изготовление'&&order.manufacturingStatus===manufacturingStatuses[0])return 'Ожидает передачи';
-      if(role==='category1'&&order.stage==='Техник первой категории')return 'Сейчас работает';
+      if(role==='category1'&&order.stage==='Техник первой категории')return ['Принял работу','Принял в работу','В работе'].includes(roleStatus.category1)?'Сейчас работает':'Ожидает принятия';
       if(role==='category1'&&roleStatus.category1==='Передал дальше')return 'Передал дальше';
       if(role==='frame'&&order.stage!=='Изготовление')return 'Ожидает этапа изготовления';
       if(role==='painter'&&!roleStatus.painter)return 'Ожидает этапа доработки и эстетики';
@@ -1077,7 +1077,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(role==='preprod')return displayStatus(order.preprodTechnicianStatus)||(order.stage==='Препрод'?'В работе':'');
       if(role==='frame')return order.frameTechnician||order.technician?camWorkflowStatus(order):'';
       if(role==='painter')return displayStatus(order.painterStatus||order.ceramicistStatus)||(order.stage==='Контроль качества'?'ОТК':order.stage==='Работа принята'?'Передал дальше':'');
-      if(role==='category1')return displayStatus(order.category1TechnicianStatus)||(order.stage==='Техник первой категории'?'В работе':order.stage==='Контроль качества'&&order.qualityRequest?.kind==='category1'?'ОТК':order.stage==='Работа принята'?'Передал дальше':'');
+      if(role==='category1')return displayStatus(order.category1TechnicianStatus)||(order.stage==='Техник первой категории'?'Ожидает принятия':order.stage==='Контроль качества'&&order.qualityRequest?.kind==='category1'?'ОТК':order.stage==='Работа принята'?'Передал дальше':'');
       if(order.stage==='Подготовка')return displayStatus(order.cadOperatorStatus)||'Ожидает принятия';
       if(order.stage==='Моделирование')return 'В работе';
       if(order.stage==='Контроль качества'&&order.qualityRequest?.kind==='cad')return 'ОТК';
