@@ -3044,3 +3044,20 @@ html[data-theme="dark"] .tech-nav-group-title{color:#aeb6be}
 .tech-promo-registration input::selection{background:#dedede;color:#333}
 .tech-promo-clinics input:focus-visible,.tech-promo-clinics summary:focus-visible,.tech-promo-registration input:focus-visible{outline:2px solid #888;outline-offset:3px}
 @media(max-width:700px){.tech-promo-registration{align-items:stretch}.tech-promo-link-field{flex-basis:100%}.tech-promo-link-actions{width:100%}.tech-promo-link-actions .btn{flex:1 1 140px}.tech-promo-clinic-search{max-width:none}}
+
+/* Promo settings stay compact until their own heading is opened. */
+.tech-promo-card{padding:0}
+.tech-promo-summary{display:flex;align-items:center;gap:16px;min-height:64px;padding:18px;list-style:none;cursor:pointer;color:#444}
+.tech-promo-summary::-webkit-details-marker{display:none}
+.tech-promo-summary:hover{background:#f5f5f5;border-radius:14px}
+.tech-promo-summary:focus-visible{outline:2px solid #888;outline-offset:3px;border-radius:14px}
+.tech-promo-summary-copy{display:flex;align-items:baseline;flex-wrap:wrap;flex:1;min-width:0;gap:6px 16px;font-size:14px}
+.tech-promo-summary-copy strong{font-weight:600;overflow-wrap:anywhere}
+.tech-promo-summary-copy>span{font-size:13px;color:#666;overflow-wrap:anywhere}
+.tech-promo-summary-copy>span[hidden]{display:none}
+.tech-promo-summary-status{flex:none;color:#666;font-size:12px;font-weight:500}
+.tech-promo-summary>svg{flex:none;color:#808080}
+.tech-promo-card[open]>.tech-promo-summary>svg{transform:rotate(90deg)}
+.tech-promo-body{padding:0 18px 18px}
+.tech-promo-card[open]>.tech-promo-summary{margin-bottom:14px;border-bottom:1px solid var(--line,#e7e9ec);border-radius:14px 14px 0 0}
+@media(max-width:700px){.tech-promo-summary{gap:10px;padding:16px}.tech-promo-summary-copy{display:grid;gap:4px}.tech-promo-summary-status{font-size:11px}.tech-promo-body{padding:0 16px 16px}}
