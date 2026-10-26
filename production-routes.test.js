@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {routeForOrder,requiresCategory1AfterCam,isRestorationRoute,isDirectCategory1} from './production-routes.js';
+import {routeForOrder,requiresCategory1AfterCam,isRestorationRoute,isDirectCategory1,normalizeProductionFlow} from './production-routes.js';
 
 test('restorations keep the existing CAM and aesthetic route',()=>{
   const route=routeForOrder({work:'Реставрации',material:'PMMA коронка CAD/CAM',productionType:'digital'});
@@ -24,5 +24,10 @@ test('direct category one services do not create CAD or CAM steps',()=>{
   const order={work:'Дополнительные работы',material:'Анодирование',productionType:'digital'};
   assert.equal(isDirectCategory1(order),true);
   assert.deepEqual(routeForOrder(order).roles,['category1']);
+});
+
+test('production builder keeps required steps and supports a custom order',()=>{
+  assert.deepEqual(normalizeProductionFlow(['cam','cad','delivery','done','intake'],[]),['intake','cam','cad','delivery','done']);
+  assert.deepEqual(normalizeProductionFlow(['cad','cam'],[]),['intake','cad','cam','delivery','done']);
 });
 
