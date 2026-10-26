@@ -68,15 +68,27 @@ const chiefStandardStagesForOrder = order => {
     chiefStandardStage('Принято врачом')
   ];
 };
+const chiefRestorationStagesForOrder = order => {
+  const analog=order?.productionType==='analog';
+  return [
+    chiefStandardStage('Ожидает подтверждения'),
+    chiefStandardStage('Приём / Доставка'),
+    ...(analog?[chiefStandardStage('Аналоговая подготовка')]:[]),
+    {label:'Моделирование',matches:['Моделирование','Согласование CAD']},
+    {label:'Изготовление',matches:['Изготовление',manufacturingStatuses[0]]},
+    {label:'Доработка и эстетика',matches:['На доработке',manufacturingStatuses[1]]},
+    {label:'Контроль качества',matches:['Контроль качества','Работа принята']},
+    chiefStandardStage('Доставка в клинику'),
+    chiefStandardStage('Принято врачом')
+  ];
+};
 const chiefUsesStandardRoute = order => !routeForOrder(order).restoration;
 const chiefStagesForOrder = order => chiefUsesStandardRoute(order)
   ? chiefStandardStagesForOrder(order).map(item=>item.label)
-  : chiefStages;
+  : chiefRestorationStagesForOrder(order).map(item=>item.label);
 const chiefVisibleStagesForOrder = order => {
   if(chiefUsesStandardRoute(order))return chiefStandardStagesForOrder(order);
-  return order.productionType==='analog'
-    ? ['Ожидает подтверждения','Приём / Доставка','Аналоговая подготовка','Моделирование','Изготовление','Контроль качества','Доставка в клинику','Принято врачом'].map(label=>productionStages.find(item=>item.label===label)).filter(Boolean)
-    : productionStages.filter(item=>!['Аналоговая подготовка','CAD на согласовании у врача'].includes(item.label));
+  return chiefRestorationStagesForOrder(order);
 };
 const chiefQualityApprovalChange = (order,expectedKind,qualityApprovedAt) => {
   const change=qualityApprovalChange(order,expectedKind,qualityApprovedAt);
@@ -248,7 +260,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   function chiefTimelineIndex(order,sequence=chiefStages){
     const label=chiefStageLabel(order);
     if(sequence===chiefStages)return Math.max(0,chiefStages.indexOf(label));
-    const normalized=['Черновик из Telegram','Ожидает распределения','Ожидает подтверждения'].includes(label)?'Ожидает подтверждения':label==='Подготовка'?'Приём / Доставка':label==='Препрод'?'Аналоговая подготовка':label==='Согласование CAD'?'Моделирование':manufacturingStatuses.includes(label)?'Изготовление':label==='Работа принята'?'Контроль качества':label==='В доставке'?'Доставка в клинику':label==='Готово к выдаче'?'Принято врачом':label;
+    const normalized=['Черновик из Telegram','Ожидает распределения','Ожидает подтверждения'].includes(label)?'Ожидает подтверждения':label==='Подготовка'?'Приём / Доставка':label==='Препрод'?'Аналоговая подготовка':label==='Согласование CAD'?'Моделирование':label===manufacturingStatuses[0]?'Изготовление':label===manufacturingStatuses[1]?'Доработка и эстетика':label==='Работа принята'?'Контроль качества':label==='В доставке'?'Доставка в клинику':label==='Готово к выдаче'?'Принято врачом':label;
     return Math.max(0,sequence.indexOf(normalized));
   }
   const doctorAcceptanceWindow=2*24*60*60*1000;
@@ -978,6 +990,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const displayStatus=status=>status==='Принял работу'?'В работе':status==='Работа сдана'?'Передал дальше':status;
     const analog=order.productionType==='analog';
     const standardRoute=chiefUsesStandardRoute(order);
+    const restorationRoute=!standardRoute&&routeForOrder(order).restoration;
     // Сначала главный техник подтверждает заказ, затем назначает первого
     // специалиста после этапа «Приём / Доставка». CAM/CAD и Эстетист
     // остаются заблокированы до завершения предыдущего этапа.
@@ -1011,7 +1024,9 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     wrapper.className='tech-assign-filters';
     const assignmentFields=standardRoute
       ? (analog?[['preprod','Препрод техник'],['cad','CAD оператор'],['frame','CAM оператор'],['category1','Техник первой категории']]:[['cad','CAD оператор'],['frame','CAM оператор'],['category1','Техник первой категории']])
-      : (analog?[['preprod','Препрод техник'],['cad','CAD оператор'],['frame','CAM оператор'],['category1','Техник первой категории'],['painter','Эстетист']]:[['cad','CAD оператор'],['frame','CAM оператор'],['category1','Техник первой категории'],['painter','Эстетист']]);
+      : restorationRoute
+        ? (analog?[['preprod','Препрод техник'],['cad','CAD оператор'],['frame','CAM оператор'],['painter','Эстетист']]:[['cad','CAD оператор'],['frame','CAM оператор'],['painter','Эстетист']])
+        : (analog?[['preprod','Препрод техник'],['cad','CAD оператор'],['frame','CAM оператор'],['category1','Техник первой категории'],['painter','Эстетист']]:[['cad','CAD оператор'],['frame','CAM оператор'],['category1','Техник первой категории'],['painter','Эстетист']]);
     wrapper.innerHTML=assignmentFields.map(([role,label])=>`<label>${assignmentLabel(role,label)}<select data-tech-assign="${safe(order.id)}" data-tech-assign-role="${role}">${optionMarkup(role)}</select></label>`).join('');
     const preprodSelect=wrapper.querySelector('[data-tech-assign-role="preprod"]'),frameSelect=wrapper.querySelector('[data-tech-assign-role="frame"]'),category1Select=wrapper.querySelector('[data-tech-assign-role="category1"]'),painterSelect=wrapper.querySelector('[data-tech-assign-role="painter"]'),cadSelect=wrapper.querySelector('[data-tech-assign-role="cad"]');
     if(preprodSelect&&!preprodUnlocked)preprodSelect.disabled=true;
