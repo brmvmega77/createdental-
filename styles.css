@@ -54,6 +54,7 @@
 .tooth.selected .tooth-image{filter:brightness(.34) contrast(1.3) saturate(0)}
 /* A medium gray keeps selected teeth distinct without hiding their anatomy. */
 .tooth-picker .desktop-tooth-chart .tooth.selected[aria-pressed="true"] .tooth-image{filter:brightness(.65) saturate(0)}
+.confirmation .tooth.selected .tooth-image{filter:brightness(.65) saturate(0)}
 .tooth-picker .tooth.selected text{fill:#fff;stroke:#666}
 /* Service cards reuse the same tooth artwork, but should match the picker’s
    medium-gray selected state instead of the high-contrast creation default. */
