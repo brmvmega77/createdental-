@@ -64,17 +64,6 @@ function servicesByTooth(order,variants){
   }
   return services;
 }
-function printNeedsTallSheet(order,variants){
-  const services=servicesByTooth(order,variants);
-  let totalLines=0,maxLines=1;
-  for(const tooth of [...upperTeeth,...lowerTeeth]){
-    const text=services.get(tooth)?.join('; ')||'';
-    const lines=text?Math.max(1,Math.ceil(text.length/58)):1;
-    totalLines+=lines;
-    maxLines=Math.max(maxLines,lines);
-  }
-  return maxLines>2||totalLines>40;
-}
 function sideToothLines(teeth,services=new Map(),side='left'){
   return teeth.map((tooth,index)=>{
     const service=services.get(tooth)?.join('; ')||'';
@@ -114,21 +103,13 @@ export function openOrderPrint({order,toothChart,logo='/assets/create-dental-log
   if(!order||printInProgress)return false;
   printInProgress=true;
   document.querySelector('.order-print-root')?.remove();
-  document.querySelector('[data-order-print-page-style]')?.remove();
   const variants=variantsFor(order);
-  const isTall=printNeedsTallSheet(order,variants);
-  const pageClass=isTall?' order-print-tall':'';
-  const pageStyleMarkup=`<style data-order-print-page-style>@media print{@page{size:210mm ${isTall?'250mm':'148mm'};margin:3mm}}</style>`;
-  document.head?.insertAdjacentHTML?.('beforeend',pageStyleMarkup)
-    || document.body?.insertAdjacentHTML?.('beforeend',pageStyleMarkup);
-  const pageStyle=document.querySelector('[data-order-print-page-style]');
-  document.body.insertAdjacentHTML('beforeend',`<div class="order-print-root${pageClass}"><section class="order-print-paper">${sheetMarkup(order,variants,toothChart,logo)}</section></div>`);
+  document.body.insertAdjacentHTML('beforeend',`<div class="order-print-root"><section class="order-print-paper">${sheetMarkup(order,variants,toothChart,logo)}</section></div>`);
   const root=document.querySelector('.order-print-root');
   const printButtons=[...(document.querySelectorAll?.('[data-action="print-order"],[data-tech-order-action="print-order"]')||[])];
   printButtons.forEach(button=>{button.disabled=true;button.setAttribute('aria-busy','true')});
   const finish=()=>{
     root?.remove();
-    pageStyle.remove();
     printButtons.forEach(button=>{button.disabled=false;button.removeAttribute('aria-busy')});
     printInProgress=false;
   };

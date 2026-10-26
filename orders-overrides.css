@@ -253,68 +253,6 @@
   }
 }
 
-/* Adaptive work-order paper: keep the compact form when it fits, and switch
-   to the tall sheet only for dense service/tooth combinations. */
-@page{size:210mm 148mm;margin:3mm}
-@page order-compact{size:210mm 148mm;margin:3mm}
-@page order-tall{size:210mm 250mm;margin:3mm}
-@media print{
-  .order-print-paper{
-    display:block!important;
-    width:210mm!important;
-    height:auto!important;
-    min-height:0!important;
-    margin:0!important;
-    padding:0!important;
-    overflow:visible!important;
-    break-after:avoid-page!important;
-    page-break-after:avoid!important;
-  }
-  .order-print-paper>.order-print-sheet{
-    width:204mm!important;
-    height:142mm!important;
-    min-height:142mm!important;
-    max-height:142mm!important;
-    margin:0!important;
-    padding:0!important;
-    overflow:hidden!important;
-    break-after:avoid-page!important;
-    page-break-after:avoid!important;
-  }
-  .order-print-main{height:70mm!important;align-items:center!important}
-  .order-print-side{height:68mm!important;grid-template-rows:repeat(16,1fr)!important}
-  .order-print-jaw{height:68mm!important;overflow:hidden!important}
-  .order-print-jaw .tooth-chart{width:45mm!important;height:68mm!important}
-  .order-print-jaw .tooth-chart svg{width:45mm!important;height:68mm!important;max-height:none!important}
-  .order-print-line-content{min-height:0!important;overflow:hidden!important;align-items:center!important}
-  .order-print-line-content>b{max-width:none!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;overflow-wrap:normal!important;line-height:1!important}
-
-  .order-print-root.order-print-tall .order-print-paper>.order-print-sheet{
-    height:auto!important;
-    min-height:244mm!important;
-    max-height:none!important;
-    overflow:visible!important;
-    break-after:avoid-page!important;
-    page-break-after:avoid!important;
-  }
-  .order-print-root.order-print-tall .order-print-main{height:auto!important;align-items:stretch!important}
-  .order-print-root.order-print-tall .order-print-side{
-    height:136mm!important;
-    grid-template-rows:repeat(16,minmax(8.5mm,auto))!important;
-  }
-  .order-print-root.order-print-tall .order-print-jaw{height:136mm!important;overflow:visible!important}
-  .order-print-root.order-print-tall .order-print-jaw .tooth-chart{width:45mm!important;height:136mm!important}
-  .order-print-root.order-print-tall .order-print-jaw .tooth-chart svg{width:45mm!important;height:136mm!important;max-height:none!important}
-  .order-print-root.order-print-tall .order-print-line-content{min-height:8.5mm!important;overflow:visible!important;align-items:center!important}
-  .order-print-root.order-print-tall .order-print-line-content>b{
-    overflow:visible!important;
-    text-overflow:clip!important;
-    white-space:normal!important;
-    overflow-wrap:anywhere!important;
-    line-height:1.05!important;
-  }
-}
-
 /* Let every order value use its full content and keep the reduced action group neat. */
 @media(min-width:761px){
   .tech-orders-table th,
@@ -725,72 +663,48 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
   .order-print-jaw .tooth.selected .tooth-image{filter:brightness(.65) saturate(0)!important}
 }
 
-/* Adaptive print sizing: keep the original compact sheet when it fits, and
-   use the taller sheet only for orders whose service text needs more rows. */
-@page{size:210mm 148mm;margin:3mm}
-@page order-tall{size:210mm 250mm;margin:3mm}
+/* A4 portrait paper stays fixed. The form starts in the upper half and its
+   service rows grow only when their text needs additional lines. */
 @media print{
-  html,body{width:210mm!important;min-height:0!important;height:auto!important;margin:0!important}
-  .order-print-paper{
-    display:block!important;
-    width:210mm!important;
-    height:auto!important;
-    min-height:0!important;
-    margin:0!important;
-    padding:0!important;
+  @page{size:A4 portrait;margin:7mm}
+  html,body{
+    width:auto!important;min-width:0!important;max-width:none!important;
+    height:auto!important;min-height:0!important;margin:0!important;padding:0!important;
     overflow:visible!important;
-    break-after:avoid-page!important;
-    page-break-after:avoid!important;
   }
-  .order-print-paper>.order-print-sheet{
-    width:204mm!important;
-    height:142mm!important;
-    min-height:142mm!important;
-    max-height:142mm!important;
-    margin:0!important;
-    padding:0!important;
-    overflow:hidden!important;
-    break-after:avoid-page!important;
-    page-break-after:avoid!important;
+  .order-print-root,.order-print-paper,.order-print-paper>.order-print-sheet{
+    display:block!important;position:static!important;inset:auto!important;
+    width:100%!important;max-width:100%!important;min-width:0!important;
+    height:auto!important;min-height:0!important;max-height:none!important;
+    box-sizing:border-box!important;margin:0!important;padding:0!important;
+    overflow:visible!important;transform:none!important;
+    break-before:auto!important;break-after:auto!important;
+    page-break-before:auto!important;page-break-after:auto!important;
   }
-  .order-print-main{height:70mm!important;align-items:center!important}
-  .order-print-side{height:68mm!important;grid-template-rows:repeat(16,1fr)!important}
-  .order-print-jaw{height:68mm!important;overflow:hidden!important}
-  .order-print-jaw .tooth-chart{width:45mm!important;height:68mm!important}
-  .order-print-jaw .tooth-chart svg{width:45mm!important;height:68mm!important;max-height:none!important}
-  .order-print-line-content{min-height:0!important;overflow:hidden!important;align-items:center!important}
+  .order-print-paper>.order-print-sheet{break-inside:avoid!important;page-break-inside:avoid!important}
+  .order-print-main{
+    height:auto!important;min-height:70mm!important;
+    grid-template-columns:minmax(0,1fr) 48mm minmax(0,1fr)!important;
+    align-items:stretch!important;
+  }
+  .order-print-side{
+    height:auto!important;min-height:68mm!important;
+    grid-template-rows:repeat(16,minmax(4.25mm,auto))!important;
+  }
+  .order-print-tooth-line{min-height:0!important;break-inside:avoid!important}
+  .order-print-line-content{
+    min-height:0!important;overflow:visible!important;align-items:center!important;
+    padding-block:.2mm!important;
+  }
   .order-print-line-content>b{
-    max-width:none!important;
-    overflow:hidden!important;
-    text-overflow:ellipsis!important;
-    white-space:nowrap!important;
-    overflow-wrap:normal!important;
-    line-height:1!important;
+    flex:1 1 auto!important;min-width:0!important;max-width:none!important;
+    overflow:visible!important;text-overflow:clip!important;
+    white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.1!important;
   }
-
-  .order-print-root.order-print-tall .order-print-paper>.order-print-sheet{
-    height:auto!important;
-    min-height:244mm!important;
-    max-height:none!important;
-    overflow:visible!important;
-    break-after:avoid-page!important;
-    page-break-after:avoid!important;
+  .order-print-side-left .order-print-line-content>b{text-align:right!important}
+  .order-print-jaw{height:68mm!important;align-self:center!important;overflow:visible!important}
+  .order-print-jaw .tooth-chart,.order-print-jaw .tooth-chart svg{
+    width:45mm!important;height:68mm!important;max-height:none!important;
   }
-  .order-print-root.order-print-tall .order-print-main{height:auto!important;align-items:stretch!important}
-  .order-print-root.order-print-tall .order-print-side{
-    height:136mm!important;
-    grid-template-rows:repeat(16,minmax(8.5mm,auto))!important;
-  }
-  .order-print-root.order-print-tall .order-print-jaw{height:136mm!important;overflow:visible!important}
-  .order-print-root.order-print-tall .order-print-jaw .tooth-chart{width:45mm!important;height:136mm!important}
-  .order-print-root.order-print-tall .order-print-jaw .tooth-chart svg{width:45mm!important;height:136mm!important;max-height:none!important}
-  .order-print-root.order-print-tall .order-print-line-content{min-height:8.5mm!important;overflow:visible!important;align-items:center!important}
-  .order-print-root.order-print-tall .order-print-line-content>b{
-    max-width:none!important;
-    overflow:visible!important;
-    text-overflow:clip!important;
-    white-space:normal!important;
-    overflow-wrap:anywhere!important;
-    line-height:1.05!important;
-  }
+  .order-print-bottom{break-inside:avoid!important;page-break-inside:avoid!important}
 }
