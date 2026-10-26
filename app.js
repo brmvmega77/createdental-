@@ -839,7 +839,7 @@ function orderDraft(){
 function bridgeSelectionText(){if(state.toothMode!=='Мост')return state.selectedTeeth.length?`Выбрано: ${state.selectedTeeth.join(', ')}`:'Нажмите на нужные зубы';if(state.bridgeStart)return `Начало моста: ${state.bridgeStart}. Выберите последний зуб на этой челюсти`;if(state.bridgeRanges.length)return `Мосты: ${state.bridgeRanges.map(range=>`${range[0]}–${range.at(-1)}`).join(', ')}`;return 'Выберите первый и последний зуб моста'}
 function jawSelectionText(){const upper=upperTeeth.every(tooth=>state.selectedTeeth.includes(tooth)),lower=lowerTeeth.every(tooth=>state.selectedTeeth.includes(tooth));return upper&&lower?'Выбраны верхняя и нижняя челюсти':upper?'Верхняя челюсть':lower?'Нижняя челюсть':'Выберите челюсть'}
 function mobileToothPicker(){return '';}
-function teethStep(){const work=selectedWork(),noTeeth=currentNeedsNoTeeth(),jawWork=currentUsesJawSplit(),toothPicker=noTeeth?`<section class="tooth-picker tooth-picker-no-teeth"><h2>Зубы</h2><div class="no-teeth-note">Для этой услуги номера зубов не выбираются.</div></section>`:`<section class="tooth-picker"><h2>${jawWork?'Выберите челюсть':'Выберите зуб(ы)'}</h2>${jawWork?`<div class="jaw-choice"><button type="button" class="${upperTeeth.every(tooth=>state.selectedTeeth.includes(tooth))?'selected':''}" data-action="jaw-toggle" data-value="upper">Верхняя челюсть</button><button type="button" class="${lowerTeeth.every(tooth=>state.selectedTeeth.includes(tooth))?'selected':''}" data-action="jaw-toggle" data-value="lower">Нижняя челюсть</button></div>`:`<div class="tooth-mode">${['Одиночка','Мост','Челюсть'].map(mode=>`<button type="button" class="${state.toothMode===mode?'selected':''}" data-action="tooth-mode" data-value="${mode}">${mode}</button>`).join('')}</div>`}${jawWork?'':`<div class="desktop-tooth-chart">${toothChart(true,state.selectedTeeth,state.bridgeRanges)}</div>${mobileToothPicker()}`}<div class="selected-teeth"><strong>${jawWork?jawSelectionText():bridgeSelectionText()}</strong>${state.selectedTeeth.length?'<button type="button" class="clear" data-action="clear-teeth">Очистить</button>':''}</div></section>`;return `<div class="order-builder">${toothPicker}<section class="work-picker"><div class="work-picker-title"><div><h2>Что нужно сделать?</h2><p>${work?.options.length?'Уточните вариант исполнения':state.work?'Категория выбрана':'Выберите вид работы из списка'}</p></div>${state.work?'<button type="button" data-action="work-back" aria-label="Вернуться к списку">⌕</button>':''}</div>${workChooser()}</section>${orderDraft()}</div>`}
+function teethStep(){const work=selectedWork(),noTeeth=currentNeedsNoTeeth(),jawWork=currentUsesJawSplit(),toothPicker=noTeeth?`<section class="tooth-picker tooth-picker-no-teeth"><h2>Зубы</h2><div class="no-teeth-note">Для этой услуги номера зубов не выбираются.</div></section>`:`<section class="tooth-picker"><h2>${jawWork?'Выберите челюсть':'Выберите зуб(ы)'}</h2>${jawWork?`<div class="jaw-choice"><button type="button" class="${upperTeeth.every(tooth=>state.selectedTeeth.includes(tooth))?'selected':''}" data-action="jaw-toggle" data-value="upper">Верхняя челюсть</button><button type="button" class="${lowerTeeth.every(tooth=>state.selectedTeeth.includes(tooth))?'selected':''}" data-action="jaw-toggle" data-value="lower">Нижняя челюсть</button></div>`:`<div class="tooth-mode">${['Одиночка','Мост','Челюсть'].map(mode=>`<button type="button" class="${state.toothMode===mode?'selected':''}" data-action="tooth-mode" data-value="${mode}">${mode}</button>`).join('')}</div>`}<div class="desktop-tooth-chart">${toothChart(true,state.selectedTeeth,state.bridgeRanges)}</div>${mobileToothPicker()}<div class="selected-teeth"><strong>${jawWork?jawSelectionText():bridgeSelectionText()}</strong>${state.selectedTeeth.length?'<button type="button" class="clear" data-action="clear-teeth">Очистить</button>':''}</div></section>`;return `<div class="order-builder">${toothPicker}<section class="work-picker"><div class="work-picker-title"><div><h2>Что нужно сделать?</h2><p>${work?.options.length?'Уточните вариант исполнения':state.work?'Категория выбрана':'Выберите вид работы из списка'}</p></div>${state.work?'<button type="button" data-action="work-back" aria-label="Вернуться к списку">⌕</button>':''}</div>${workChooser()}</section>${orderDraft()}</div>`}
 const uploadPreviewUrls=new WeakMap();
 function uploadPreview(file){
   if(!file?.type?.startsWith('image/')&&!/\.(?:jpg|jpeg|png)$/i.test(file?.name||''))return '';
@@ -1233,7 +1233,8 @@ function addProstheticAddon(optionName){
   if(isNoTeethSelection(category.name,optionName)){addon.selectedTeeth=[];addon.toothMode='Одиночка';addon.bridgeRanges=[]}
   state.orderVariants=[...(state.orderVariants||[]),current,addon];
   resetCurrentVariant();
-  notify('Позиция добавлена в заказ · выберите следующую услугу');
+  refreshOrderBuilder();
+  notifyWithoutRender('Позиция добавлена в заказ · выберите следующую услугу');
 }
 function addSurgicalSocket(jaw){
   const current=currentVariant(),category=workCatalog.find(item=>item.name===SURGICAL_TEMPLATE_CATEGORY),option=category?.options.find(item=>workOptionName(item)===SURGICAL_SOCKET_OPTION);
@@ -1254,14 +1255,15 @@ function addSurgicalSocket(jaw){
   if(guide)state.orderVariants=[...(state.orderVariants||[]),guide];
   const remainingJaws=['upper','lower'].filter(selectedJaw=>hasSurgicalJaw(current,selectedJaw)&&!(state.orderVariants||[]).some(variant=>isSurgicalSocket(variant)&&hasSurgicalJaw(variant,selectedJaw)));
   if(!remainingJaws.length)resetCurrentVariant();
-  notify(`Добавлено гнездо · ${jaw==='upper'?'верхняя':'нижняя'} челюсть`);
+  refreshOrderBuilder();
+  notifyWithoutRender(`Добавлено гнездо · ${jaw==='upper'?'верхняя':'нижняя'} челюсть`);
 }
 function changeSurgicalSocketQuantity(index,delta){
   const variant=state.orderVariants?.[index];
   if(!isSurgicalSocket(variant))return;
   const next=adjustSurgicalSockets(variant,delta);
   if(next===(Number(variant.units)||1))return;
-  variant.units=next;render();
+  variant.units=next;refreshOrderBuilder();
 }
 function removeOrderVariant(index){
   const variant=state.orderVariants?.[index];
@@ -1392,6 +1394,23 @@ async function updateClinicStage(orderId,stage){
   overrides[orderId]={...(overrides[orderId]||{}),stage};
   localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
   try{await savePortal('orderOverrides',overrides);notify(stage==='Принято доктором'?'Заказ принят':'Статус обновлён');await hydratePortal()}catch(error){notify('Не удалось сохранить статус: '+error.message)}
+}
+function refreshOrderBuilder(){
+  const current=document.querySelector('.order-builder');
+  if(!current||state.page!=='new'||state.step!==1){render();return}
+  const template=document.createElement('template');
+  template.innerHTML=teethStep().trim();
+  const next=template.content.firstElementChild;
+  if(next)current.replaceWith(next);else render();
+}
+function notifyWithoutRender(message){
+  state.toast=message;
+  const toast=document.querySelector('.toast');
+  if(!toast){render();return}
+  toast.textContent=message;
+  toast.classList.add('visible');
+  clearTimeout(notify.timer);
+  notify.timer=setTimeout(()=>{state.toast='';document.querySelector('.toast')?.classList.remove('visible')},3000);
 }
 function notify(message){state.toast=message;render();clearTimeout(notify.timer);notify.timer=setTimeout(()=>{state.toast='';$('.toast')?.classList.remove('visible')},3000)}
 document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';authNotice='';navigate(pathFor(null,authMode,null,currentAuthLocale()));loginView();if(authMode==='register')import('./location-assist.js?v=country-cities-1').catch(()=>{})});
