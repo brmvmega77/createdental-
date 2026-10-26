@@ -1636,14 +1636,17 @@ html,body,#app{max-width:100%;overflow-x:hidden}
    may wrap, while dates, statuses and totals keep their compact widths. */
 @media(min-width:1201px){
   .dashboard-main .orders-table{table-layout:fixed;width:100%;min-width:0}
-  .dashboard-main .orders-table th:nth-child(1),.dashboard-main .orders-table td:nth-child(1){width:15%}
-  .dashboard-main .orders-table th:nth-child(2),.dashboard-main .orders-table td:nth-child(2){width:10%}
-  .dashboard-main .orders-table th:nth-child(3),.dashboard-main .orders-table td:nth-child(3){width:10%}
-  .dashboard-main .orders-table th:nth-child(4),.dashboard-main .orders-table td:nth-child(4){width:25%;white-space:normal!important;overflow-wrap:anywhere}
+  .dashboard-main .orders-table th:nth-child(1),.dashboard-main .orders-table td:nth-child(1){width:16%}
+  .dashboard-main .orders-table th:nth-child(2),.dashboard-main .orders-table td:nth-child(2){width:11%}
+  .dashboard-main .orders-table th:nth-child(3),.dashboard-main .orders-table td:nth-child(3){width:9%}
+  .dashboard-main .orders-table th:nth-child(4),.dashboard-main .orders-table td:nth-child(4){width:24%;white-space:normal!important;overflow-wrap:anywhere}
   .dashboard-main .orders-table th:nth-child(5),.dashboard-main .orders-table td:nth-child(5){width:10%;white-space:nowrap!important}
   .dashboard-main .orders-table th:nth-child(6),.dashboard-main .orders-table td:nth-child(6){width:10%;white-space:nowrap!important}
-  .dashboard-main .orders-table th:nth-child(7),.dashboard-main .orders-table td:nth-child(7){width:12%;white-space:nowrap!important}
-  .dashboard-main .orders-table th:nth-child(8),.dashboard-main .orders-table td:nth-child(8){width:8%;white-space:nowrap!important}
+  .dashboard-main .orders-table th:nth-child(7),.dashboard-main .orders-table td:nth-child(7){width:11%;white-space:normal!important}
+  .dashboard-main .orders-table th:nth-child(8),.dashboard-main .orders-table td:nth-child(8){width:9%;white-space:nowrap!important}
+  .dashboard-main .orders-table th,.dashboard-main .orders-table td{vertical-align:top}
+  .dashboard-main .orders-table td:first-child .order-row-link{display:block;white-space:normal!important;overflow-wrap:anywhere;word-break:break-word;line-height:1.25}
+  .dashboard-main .orders-table td:nth-child(7) .badge{display:inline-flex;max-width:100%;white-space:normal!important;overflow-wrap:anywhere;line-height:1.25;text-align:left}
 }
 
 /* Keep the chief technician order table inside its panel at every desktop width. */
