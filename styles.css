@@ -1635,7 +1635,10 @@ html,body,#app{max-width:100%;overflow-x:hidden}
 /* Keep the clinic dashboard order table inside the main column. Long work names
    may wrap, while dates, statuses and totals keep their compact widths. */
 @media(min-width:1201px){
-  .dashboard-main .orders-table{table-layout:fixed;width:100%;min-width:0}
+  .dashboard-main .orders-table{table-layout:fixed;width:100%;min-width:0;font-size:11px}
+  .dashboard-main .orders-table th{font-size:11px;padding-left:8px!important;padding-right:8px!important}
+  .dashboard-main .orders-table td{font-size:11px;padding-left:8px!important;padding-right:8px!important}
+  .dashboard-main .orders-table td strong{font-size:11px}
   .dashboard-main .orders-table th:nth-child(1),.dashboard-main .orders-table td:nth-child(1){width:16%}
   .dashboard-main .orders-table th:nth-child(2),.dashboard-main .orders-table td:nth-child(2){width:11%}
   .dashboard-main .orders-table th:nth-child(3),.dashboard-main .orders-table td:nth-child(3){width:9%}
@@ -1646,7 +1649,7 @@ html,body,#app{max-width:100%;overflow-x:hidden}
   .dashboard-main .orders-table th:nth-child(8),.dashboard-main .orders-table td:nth-child(8){width:9%;white-space:nowrap!important}
   .dashboard-main .orders-table th,.dashboard-main .orders-table td{vertical-align:top}
   .dashboard-main .orders-table td:first-child .order-row-link{display:block;white-space:normal!important;overflow-wrap:anywhere;word-break:break-word;line-height:1.25}
-  .dashboard-main .orders-table td:nth-child(7) .badge{display:inline-flex;max-width:100%;white-space:normal!important;overflow-wrap:anywhere;line-height:1.25;text-align:left}
+  .dashboard-main .orders-table td:nth-child(7) .badge{display:inline-flex;max-width:100%;padding:4px 7px;font-size:10px;white-space:normal!important;overflow-wrap:anywhere;line-height:1.25;text-align:left}
 }
 
 /* Keep the chief technician order table inside its panel at every desktop width. */
