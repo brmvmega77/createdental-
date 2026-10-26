@@ -64,6 +64,17 @@ function servicesByTooth(order,variants){
   }
   return services;
 }
+function printNeedsTallSheet(order,variants){
+  const services=servicesByTooth(order,variants);
+  let totalLines=0,maxLines=1;
+  for(const tooth of [...upperTeeth,...lowerTeeth]){
+    const text=services.get(tooth)?.join('; ')||'';
+    const lines=text?Math.max(1,Math.ceil(text.length/58)):1;
+    totalLines+=lines;
+    maxLines=Math.max(maxLines,lines);
+  }
+  return maxLines>2||totalLines>40;
+}
 function sideToothLines(teeth,services=new Map(),side='left'){
   return teeth.map((tooth,index)=>{
     const service=services.get(tooth)?.join('; ')||'';
@@ -104,7 +115,8 @@ export function openOrderPrint({order,toothChart,logo='/assets/create-dental-log
   printInProgress=true;
   document.querySelector('.order-print-root')?.remove();
   const variants=variantsFor(order);
-  document.body.insertAdjacentHTML('beforeend',`<div class="order-print-root"><section class="order-print-paper">${sheetMarkup(order,variants,toothChart,logo)}</section></div>`);
+  const pageClass=printNeedsTallSheet(order,variants)?' order-print-tall':'';
+  document.body.insertAdjacentHTML('beforeend',`<div class="order-print-root${pageClass}"><section class="order-print-paper">${sheetMarkup(order,variants,toothChart,logo)}</section></div>`);
   const root=document.querySelector('.order-print-root');
   const printButtons=[...(document.querySelectorAll?.('[data-action="print-order"],[data-tech-order-action="print-order"]')||[])];
   printButtons.forEach(button=>{button.disabled=true;button.setAttribute('aria-busy','true')});
