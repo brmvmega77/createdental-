@@ -3,6 +3,8 @@ const {default:qrcode}=await import(import.meta.url.startsWith('file:')
   : './assets/vendor/qrcode-generator.js?v=2.0.4');
 import {orderVariantConstructionLabel} from './order-list-utils.js?v=order-fields-1';
 
+let printInProgress=false;
+
 const escapeValue = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
 function displayDate(value){
@@ -98,15 +100,24 @@ function sheetMarkup(order,variants,toothChart,logo){
 }
 
 export function openOrderPrint({order,toothChart,logo='/assets/create-dental-logo.png'}){
-  if(!order)return;
+  if(!order||printInProgress)return false;
+  printInProgress=true;
   document.querySelector('.order-print-root')?.remove();
   const variants=variantsFor(order);
   document.body.insertAdjacentHTML('beforeend',`<div class="order-print-root"><section class="order-print-paper">${sheetMarkup(order,variants,toothChart,logo)}</section></div>`);
   const root=document.querySelector('.order-print-root');
-  window.addEventListener('afterprint',()=>root?.remove(),{once:true});
+  const printButtons=[...(document.querySelectorAll?.('[data-action="print-order"],[data-tech-order-action="print-order"]')||[])];
+  printButtons.forEach(button=>{button.disabled=true;button.setAttribute('aria-busy','true')});
+  const finish=()=>{
+    root?.remove();
+    printButtons.forEach(button=>{button.disabled=false;button.removeAttribute('aria-busy')});
+    printInProgress=false;
+  };
+  window.addEventListener('afterprint',finish,{once:true});
   const images=[...root.querySelectorAll('img')];
   let printed=false;
   const startPrint=()=>{if(printed)return;printed=true;requestAnimationFrame(()=>window.print())};
-  const fallback=setTimeout(startPrint,1800);
+  const fallback=setTimeout(startPrint,800);
   Promise.all(images.map(image=>image.complete?Promise.resolve():new Promise(resolve=>{image.addEventListener('load',resolve,{once:true});image.addEventListener('error',resolve,{once:true})}))).then(()=>{clearTimeout(fallback);startPrint()});
+  return true;
 }
