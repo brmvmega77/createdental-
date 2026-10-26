@@ -1,5 +1,12 @@
 const jawPricedNames=new Set(['Каппы','Ложки прикуса','Сплинты','Хирургические шаблоны']);
 const stableId=(prefix,value)=>prefix+'-'+[...String(value)].reduce((hash,c)=>Math.imul(hash^c.charCodeAt(0),16777619)>>>0,2166136261).toString(36);
+// Reordering changes only the position within one section; service records stay intact.
+export function reorderCatalogService(catalog,categoryIndex,from,to){
+  const options=catalog?.[categoryIndex]?.options;
+  if(!Array.isArray(options)||![categoryIndex,from,to].every(Number.isInteger)||from<0||to<0||from>=options.length||to>=options.length||from===to)return catalog;
+  const reordered=[...options],service=reordered.splice(from,1)[0];reordered.splice(to,0,service);
+  return catalog.map((category,index)=>index===categoryIndex?{...category,options:reordered}:category);
+}
 export function normalizeWorkCatalog(catalog,previous=[]){
  return catalog.map((category,index)=>{
   const before=previous.find(item=>category.id?item.id===category.id:item.name===category.name);

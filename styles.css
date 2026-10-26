@@ -3098,3 +3098,17 @@ html[data-theme="dark"] .tech-nav-group-title{color:#aeb6be}
   .tech-promo-head>.tech-promo-active{min-height:30px;grid-column:1}
   .tech-promo-head>.tech-pricing-remove{grid-column:2;margin:0;align-self:center}
 }
+
+/* Service ordering is confined to the section's grip; fields keep normal input behavior. */
+.tech-pricing-order-hint{margin:0 0 16px;color:#757575;font-size:12px;line-height:1.5}
+.tech-pricing-list .tech-pricing-service-cell{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;align-items:center;min-width:0}
+.tech-pricing-drag{display:inline-flex;align-items:center;justify-content:center;width:20px;height:34px;padding:0;border:0;border-radius:5px;background:transparent;color:#888;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.tech-pricing-drag:hover{background:#eee;color:#555}.tech-pricing-drag:active{cursor:grabbing}
+.tech-pricing-drag:disabled{opacity:.35;cursor:default}
+.tech-pricing-drag svg{pointer-events:none}
+.tech-pricing-list .tech-catalog-row.is-dragging{opacity:.45}
+.tech-pricing-list .tech-catalog-row.is-drop-before{box-shadow:inset 0 2px #808080}
+.tech-pricing-list .tech-catalog-row.is-drop-after{box-shadow:inset 0 -2px #808080}
+@media(max-width:760px){.tech-pricing-list .tech-pricing-service-cell{grid-template-columns:24px minmax(0,1fr)}.tech-pricing-drag{width:24px;height:40px}}
+
+.tech-pricing-drag-preview{position:fixed;z-index:10000;max-width:min(420px,calc(100vw - 32px));padding:10px 14px;border:1px solid #bbb;border-radius:8px;background:#fff;color:#444;font-size:13px;font-weight:600;line-height:1.4;pointer-events:none;overflow-wrap:anywhere}
