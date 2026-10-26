@@ -2638,6 +2638,7 @@ html[data-theme="dark"] .production-route-service-summary b{background:#30363d;c
 .pulse-data-note{margin:10px 0;color:var(--pulse-muted);font-size:11px;line-height:1.5}
 .pulse-side-subtitle{margin-top:22px!important;padding-top:16px;border-top:1px solid var(--pulse-line)}
 .pulse-overloaded{color:#b65050}
+.production-route-stage{cursor:grab;touch-action:none;user-select:none}.production-route-stage:active{cursor:grabbing}.production-route-stage.is-dragging{opacity:.42;transform:scale(.98)}.production-route-stage.is-drop-target{border-color:#8ea6b6;background:#eef4f7;box-shadow:0 0 0 2px #8ea6b633}.production-route-stage.required.is-drop-target{border-color:#8ea6b6;background:#eef4f7}
 .pulse-side-link{display:flex;align-items:center;justify-content:space-between;width:100%;margin:12px 0 2px;padding:10px 12px;border:1px solid var(--pulse-line);border-radius:9px;background:transparent;color:var(--pulse-text);font:inherit;font-size:11px;font-weight:700;cursor:pointer}
 .pulse-side-link:hover{background:var(--pulse-hover)}
 .pulse-payment-panel{margin-top:18px}

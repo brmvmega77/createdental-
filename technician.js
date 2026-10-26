@@ -153,6 +153,33 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   let cadPreviewRequest=0;
   let taskSaving=false;
   let taskDragId='';
+  let productionDrag=null;
+  let productionPointerDrag=null;
+  const clearProductionDrag=()=>{
+    root().querySelectorAll('.production-route-stage.is-dragging,.production-route-stage.is-drop-target').forEach(item=>item.classList.remove('is-dragging','is-drop-target'));
+    productionDrag=null;
+    productionPointerDrag=null;
+  };
+  const moveProductionStage=(source,target,clientX=0,clientY=0)=>{
+    if(!source||!target||source.category!==target.category||source.option!==target.option||source.stage===target.stage)return clearProductionDrag();
+    const category=state.productionRouteDraft?.[source.category],option=category?.options?.[source.option];
+    if(!option)return clearProductionDrag();
+    const context=state.productionRouteContext||'digital';
+    const fallback=defaultProductionFlowForService(category.name,option.name,context.endsWith('analog')?'analog':'digital',{work:category.name,material:option.name,productionType:context.endsWith('analog')?'analog':'digital'});
+    const flow=normalizeProductionFlow(option.productionFlows?.[context],fallback);
+    const from=flow.indexOf(source.stage),targetIndex=flow.indexOf(target.stage);
+    if(from<0||targetIndex<0)return clearProductionDrag();
+    flow.splice(from,1);
+    const nextIndex=flow.indexOf(target.stage),element=target.element;
+    const rect=element?.getBoundingClientRect?.();
+    const after=rect&&((clientX&&clientX>rect.left+rect.width/2)||(clientY&&clientY>rect.top+rect.height/2));
+    flow.splice(nextIndex+(after?1:0),0,source.stage);
+    option.productionFlows=option.productionFlows||{};
+    option.productionFlows[context]=normalizeProductionFlow(flow,fallback);
+    state.productionRouteSelectedKey=`${source.category}:${source.option}`;
+    clearProductionDrag();
+    render();
+  };
   let messagesRequest=0;
   const chiefAvatarKey='create-dental-chief-avatar';
   function storedChiefAvatar(){try{return localStorage.getItem(chiefAvatarKey)||''}catch{return ''}}
@@ -868,7 +895,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     };
     const stageControls=(categoryIndex,optionIndex,option,category)=>{
       const flow=routeForOption(category,option);
-      return `<div class="production-route-stages" aria-label="Маршрут услуги ${safe(option.name)}">${flow.map((id,index)=>{const stage=productionStageById[id]||{id,label:id},required=requiredProductionStageIds.includes(id);return `<span class="production-route-stage ${required?'required':''}"><button type="button" class="production-route-move" data-production-route-action="up" data-category="${categoryIndex}" data-option="${optionIndex}" data-stage="${id}" aria-label="Поднять этап ${safe(stage.label)}" ${index===0?'disabled':''}>↑</button><button type="button" class="production-route-toggle" data-production-route-action="toggle" data-category="${categoryIndex}" data-option="${optionIndex}" data-stage="${id}" ${required?'disabled':''} aria-label="${required?'Обязательный этап':'Убрать этап '+stage.label}">${safe(stage.label)}</button><button type="button" class="production-route-move" data-production-route-action="down" data-category="${categoryIndex}" data-option="${optionIndex}" data-stage="${id}" aria-label="Опустить этап ${safe(stage.label)}" ${index===flow.length-1?'disabled':''}>↓</button></span>`}).join('')}</div><div class="production-route-add">${productionStageDefinitions.filter(stage=>!flow.includes(stage.id)).map(stage=>`<button type="button" class="btn outline" data-production-route-action="toggle" data-category="${categoryIndex}" data-option="${optionIndex}" data-stage="${stage.id}">+ ${safe(stage.label)}</button>`).join('')}</div>`;
+      return `<div class="production-route-stages" aria-label="Маршрут услуги ${safe(option.name)}">${flow.map((id,index)=>{const stage=productionStageById[id]||{id,label:id},required=requiredProductionStageIds.includes(id);return `<span class="production-route-stage ${required?'required':''}" draggable="true" data-production-route-stage data-category="${categoryIndex}" data-option="${optionIndex}" data-stage="${id}" title="Перетащить этап"><button type="button" draggable="false" class="production-route-move" data-production-route-action="up" data-category="${categoryIndex}" data-option="${optionIndex}" data-stage="${id}" aria-label="Поднять этап ${safe(stage.label)}" ${index===0?'disabled':''}>↑</button><button type="button" draggable="false" class="production-route-toggle" data-production-route-action="toggle" data-category="${categoryIndex}" data-option="${optionIndex}" data-stage="${id}" ${required?'disabled':''} aria-label="${required?'Обязательный этап':'Убрать этап '+stage.label}">${safe(stage.label)}</button><button type="button" draggable="false" class="production-route-move" data-production-route-action="down" data-category="${categoryIndex}" data-option="${optionIndex}" data-stage="${id}" aria-label="Опустить этап ${safe(stage.label)}" ${index===flow.length-1?'disabled':''}>↓</button></span>`}).join('')}</div><div class="production-route-add">${productionStageDefinitions.filter(stage=>!flow.includes(stage.id)).map(stage=>`<button type="button" class="btn outline" data-production-route-action="toggle" data-category="${categoryIndex}" data-option="${optionIndex}" data-stage="${stage.id}">+ ${safe(stage.label)}</button>`).join('')}</div>`;
     };
     const entries=state.productionRouteDraft.flatMap((category,categoryIndex)=>(category.options||[]).map((option,optionIndex)=>({category,categoryIndex,option,optionIndex,key:`${categoryIndex}:${optionIndex}`})));
     const query=String(state.productionRouteSearch||'').trim().toLocaleLowerCase('ru');
@@ -879,9 +906,9 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const selectedKey=selectedEntry?.key||'';
     const templates=[['standard','Текущий стандарт','Вернуть маршрут по умолчанию'],['no-cad','Без CAD','Убрать CAD и согласование врача'],['cam-only','Сразу CAM','Начать изготовление с CAM'],['minimal','Минимальный','Оставить только обязательные этапы']];
     const serviceItems=filteredEntries.map(entry=>{const flow=routeForOption(entry.category,entry.option);const visible=flow.slice(0,4).map(id=>`<span>${safe(productionStageById[id]?.label||id)}</span>`).join('');const more=flow.length>4?`<b>+${flow.length-4}</b>`:'';return `<button type="button" class="production-route-service ${entry.key===selectedKey?'active':''}" data-production-route-service data-category="${entry.categoryIndex}" data-option="${entry.optionIndex}" data-key="${entry.key}" aria-pressed="${entry.key===selectedKey}"><strong>${safe(entry.option.name||'Без названия')}</strong><small>${safe(entry.category.name||'Раздел без названия')}</small><span class="production-route-service-summary">${visible}${more}</span></button>`}).join('');
-    const editor=selectedEntry?`<div class="production-route-editor-head"><div><span class="tech-pricing-kicker">${safe(selectedEntry.category.name||'РАЗДЕЛ ПРАЙСА')}</span><h2>${safe(selectedEntry.option.name||'Без названия')}</h2><p>${safe(contextLabel)} · маршрут услуги</p></div><span class="tech-pricing-count">${routeForOption(selectedEntry.category,selectedEntry.option).length} этапов</span></div><div class="production-route-template"><div><strong>Быстрый шаблон</strong><span>Шаблон заменит текущий маршрут этой услуги.</span></div><div class="production-route-template-grid">${templates.map(([id,label,hint])=>`<button type="button" class="production-route-template-button" data-production-template="${id}" data-key="${selectedKey}"><strong>${label}</strong><small>${hint}</small></button>`).join('')}</div></div>${stageControls(selectedEntry.categoryIndex,selectedEntry.optionIndex,selectedEntry.option,selectedEntry.category)}<p class="production-route-editor-hint">Обязательные этапы отмечены серым. Стрелки меняют порядок, кнопки «+» добавляют этап.</p>`:'<div class="production-route-editor-empty"><strong>Выберите услугу</strong><span>Слева появится список услуг из прайса.</span></div>';
+    const editor=selectedEntry?`<div class="production-route-editor-head"><div><span class="tech-pricing-kicker">${safe(selectedEntry.category.name||'РАЗДЕЛ ПРАЙСА')}</span><h2>${safe(selectedEntry.option.name||'Без названия')}</h2><p>${safe(contextLabel)} · маршрут услуги</p></div><span class="tech-pricing-count">${routeForOption(selectedEntry.category,selectedEntry.option).length} этапов</span></div><div class="production-route-template"><div><strong>Быстрый шаблон</strong><span>Шаблон заменит текущий маршрут этой услуги.</span></div><div class="production-route-template-grid">${templates.map(([id,label,hint])=>`<button type="button" class="production-route-template-button" data-production-template="${id}" data-key="${selectedKey}"><strong>${label}</strong><small>${hint}</small></button>`).join('')}</div></div>${stageControls(selectedEntry.categoryIndex,selectedEntry.optionIndex,selectedEntry.option,selectedEntry.category)}<p class="production-route-editor-hint">Перетащите этап мышью или пальцем. Обязательные этапы нельзя удалить, но их можно разместить в допустимом порядке.</p>`:'<div class="production-route-editor-empty"><strong>Выберите услугу</strong><span>Слева появится список услуг из прайса.</span></div>';
     const categoryOptions=state.productionRouteDraft.map((category,index)=>`<option value="${index}" ${categoryFilter===String(index)?'selected':''}>${safe(category.name||'Раздел без названия')}</option>`).join('');
-    return `<a class="tech-back" href="${pathFor('technician','pricing')}" data-tech-page="pricing">← Прайс и сроки</a><div class="tech-heading"><div><span class="tech-eyebrow">ПРОИЗВОДСТВО</span><h1>Настройка производства</h1><p>Выберите услугу и соберите маршрут. Приём, доставка и готово всегда остаются в маршруте; остальные этапы можно добавлять, убирать и переставлять.</p></div><button class="btn primary" data-tech-production-action="save" ${state.productionRouteSaving?'disabled':''}>${state.productionRouteSaving?'Сохранение…':'Сохранить маршруты'}</button></div><section class="tech-panel production-route-builder"><div class="tech-panel-heading"><div><h2>Конструктор маршрутов</h2><p>Настройка применяется к новым и уже созданным заказам. Для реставраций доступны отдельные маршруты для цифры и аналога.</p></div><span class="tech-stage work">${entries.length} услуг</span></div><div class="production-route-contexts" role="tablist" aria-label="Тип производства">${productionFlowContexts.map(item=>`<button type="button" class="tech-segment-button ${context===item.id?'active':''}" data-production-context="${item.id}" role="tab" aria-selected="${context===item.id}">${item.label}</button>`).join('')}</div><div class="production-route-legend"><span><i class="required"></i> обязательный этап</span><span><i></i> настраиваемый этап</span><span>Стрелки меняют порядок</span></div><div class="production-route-workspace"><aside class="production-route-picker"><div class="production-route-picker-head"><div><h3>Услуги</h3><span>${filteredEntries.length} из ${entries.length}</span></div><input id="production-route-search" type="search" value="${safe(state.productionRouteSearch||'')}" placeholder="Найти услугу…" aria-label="Найти услугу"></div><label class="production-route-category-filter"><span>Раздел прайса</span><select data-production-route-category aria-label="Фильтр по разделу прайса"><option value="all" ${categoryFilter==='all'?'selected':''}>Все разделы</option>${categoryOptions}</select></label><div class="production-route-services" role="listbox" aria-label="Услуги">${serviceItems||'<p class="tech-empty">Услуги не найдены</p>'}</div></aside><section class="production-route-editor" aria-live="polite">${editor}</section></div></section>`;
+    return `<a class="tech-back" href="${pathFor('technician','pricing')}" data-tech-page="pricing">← Прайс и сроки</a><div class="tech-heading"><div><span class="tech-eyebrow">ПРОИЗВОДСТВО</span><h1>Настройка производства</h1><p>Выберите услугу и соберите маршрут. Приём, доставка и готово всегда остаются в маршруте; остальные этапы можно добавлять, убирать и переставлять.</p></div><button class="btn primary" data-tech-production-action="save" ${state.productionRouteSaving?'disabled':''}>${state.productionRouteSaving?'Сохранение…':'Сохранить маршруты'}</button></div><section class="tech-panel production-route-builder"><div class="tech-panel-heading"><div><h2>Конструктор маршрутов</h2><p>Настройка применяется к новым и уже созданным заказам. Для реставраций доступны отдельные маршруты для цифры и аналога.</p></div><span class="tech-stage work">${entries.length} услуг</span></div><div class="production-route-contexts" role="tablist" aria-label="Тип производства">${productionFlowContexts.map(item=>`<button type="button" class="tech-segment-button ${context===item.id?'active':''}" data-production-context="${item.id}" role="tab" aria-selected="${context===item.id}">${item.label}</button>`).join('')}</div><div class="production-route-legend"><span><i class="required"></i> обязательный этап</span><span><i></i> настраиваемый этап</span><span>Стрелки и перетаскивание меняют порядок</span></div><div class="production-route-workspace"><aside class="production-route-picker"><div class="production-route-picker-head"><div><h3>Услуги</h3><span>${filteredEntries.length} из ${entries.length}</span></div><input id="production-route-search" type="search" value="${safe(state.productionRouteSearch||'')}" placeholder="Найти услугу…" aria-label="Найти услугу"></div><label class="production-route-category-filter"><span>Раздел прайса</span><select data-production-route-category aria-label="Фильтр по разделу прайса"><option value="all" ${categoryFilter==='all'?'selected':''}>Все разделы</option>${categoryOptions}</select></label><div class="production-route-services" role="listbox" aria-label="Услуги">${serviceItems||'<p class="tech-empty">Услуги не найдены</p>'}</div></aside><section class="production-route-editor" aria-live="polite">${editor}</section></div></section>`;
   }
 
   function profileField(label,name,value='',type='text',required=false,placeholder=''){return `<label>${label}<input name="${name}" type="${type}" value="${safe(value)}" ${placeholder?`placeholder="${safe(placeholder)}"`:''} ${required?'required':''}></label>`}
@@ -1091,6 +1118,59 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(state.page==='messages')queueMicrotask(()=>{refreshMessages();scrollChiefChat()});
     if(state.page==='profile'&&!state.integration)queueMicrotask(loadIntegrationStatus);
   }
+  document.addEventListener('dragstart',event=>{
+    if(!isActive()||state.page!=='production-settings')return;
+    const stage=event.target.closest?.('[data-production-route-stage]');
+    if(!stage)return;
+    productionDrag={category:Number(stage.dataset.category),option:Number(stage.dataset.option),stage:stage.dataset.stage,element:stage};
+    stage.classList.add('is-dragging');
+    event.dataTransfer?.setData('text/plain',stage.dataset.stage||'');
+    if(event.dataTransfer)event.dataTransfer.effectAllowed='move';
+  });
+  document.addEventListener('dragover',event=>{
+    if(!isActive()||state.page!=='production-settings'||!productionDrag)return;
+    const target=event.target.closest?.('[data-production-route-stage]');
+    if(!target)return;
+    event.preventDefault();
+    if(event.dataTransfer)event.dataTransfer.dropEffect='move';
+    root().querySelectorAll('.production-route-stage.is-drop-target').forEach(item=>{if(item!==target)item.classList.remove('is-drop-target')});
+    if(target!==productionDrag.element)target.classList.add('is-drop-target');
+  });
+  document.addEventListener('drop',event=>{
+    if(!isActive()||state.page!=='production-settings'||!productionDrag)return;
+    const target=event.target.closest?.('[data-production-route-stage]');
+    if(!target)return;
+    event.preventDefault();
+    moveProductionStage(productionDrag,{category:Number(target.dataset.category),option:Number(target.dataset.option),stage:target.dataset.stage,element:target},event.clientX,event.clientY);
+  });
+  document.addEventListener('dragend',()=>{if(productionDrag)clearProductionDrag()});
+  document.addEventListener('pointerdown',event=>{
+    if(!isActive()||state.page!=='production-settings'||event.pointerType==='mouse'||event.target.closest?.('button'))return;
+    const stage=event.target.closest?.('[data-production-route-stage]');
+    if(!stage)return;
+    productionPointerDrag={category:Number(stage.dataset.category),option:Number(stage.dataset.option),stage:stage.dataset.stage,element:stage,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,started:false};
+  });
+  document.addEventListener('pointermove',event=>{
+    const drag=productionPointerDrag;
+    if(!drag||drag.pointerId!==event.pointerId)return;
+    if(!drag.started&&Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY)<7)return;
+    drag.started=true;
+    event.preventDefault();
+    drag.element.classList.add('is-dragging');
+    const target=document.elementFromPoint(event.clientX,event.clientY)?.closest?.('[data-production-route-stage]');
+    root().querySelectorAll('.production-route-stage.is-drop-target').forEach(item=>{if(item!==target)item.classList.remove('is-drop-target')});
+    if(target&&target!==drag.element)target.classList.add('is-drop-target');
+  },{passive:false});
+  document.addEventListener('pointerup',event=>{
+    const drag=productionPointerDrag;
+    if(!drag||drag.pointerId!==event.pointerId)return;
+    if(drag.started){
+      const target=document.elementFromPoint(event.clientX,event.clientY)?.closest?.('[data-production-route-stage]');
+      if(target)moveProductionStage(drag,{category:Number(target.dataset.category),option:Number(target.dataset.option),stage:target.dataset.stage,element:target},event.clientX,event.clientY);
+      else clearProductionDrag();
+    }else clearProductionDrag();
+  });
+  document.addEventListener('pointercancel',()=>{if(productionPointerDrag)clearProductionDrag()});
   document.addEventListener('dragstart',event=>{
     if(!isActive()||state.page!=='tasks')return;
     const card=event.target.closest('[data-task-drag]');
