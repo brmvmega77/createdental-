@@ -11,7 +11,7 @@ export function employeeFlowRole(employee){
 }
 const assignments={cad:['cadOperator','assignee'],preprod:['preprodTechnician'],cam:['frameTechnician','technician'],esthetic:['painter','ceramicist'],category1:['category1Technician']};
 const statuses={cad:'cadOperatorStatus',preprod:'preprodTechnicianStatus',cam:'frameTechnicianStatus',esthetic:'painterStatus',category1:'category1TechnicianStatus'};
-export function workerTransitionAllowed(old,next,employee){
+export function workerTransitionAllowed(old,next,employee,order={}){
  if(!old||!next||!employee)return false;
  const role=employeeFlowRole(employee),name=employee.originalName;
  if(!assignments[role].some(field=>old[field]===name))return false;
@@ -24,10 +24,11 @@ export function workerTransitionAllowed(old,next,employee){
  const target=role==='cad'?'Моделирование':role==='preprod'?'Препрод':role==='category1'?'Техник первой категории':'Изготовление';
  const status=old[field]||(role==='esthetic'?old.ceramicistStatus:'')||'';
  const legacyAccepted=old.stage===target&&['Принял работу','Принял в работу'].includes(status);
- const accept=(starting||resuming||legacyAccepted)&&next.stage===target&&next[field]==='В работе'&&!['В работе','ОТК','Работа сдана'].includes(status)&&(role!=='cam'||camCanAccept(old));
+ const workflowOrder={...order,...old};
+ const accept=(starting||resuming||legacyAccepted)&&next.stage===target&&next[field]==='В работе'&&!['В работе','ОТК','Работа сдана'].includes(status)&&(role!=='cam'||camCanAccept(workflowOrder));
  if(resuming){allowed.add('manufacturingStatus');const targetManufacturing=role==='cam'?'В работе у Каркасиста':role==='esthetic'?'В работе у Красильщика':'';if(role!=='category1'&&next.manufacturingStatus!==targetManufacturing)return false;}
  const working=old.stage===target&&status==='В работе';
- const submit=role!=='cad'&&working&&next.stage==='Контроль качества'&&next[field]==='ОТК'&&next.qualityRequest?.kind===role&&next.qualityRequest?.employeeId===employee.id&&(role!=='cam'||camCanSubmitQuality(old));
+ const submit=role!=='cad'&&working&&next.stage==='Контроль качества'&&next[field]==='ОТК'&&next.qualityRequest?.kind===role&&next.qualityRequest?.employeeId===employee.id&&(role!=='cam'||camCanSubmitQuality(workflowOrder));
  if(submit)allowed.add('qualityRequest');
  // A submitted stage can only be reopened by the chief technician.
  const rollback=['cad','preprod'].includes(role)&&old.stage===target&&next.stage==='Подготовка'&&!old.qualityRequest;

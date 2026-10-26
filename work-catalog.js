@@ -105,6 +105,26 @@ export function resolveWorkSelection(workValue,optionValue=''){
  return {category,option,price:option?.price??category?.price??null};
 }
 
+// Existing services used the milling handoff before CAM methods became configurable.
+// Keep that behaviour for legacy catalog entries and let the chief technician opt a
+// service into the generic manufacturing route explicitly.
+export const camMethodLabel=value=>value==='manufacturing'?'Процесс изготовления':'Фрезеровка';
+export function camMethodForSelection(workValue,optionValue=''){
+  const method=resolveWorkSelection(workValue,optionValue).option?.camMethod;
+  return method==='manufacturing'?'manufacturing':'milling';
+}
+export function camMethodForOrder(order={}){
+  const variants=Array.isArray(order.variants)&&order.variants.length
+    ?order.variants
+    :[{work:order.work,workOption:order.workOption||order.material,camMethod:order.camMethod}];
+  return variants.some(variant=>{
+    const method=variant?.camMethod==='manufacturing'||variant?.camMethod==='milling'
+      ?variant.camMethod
+      :camMethodForSelection(variant?.work,variant?.workOption);
+    return method==='milling';
+  })?'milling':'manufacturing';
+}
+
 export function catalogForPrompt(){
   return workCatalog.map(category=>({category:category.name,services:category.options.map(option=>({name:option.name,price:option.price,productionDays:option.productionDays??null}))}));
 }

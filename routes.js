@@ -1,6 +1,6 @@
 const pages={
   clinic:new Set(['home','new','orders','messages','clinic']),
-  technician:new Set(['overview','orders','production','pulse','tasks','requests','intake','clients','messages','analytics','team','quality','pricing','salary','profile']),
+  technician:new Set(['overview','orders','production','pulse','tasks','requests','intake','clients','messages','analytics','team','quality','pricing','cam-settings','salary','profile']),
   worker:new Set(['overview','orders','tasks','salary','profile'])
 };
 const localeSlugs={ru:'ru',am:'am',uz:'uz',kk:'kz',ar:'uea'};

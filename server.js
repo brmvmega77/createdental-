@@ -509,8 +509,8 @@ async function handlePortal(req,res,url){
       const employee=portalEmployee(user.subjectId);
       const changes=Object.entries(value).filter(([id,detail])=>!samePortalValue(detail,snapshot.orderOverrides[id]));
       if(changes.length!==1)return json(res,403,{error:'Можно изменить только один свой заказ'});
-      const [id,next]=changes[0],old=snapshot.orderOverrides[id];
-      if(!workerTransitionAllowed(old,next,employee))return json(res,409,{error:'Этот переход недоступен. Примите свою работу перед отправкой на ОТК; решение ОТК принимает главный техник.'});
+      const [id,next]=changes[0],old=snapshot.orderOverrides[id],order=snapshot.orders.find(item=>item.id===id);
+      if(!workerTransitionAllowed(old,next,employee,order))return json(res,409,{error:'Этот переход недоступен. Примите свою работу перед отправкой на ОТК; решение ОТК принимает главный техник.'});
       value={...snapshot.orderOverrides,[id]:next};
     }else if(user.role==='technician'&&key==='workCatalog'){
       if(!Array.isArray(value))return json(res,400,{error:'Неверный каталог'});
