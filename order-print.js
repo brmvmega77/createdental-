@@ -118,10 +118,10 @@ export function openOrderPrint({order,toothChart,logo='/assets/create-dental-log
   const variants=variantsFor(order);
   const isTall=printNeedsTallSheet(order,variants);
   const pageClass=isTall?' order-print-tall':'';
-  const pageStyle=document.createElement('style');
-  pageStyle.dataset.orderPrintPageStyle='';
-  pageStyle.textContent=`@media print{@page{size:210mm ${isTall?'250mm':'148mm'};margin:3mm}}`;
-  document.head.appendChild(pageStyle);
+  const pageStyleMarkup=`<style data-order-print-page-style>@media print{@page{size:210mm ${isTall?'250mm':'148mm'};margin:3mm}}</style>`;
+  document.head?.insertAdjacentHTML?.('beforeend',pageStyleMarkup)
+    || document.body?.insertAdjacentHTML?.('beforeend',pageStyleMarkup);
+  const pageStyle=document.querySelector('[data-order-print-page-style]');
   document.body.insertAdjacentHTML('beforeend',`<div class="order-print-root${pageClass}"><section class="order-print-paper">${sheetMarkup(order,variants,toothChart,logo)}</section></div>`);
   const root=document.querySelector('.order-print-root');
   const printButtons=[...(document.querySelectorAll?.('[data-action="print-order"],[data-tech-order-action="print-order"]')||[])];
