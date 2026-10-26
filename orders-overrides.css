@@ -662,3 +662,47 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
 @media print{
   .order-print-jaw .tooth.selected .tooth-image{filter:brightness(.65) saturate(0)!important}
 }
+
+/* Final print sizing: the work order grows vertically with its contents. */
+@media print{
+  @page{size:210mm 250mm!important;margin:3mm!important}
+  .order-print-paper{
+    display:block!important;
+    width:210mm!important;
+    height:auto!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:visible!important;
+    break-after:auto!important;
+    page-break-after:auto!important;
+  }
+  .order-print-paper>.order-print-sheet{
+    width:204mm!important;
+    height:auto!important;
+    min-height:244mm!important;
+    max-height:none!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:visible!important;
+    break-after:auto!important;
+    page-break-after:auto!important;
+  }
+  .order-print-main{height:auto!important;align-items:stretch!important}
+  .order-print-side{
+    height:136mm!important;
+    grid-template-rows:repeat(16,minmax(8.5mm,auto))!important;
+  }
+  .order-print-jaw{height:136mm!important;overflow:visible!important}
+  .order-print-jaw .tooth-chart{width:45mm!important;height:136mm!important}
+  .order-print-jaw .tooth-chart svg{width:45mm!important;height:136mm!important;max-height:none!important}
+  .order-print-line-content{min-height:8.5mm!important;overflow:visible!important;align-items:center!important}
+  .order-print-line-content>b{
+    max-width:none!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    white-space:normal!important;
+    overflow-wrap:anywhere!important;
+    line-height:1.05!important;
+  }
+}
