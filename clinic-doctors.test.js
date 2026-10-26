@@ -53,7 +53,8 @@ test('Clinic doctor changes are versioned; orders bind only their clinic doctor 
  globalThis.requestAnimationFrame=()=>{};
  const {openOrderPrint}=await import(${JSON.stringify(pathToFileURL(path.resolve('order-print.js')).href)});
  openOrderPrint({order:snapshot().orders[0],toothChart:()=>'<svg></svg>'});
- assert.equal((printed.match(/Врач a/g)||[]).length,3);
+ assert.equal((printed.match(/Врач a/g)||[]).length,1);
+ assert.equal((printed.match(/order-print-sheet/g)||[]).length,1);
  await remove('NO-DOCTOR',actor);assert.equal(snapshot().orders.length,1);assert.equal(snapshot().orders[0].doctor,'Врач a');
  console.log('doctor checks passed');
  `;

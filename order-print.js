@@ -48,21 +48,23 @@ function qrMarkup(order){
 function serviceName(order,variant){
   return orderVariantConstructionLabel(variant,order)==='—'?'':orderVariantConstructionLabel(variant,order);
 }
-function servicesByTooth(order,variant){
+function servicesByTooth(order,variants){
   const services=new Map();
-  const teeth=Array.isArray(variant?.selectedTeeth)?variant.selectedTeeth:[];
-  const label=serviceName(order,variant);
-  teeth.forEach(tooth=>{
-    if(!label)return;
-    const values=services.get(Number(tooth))||[];
-    if(!values.includes(label))values.push(label);
-    services.set(Number(tooth),values);
-  });
+  for(const variant of variants){
+    const teeth=Array.isArray(variant?.selectedTeeth)?variant.selectedTeeth:[];
+    const label=serviceName(order,variant);
+    if(!label)continue;
+    teeth.forEach(tooth=>{
+      const values=services.get(Number(tooth))||[];
+      if(!values.includes(label))values.push(label);
+      services.set(Number(tooth),values);
+    });
+  }
   return services;
 }
 function sideToothLines(teeth,services=new Map(),side='left'){
   return teeth.map((tooth,index)=>{
-    const service=services.get(tooth)?.join(', ')||'';
+    const service=services.get(tooth)?.join('; ')||'';
     const content=side==='right'
       ?`<div class="order-print-line-content"><span>${tooth}</span>${service?`<b>${escapeValue(service)}</b>`:''}</div>`
       :`<div class="order-print-line-content">${service?`<b>${escapeValue(service)}</b>`:''}<span>${tooth}</span></div>`;
@@ -70,25 +72,36 @@ function sideToothLines(teeth,services=new Map(),side='left'){
   }).join('');
 }
 
-function sheetMarkup(order,variant,toothChart,logo,index,total){
-  const selected=Array.isArray(variant?.selectedTeeth)?variant.selectedTeeth:[];
-  const ranges=Array.isArray(variant?.bridgeRanges)?variant.bridgeRanges:[];
+function mergedSelection(variants){
+  const selected=[...new Set(variants.flatMap(variant=>Array.isArray(variant?.selectedTeeth)?variant.selectedTeeth:[]).map(Number).filter(Number.isFinite))];
+  const ranges=[];
+  const seen=new Set();
+  for(const variant of variants){
+    for(const range of Array.isArray(variant?.bridgeRanges)?variant.bridgeRanges:[]){
+      const normalized=Array.isArray(range)?range.map(Number).filter(Number.isFinite):[];
+      if(!normalized.length)continue;
+      const key=normalized.join(',');
+      if(seen.has(key))continue;
+      seen.add(key);ranges.push(normalized);
+    }
+  }
+  return {selected,ranges};
+}
+
+function sheetMarkup(order,variants,toothChart,logo){
+  const {selected,ranges}=mergedSelection(variants);
   const chart=typeof toothChart==='function'?toothChart(false,selected,ranges):'';
-  const services=servicesByTooth(order,variant);
-  const serviceLabel=serviceName(order,variant);
-  return `<article class="order-print-sheet"><div class="order-print-project">Заказ-наряд № <strong>${escapeValue(order.id||'')}</strong>${serviceLabel?`<small class="order-print-service-title">${escapeValue(serviceLabel)}</small>`:''}</div><div class="order-print-top"><div class="order-print-fields">${lineField('Клиника',order.clinic)}${lineField('Доктор',orderDoctor(order)||'Не указан')}${lineField('Пациент',order.patient)}${lineField('Создан',displayDate(order.createdAt))}${lineField('Ожидаемая дата',displayDate(order.date))}</div><div class="order-print-brand"><img src="${escapeValue(logo)}" alt="Create Dental"><span>e-mail: orders@createdental.io</span></div></div><h1 class="order-print-formula-title">Зубная формула</h1>${formulaMarkup()}<div class="order-print-main"><div class="order-print-side order-print-side-left">${sideToothLines([11,12,13,14,15,16,17,18,48,47,46,45,44,43,42,41],services,'left')}</div><div class="order-print-jaw">${chart||'<span>Схема не указана</span>'}</div><div class="order-print-side order-print-side-right">${sideToothLines([21,22,23,24,25,26,27,28,38,37,36,35,34,33,32,31],services,'right')}</div></div><div class="order-print-bottom"><div class="order-print-color">${lineField('ЦВЕТ',order.shade||'')}</div><div class="order-print-note">${lineField('Примечание',order.comment||'')}</div>${qrMarkup(order)}</div>${total>1?`<small class="order-print-page-number">${index+1} / ${total}</small>`:''}</article>`;
+  const services=servicesByTooth(order,variants);
+  const serviceLabels=[...new Set(variants.map(variant=>serviceName(order,variant)).filter(Boolean))];
+  const serviceLabel=serviceLabels.join('; ');
+  return `<article class="order-print-sheet"><div class="order-print-project">Заказ-наряд № <strong>${escapeValue(order.id||'')}</strong>${serviceLabel?`<small class="order-print-service-title">${escapeValue(serviceLabel)}</small>`:''}</div><div class="order-print-top"><div class="order-print-fields">${lineField('Клиника',order.clinic)}${lineField('Доктор',orderDoctor(order)||'Не указан')}${lineField('Пациент',order.patient)}${lineField('Создан',displayDate(order.createdAt))}${lineField('Ожидаемая дата',displayDate(order.date))}</div><div class="order-print-brand"><img src="${escapeValue(logo)}" alt="Create Dental"><span>e-mail: orders@createdental.io</span></div></div><h1 class="order-print-formula-title">Зубная формула</h1>${formulaMarkup()}<div class="order-print-main"><div class="order-print-side order-print-side-left">${sideToothLines([11,12,13,14,15,16,17,18,48,47,46,45,44,43,42,41],services,'left')}</div><div class="order-print-jaw">${chart||'<span>Схема не указана</span>'}</div><div class="order-print-side order-print-side-right">${sideToothLines([21,22,23,24,25,26,27,28,38,37,36,35,34,33,32,31],services,'right')}</div></div><div class="order-print-bottom"><div class="order-print-color">${lineField('ЦВЕТ',order.shade||'')}</div><div class="order-print-note">${lineField('Примечание',order.comment||'')}</div>${qrMarkup(order)}</div></article>`;
 }
 
 export function openOrderPrint({order,toothChart,logo='/assets/create-dental-logo.png'}){
   if(!order)return;
   document.querySelector('.order-print-root')?.remove();
   const variants=variantsFor(order);
-  const pages=[];
-  for(let index=0;index<variants.length;index+=2){
-    const pair=variants.slice(index,index+2);
-    pages.push(`<section class="order-print-paper">${pair.map((variant,pairIndex)=>sheetMarkup(order,variant,toothChart,logo,index+pairIndex,variants.length)).join('')}</section>`);
-  }
-  document.body.insertAdjacentHTML('beforeend',`<div class="order-print-root">${pages.join('')}</div>`);
+  document.body.insertAdjacentHTML('beforeend',`<div class="order-print-root"><section class="order-print-paper">${sheetMarkup(order,variants,toothChart,logo)}</section></div>`);
   const root=document.querySelector('.order-print-root');
   window.addEventListener('afterprint',()=>root?.remove(),{once:true});
   const images=[...root.querySelectorAll('img')];
