@@ -3088,3 +3088,13 @@ html[data-theme="dark"] .tech-nav-group-title{color:#aeb6be}
   .tech-pricing-list .tech-catalog-row>.tech-pricing-edit{grid-column:3;grid-row:2;margin:0}
   .tech-pricing-list .tech-catalog-row>.tech-pricing-remove{grid-column:4;grid-row:2;margin:0}
 }
+/* Align promo actions with the input row, below the field labels. */
+.tech-promo-head>.tech-promo-active{min-height:42px;margin:0;align-self:flex-end}
+.tech-promo-head>.tech-promo-active input{margin:0;flex:none}
+.tech-promo-head>.tech-pricing-remove{align-self:flex-end;margin-bottom:6px}
+@media(max-width:700px){
+  .tech-promo-head{grid-template-columns:minmax(0,1fr) 30px;align-items:center}
+  .tech-promo-head>.tech-delivery-settings-grid{grid-column:1/-1}
+  .tech-promo-head>.tech-promo-active{min-height:30px;grid-column:1}
+  .tech-promo-head>.tech-pricing-remove{grid-column:2;margin:0;align-self:center}
+}
