@@ -1,3 +1,4 @@
+import {promoRulesWithClients,normalizePromoCode,priceNewClinicOrder} from './promo-codes.js';
 import {projectLabSnapshot,isLabGroup,isLabWork,relatedFileOrderIds,stripLabProjection,afterProductionStep} from './lab-orders.js';
 import {requiresDoctorCadApproval,routeForOrder,cadReadyForProduction} from './production-routes.js';
 import {samePortalValue} from './collection-concurrency.js';
@@ -149,7 +150,7 @@ const integrationSecretFiles={
 const tlsKeyFile=process.env.TLS_KEY_FILE||'';
 const tlsCertFile=process.env.TLS_CERT_FILE||'';
 const httpsRedirect=process.env.HTTPS_REDIRECT==='1';
-const publicFiles = new Set(['/lab-orders.js','/flow-rules.js','/collection-concurrency.js','/clinic-doctors.js','/order-revision.js','/payroll.js','/payroll-ui.js','/owner.js','/owner.css','/','/index.html','/index-boot.js','/app.js','/work-catalog.js','/money.js','/technician.js','/production-stages.js','/production-routes.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/cad-preview-boot.js','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing-boot.js','/landing.js']);
+const publicFiles = new Set(['/promo-codes.js','/lab-orders.js','/flow-rules.js','/collection-concurrency.js','/clinic-doctors.js','/order-revision.js','/payroll.js','/payroll-ui.js','/owner.js','/owner.css','/','/index.html','/index-boot.js','/app.js','/work-catalog.js','/money.js','/technician.js','/production-stages.js','/production-routes.js','/tasks.js','/cam-workflow.js','/company-pulse.js','/order-list-utils.js','/worker.js','/seed-orders.js','/portal-client.js','/routes.js','/location-assist.js','/notification-center.js','/theme.js','/order-print.js','/styles.css','/orders-overrides.css','/public/assets/surgical-template-utils.js','/support.html','/support.js','/large-upload.html','/large-upload.js','/cad-preview.html','/cad-preview-boot.js','/yandex_a7db0249ed96373e.html','/landing.html','/landing.css','/landing-boot.js','/landing.js']);
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon'};
 const sharedAttachmentTypes={
   '.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.pdf':'application/pdf','.stl':'model/stl','.ply':'application/octet-stream',
@@ -428,6 +429,7 @@ const portalSectionAliases={
 
 async function portalViewForUser(user,view=''){
   const snapshot=projectLabSnapshot(await portalSnapshotForDatabase(user.role,user.subjectId,view),user.role);
+  if(user.role==='technician')snapshot.promoCodes=promoRulesWithClients(snapshot.promoCodes,snapshot.clients);
   if(user.role==='clinic'){
     snapshot.clients=snapshot.clients.filter(item=>item.id===user.subjectId);
     snapshot.orders=snapshot.orders.filter(item=>item.clinicId===user.subjectId);
@@ -491,16 +493,7 @@ async function handlePortal(req,res,url){
         // cannot save a mismatched total.
         const normalizedAdditions=additions.map(raw=>{
           const order=stripLabProjection(raw);delete order.parentOrderId;delete order.labWorkIds;delete order.serviceKey;if(order.variants)order.variants=order.variants.map(v=>{const copy={...v};delete copy.labWorkId;return copy;});
-          const promo=String(order.promoCode||'').trim().toUpperCase(),promoRule=snapshot.promoCodes?.find(item=>item.active!==false&&String(item.code||'').toUpperCase()===promo),variants=Array.isArray(order.variants)&&order.variants.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[],toothMode:order.toothMode}];
-          const calculated=variants.map(variant=>{const estimate=estimateWork({work:variant.work,option:variant.workOption,teeth:variant.selectedTeeth||[],units:variant.units}).amount,special=promoRule?.prices?.[`${variant.work}|||${variant.workOption}`];return Number.isFinite(Number(special))?Number(special)*estimateWork({work:variant.work,option:variant.workOption,teeth:variant.selectedTeeth||[],units:variant.units}).units:estimate});
-          const servicesTotal=calculated.length&&calculated.every(Number.isFinite)?calculated.reduce((sum,value)=>sum+value,0):Number(order.servicesTotal);
-          if(!Number.isFinite(servicesTotal))return order;
-          const deliveryRules=snapshot.deliverySettings&&typeof snapshot.deliverySettings==='object'?snapshot.deliverySettings:{freeThreshold:4000,fee:500};
-          const freeThreshold=Number.isFinite(Number(deliveryRules.freeThreshold))?Number(deliveryRules.freeThreshold):4000;
-          const deliveryAmount=Number.isFinite(Number(deliveryRules.fee))?Number(deliveryRules.fee):500;
-          const deliveryFee=servicesTotal<freeThreshold?deliveryAmount:0;
-          const total=servicesTotal+deliveryFee;
-          return {...order,servicesTotal,deliveryFee,promoCode:promo,sum:rubles(total)};
+          return priceNewClinicOrder(order,snapshot.clients.find(clinic=>clinic.id===user.subjectId),snapshot.promoCodes,snapshot.deliverySettings);
         });
         value=[...normalizedAdditions,...snapshot.orders];
       }else if(key==='orderOverrides'){
@@ -616,7 +609,7 @@ async function handlePortal(req,res,url){
     }
     const newOrders=key==='orders'&&Array.isArray(value)?value.filter(order=>!snapshot.orders.some(existing=>existing.id===order.id)):[];
     try {
-      await replacePortalCollection(key,value,{role:user.role,name:actorName(user)},{expectedVersion:req.headers['x-portal-version']===undefined?(snapshot.collectionVersions?.[key]||0):Number(req.headers['x-portal-version'])});
+      await replacePortalCollection(key,value,{role:user.role,name:actorName(user)},{expectedVersion:req.headers['x-portal-version']===undefined?(snapshot.collectionVersions?.[key]||0):Number(req.headers['x-portal-version']),...(key==='promoCodes'&&req.headers['x-portal-clients-version']!==undefined?{expectedClientsVersion:Number(req.headers['x-portal-clients-version'])}:{})});
       if(key==='clients'&&Array.isArray(value)){
         for(const clinic of value){
           const previous=snapshot.clients.find(item=>item.id===clinic.id);
@@ -653,10 +646,13 @@ async function handlePortal(req,res,url){
         if(employee&&(assignedChanged||statusChanged))void employeeTelegramBridge?.notifyTask(task,employee,before||{}).catch(error=>console.error('Employee Telegram task notification failed:',error.message));
       }
       const saved=(await portalViewForUser(user))[key];
-      return json(res,200,{ok:true,saved,...(['employees','orders','workCatalog'].includes(key)?{orderOverrides:(await portalViewForUser(user)).orderOverrides}:{}),collectionVersions:portalSnapshot().collectionVersions})
+      return json(res,200,{ok:true,saved,...(key==='promoCodes'?{clients:(await portalViewForUser(user)).clients}:{}),...(['employees','orders','workCatalog'].includes(key)?{orderOverrides:(await portalViewForUser(user)).orderOverrides}:{}),collectionVersions:portalSnapshot().collectionVersions})
     }
     catch(error){
       if(error.message==='collection_conflict')return json(res,409,{error:'Данные уже изменились в другой вкладке или у другого сотрудника. Обновите страницу и повторите изменение.'});
+      if(error.message==='promo_clients_conflict')return json(res,409,{error:'Список клиник изменился. Обновите страницу перед сохранением промокодов.'});
+      if(error.message==='invalid_promo_clinics')return json(res,400,{error:'Выберите существующие клиники из списка'});
+      if(error.message==='duplicate_promo_clinic')return json(res,400,{error:'Для одной клиники можно выбрать только один промокод'});
       if(error.message==='doctors_conflict')return json(res,409,{error:'Список врачей уже изменился. Обновите страницу и повторите изменение.'});
       if(error.message==='invalid_doctor')return json(res,400,{error:'Выберите действующего врача вашей клиники'});
       if(error.message==='invalid_order_service')return json(res,400,{error:'Выберите услугу из актуального прайса'});
@@ -1484,7 +1480,7 @@ async function handleAuth(req,res,url){
     if(promoCode&&!portalSnapshot().promoCodes?.some(item=>item.active!==false&&String(item.code||'').toUpperCase()===promoCode))return json(res,400,{error:'Промокод не найден или больше не действует'});
     const existing=portalSnapshot().clients.find(item=>item.email?.toLowerCase()===email&&!item.deleted);
     const id=existing?.id||'client-'+randomBytes(12).toString('hex');
-    const client={...(existing||{}),id,originalName:existing?.originalName||id,name,email,contact:existing?.contact||'',phone,city,address,country,promoCode,approved:existing?.approved??false,personalDataConsent:{version:'1.0',acceptedAt:new Date().toISOString()}};
+    const client={...(existing||{}),id,originalName:existing?.originalName||id,name,email,contact:existing?.contact||'',phone,city,address,country,promoCode:promoCode||normalizePromoCode(existing?.promoCode),approved:existing?.approved??false,personalDataConsent:{version:'1.0',acceptedAt:new Date().toISOString()}};
     const clientsBefore=portalSnapshot().clients,versionBefore=portalSnapshot().collectionVersions?.clients||0;
     try{
       await replacePortalCollection('clients',existing?clientsBefore.map(item=>item.id===id?client:item):[...clientsBefore,client],{role:'system',name:'Регистрация'});

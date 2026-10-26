@@ -1,3 +1,4 @@
+import {normalizePromoCode,promoRegistrationLink,promoRulesWithClients} from './promo-codes.js';
 import {afterProductionStep,stageEntry,workProgress,commercialOrdersForLab} from './lab-orders.js';
 import {requiresDoctorCadApproval,cadReadyForProduction} from './production-routes.js';
 import {mergeOrderVariant,orderVariants,reviseOrderVariants} from './order-revision.js';
@@ -821,10 +822,22 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const lastUpdate=integration.lastUpdateAt?new Date(integration.lastUpdateAt).toLocaleString('ru-RU'):'сообщений ещё не было';
     return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОФИЛЬ</span><h1>Главный техник</h1></div></div><div class="tech-profile-stack"><section class="tech-panel tech-profile-editor"><div class="tech-profile-avatar">${avatarMarkup(profile,'large')}<label class="btn outline">Загрузить аватар<input id="tech-profile-avatar" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>${profile.avatar?'<button class="tech-link" data-tech-profile-avatar="remove">Убрать аватар</button>':''}</div><form id="tech-profile-form" class="tech-client-form">${profileField('Имя в кабинете','displayName',profile.displayName||'Главный техник','text',true)}${profileField('Электронная почта','email',profile.email||'','email')}${profileField('Новый пароль','password','','password',false,'Оставьте пустым, если менять не нужно')}${profileField('Повторите пароль','passwordConfirm','','password',false,'')}<div class="tech-client-form-actions"><button type="submit" class="btn primary">Сохранить профиль</button></div></form></section><section class="tech-panel tech-integration-panel"><div class="tech-panel-heading"><div><h2>Telegram и Yandex</h2><p>Голосовые сообщения и управление заказами после подтверждения</p></div><div><strong class="tech-integration-overall ${integration.enabled?'ready':''}">${state.integrationLoading?'Проверка…':integration.enabled?'Подключено':'Требуется настройка'}</strong><button class="tech-link" data-tech-bot-action="refresh">Обновить</button></div></div><div class="tech-integration-statuses">${status(integration.telegramBot,'Telegram')}${status(integration.employeeTelegramBot,'Telegram сотрудников')}${status(integration.speechKit,'SpeechKit')}${status(integration.yandexGpt,'YandexGPT')}${status(integration.folderId,'Каталог')}${status(integration.yandexDisk,'Яндекс Диск')}</div><div class="tech-bot-health"><div><span>Последнее сообщение</span><strong>${safe(lastUpdate)}</strong></div><div><span>Ожидают подтверждения</span><strong>${Number(integration.pendingActions)||0}</strong></div><div><span>Очередь событий</span><strong>${Number(integration.queuedUpdates)||0}</strong></div><div><span>Последняя ошибка</span><strong>${safe(integration.lastError||'Нет')}</strong></div></div><div class="tech-bot-bindings"><h3>Запросы на подключение</h3>${requests}<details class="tech-connected-chats"><summary>Подключённые чаты</summary>${bindings}</details></div><details class="tech-api-keys"><summary>API-ключи</summary><form id="tech-integration-form" class="tech-client-form tech-integration-form" autocomplete="off"><label>Токен Telegram-бота<input name="telegramBotToken" type="password" placeholder="${safe(placeholder(integration.telegramBot,'Токен Telegram'))}" autocomplete="new-password"></label><label>Токен Telegram-бота сотрудников<input name="employeeTelegramBotToken" type="password" placeholder="${safe(placeholder(integration.employeeTelegramBot,'Токен нового бота сотрудников'))}" autocomplete="new-password"></label><label>API-ключ SpeechKit<input name="speechKitKey" type="password" placeholder="${safe(placeholder(integration.speechKit,'Ключ SpeechKit'))}" autocomplete="new-password"></label><label>API-ключ YandexGPT<input name="yandexGptKey" type="password" placeholder="${safe(placeholder(integration.yandexGpt,'Ключ YandexGPT'))}" autocomplete="new-password"></label><label>ID каталога Yandex Cloud<input name="folderId" type="password" placeholder="${safe(placeholder(integration.folderId,'ID каталога'))}" autocomplete="new-password"></label><label>OAuth-токен Яндекс Диска<input name="yandexDiskToken" type="password" placeholder="${safe(placeholder(integration.yandexDisk,'OAuth-токен Диска'))}" autocomplete="new-password"></label><p class="tech-integration-note">Сохранённые значения скрыты. Пустые поля не изменяют настройки. Токен сотрудников хранится отдельно и не заменяет токен бота клиник.</p><div class="tech-client-form-actions"><button type="submit" class="btn primary">Сохранить и подключить</button></div></form></details></section></div>`;
   }
+  function savedPromoLink(promo){
+    const code=normalizePromoCode(promo?.code);
+    return promo?.active!==false&&(promoCodes()||[]).some(rule=>rule.active!==false&&normalizePromoCode(rule.code)===code)?promoRegistrationLink(code,location.origin):'';
+  }
+  function promoLinkMarkup(promo,index){
+    const link=savedPromoLink(promo);
+    return link?`<label class="tech-promo-link-field">Ссылка на регистрацию<input readonly aria-label="Ссылка на регистрацию" value="${safe(link)}" data-promo-link-value></label><div class="tech-promo-link-actions"><a class="btn outline" href="${safe(link)}" target="_blank" rel="noopener">Открыть форму</a><button class="btn outline" type="button" data-tech-pricing-action="copy-promo-link" data-promo-index="${index}">Скопировать ссылку</button></div>`:'<p>Сохраните активный промокод, чтобы получить ссылку на регистрацию.</p>';
+  }
+  function promoClinicsMarkup(promo,index){
+    const available=clients.filter(clinic=>!clinic.deleted),selected=new Set(promo.clinicIds||[]);
+    return `<div class="tech-promo-registration" data-promo-link="${index}">${promoLinkMarkup(promo,index)}</div><details class="tech-promo-clinics"><summary>Клиники с этим промокодом <span data-promo-clinic-count="${index}">${selected.size}</span></summary><p>Специальные цены применятся к новым заказам выбранных клиник после сохранения. Выбор другого промокода заменит текущий. Суммы созданных заказов сохранятся.</p>${available.length?`<input class="tech-promo-clinic-search" type="search" placeholder="Поиск по названию или email" aria-label="Найти клинику" data-promo-clinic-search="${index}"><div class="tech-promo-clinic-list">${available.map(clinic=>`<label class="tech-promo-clinic-option" data-promo-clinic-row data-search="${safe((clinic.name+' '+(clinic.email||'')).toLocaleLowerCase('ru-RU'))}"><input type="checkbox" data-promo-clinic="${safe(clinic.id)}" data-promo-index="${index}" ${selected.has(clinic.id)?'checked':''}><span>${safe(clinic.name)}${clinic.email?`<small>${safe(clinic.email)}</small>`:''}</span></label>`).join('')}<p data-promo-no-clinics hidden>Клиники не найдены</p></div>`:'<p>Зарегистрированных клиник пока нет.</p>'}</details>`;
+  }
   function pricingPage(){
     if(!state.pricingDraft)state.pricingDraft=structuredClone(workCatalog);
     if(!state.deliverySettingsDraft)state.deliverySettingsDraft=structuredClone(deliverySettings()||{freeThreshold:4000,fee:500});
-    if(!state.promoCodesDraft)state.promoCodesDraft=structuredClone(promoCodes()||[]);
+    if(!state.promoCodesDraft)state.promoCodesDraft=promoRulesWithClients(structuredClone(promoCodes()||[]),clients);
     const delivery=state.deliverySettingsDraft;
     const dayOptions=days=>`<option value="" ${days===null||days===undefined?'selected':''}>Без фиксированного срока</option>${Array.from({length:31},(_,day)=>`<option value="${day}" ${day===days?'selected':''}>${day} ${day===1?'рабочий день':'рабочих дней'}</option>`).join('')}`;
     const categoryMarkup=state.pricingDraft.map((category,categoryIndex)=>{
@@ -834,8 +847,8 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     }).join('');
     const threshold=Number.isFinite(Number(delivery.freeThreshold))?Number(delivery.freeThreshold):4000,fee=Number.isFinite(Number(delivery.fee))?Number(delivery.fee):500;
     const promoServices=state.pricingDraft.flatMap(category=>category.options.map(option=>({category:category.name,name:typeof option==='string'?option:option.name})));
-    const promoMarkup=state.promoCodesDraft.map((promo,index)=>`<section class="tech-promo-card"><div class="tech-promo-head"><div class="tech-delivery-settings-grid"><label>Промокод<input type="text" maxlength="40" data-promo-field="code" data-promo-index="${index}" value="${safe(promo.code||'')}"></label><label>Название акции<input type="text" maxlength="120" data-promo-field="name" data-promo-index="${index}" value="${safe(promo.name||'')}"></label></div><label class="tech-promo-active"><input type="checkbox" data-promo-field="active" data-promo-index="${index}" ${promo.active!==false?'checked':''}> Активен</label><button class="tech-pricing-remove" type="button" data-tech-pricing-action="remove-promo" data-promo-index="${index}" aria-label="Удалить промокод">×</button></div><h3>Специальные цены по услугам</h3><p class="tech-promo-hint">Оставьте поле пустым, чтобы использовать обычную цену.</p><div class="tech-promo-price-grid">${promoServices.map(service=>{const key=service.category+'|||'+service.name,value=promo.prices?.[key];return `<label><span>${safe(service.category)} · ${safe(service.name)}</span><input type="number" min="0" step="50" placeholder="Обычная цена" data-promo-price data-promo-index="${index}" data-promo-key="${safe(key)}" value="${value===undefined?'':Number(value)}"><i>₽</i></label>`}).join('')}</div></section>`).join('');
-    const promoSection='<section class="tech-panel tech-promo-settings"><div class="tech-panel-heading"><div><span class="tech-pricing-kicker">ПРОДАЖИ</span><h2>Промокоды</h2><p>Код можно дать клинике в ссылке регистрации. Для каждой услуги задайте отдельную цену.</p></div><div><button class="btn outline" data-tech-pricing-action="add-promo">+ Добавить промокод</button><button class="btn primary" data-tech-pricing-action="save-promos" '+(state.promoCodesSaving?'disabled':'')+'>'+(state.promoCodesSaving?'Сохранение…':'Сохранить промокоды')+'</button></div></div>'+(promoMarkup||'<p class="tech-empty">Промокодов пока нет. Добавьте первый код для специального прайса.</p>')+'</section>';
+    const promoMarkup=state.promoCodesDraft.map((promo,index)=>`<section class="tech-promo-card" data-promo-card="${index}"><div class="tech-promo-head"><div class="tech-delivery-settings-grid"><label>Промокод<input type="text" maxlength="40" data-promo-field="code" data-promo-index="${index}" value="${safe(promo.code||'')}"></label><label>Название акции<input type="text" maxlength="120" data-promo-field="name" data-promo-index="${index}" value="${safe(promo.name||'')}"></label></div><label class="tech-promo-active"><input type="checkbox" data-promo-field="active" data-promo-index="${index}" ${promo.active!==false?'checked':''}> Активен</label><button class="tech-pricing-remove" type="button" data-tech-pricing-action="remove-promo" data-promo-index="${index}" aria-label="Удалить промокод">×</button></div>${promoClinicsMarkup(promo,index)}<h3>Специальные цены по услугам</h3><p class="tech-promo-hint">Оставьте поле пустым, чтобы использовать обычную цену.</p><div class="tech-promo-price-grid">${promoServices.map(service=>{const key=service.category+'|||'+service.name,value=promo.prices?.[key];return `<label><span>${safe(service.category)} · ${safe(service.name)}</span><input type="number" min="0" step="50" placeholder="Обычная цена" data-promo-price data-promo-index="${index}" data-promo-key="${safe(key)}" value="${value===undefined?'':Number(value)}"><i>₽</i></label>`}).join('')}</div></section>`).join('');
+    const promoSection='<section class="tech-panel tech-promo-settings"><div class="tech-panel-heading"><div><h2>Промокоды</h2><p>Назначайте специальные цены текущим клиникам или приглашайте новые по ссылке с промокодом.</p></div><div><button class="btn outline" data-tech-pricing-action="add-promo">+ Добавить промокод</button><button class="btn primary" data-tech-pricing-action="save-promos" '+(state.promoCodesSaving?'disabled':'')+'>'+(state.promoCodesSaving?'Сохранение…':'Сохранить промокоды')+'</button></div></div>'+(promoMarkup||'<p class="tech-empty">Промокодов пока нет. Добавьте первый код для специального прайса.</p>')+'</section>';
     return `<div class="tech-heading tech-pricing-heading"><div><span class="tech-eyebrow">КАТАЛОГ</span><h1>Прайс и сроки</h1></div><div class="tech-pricing-heading-actions"><a class="btn outline" href="${pathFor('technician','production-settings')}" data-tech-page="production-settings">Настроить производство</a><a class="btn outline" href="${pathFor('technician','cam-settings')}" data-tech-page="cam-settings">Настроить CAM</a><button class="btn outline" data-tech-pricing-action="add-category">+ Добавить раздел прайса</button><button class="btn primary" data-tech-pricing-action="save" ${state.pricingSaving?'disabled':''}>${state.pricingSaving?'Сохранение…':'Сохранить изменения'}</button></div></div><div class="tech-pricing-list">${categoryMarkup}</div><section class="tech-panel tech-delivery-settings"><div class="tech-panel-heading"><div><span class="tech-pricing-kicker">УСЛОВИЯ ЗАКАЗОВ</span><h2>Доставка</h2><p>Эти условия применяются к новым заказам клиник и отображаются в корзине до отправки заказа.</p></div><button class="btn primary" data-tech-pricing-action="save-delivery" ${state.deliverySettingsSaving?'disabled':''}>${state.deliverySettingsSaving?'Сохранение…':'Сохранить условия'}</button></div><div class="tech-delivery-settings-grid"><label>Бесплатная доставка от суммы услуг<input type="number" min="0" step="100" data-delivery-setting="freeThreshold" value="${threshold}"><small>Если услуги дешевле этого порога, добавляется платная доставка.</small></label><label>Стоимость доставки ниже порога<input type="number" min="0" step="50" data-delivery-setting="fee" value="${fee}"><small>Можно поставить 0, если доставка всегда бесплатная.</small></label></div><div class="tech-delivery-settings-summary">Сейчас: до ${rubles(threshold)} услуг — доставка ${rubles(fee)}; от ${rubles(threshold)} — бесплатно.</div></section>`+promoSection;
   }
 
@@ -1523,19 +1536,26 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(state.pricingEditingRows[rowKey])queueMicrotask(()=>root().querySelector(`[data-pricing-field="name"][data-category="${categoryIndex}"][data-option="${optionIndex}"]`)?.focus());
       return;
     }
+    if(pricingAction&&pricingAction.dataset.techPricingAction==='copy-promo-link'){
+      const link=savedPromoLink(state.promoCodesDraft?.[Number(pricingAction.dataset.promoIndex)]);
+      if(!link)return toast('Сначала сохраните активный промокод');
+      try{await navigator.clipboard.writeText(link);toast('Ссылка на регистрацию скопирована')}
+      catch{const input=pricingAction.closest('.tech-promo-registration')?.querySelector('[data-promo-link-value]');input?.focus();input?.select();toast('Выделена ссылка — скопируйте её')}
+      return;
+    }
     if(pricingAction&&pricingAction.dataset.techPricingAction==='add-promo'){
       if(!state.promoCodesDraft)return;
-      state.promoCodesDraft.push({code:'',name:'',active:true,prices:{}});render();return;
+      state.promoCodesDraft.push({code:'',name:'',active:true,prices:{},clinicIds:[]});render();return;
     }
     if(pricingAction&&pricingAction.dataset.techPricingAction==='remove-promo'){
       state.promoCodesDraft?.splice(Number(pricingAction.dataset.promoIndex),1);render();return;
     }
     if(pricingAction&&pricingAction.dataset.techPricingAction==='save-promos'){
-      const normalized=(state.promoCodesDraft||[]).map(item=>({code:String(item.code||'').trim().toUpperCase(),name:String(item.name||'').trim(),active:item.active!==false,prices:Object.fromEntries(Object.entries(item.prices||{}).filter(([,price])=>Number.isFinite(Number(price))&&Number(price)>=0).map(([key,price])=>[key,Number(price)]))}));
+      const normalized=(state.promoCodesDraft||[]).map(item=>({...('_revision' in item?{_revision:item._revision}:{}),clinicIds:[...(item.clinicIds||[])],code:normalizePromoCode(item.code),name:String(item.name||'').trim(),active:item.active!==false,prices:Object.fromEntries(Object.entries(item.prices||{}).filter(([,price])=>Number.isFinite(Number(price))&&Number(price)>=0).map(([key,price])=>[key,Number(price)]))}));
       if(normalized.some(item=>!/^[A-Z0-9_-]{2,40}$/.test(item.code)))return toast('Промокод должен содержать 2–40 латинских букв, цифр, дефисов или подчёркиваний');
       if(new Set(normalized.map(item=>item.code)).size!==normalized.length)return toast('Промокоды должны быть уникальными');
       state.promoCodesSaving=true;render();
-      try{await savePortal('promoCodes',normalized);onPromoCodesUpdate(normalized);state.promoCodesDraft=null;toast('Промокоды и специальные цены сохранены')}catch(error){toast('Не удалось сохранить промокоды: '+error.message)}finally{state.promoCodesSaving=false;render()}
+      try{const result=await savePortal('promoCodes',normalized);if(Array.isArray(result.clients))clients=result.clients;onPromoCodesUpdate(normalized);state.promoCodesDraft=null;toast('Промокоды, клиники и специальные цены сохранены')}catch(error){toast('Не удалось сохранить промокоды: '+error.message)}finally{state.promoCodesSaving=false;render()}
       return;
     }
     if(pricingAction&&pricingAction.dataset.techPricingAction==='add-category'){
@@ -1623,10 +1643,23 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       state.deliverySettingsDraft[event.target.dataset.deliverySetting]=Math.max(0,Number(event.target.value)||0);
       return;
     }
+    if(event.target.matches('[data-promo-clinic]')){
+      const index=Number(event.target.dataset.promoIndex),id=event.target.dataset.promoClinic;
+      if(!state.promoCodesDraft?.[index])return;
+      state.promoCodesDraft.forEach((promo,promoIndex)=>{
+        const selected=new Set(promo.clinicIds||[]);
+        if(promoIndex===index&&event.target.checked)selected.add(id);else selected.delete(id);
+        promo.clinicIds=[...selected];
+        root().querySelectorAll(`[data-promo-clinic][data-promo-index="${promoIndex}"]`).forEach(input=>{input.checked=selected.has(input.dataset.promoClinic)});
+        const count=root().querySelector(`[data-promo-clinic-count="${promoIndex}"]`);if(count)count.textContent=String(selected.size);
+      });
+      return;
+    }
     if(event.target.matches('[data-promo-field]')){
       const promo=state.promoCodesDraft?.[Number(event.target.dataset.promoIndex)];
       if(!promo)return;
       const field=event.target.dataset.promoField;promo[field]=field==='active'?event.target.checked:event.target.value;
+      const links=root().querySelector(`[data-promo-link="${Number(event.target.dataset.promoIndex)}"]`);if(links)links.innerHTML=promoLinkMarkup(promo,Number(event.target.dataset.promoIndex));
       return;
     }
     if(event.target.matches('[data-promo-price]')){
@@ -1834,6 +1867,24 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   });
   document.addEventListener('input',event=>{
     if(!isActive())return;
+    if(event.target.matches('[data-promo-field],[data-promo-price]')){
+      const index=Number(event.target.dataset.promoIndex),promo=state.promoCodesDraft?.[index];if(!promo)return;
+      if(event.target.matches('[data-promo-field]')){
+        const field=event.target.dataset.promoField;promo[field]=field==='active'?event.target.checked:event.target.value;
+        const links=root().querySelector(`[data-promo-link="${index}"]`);if(links)links.innerHTML=promoLinkMarkup(promo,index);
+      }else{
+        promo.prices=promo.prices||{};const key=event.target.dataset.promoKey,value=event.target.value.trim();
+        if(value==='')delete promo.prices[key];else promo.prices[key]=Math.max(0,Number(value)||0);
+      }
+      return;
+    }
+
+    if(event.target.matches('[data-promo-clinic-search]')){
+      const query=event.target.value.trim().toLocaleLowerCase('ru-RU'),container=event.target.closest('.tech-promo-clinics');let found=0;
+      container.querySelectorAll('[data-promo-clinic-row]').forEach(row=>{row.hidden=!row.dataset.search.includes(query);if(!row.hidden)found++});
+      container.querySelector('[data-promo-no-clinics]').hidden=found>0;return;
+    }
+
     if(event.target.id==='production-route-search'&&state.page==='production-settings'){
       const position=event.target.selectionStart;state.productionRouteSearch=event.target.value;render();
       const input=root().querySelector('#production-route-search');input?.focus();if(input&&position!==null)input.setSelectionRange(position,position);

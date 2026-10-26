@@ -1,3 +1,4 @@
+import {applyPromoAssignments} from './promo-codes.js';
 import {reconcileLabOrders,isLabWork,isLabGroup,stripLabProjection} from './lab-orders.js';
 import {samePortalValue,versionCollection} from './collection-concurrency.js';
 import {availableClinicDoctors} from './clinic-doctors.js';
@@ -483,6 +484,8 @@ export async function replacePortalCollection(key,value,actor={},options={}){
   saveQueue=saveQueue.catch(()=>{}).then(async()=>{
     const previousState=structuredClone(state);
     const previousOrders=state.orders;
+    const previousClients=state.clients;
+    let promoClients=previousClients;
     const previous=state[key];
     const previousPromoCodes=state.promoCodes;
     const previousVersions={...(state.collectionVersions||{})};
@@ -542,6 +545,11 @@ export async function replacePortalCollection(key,value,actor={},options={}){
       }
     }
 
+    if(key==='promoCodes'){
+      if(options.expectedClientsVersion!==undefined&&options.expectedClientsVersion!==(previousVersions.clients||0))throw new Error('promo_clients_conflict');
+      promoClients=applyPromoAssignments(previousClients,previous,next);
+      next=next.map(({clinicIds,...rule})=>rule);
+    }
     next=versionCollection(key,next,previous,options.expectedVersion,previousVersions[key]||0);
     const generated=[];
     if(key==='orderOverrides'){
@@ -573,6 +581,7 @@ export async function replacePortalCollection(key,value,actor={},options={}){
     try {
     state.collectionVersions={...previousVersions,[key]:(previousVersions[key]||0)+1};
     state[key]=key==='payrollSettings'?{...next,revision:(previous?.revision||0)+1,updatedAt:new Date().toISOString()}:next;
+    if(key==='promoCodes'&&promoClients!==previousClients){state.clients=versionCollection('clients',promoClients,previousClients,previousVersions.clients||0,previousVersions.clients||0);state.collectionVersions.clients=(previousVersions.clients||0)+1;}
     if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(next));
     if(['orders','orderOverrides','workCatalog'].includes(key)){
       state=reconcileLabOrders(state,previousState,key);
@@ -589,10 +598,11 @@ export async function replacePortalCollection(key,value,actor={},options={}){
       if(key==='workCatalog'&&JSON.stringify(state.promoCodes)!==JSON.stringify(previousPromoCodes))changedKeys.add('promoCodes');
       if(state.orderOverrides!==previousOverrides)changedKeys.add('orderOverrides');
       if(state.orders!==previousOrders)changedKeys.add('orders');
+      if(state.clients!==previousClients)changedKeys.add('clients');
       if(generated.length)changedKeys.add('orderHistory');
       if(state.salaryAccruals!==previousAccruals)changedKeys.add('salaryAccruals');
       await persistState([...changedKeys]);
-    } catch(error){state.orders=previousOrders;state[key]=previous;state.promoCodes=previousPromoCodes;state.orderOverrides=previousOverrides;state.collectionVersions=previousVersions;state.orderHistory=previousHistory;state.salaryAccruals=previousAccruals;if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(previous));throw error}
+    } catch(error){state.clients=previousClients;state.orders=previousOrders;state[key]=previous;state.promoCodes=previousPromoCodes;state.orderOverrides=previousOverrides;state.collectionVersions=previousVersions;state.orderHistory=previousHistory;state.salaryAccruals=previousAccruals;if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(previous));throw error}
   });
   await saveQueue;
   return portalSnapshot();

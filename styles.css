@@ -3025,3 +3025,22 @@ html[data-theme="dark"] .tech-nav-group-title{color:#aeb6be}
 .clinic-service-progress .tech-progress-track{height:6px}
 
 .clinic-service-progress p{color:#777}.clinic-service-progress p strong{color:#555}
+
+/* Promo assignments use the same neutral controls as the rest of pricing. */
+.tech-promo-registration{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin-top:20px;padding-top:18px;border-top:1px solid var(--line,#e7e9ec)}
+.tech-promo-link-field{display:grid;flex:1 1 280px;min-width:0;gap:8px;color:#555;font-size:12px;font-weight:600}
+.tech-promo-link-field input,.tech-promo-clinic-search{box-sizing:border-box;width:100%;min-width:0;height:40px;padding:8px 12px;border:1px solid var(--line,#e7e9ec);border-radius:8px;background:#fff;color:#555;font:inherit}
+.tech-promo-link-actions{display:flex;flex-wrap:wrap;gap:8px}.tech-promo-link-actions .btn+.btn{margin-left:0}
+.tech-promo-clinics{margin-top:20px;border-top:1px solid var(--line,#e7e9ec);padding-top:16px}
+.tech-promo-clinics summary{cursor:pointer;color:#444;font-size:14px;font-weight:600;padding:4px 0}
+.tech-promo-clinics summary span{display:inline-block;margin-left:6px;color:#777;font-variant-numeric:tabular-nums}
+.tech-promo-clinics>p{margin-top:10px;max-width:80ch;color:#666}
+.tech-promo-clinic-search{margin-top:12px;font-size:13px;max-width:440px}
+.tech-promo-clinic-list{max-height:240px;overflow:auto;margin-top:10px;scrollbar-color:#b8b8b8 transparent}
+.tech-promo-clinic-option{display:flex;align-items:center;gap:12px;padding:10px 4px;cursor:pointer;color:#444;font-size:13px}
+.tech-promo-clinic-option[hidden],.tech-promo-clinic-list p[hidden]{display:none}
+.tech-promo-clinic-option input{flex:none;width:17px;height:17px;accent-color:#808080}
+.tech-promo-clinic-option span{min-width:0;overflow-wrap:anywhere}.tech-promo-clinic-option small{display:block;margin-top:3px;color:#6e6e6e}
+.tech-promo-registration input::selection{background:#dedede;color:#333}
+.tech-promo-clinics input:focus-visible,.tech-promo-clinics summary:focus-visible,.tech-promo-registration input:focus-visible{outline:2px solid #888;outline-offset:3px}
+@media(max-width:700px){.tech-promo-registration{align-items:stretch}.tech-promo-link-field{flex-basis:100%}.tech-promo-link-actions{width:100%}.tech-promo-link-actions .btn{flex:1 1 140px}.tech-promo-clinic-search{max-width:none}}

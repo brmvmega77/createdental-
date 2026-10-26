@@ -48,9 +48,10 @@ function applySaved(collection,value,saved){
 export async function savePortal(collection,value){
  const token=portalToken(),version=versionsByToken.get(token)?.[collection];
  try{
-  const data=await request(`/api/portal/${collection}`,{method:'PUT',headers:{'Content-Type':'application/json',...(version!==undefined?{'X-Portal-Version':String(version)}:{})},body:JSON.stringify(value)});
+  const data=await request(`/api/portal/${collection}`,{method:'PUT',headers:{'Content-Type':'application/json',...(version!==undefined?{'X-Portal-Version':String(version)}:{}),...(collection==='promoCodes'&&versionsByToken.get(token)?.clients!==undefined?{'X-Portal-Clients-Version':String(versionsByToken.get(token).clients)}:{})},body:JSON.stringify(value)});
   if(token!==portalToken())throw new Error('Сеанс изменился. Откройте кабинет заново.');
   applySaved(collection,value,data.saved);
+  if(data.clients)localStorage.setItem('create-dental-tech-clients',JSON.stringify(data.clients));
   if(data.orderOverrides)localStorage.setItem('create-dental-tech-orders',JSON.stringify(data.orderOverrides));
   return data;
  }catch(error){
