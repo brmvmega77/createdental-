@@ -259,8 +259,6 @@
 @page order-compact{size:210mm 148mm;margin:3mm}
 @page order-tall{size:210mm 250mm;margin:3mm}
 @media print{
-  .order-print-root{page:order-compact!important}
-  .order-print-root.order-print-tall{page:order-tall!important}
   .order-print-paper{
     display:block!important;
     width:210mm!important;
@@ -733,7 +731,6 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
 @page order-tall{size:210mm 250mm;margin:3mm}
 @media print{
   html,body{width:210mm!important;min-height:0!important;height:auto!important;margin:0!important}
-  .order-print-root.order-print-tall{page:order-tall!important}
   .order-print-paper{
     display:block!important;
     width:210mm!important;

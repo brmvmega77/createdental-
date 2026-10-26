@@ -114,14 +114,21 @@ export function openOrderPrint({order,toothChart,logo='/assets/create-dental-log
   if(!order||printInProgress)return false;
   printInProgress=true;
   document.querySelector('.order-print-root')?.remove();
+  document.querySelector('[data-order-print-page-style]')?.remove();
   const variants=variantsFor(order);
-  const pageClass=printNeedsTallSheet(order,variants)?' order-print-tall':'';
+  const isTall=printNeedsTallSheet(order,variants);
+  const pageClass=isTall?' order-print-tall':'';
+  const pageStyle=document.createElement('style');
+  pageStyle.dataset.orderPrintPageStyle='';
+  pageStyle.textContent=`@media print{@page{size:210mm ${isTall?'250mm':'148mm'};margin:3mm}}`;
+  document.head.appendChild(pageStyle);
   document.body.insertAdjacentHTML('beforeend',`<div class="order-print-root${pageClass}"><section class="order-print-paper">${sheetMarkup(order,variants,toothChart,logo)}</section></div>`);
   const root=document.querySelector('.order-print-root');
   const printButtons=[...(document.querySelectorAll?.('[data-action="print-order"],[data-tech-order-action="print-order"]')||[])];
   printButtons.forEach(button=>{button.disabled=true;button.setAttribute('aria-busy','true')});
   const finish=()=>{
     root?.remove();
+    pageStyle.remove();
     printButtons.forEach(button=>{button.disabled=false;button.removeAttribute('aria-busy')});
     printInProgress=false;
   };
