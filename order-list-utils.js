@@ -48,6 +48,35 @@ export function orderWorkTypes(order) {
   return [...new Set(works)];
 }
 
+// The stored fields keep their business meaning: `work` is the catalogue
+// section and `workOption`/`material` is the selected service.  These helpers
+// expose the labels used in order cards and detail views so the UI cannot
+// accidentally swap them again.
+export function orderVariantExecutionLabel(variant, order = {}) {
+  return clean(variant?.work) || clean(order?.work) || '—';
+}
+
+export function orderVariantConstructionLabel(variant, order = {}) {
+  return clean(variant?.workOption) || clean(variant?.material) ||
+    (!Array.isArray(order?.variants) || order.variants.length <= 1 ? clean(order?.material) : '') || '—';
+}
+
+export function orderExecutionLabel(order) {
+  const variants = Array.isArray(order?.variants) && order.variants.length
+    ? order.variants
+    : [{work: order?.work, workOption: order?.material}];
+  const labels = [...new Set(variants.map(variant => orderVariantExecutionLabel(variant, order)).filter(label => label !== '—'))];
+  return labels.join(', ') || '—';
+}
+
+export function orderConstructionLabel(order) {
+  const variants = Array.isArray(order?.variants) && order.variants.length
+    ? order.variants
+    : [{work: order?.work, workOption: order?.material}];
+  const labels = [...new Set(variants.map(variant => orderVariantConstructionLabel(variant, order)).filter(label => label !== '—'))];
+  return labels.join(', ') || '—';
+}
+
 // A compact label for cards, tables and bot messages.  Orders with several
 // variants keep the actual service names instead of the internal summary
 // "Несколько услуг (N)".
