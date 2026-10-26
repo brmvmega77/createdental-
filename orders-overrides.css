@@ -1005,21 +1005,75 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
   .tech-order-viewbar .tech-order-view-toggle{overflow-x:auto!important;flex-wrap:nowrap!important}
 }
 
-/* Group summaries and child rows share one table grid. Child rows are inset
-   by 12px; matching that inset and removing the summary-only gaps keeps
-   services, deadlines, stages, and employees on the same vertical tracks. */
+/* One column system for the grouped header, order summary, and work rows.
+   Keeping their widths identical avoids the drift caused by nested gutters. */
 @media(min-width:761px){
+  .tech-orders-table-grouped{
+    --group-columns:minmax(0,3fr) minmax(0,14fr) minmax(0,11fr) minmax(0,7fr) minmax(0,9fr) minmax(0,18fr) minmax(0,10fr) minmax(0,10fr) minmax(0,10fr) minmax(78px,8fr);
+  }
+  .tech-orders-table-grouped thead tr,
+  .tech-orders-table-grouped tbody tr.tech-order-child-row,
   .tech-orders-table-grouped .tech-order-group-summary{
-    width:100%!important;
-    margin:0!important;
-    padding-inline:12px!important;
+    grid-template-columns:var(--group-columns)!important;
     column-gap:0!important;
+    width:100%!important;
+  }
+  .tech-orders-table-grouped tbody tr.tech-order-group-row{
+    border:0!important;
+    box-shadow:inset 0 0 0 1px #e6e6e6;
+  }
+  .tech-orders-table-grouped tbody tr.tech-order-group-row td{
+    padding:0!important;
+  }
+  .tech-orders-table-grouped tbody tr.tech-order-child-row{
+    margin-inline:0!important;
+    border-left:0!important;
+    border-right:0!important;
+  }
+  .tech-orders-table-grouped .tech-order-child-service{
+    font-size:12px;
+    font-weight:600;
+    line-height:1.45;
+  }
+  .tech-orders-table-grouped .tech-order-group-summary{
+    box-sizing:border-box;
+    margin:0!important;
+    padding:14px 0!important;
+  }
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-chevron{
+    grid-column:1!important;
+    grid-row:1!important;
+    justify-self:center!important;
+  }
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-primary{
+    grid-column:2 / 4!important;
+    grid-row:1!important;
+    padding-inline:12px!important;
+  }
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-count{
+    grid-column:4!important;
+    grid-row:1!important;
+  }
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-count,
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-type,
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-work,
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-deadline,
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-people{
+    box-sizing:border-box;
+    min-width:0;
+    padding-inline:12px!important;
   }
   .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-type{grid-column:5!important;grid-row:1!important}
   .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-work{grid-column:6!important;grid-row:1!important}
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-deadline{grid-column:7!important;grid-row:1!important}
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-stage{
+    grid-column:8!important;
+    grid-row:1!important;
+    margin-left:12px!important;
+  }
   .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-people{grid-column:9!important;grid-row:1!important}
   .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-chevron,
   .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-primary,
   .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-stat,
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-stage{position:relative;left:12px!important}
+  .tech-orders-table-grouped .tech-order-group-summary>.tech-stage{position:static!important;left:auto!important}
 }
