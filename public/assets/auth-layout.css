@@ -65,3 +65,30 @@ html[data-theme="dark"] .portal-footer-legal a:hover, html[data-theme="dark"] .p
   .portal-login { padding: 76px 14px 0; }
   .portal-login > section { margin-block: auto; }
 }
+
+/* Country uses the same dimensions and neutral surface as registration inputs. */
+.portal-login select {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 40px 0 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23808080' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  color: #333;
+  font: inherit;
+  line-height: normal;
+  cursor: pointer;
+}
+.portal-login[dir="rtl"] select { padding: 0 12px 0 40px; background-position: left 12px center; }
+.portal-login select:disabled { cursor: default; opacity: .65; }
+
+@media(max-width:760px) { .portal-login select { min-height: 44px; font-size: 16px; } }
