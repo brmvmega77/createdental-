@@ -3061,3 +3061,30 @@ html[data-theme="dark"] .tech-nav-group-title{color:#aeb6be}
 .tech-promo-body{padding:0 18px 18px}
 .tech-promo-card[open]>.tech-promo-summary{margin-bottom:14px;border-bottom:1px solid var(--line,#eee);border-radius:14px 14px 0 0}
 @media(max-width:700px){.tech-promo-summary{gap:10px;padding:16px}.tech-promo-summary-copy{display:grid;gap:4px}.tech-promo-summary-status{font-size:11px}.tech-promo-body{padding:0 16px 16px}}
+
+/* Catalogue values are plain text until that item is explicitly edited. */
+.tech-pricing-list{--line:#eee}
+.tech-pricing-list .tech-pricing-category-head{background:#fff;border-color:#eee}
+.tech-pricing-list .tech-pricing-category-title{margin:6px 0 0;font-size:18px;line-height:1.4;font-weight:650;color:#333;overflow-wrap:anywhere}
+.tech-pricing-list .tech-pricing-kicker,.tech-pricing-list .tech-pricing-labels{color:#757575}
+.tech-pricing-list .tech-pricing-count{border-color:#ddd;color:#666}
+.tech-pricing-list .tech-pricing-add{color:#757575}
+.tech-pricing-list .tech-pricing-value{padding:5px 0;background:transparent;color:#444;font-size:13px;font-weight:500;line-height:1.5;overflow-wrap:anywhere}
+.tech-pricing-list .tech-pricing-service-value{font-weight:600}
+.tech-pricing-list .tech-pricing-price-value{white-space:nowrap;font-variant-numeric:tabular-nums}
+.tech-pricing-list .tech-catalog-row{border-color:#eee}
+.tech-pricing-list .tech-catalog-row.is-editing{margin-inline:-10px;padding-inline:10px;background:#f5f5f5;border-radius:8px}
+.tech-pricing-list .tech-catalog-row.is-editing input,.tech-pricing-list .tech-catalog-row.is-editing select,.tech-pricing-list .tech-pricing-category-name{background:#fff;border:1px solid #bbb;color:#333}
+.tech-pricing-list .tech-catalog-row.is-editing>.tech-pricing-edit,.tech-pricing-list .tech-pricing-category-head.is-editing .tech-pricing-edit{border-color:#808080;background:#ededed;color:#444}
+.tech-pricing-list .tech-pricing-category-head.is-editing{background:#f5f5f5}
+.tech-pricing-list .tech-pricing-edit,.tech-pricing-list .tech-pricing-remove{border-color:#e5e5e5}
+@media(max-width:760px){.tech-pricing-list .tech-pricing-value{font-size:14px}}
+.tech-pricing-list .tech-catalog-row{grid-template-columns:minmax(0,1fr) 125px 200px 34px 34px}
+@media(max-width:760px){
+  .tech-pricing-list .tech-catalog-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 30px 30px;gap:10px;align-items:center}
+  .tech-pricing-list .tech-catalog-row>.tech-pricing-name{grid-column:1/-1;grid-row:1}
+  .tech-pricing-list .tech-catalog-row>.tech-pricing-control:nth-child(2){grid-column:1;grid-row:2}
+  .tech-pricing-list .tech-catalog-row>.tech-pricing-control:nth-child(3){grid-column:2;grid-row:2}
+  .tech-pricing-list .tech-catalog-row>.tech-pricing-edit{grid-column:3;grid-row:2;margin:0}
+  .tech-pricing-list .tech-catalog-row>.tech-pricing-remove{grid-column:4;grid-row:2;margin:0}
+}
