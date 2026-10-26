@@ -269,8 +269,8 @@
     margin:0!important;
     padding:0!important;
     overflow:visible!important;
-    break-after:auto!important;
-    page-break-after:auto!important;
+    break-after:avoid-page!important;
+    page-break-after:avoid!important;
   }
   .order-print-paper>.order-print-sheet{
     width:204mm!important;
@@ -280,8 +280,8 @@
     margin:0!important;
     padding:0!important;
     overflow:hidden!important;
-    break-after:auto!important;
-    page-break-after:auto!important;
+    break-after:avoid-page!important;
+    page-break-after:avoid!important;
   }
   .order-print-main{height:70mm!important;align-items:center!important}
   .order-print-side{height:68mm!important;grid-template-rows:repeat(16,1fr)!important}
@@ -296,6 +296,8 @@
     min-height:244mm!important;
     max-height:none!important;
     overflow:visible!important;
+    break-after:avoid-page!important;
+    page-break-after:avoid!important;
   }
   .order-print-root.order-print-tall .order-print-main{height:auto!important;align-items:stretch!important}
   .order-print-root.order-print-tall .order-print-side{
@@ -740,8 +742,8 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
     margin:0!important;
     padding:0!important;
     overflow:visible!important;
-    break-after:auto!important;
-    page-break-after:auto!important;
+    break-after:avoid-page!important;
+    page-break-after:avoid!important;
   }
   .order-print-paper>.order-print-sheet{
     width:204mm!important;
@@ -751,8 +753,8 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
     margin:0!important;
     padding:0!important;
     overflow:hidden!important;
-    break-after:auto!important;
-    page-break-after:auto!important;
+    break-after:avoid-page!important;
+    page-break-after:avoid!important;
   }
   .order-print-main{height:70mm!important;align-items:center!important}
   .order-print-side{height:68mm!important;grid-template-rows:repeat(16,1fr)!important}
@@ -774,6 +776,8 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
     min-height:244mm!important;
     max-height:none!important;
     overflow:visible!important;
+    break-after:avoid-page!important;
+    page-break-after:avoid!important;
   }
   .order-print-root.order-print-tall .order-print-main{height:auto!important;align-items:stretch!important}
   .order-print-root.order-print-tall .order-print-side{
