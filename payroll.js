@@ -1,3 +1,4 @@
+import {requiresDoctorCadApproval} from './production-routes.js';
 import {resolveWorkSelection,priceUnitsForSelection} from './work-catalog.js';
 
 export const payrollRoles=[{key:'cad',label:'CAD оператор',fallback:900},{key:'cam',label:'CAM оператор',fallback:450},{key:'category1',label:'Техник первой категории',fallback:450},{key:'esthetic',label:'Эстетист',fallback:450},{key:'gypsum',label:'Гипсовщик',fallback:450}];
@@ -26,6 +27,7 @@ export function validPayrollSettings(value){
 const roundMoney=amount=>Math.round(amount*100)/100;
 const fields={cad:['cadOperator','assignee'],cam:['frameTechnician','technician'],category1:['category1Technician'],esthetic:['painter','ceramicist'],gypsum:['preprodTechnician']};
 function completion(detail,role){
+  if(role==='cad'&&detail?.cadQualityApprovedAt)return detail.cadQualityApprovedAt;
   if(role==='cad')return detail?.cadReview?.status==='approved'&&detail.cadReview.reviewedAt?detail.cadReview.reviewedAt:'';
   const status=role==='cam'?detail?.frameTechnicianStatus:role==='category1'?detail?.category1TechnicianStatus:role==='esthetic'?(detail?.painterStatus||detail?.ceramicistStatus):detail?.preprodTechnicianStatus;
   if(status!=='Работа сдана')return '';
@@ -35,11 +37,12 @@ export function collectPayrollAccruals(state,{previousOverrides={},legacy=false,
   const existing=new Set((state.salaryAccruals||[]).map(item=>item.orderId+'|'+item.role));
   const result=[];
   for(const order of state.orders||[]){
+    if(order.labWorkIds?.length)continue;
     const detail=state.orderOverrides?.[order.id]||{};
     for(const role of payrollRoles){
       const id=order.id+'|'+role.key;
-      if(existing.has(id))continue;
-      if(!legacy&&(role.key==='cad'?actorRole!=='clinic':actorRole!=='technician'))continue;
+      if(existing.has(id)||detail.inheritedPayrollRoles?.includes(role.key))continue;
+      if(!legacy&&(role.key==='cad'?(requiresDoctorCadApproval(order)?actorRole!=='clinic':actorRole!=='technician'):actorRole!=='technician'))continue;
       const at=completion(detail,role.key);
       if(!at&&!legacy)continue;
       // Old production data can have a submitted status without a timestamp.

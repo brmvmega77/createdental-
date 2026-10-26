@@ -43,7 +43,7 @@ function stageSince(order, events) {
   return last || (initialStages.has(order.stage) ? validTime(order.createdAt) : null);
 }
 
-export function calculateCompanyPulse(orders, team, now = new Date(), history = [], clientRequests = []) {
+export function calculateCompanyPulse(orders, team, now = new Date(), history = [], clientRequests = [], commercialOrders = orders) {
   const current = now instanceof Date ? now : new Date(now);
   const currentTime = current.getTime(), today = new Date(current.getFullYear(), current.getMonth(), current.getDate()).getTime();
   const active = orders.filter(order => !completedOrderStages.has(order.stage));
@@ -130,7 +130,7 @@ export function calculateCompanyPulse(orders, team, now = new Date(), history = 
   quality.pending = active.filter(order => order.stage === 'Контроль качества').map(order => ({order,since:validTime(order.qualityRequest?.requestedAt)}));
 
   const payments = {score:null, total:0, paid:0, totalAmount:0, paidAmount:0, outstandingAmount:0, unknownAmount:0, unpaid:[], overdue:[]};
-  for (const order of orders) {
+  for (const order of commercialOrders) {
     if (!paymentStages.has(order.stage)) continue;
     const amount = amountOf(order.sum);
     if (!amount) { payments.unknownAmount++; continue; }

@@ -1,3 +1,4 @@
+import {reconcileLabOrders,isLabWork,isLabGroup,stripLabProjection} from './lab-orders.js';
 import {samePortalValue,versionCollection} from './collection-concurrency.js';
 import {availableClinicDoctors} from './clinic-doctors.js';
 import {repairLegacyFlowState,releaseEmployeeAssignments} from './flow-rules.js';
@@ -63,6 +64,7 @@ try {
     if(stored.payrollSettings)state.payrollSettings=stored.payrollSettings;
     if(Array.isArray(stored.salaryAccruals))state.salaryAccruals=stored.salaryAccruals;
     if(stored.payrollVersion===1)state.payrollVersion=1;
+    if(stored.labOrdersVersion===1)state.labOrdersVersion=1;
     if(stored.orderOverrides&&typeof stored.orderOverrides==='object'&&!Array.isArray(stored.orderOverrides))state.orderOverrides=stored.orderOverrides;
     if(Array.isArray(stored.orderHistory))state.orderHistory=stored.orderHistory;
     const before=JSON.stringify(state);
@@ -127,6 +129,8 @@ const repairedFlow=repairLegacyFlowState(state);
 if(repairedFlow!==state){state=repairedFlow;await persistState(['orderOverrides']);}
 const payrollInitialized=initializePayrollState(state);
 if(payrollInitialized!==state){state=payrollInitialized;await persistState(['salaryAccruals']);}
+const groupedState=reconcileLabOrders(state);
+if(JSON.stringify(groupedState)!==JSON.stringify(state)){state=groupedState;state.collectionVersions={...state.collectionVersions,orders:(state.collectionVersions.orders||0)+1,orderOverrides:(state.collectionVersions.orderOverrides||0)+1};await persistState(['orders','orderOverrides']);}
 
 async function initializeRelationalSchema(){
   await databasePool.query(`
@@ -453,7 +457,7 @@ function validCollection(key,value){
   }
   if(key==='clientRequests')return Array.isArray(value)&&value.length<=20000&&unique(value)&&value.every(item=>item&&validId(item.id)&&validId(item.orderId)&&validId(item.clinicId)&&['edit','deadline','cancel'].includes(item.type)&&['pending','approved','rejected','archived'].includes(item.status)&&(!item.decision||['approved','rejected'].includes(item.decision))&&text(item.requestedBy||'',200)&&text(item.summary||'',2000)&&(!item.reason||text(item.reason,2000))&&item.changes&&typeof item.changes==='object'&&!Array.isArray(item.changes));
   if(key==='tasks')return Array.isArray(value)&&value.length<=20000&&unique(value)&&value.every(item=>item&&validId(item.id)&&validId(item.assigneeId)&&text(item.assigneeName,200)&&text(item.title,200)&&text(item.description||'',4000)&&(!item.orderId||text(item.orderId,100))&&text(item.clinic||'',200)&&text(item.patient||'',200)&&text(item.work||'',200)&&['backlog','in_progress','review','done'].includes(item.status)&&['low','normal','high','urgent'].includes(item.priority)&&(!item.dueDate||/^\d{4}-\d{2}-\d{2}$/.test(item.dueDate))&&text(item.createdBy||'',200)&&typeof item.createdAt==='string'&&item.createdAt.length<=40&&typeof item.updatedAt==='string'&&item.updatedAt.length<=40&&(!item.completedAt||typeof item.completedAt==='string'&&item.completedAt.length<=40));
-  if(key==='orderOverrides')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=5000&&Object.entries(value).every(([id,detail])=>validId(id)&&detail&&typeof detail==='object'&&!Array.isArray(detail)&&(!detail.stage||text(detail.stage,80))&&(!detail.manufacturingStatus||text(detail.manufacturingStatus,80))&&(!detail.assignee||text(detail.assignee,200))&&(!detail.reworkReason||text(detail.reworkReason,2000))&&(!detail.completedAt||typeof detail.completedAt==='string'&&detail.completedAt.length<=40)&&(!detail.qualityDecision||detail.qualityDecision&&typeof detail.qualityDecision==='object'&&!Array.isArray(detail.qualityDecision)&&['cad','preprod','cam','esthetic','final'].includes(detail.qualityDecision.kind)&&['approved','rejected'].includes(detail.qualityDecision.result)&&text(detail.qualityDecision.reasonCategory||'',120)&&text(detail.qualityDecision.reason||'',1000)&&typeof detail.qualityDecision.at==='string'&&detail.qualityDecision.at.length<=40)&&(!detail.cadReview||detail.cadReview&&typeof detail.cadReview==='object'&&!Array.isArray(detail.cadReview)&&['pending','approved','returned'].includes(detail.cadReview.status)&&validId(detail.cadReview.fileId)&&text(detail.cadReview.fileName,200)&&text(detail.cadReview.sentBy||'',200)&&text(detail.cadReview.reviewedBy||'',200)&&text(detail.cadReview.comment||'',2000)&&Number.isSafeInteger(detail.cadReview.revision)&&detail.cadReview.revision>0&&detail.cadReview.revision<10000&&typeof detail.cadReview.sentAt==='string'&&detail.cadReview.sentAt.length<=40&&(!detail.cadReview.reviewedAt||typeof detail.cadReview.reviewedAt==='string'&&detail.cadReview.reviewedAt.length<=40)));
+  if(key==='orderOverrides')return value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length<=5000&&Object.entries(value).every(([id,detail])=>validId(id)&&detail&&typeof detail==='object'&&!Array.isArray(detail)&&(!detail.stage||text(detail.stage,80))&&(!detail.manufacturingStatus||text(detail.manufacturingStatus,80))&&(!detail.assignee||text(detail.assignee,200))&&(!detail.reworkReason||text(detail.reworkReason,2000))&&(!detail.completedAt||typeof detail.completedAt==='string'&&detail.completedAt.length<=40)&&(!detail.qualityDecision||detail.qualityDecision&&typeof detail.qualityDecision==='object'&&!Array.isArray(detail.qualityDecision)&&['cad','preprod','cam','category1','esthetic','final'].includes(detail.qualityDecision.kind)&&['approved','rejected'].includes(detail.qualityDecision.result)&&text(detail.qualityDecision.reasonCategory||'',120)&&text(detail.qualityDecision.reason||'',1000)&&typeof detail.qualityDecision.at==='string'&&detail.qualityDecision.at.length<=40)&&(!detail.cadReview||detail.cadReview&&typeof detail.cadReview==='object'&&!Array.isArray(detail.cadReview)&&['pending','approved','returned','not-required'].includes(detail.cadReview.status)&&validId(detail.cadReview.fileId)&&text(detail.cadReview.fileName,200)&&text(detail.cadReview.sentBy||'',200)&&text(detail.cadReview.reviewedBy||'',200)&&text(detail.cadReview.comment||'',2000)&&Number.isSafeInteger(detail.cadReview.revision)&&detail.cadReview.revision>0&&detail.cadReview.revision<10000&&typeof detail.cadReview.sentAt==='string'&&detail.cadReview.sentAt.length<=40&&(!detail.cadReview.reviewedAt||typeof detail.cadReview.reviewedAt==='string'&&detail.cadReview.reviewedAt.length<=40)));
   if(key==='workCatalog'){
     const productionStageIds=new Set(['intake','preprod','cad','doctor','cam','category1','esthetic','quality','delivery','done']);
     const validProductionFlows=flows=>flows===undefined||(flows&&typeof flows==='object'&&!Array.isArray(flows)&&Object.keys(flows).every(context=>['digital','analog','restorationDigital','restorationAnalog'].includes(context))&&Object.values(flows).every(flow=>Array.isArray(flow)&&flow.length<=10&&new Set(flow).size===flow.length&&flow.every(stage=>productionStageIds.has(stage))&&flow.includes('intake')&&flow.includes('delivery')&&flow.includes('done')));
@@ -477,6 +481,8 @@ export async function replacePortalCollection(key,value,actor={},options={}){
   if(!validCollection(key,prepared))throw new Error('invalid_collection');
   let next=structuredClone(prepared);
   saveQueue=saveQueue.catch(()=>{}).then(async()=>{
+    const previousState=structuredClone(state);
+    const previousOrders=state.orders;
     const previous=state[key];
     const previousPromoCodes=state.promoCodes;
     const previousVersions={...(state.collectionVersions||{})};
@@ -500,6 +506,8 @@ export async function replacePortalCollection(key,value,actor={},options={}){
       }
       return {...client,doctorsRevision:before.doctorsRevision||0};
     });
+    if(key==='orders'){next=next.map(stripLabProjection);for(const parent of previous.filter(isLabGroup))if(!next.some(order=>order.id===parent.id))next.push(parent);}
+    if(key==='orderOverrides')for(const parent of state.orders.filter(isLabGroup))if(!Object.hasOwn(next,parent.id)&&previous[parent.id])next[parent.id]=previous[parent.id];
     if(key==='orders')next=next.map(order=>{
       if((previous||[]).some(item=>item.id===order.id))return order;
       if(order.variants?.length)order={...order,variants:order.variants.map(variant=>{
@@ -540,9 +548,7 @@ export async function replacePortalCollection(key,value,actor={},options={}){
       const ids=new Set([...Object.keys(previous||{}),...Object.keys(next||{})]);
       for(const id of ids){
         const before=previous?.[id]||{},after=next?.[id]||{};
-        if(before.stage!==after.stage){
-          generated.push(eventFor(id,actor,'stage_changed',{from:before.stage||'Новый',to:after.stage||'Новый',reason:after.reworkReason||''}));
-        }
+
         if(after.qualityDecision?.at&&after.qualityDecision.at!==before.qualityDecision?.at){
           const decision=after.qualityDecision;
           generated.push(eventFor(id,actor,decision.result==='approved'?'quality_check_approved':'quality_check_rejected',{kind:decision.kind,reasonCategory:decision.reasonCategory||'',reason:decision.reason||'',requestedAt:decision.requestedAt||'',summary:decision.result==='approved'?'ОТК пройдена':`ОТК: ${decision.reasonCategory||'возврат на доработку'}`}));
@@ -567,6 +573,14 @@ export async function replacePortalCollection(key,value,actor={},options={}){
     try {
     state.collectionVersions={...previousVersions,[key]:(previousVersions[key]||0)+1};
     state[key]=key==='payrollSettings'?{...next,revision:(previous?.revision||0)+1,updatedAt:new Date().toISOString()}:next;
+    if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(next));
+    if(['orders','orderOverrides','workCatalog'].includes(key)){
+      state=reconcileLabOrders(state,previousState,key);
+      if(state.orders.length>5000)throw new Error('invalid_collection');
+      if(JSON.stringify(state.orders)!==JSON.stringify(previousOrders)){state.orders=versionCollection('orders',state.orders.map(item=>({...item,_revision:previousOrders.find(old=>old.id===item.id)?._revision||0})),previousOrders,previousVersions.orders||0,previousVersions.orders||0);state.collectionVersions.orders=(previousVersions.orders||0)+1;}
+      if(JSON.stringify(state.orderOverrides)!==JSON.stringify(previousOverrides)){state.orderOverrides=versionCollection('orderOverrides',Object.fromEntries(Object.entries(state.orderOverrides).map(([id,item])=>[id,{...item,_revision:previousOverrides[id]?._revision||0}])),previousOverrides,previousVersions.orderOverrides||0,previousVersions.orderOverrides||0);state.collectionVersions.orderOverrides=(previousVersions.orderOverrides||0)+1;}
+    }
+    if(['orders','orderOverrides','workCatalog'].includes(key))for(const [id,detail] of Object.entries(state.orderOverrides)){const before=previousOverrides[id]||{};if(before.stage!==detail.stage)generated.push(eventFor(id,actor,'stage_changed',{from:before.stage||'Новый',to:detail.stage||'Новый',reason:detail.reworkReason||''}));}
     if(key==='orderOverrides'){const accrued=collectPayrollAccruals(state,{previousOverrides:previous,actorRole:actor.role});if(accrued.length)state.salaryAccruals=[...(state.salaryAccruals||[]),...accrued];}
     if(key==='employees'){const released=releaseEmployeeAssignments(state.orderOverrides,next);if(released!==state.orderOverrides){state.orderOverrides=versionCollection('orderOverrides',released,previousOverrides);state.collectionVersions.orderOverrides=(previousVersions.orderOverrides||0)+1;}}
     if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(next));
@@ -574,10 +588,11 @@ export async function replacePortalCollection(key,value,actor={},options={}){
       const changedKeys=new Set([key]);
       if(key==='workCatalog'&&JSON.stringify(state.promoCodes)!==JSON.stringify(previousPromoCodes))changedKeys.add('promoCodes');
       if(state.orderOverrides!==previousOverrides)changedKeys.add('orderOverrides');
+      if(state.orders!==previousOrders)changedKeys.add('orders');
       if(generated.length)changedKeys.add('orderHistory');
       if(state.salaryAccruals!==previousAccruals)changedKeys.add('salaryAccruals');
       await persistState([...changedKeys]);
-    } catch(error){state[key]=previous;state.promoCodes=previousPromoCodes;state.orderOverrides=previousOverrides;state.collectionVersions=previousVersions;state.orderHistory=previousHistory;state.salaryAccruals=previousAccruals;if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(previous));throw error}
+    } catch(error){state.orders=previousOrders;state[key]=previous;state.promoCodes=previousPromoCodes;state.orderOverrides=previousOverrides;state.collectionVersions=previousVersions;state.orderHistory=previousHistory;state.salaryAccruals=previousAccruals;if(key==='workCatalog')workCatalog.splice(0,workCatalog.length,...cloneCatalog(previous));throw error}
   });
   await saveQueue;
   return portalSnapshot();
@@ -604,8 +619,10 @@ export async function removePortalOrder(orderId,actor={}){
   const before=state;
   removed=state.orders.find(item=>item.id===orderId);
   if(!removed)throw new Error('not_found');
-  const overrides={...state.orderOverrides};delete overrides[orderId];
-  state={...state,orders:state.orders.filter(item=>item.id!==orderId),orderOverrides:overrides,orderHistory:[...(state.orderHistory||[]),eventFor(orderId,actor,'order_deleted',{summary:'Заказ удалён'})].slice(-50000),collectionVersions:{...state.collectionVersions,orders:(state.collectionVersions?.orders||0)+1,orderOverrides:(state.collectionVersions?.orderOverrides||0)+1}};
+  if(isLabWork(removed))throw new Error('delete_group_required');
+  const removedIds=new Set([orderId,...(removed.labWorkIds||[])]);
+  const overrides=Object.fromEntries(Object.entries(state.orderOverrides).filter(([id])=>!removedIds.has(id)));
+  state={...state,orders:state.orders.filter(item=>!removedIds.has(item.id)),orderOverrides:overrides,orderHistory:[...(state.orderHistory||[]),eventFor(orderId,actor,'order_deleted',{summary:'Заказ удалён'})].slice(-50000),collectionVersions:{...state.collectionVersions,orders:(state.collectionVersions?.orders||0)+1,orderOverrides:(state.collectionVersions?.orderOverrides||0)+1}};
   try{await persistState(['orders','orderOverrides','orderHistory']);}catch(error){state=before;throw error;}
  });
  await saveQueue;return removed;

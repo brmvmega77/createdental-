@@ -69,6 +69,15 @@ export function orderServices(order = {}) {
   }));
 }
 
+export function requiresDoctorCadApproval(order={}){
+  return orderServices(order).some(item=>{
+    const selection=resolveWorkSelection(item.work,item.service);
+    const name=category(selection.category?.name||item.work);
+    // Unknown historical categories keep their existing approval contract.
+    return ['реставрации','планирование и диагностика'].includes(name)||!selection.category;
+  });
+}
+
 export function isRestorationRoute(order = {}) {
   const services = orderServices(order);
   return services.length > 0 && services.every(item => category(item.work) === 'реставрации');
@@ -107,7 +116,7 @@ function legacyDefaultFlow(order={}){
   const direct=isDirectCategory1(order);
   const flow=['intake'];
   if(analog)flow.push('preprod');
-  if(!direct)flow.push('cad','doctor','cam');
+  if(!direct){flow.push('cad');if(requiresDoctorCadApproval(order))flow.push('doctor');flow.push('cam');}
   else if(category1)flow.push('category1');
   if(!direct&&category1)flow.push('category1');
   if(!direct&&restoration)flow.push('esthetic');
@@ -125,7 +134,10 @@ export function configuredProductionFlowForService(work='',service='',production
   const option=selection.option;
   const context=productionContextForService(selection.category?.name||work,option?.name||service,productionType);
   const fallback=defaultProductionFlowForService(selection.category?.name||work,option?.name||service,productionType);
-  return normalizeProductionFlow(option?.productionFlows?.[context],fallback);
+  const flow=normalizeProductionFlow(option?.productionFlows?.[context],fallback).filter(id=>id!=='doctor');
+  if(flow.includes('cad')&&requiresDoctorCadApproval({work:selection.category?.name||work,material:option?.name||service}))flow.splice(flow.indexOf('cad')+1,0,'doctor');
+  if(category(selection.category?.name||work)==='реставрации')return flow.filter(id=>id!=='category1');
+  return flow;
 }
 
 export function productionFlowForOrder(order={},catalog=[]){
@@ -148,6 +160,12 @@ export function routeForOrder(order = {}) {
 
 export function nextProductionRole(order = {}) {
   const route = routeForOrder(order);
-  return route.category1 ? 'category1' : route.restoration ? 'esthetic' : 'esthetic';
+  return route.flow.slice(route.flow.indexOf('cam')+1).find(id=>['category1','esthetic','cad','preprod','quality'].includes(id))||'quality';
 }
 
+
+export function cadReadyForProduction(order={},detail={}){
+  if(!productionFlowForOrder(order).flow.includes('cad'))return true;
+  if(requiresDoctorCadApproval(order))return detail.cadReview?.status==='approved';
+  return Boolean(detail.cadQualityApprovedAt)||detail.cadReview?.status==='approved';
+}

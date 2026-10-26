@@ -3013,3 +3013,15 @@ html[data-theme="dark"] .tech-nav-group-title{color:#aeb6be}
 /* В свернутом меню показываем только иконки групп, а вложенные пункты скрываем. */
 .sidebar.sidebar-collapsed .tech-nav-group-items{display:none}
 :is(a.nav-link,a.brand-home,a.profile,a.mobile-bottom-item,a.help-box,a.tech-link,a.tech-back,a.text-link,a.back-link,a.recent-message,a.upcoming-order,a.order-row-link,a.btn){text-decoration:none}:is(a.nav-link,a.brand-home,a.profile,a.mobile-bottom-item,a.help-box,a.recent-message,a.upcoming-order,a.order-row-link){color:inherit}a.tech-event-alert,a.pulse-side-link{text-decoration:none}
+
+/* Independent production works inside one clinic order. */
+.clinic-service-progress-list{display:grid;gap:20px;min-width:0}
+.clinic-service-progress{min-width:0;padding:16px;border:1px solid var(--border,#e6e6e6);border-radius:12px}
+.clinic-service-progress h4{margin:0;font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+.clinic-service-progress p{font-size:13px;line-height:1.5;margin:8px 0}
+.clinic-service-progress details{margin-top:12px}
+.clinic-service-progress summary{font-size:13px;cursor:pointer;color:inherit}
+.clinic-service-progress .timeline{margin-top:16px}
+.clinic-service-progress .tech-progress-track{height:6px}
+
+.clinic-service-progress p{color:#777}.clinic-service-progress p strong{color:#555}

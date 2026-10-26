@@ -28,11 +28,11 @@ export async function handleOwner(req,res,url){
   if(url.pathname==='/api/owner/report'&&req.method==='GET'){
     let period;try{period=reportingPeriod(url.searchParams.get('from'),url.searchParams.get('to'));}catch(e){return send(res,400,{error:e.message});}
     const [snapshot,ledger]=await Promise.all([portalSnapshotForDatabase('technician','chief'),store.read()]);
-    return send(res,200,buildOwnerReport(snapshot,ledger,period));
+    return send(res,200,buildOwnerReport({...snapshot,orders:snapshot.orders.filter(order=>!order.parentOrderId)},ledger,period));
   }
   if(url.pathname==='/api/owner/finance'&&req.method==='POST'){
     const body=await bodyOf(req),snapshot=await portalSnapshotForDatabase('technician','chief','compact');
-    const version=await store.change(body,user.subjectId,new Set(snapshot.orders.map(o=>o.id)));return send(res,200,{ok:true,version});
+    const version=await store.change(body,user.subjectId,new Set(snapshot.orders.filter(order=>!order.parentOrderId).map(o=>o.id)));return send(res,200,{ok:true,version});
   }
   return send(res,404,{error:'Раздел не найден'});
  }catch(error){if(!error.status)console.error('Owner cabinet request failed:',error.message);return send(res,error.status||500,{error:error.status?error.message:'Не удалось загрузить или сохранить данные. Повторите попытку.'});}

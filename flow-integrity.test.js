@@ -76,6 +76,7 @@ for(const [id,kind] of [['QCAM','cam'],['QESTH','esthetic'],['QFINAL','final'],[
 overrides.DELIVERED={...base,stage:'В доставке',frameTechnicianStatus:'Работа сдана',painterStatus:'Работа сдана'};
 overrides['EDIT-A']={stage:'Подготовка',comment:'before-a'};overrides['EDIT-B']={stage:'Подготовка',comment:'before-b'};overrides.CANCELLED={stage:'Отменён'};
 overrides.HAPPY={...base,manufacturingStatus:undefined,stage:'Моделирование',frameTechnicianStatus:'',painterStatus:'',cadOperatorStatus:'В работе'};
+for(const id of ['HAPPY','ANALOG'])Object.assign(orders.find(o=>o.id===id),{work:'Реставрации',material:'PMMA коронка CAD/CAM'});
 orders.find(o=>o.id==='ANALOG').productionType='analog';overrides.ANALOG={...base,stage:'Подготовка',assignee:names.preprod,cadOperator:'',preprodTechnician:names.preprod,productionType:'analog',preprodTechnicianStatus:'',frameTechnicianStatus:'',painterStatus:''};
 const clients=[{id:'a',name:'Clinic A',originalName:'Clinic A',approved:true,telegramCode:'CD-CL-12345678',doctors:[{id:'da',name:'Doctor A',active:true}],clinicHiddenDoctorIds:['da'],doctorsRevision:0},{id:'b',name:'Clinic B',originalName:'Clinic B',approved:true,telegramCode:'CD-CL-87654321'}];
 const employees=Object.keys(names).map(id=>({id,name:names[id],originalName:names[id],status:'active',specialty:specialties[id],rank:1}));
@@ -91,7 +92,7 @@ const api=async(url,user='chief',value,method=value===undefined?'GET':'PUT',head
 const ok=result=>{assert.ok(result.status>=200&&result.status<300,JSON.stringify(result));return result.body;};
 const get=async()=>ok(await api('/api/portal'));
 const updateOwn=async(user,id,change)=>{const own=ok(await api('/api/portal',user)).orderOverrides;own[id]={...own[id],...change};return api('/api/portal/orderOverrides',user,own);};
-const approveQuality=async(kind,id='HAPPY')=>{const p=await get(),old=p.orderOverrides[id],stamp=new Date().toISOString();const next={...old,...qualityApprovalChange(old,kind,stamp),qualityDecision:{kind,result:'approved',at:stamp,requestedAt:old.qualityRequest?.requestedAt||''}};return api('/api/portal/orderOverrides','chief',{...p.orderOverrides,[id]:next});};
+const approveQuality=async(kind,id='HAPPY')=>{const p=await get(),old=p.orderOverrides[id],stamp=new Date().toISOString();const next={...old,...qualityApprovalChange({...p.orders.find(order=>order.id===id),...old},kind,stamp),qualityDecision:{kind,result:'approved',at:stamp,requestedAt:old.qualityRequest?.requestedAt||''}};return api('/api/portal/orderOverrides','chief',{...p.orderOverrides,[id]:next});};
 let all=await get();assert.ok(all.workCatalog.every(c=>c.id&&c.pricingUnit));
 const cadOwn=ok(await api('/api/portal','cad')).orderOverrides;cadOwn.QCAD.stage='Моделирование';assert.equal((await api('/api/portal/orderOverrides','cad',cadOwn)).status,409);
 const snapshot=all.orderOverrides,first=structuredClone(snapshot),stale=structuredClone(snapshot);first['EDIT-A'].comment='saved-a';stale['EDIT-B'].comment='saved-b';

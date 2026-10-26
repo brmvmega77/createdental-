@@ -1,3 +1,4 @@
+import {afterProductionStep} from './lab-orders.js';
 import {samePortalValue} from './collection-concurrency.js';
 import {camCanAccept,camCanSubmitQuality} from './cam-workflow.js';
 export const completedOrderStages=new Set(['Работа принята','В доставке','Принято доктором','Готово к выдаче','Отменён','Отменен','Удалён']);
@@ -89,7 +90,7 @@ export function repairLegacyFlowState(state){
 export function cadDecisionChange(order,approved,review){
  const shared={stage:approved?'Изготовление':'Моделирование',cadOperatorStatus:approved?'Передал дальше':'В работе',cadReview:review};
  if(!approved)return shared;
- return {...shared,manufacturingStatus:'В работе у Каркасиста',frameTechnicianStatus:'',painterStatus:'',ceramicistStatus:'',technicianStatus:'',workerAcceptances:Object.fromEntries(Object.entries(order.workerAcceptances||{}).filter(([,item])=>item?.role==='cad'||item?.role==='preprod')),...(['cad','preprod'].includes(order.reworkKind)?{milling:{}}:{})};
+ return {...shared,...(order.variants||order.work?afterProductionStep(order,'cad',review.reviewedAt):{manufacturingStatus:'В работе у Каркасиста',frameTechnicianStatus:'',painterStatus:'',ceramicistStatus:'',technicianStatus:''}),cadOperatorStatus:'Передал дальше',cadReview:review,workerAcceptances:Object.fromEntries(Object.entries(order.workerAcceptances||{}).filter(([,item])=>item?.role==='cad'||item?.role==='preprod')),...(['cad','preprod'].includes(order.reworkKind)?{milling:{}}:{})};
 }
 export function reworkRouteChange(order,kind){
  if(!['На доработке','Техник первой категории'].includes(order.stage)||!['cad','preprod','cam','esthetic','category1'].includes(kind))return null;

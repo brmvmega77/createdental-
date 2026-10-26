@@ -1,3 +1,4 @@
+import {workProgress} from './lab-orders.js';
 import {hasServiceChanges,reviseOrderServices} from './order-revision.js';
 import {cadDecisionChange} from './flow-rules.js';
 import {availableClinicDoctors} from './clinic-doctors.js';
@@ -249,7 +250,12 @@ function telegramMedia(message){
   return {fileId:document.file_id,previewFileId:document.thumbnail?.file_id||document.thumb?.file_id||'',fileSize:Number(document.file_size)||0,name:cleanText(document.file_name||`telegram-document-${message.message_id}${fallbackExtension}`,180),type:cleanText(document.mime_type||'application/octet-stream',120),kind:'document',orderEligible:true};
 }
 function orderStage(snapshot,order){return snapshot.orderOverrides[order.id]?.stage||order.status||'Новый'}
-function activeOrdersForClinic(snapshot,clinicId){return snapshot.orders.filter(order=>order.clinicId===clinicId&&order.status!=='Отменён')}
+function clinicProductionText(snapshot,order){
+ if(!order.labWorkIds?.length)return '';
+ const works=order.labWorkIds.map(id=>snapshot.orders.find(work=>work.id===id)).filter(Boolean);
+ return '\n\nПроизводственные работы:\n'+works.map(work=>{const progress=workProgress(work,snapshot.orderOverrides[work.id]||{});return `• ${String(work.material||work.work).slice(0,90)} — ${progress.label} · ${progress.progress}%`;}).join('\n');
+}
+function activeOrdersForClinic(snapshot,clinicId){return snapshot.orders.filter(order=>order.clinicId===clinicId&&!order.parentOrderId&&order.status!=='Отменён')}
 function orderCanReceiveFiles(snapshot,order){
   if(!order||orderStage(snapshot,order)==='Отменён')return false;
   return true;
@@ -1147,7 +1153,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       order=found.order;
       if(!order)return send(message.chat.id,'Не удалось однозначно найти заказ этой клиники. Укажите фамилию пациента и, если возможно, ID заказа или вид работы.');
     }
-    if(analysis.intent==='status_request'){rememberContext(message.chat.id,message.from?.id,clinic.id,order.id);await saveState();return send(message.chat.id,`Заказ ${order.id}\nПациент: ${order.patient}${orderDoctorText(order)}\nИсполнение: ${orderExecutionLabel(order)}\nКонструкция: ${orderConstructionLabel(order)}\nСрок: ${order.date}\nСтатус: ${orderStage(snapshot,order)}\n\nЭтот заказ выбран на ближайшие 2 часа.`)}
+    if(analysis.intent==='status_request'){rememberContext(message.chat.id,message.from?.id,clinic.id,order.id);await saveState();return send(message.chat.id,`Заказ ${order.id}\nПациент: ${order.patient}${orderDoctorText(order)}\nИсполнение: ${orderExecutionLabel(order)}\nКонструкция: ${orderConstructionLabel(order)}\nСрок: ${order.date}\nСтатус: ${orderStage(snapshot,order)}${clinicProductionText(snapshot,order)}\n\nЭтот заказ выбран на ближайшие 2 часа.`)}
     if(analysis.intent==='update_order'&&!Object.keys(changedFields(order,analysis.fields)).length&&!incomingAttachments.length)return send(message.chat.id,analysis.question||'Укажите, какие данные заказа нужно изменить.');
     if(analysis.intent==='rework_order'&&!analysis.fields.reason)return send(message.chat.id,'Опишите, пожалуйста, что именно нужно исправить.');
     if(analysis.intent==='accept_order'&&orderStage(snapshot,order)!=='В доставке')return send(message.chat.id,`Сейчас заказ ${order.id} находится на этапе «${orderStage(snapshot,order)}». Принять работу можно после перевода в доставку.`);
@@ -1505,9 +1511,11 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       rememberContext(callback.message.chat.id,callback.from?.id,clinic.id,order.id);
       if(id==='status'){
         await saveState();await answerCallback(callback.id,'Статус готов');
-        const stage=orderStage(snapshot,order),details=snapshot.orderOverrides[order.id]||{},cadPending=stage==='Согласование CAD'&&details.cadReview?.status==='pending',previewUrl=cadPending?createCadPreviewLink({...order,cadReview:details.cadReview}):'';
-        const extra=cadPending?{reply_markup:{inline_keyboard:[...(previewUrl?[[{text:'Открыть CAD',url:previewUrl}]]:[]),[{text:'✅ Принять заказ',callback_data:`tgcad:approve:${order.id}`}],[{text:'↩️ Вернуть заказ',callback_data:`tgcad:return:${order.id}`}]]}}:{};
-        return send(callback.message.chat.id,`Заказ ${order.id}\nПациент: ${order.patient}${orderDoctorText(order)}\nИсполнение: ${orderExecutionLabel(order)}\nКонструкция: ${orderConstructionLabel(order)}\nСрок: ${order.date}\nСтатус: ${stage}${cadPending?'\n\nОжидает решения врача по CAD.':''}`,extra);
+        const stage=orderStage(snapshot,order),details=snapshot.orderOverrides[order.id]||{},cadPending=!order.labWorkIds?.length&&stage==='Согласование CAD'&&details.cadReview?.status==='pending',previewUrl=cadPending?createCadPreviewLink({...order,cadReview:details.cadReview}):'';
+        const pendingWorks=(order.labWorkIds||[]).map(id=>snapshot.orders.find(work=>work.id===id)).filter(work=>work&&snapshot.orderOverrides[work.id]?.stage==='Согласование CAD'&&snapshot.orderOverrides[work.id]?.cadReview?.status==='pending');
+        const workButtons=pendingWorks.flatMap(work=>{const preview=createCadPreviewLink({...work,cadReview:snapshot.orderOverrides[work.id].cadReview});return [...(preview?[[{text:('CAD · '+work.material).slice(0,60),url:preview}]]:[]),[{text:('✅ '+work.material).slice(0,50),callback_data:`tgcad:approve:${work.id}`},{text:'↩️ Вернуть',callback_data:`tgcad:return:${work.id}`}]];});
+        const extra=pendingWorks.length?{reply_markup:{inline_keyboard:workButtons}}:cadPending?{reply_markup:{inline_keyboard:[...(previewUrl?[[{text:'Открыть CAD',url:previewUrl}]]:[]),[{text:'✅ Принять заказ',callback_data:`tgcad:approve:${order.id}`}],[{text:'↩️ Вернуть заказ',callback_data:`tgcad:return:${order.id}`}]]}}:{};
+        return send(callback.message.chat.id,`Заказ ${order.id}\nПациент: ${order.patient}${orderDoctorText(order)}\nИсполнение: ${orderExecutionLabel(order)}\nКонструкция: ${orderConstructionLabel(order)}\nСрок: ${order.date}\nСтатус: ${stage}${clinicProductionText(snapshot,order)}${cadPending?'\n\nОжидает решения врача по CAD.':''}`,extra);
       }
       if(id==='edit'){
         rememberGuidedAction(callback.message.chat.id,callback.from?.id,clinic.id,order.id,'editRequest');await saveState();
@@ -1533,14 +1541,15 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       if(!['approve','return'].includes(id))return answerCallback(callback.id,'Действие недоступно');
       const message=callback.message||{},clinic=boundClinicForMessage(message);
       if(!clinic)return answerCallback(callback.id,'Чат не подключён');
-      const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===value&&item.clinicId===clinic.id);
+      const snapshot=portalSnapshot();let order=snapshot.orders.find(item=>item.id===value&&item.clinicId===clinic.id);
+      if(order?.labWorkIds?.length){const pending=order.labWorkIds.map(id=>snapshot.orders.find(work=>work.id===id)).filter(work=>work&&snapshot.orderOverrides[work.id]?.stage==='Согласование CAD');if(pending.length!==1)return answerCallback(callback.id,'Откройте CAD нужной услуги в статусе заказа');order=pending[0];}
       if(!order)return answerCallback(callback.id,'Заказ не найден');
       const details=snapshot.orderOverrides[order.id]||{};
       if(details.stage!=='Согласование CAD'||details.cadReview?.status!=='pending')return answerCallback(callback.id,'CAD уже рассмотрен или не отправлен на согласование');
       const reviewer=actorName({from:callback.from})||clinic.name||'Врач',approved=id==='approve',now=new Date().toISOString();
       const comment=approved?'':'Возврат из Telegram: требуется доработка CAD.';
       const review={...details.cadReview,status:approved?'approved':'returned',reviewedAt:now,reviewedBy:reviewer,comment};
-      const next={...snapshot.orderOverrides,[order.id]:{...details,...cadDecisionChange(details,approved,review)}};
+      const next={...snapshot.orderOverrides,[order.id]:{...details,...cadDecisionChange({...order,...details},approved,review)}};
       try{
         await replacePortalCollection('orderOverrides',next,{role:'clinic',name:reviewer});
         await recordPortalEvent(order.id,{role:'clinic',name:reviewer},approved?'cad_review_approved':'cad_review_returned',{clinicId:order.clinicId,summary:approved?'CAD подтверждён врачом в Telegram':'CAD возвращён моделировщику из Telegram',comment}).catch(()=>{});
@@ -1677,7 +1686,7 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       const snapshot=portalSnapshot(),order=snapshot.orders.find(candidate=>candidate.id===value&&candidate.clinicId===item.clinicId);
       if(!order)return answerCallback(callback.id,'Заказ больше не найден');
       item.orderId=order.id;item.allowedOrderIds=[];rememberContext(item.chatId,item.userId,item.clinicId,order.id);await saveState();await answerCallback(callback.id,'Заказ выбран');
-      if(item.analysis.intent==='status_request'){delete state.pending[id];await saveState();return send(item.chatId,`Заказ ${order.id}\nПациент: ${order.patient}${orderDoctorText(order)}\nИсполнение: ${orderExecutionLabel(order)}\nКонструкция: ${orderConstructionLabel(order)}\nСрок: ${order.date}\nСтатус: ${orderStage(snapshot,order)}`)}
+      if(item.analysis.intent==='status_request'){delete state.pending[id];await saveState();return send(item.chatId,`Заказ ${order.id}\nПациент: ${order.patient}${orderDoctorText(order)}\nИсполнение: ${orderExecutionLabel(order)}\nКонструкция: ${orderConstructionLabel(order)}\nСрок: ${order.date}\nСтатус: ${orderStage(snapshot,order)}${clinicProductionText(snapshot,order)}`)}
       return sendConfirmation(item,order,portalClient(item.clinicId));
     }
     if(action==='tgreselect'){

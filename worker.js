@@ -1,12 +1,13 @@
+import {requiresDoctorCadApproval} from './production-routes.js';
 import {employeeFlowRole} from './flow-rules.js';
 import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camCanAccept,camCanSubmitQuality,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
-import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=production-builder-6';
+import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=lab-works-2';
 import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadReviewHtml,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
-import {workCatalog,rubles,estimateWork,priceUnitsForSelection,camMethodForOrder} from './work-catalog.js?v=cam-settings-1';
+import {workCatalog,rubles,estimateWork,priceUnitsForSelection,camMethodForOrder} from './work-catalog.js';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
 import {orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel} from './order-list-utils.js?v=order-fields-1';
 import {taskStatuses,taskPriorityLabel,taskDateLabel,taskIsOverdue} from './tasks.js?v=task-flow-4';
@@ -62,7 +63,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   }
   const isCadOperator=()=>isCadOperatorEmployee(current());
   const isPreprod=()=>isPreprodEmployee(current());
-  const visibleProductionStages=order=>isCadOperator()?cadOperatorStages:isPreprodEmployee(current())?preprodStages:isFrameEmployee(current())?camWorkflowStagesForOrder(order).map(label=>({label})):technicianStages;
+  const visibleProductionStages=order=>isCadOperator()?cadOperatorStages.filter(stage=>stage.label!=='Согласование с врачом'||requiresDoctorCadApproval(order)):isPreprodEmployee(current())?preprodStages:isFrameEmployee(current())?camWorkflowStagesForOrder(order).map(label=>({label})):technicianStages;
   const avatarKey=()=>`create-dental-worker-avatar-${state.employeeId||currentUser()?.subjectId||'worker'}`;
   function storedAvatar(){try{return localStorage.getItem(avatarKey())||''}catch{return ''}}
   function storeAvatar(avatar){try{avatar?localStorage.setItem(avatarKey(),avatar):localStorage.removeItem(avatarKey())}catch{/* Local storage can be full or unavailable. */}}
