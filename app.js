@@ -81,7 +81,11 @@ const workOptionName=option=>typeof option==='string'?option:option.name;
 const selectedWorkOption=()=>selectedWork()?.options.find(option=>workOptionName(option)===state.workOption);
 const jawSplitCategories=new Set(['Каппы','Ложки прикуса','Сплинты','Хирургические шаблоны']);
 const prostheticNoTeethOptions=new Set(['Титановое основание Geo Medi','Титановое основание Аналог']);
-const isJawSplitSelection=(work,option)=>jawSplitCategories.has(work)&&Boolean(option);
+// These services are priced and selected by whole jaw. Keep the jaw picker
+// active as soon as the category is chosen, even before the specific service
+// option is selected, so choosing teeth and choosing a service work in either
+// order without exposing individual-tooth selection.
+const isJawSplitSelection=(work,option)=>jawSplitCategories.has(work);
 const isNoTeethSelection=(work,option)=>work==='Протетика'&&prostheticNoTeethOptions.has(option);
 const currentUsesJawSplit=()=>isJawSplitSelection(state.work,state.workOption);
 const currentNeedsNoTeeth=()=>isNoTeethSelection(state.work,state.workOption);
@@ -96,7 +100,7 @@ const estimateWithPromo=variant=>{const base=estimateWork({work:variant.work,opt
 const orderEstimate = () => estimateWithPromo(currentVariant()).amount;
 const orderEstimateText = () => orderEstimate()===null?'Стоимость уточняется':rubles(orderEstimate());
 const currentVariant = () => ({toothMode:state.toothMode,bridgeRanges:state.bridgeRanges.map(range=>[...range]),selectedTeeth:[...state.selectedTeeth],work:state.work,workOption:state.workOption});
-const variantIsComplete = variant => Boolean(variant?.work&&(!workCatalog.find(item=>item.name===variant.work)?.options.length||variant.workOption)&&(variantNeedsNoTeeth(variant)||variant?.selectedTeeth?.length));
+const variantIsComplete = variant => Boolean(variant?.work&&(!workCatalog.find(item=>item.name===variant.work)?.options.length||variant.workOption)&&(variantNeedsNoTeeth(variant)||(variantUsesJawSplit(variant)?variantJawCount(variant)>0:variant?.selectedTeeth?.length)));
 const variantEstimate = variant => estimateWithPromo(variant).amount;
 const promoPriceMarkup=(standard,special)=>{if(!Number.isFinite(special))return 'Стоимость уточняется';if(Number.isFinite(standard)&&Number(special)!==Number(standard))return `<span class="promo-price"><del>${rubles(standard)}</del><strong>${rubles(special)}</strong></span>`;return rubles(special)};
 const standardVariantEstimate=variant=>estimateWithPromo(variant).baseAmount;
@@ -1366,6 +1370,7 @@ function advanceOrderStep(){
   const noTeeth=currentNeedsNoTeeth(),currentComplete=variantIsComplete(currentVariant()),hasSavedVariants=Boolean(state.orderVariants?.length),currentBlank=!state.selectedTeeth.length&&!state.work&&!state.workOption&&!state.bridgeStart&&!state.bridgeRanges.length;
   if(state.step===1&&!currentComplete&&!hasSavedVariants){notify(noTeeth?'Выберите вариант услуги':'Выберите зуб или челюсть');return false}
   if(state.step===1&&!currentComplete&&hasSavedVariants&&currentBlank){state.step=2;return true}
+  if(state.step===1&&currentUsesJawSplit()&&!variantJawCount(currentVariant())){notify('Выберите верхнюю или нижнюю челюсть целиком');return false}
   if(state.step===1&&!noTeeth&&state.toothMode==='Мост'&&state.bridgeStart){notify('Выберите последний зуб моста');return false}
   if(state.step===1&&!noTeeth&&state.toothMode==='Мост'&&!state.bridgeRanges.length){notify('Выберите первый и последний зуб моста');return false}
   if(state.step===1&&!noTeeth&&!state.selectedTeeth.length){notify('Выберите зуб или челюсть');return false}
