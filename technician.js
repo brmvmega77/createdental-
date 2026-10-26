@@ -6,7 +6,7 @@ import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camAfterMilling}
 import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel} from './order-list-utils.js?v=order-fields-1';
 import {savePortal,authRequest,portalToken,loadOrderFiles,loadCadReviewHtml,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js';
 import {parseMoneyAmount} from './money.js';
-import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
+import {routeFromPath,pathFor,navigate} from './routes.js?v=production-builder-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,estimateWork,priceUnitsForSelection,camMethodLabel,camMethodForOrder} from './work-catalog.js?v=cam-settings-1';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
