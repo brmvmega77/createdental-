@@ -318,7 +318,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     if(cadAction?.dataset.workerAction==='open-cad'){
       const orderId=cadAction.dataset.orderId,fileId=cadAction.dataset.fileId,order=myOrders().find(item=>item.id===orderId);
       if(!orderId||!fileId||!order)return;
-      const popup=window.open('about:blank','_blank','noopener,noreferrer');
+      const popup=window.open('about:blank','_blank');
       try{const url=await loadCadPreviewLink(orderId,fileId);if(popup&&!popup.closed)popup.location.href=url;else window.location.href=url}catch(error){if(popup&&!popup.closed)popup.close();toast(error.message||'Не удалось открыть CAD');render()}
       return;
     }

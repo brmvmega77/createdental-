@@ -1504,7 +1504,7 @@ document.addEventListener('click',event=>{
   if(!button||portalUser?.role!=='clinic')return;
   event.preventDefault();
   event.stopImmediatePropagation();
-  const popup=window.open('about:blank','_blank','noopener,noreferrer');
+  const popup=window.open('about:blank','_blank');
   loadCadPreviewLink(state.orderId,button.dataset.value).then(url=>{
     if(popup&&!popup.closed)popup.location.href=url;
     else window.location.href=url;

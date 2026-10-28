@@ -1525,7 +1525,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(action==='open-cad'){
         const fileId=orderAction.dataset.fileId,order=orderById(id);
         if(!fileId||!order)return;
-        const popup=window.open('about:blank','_blank','noopener,noreferrer');
+        const popup=window.open('about:blank','_blank');
         try{const url=await loadCadPreviewLink(id,fileId);if(popup&&!popup.closed)popup.location.href=url;else window.location.href=url}
         catch(error){if(popup&&!popup.closed)popup.close();toast(error.message||'Не удалось открыть CAD');render()}
         return;
