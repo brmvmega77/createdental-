@@ -1868,6 +1868,19 @@ html[data-theme="dark"] .tech-order-type-row.analog{color:#ffc766!important}
 
 /* Final nine-column override: work type and patient stay separate while preserving one-line cells. */
 @media(min-width:761px){
+  .tech-order-tools>.tech-order-searchbar{
+    width:365px!important;
+    max-width:365px!important;
+    grid-template-columns:140px minmax(0,1fr)!important;
+  }
+  .tech-order-tools>.tech-order-searchbar input#tech-search{
+    width:100%!important;
+    max-width:none!important;
+  }
+}
+
+/* Final nine-column override: work type and patient stay separate while preserving one-line cells. */
+@media(min-width:761px){
   .tech-orders-table th,
   .tech-orders-table td{width:11.111111%!important}
   .tech-shell.sidebar-shell-collapsed .tech-orders-table th:nth-child(n),
