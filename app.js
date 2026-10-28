@@ -3,7 +3,7 @@ import {productionFlowLabel} from './production-routes.js';
 import {createClinicMobileUI,clinicSections} from './assets/clinic-mobile-ui.js?v=clinic-info-4';
 import { seedOrders } from './seed-orders.js?v=mobile-fast-1';
 import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadPreviewSource} from './portal-client.js?v=cad-popup-same-origin-1';
-import {routeFromPath,pathFor,navigate} from './routes.js?v=production-builder-1';
+import {routeFromPath,pathFor,navigate} from './routes.js?v=order-routing-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork,priceUnitsForSelection,camMethodForSelection} from './work-catalog.js';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';

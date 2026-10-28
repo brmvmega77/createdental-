@@ -5,7 +5,7 @@ import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camCanAccept,camCanSubmitQuality,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
 import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=technician-sidebar-route-1';
 import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadPreviewSource,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js?v=cad-popup-same-origin-1';
-import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
+import {routeFromPath,pathFor,navigate} from './routes.js?v=order-routing-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,estimateWork,priceUnitsForSelection,camMethodForOrder} from './work-catalog.js';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
