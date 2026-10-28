@@ -13,7 +13,7 @@ import {routeFromPath,pathFor,navigate} from './routes.js?v=production-builder-1
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,reorderCatalogService,reorderCatalogCategory,rubles,estimateWork,priceUnitsForSelection,camMethodLabel,camMethodForOrder} from './work-catalog.js';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
-import {openOrderPrint} from './order-print.js?v=a4-adaptive-1';
+import {openOrderPrint} from './order-print.js?v=a4-adaptive-2';
 import {openPricePrint} from './price-print.js?v=price-pdf-1';
 const surgicalTemplateUtilities = await import(import.meta.url.startsWith('file:')
   ? './public/assets/surgical-template-utils.js'
