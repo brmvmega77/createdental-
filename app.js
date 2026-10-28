@@ -1223,7 +1223,7 @@ async function hydratePortal(){
   }
 }
 function currentOrderDraft(){return {form:{...state.form},variants:allVariants().filter(variantIsComplete).map(variant=>({...variant,bridgeRanges:variant.bridgeRanges.map(range=>[...range]),selectedTeeth:[...variant.selectedTeeth]})),uploaded:[...state.uploaded],estimate:totalOrderEstimateText()}}
-function resetCurrentVariant(){state.currentVariantBase=null;state.toothMode='Одиночка';state.bridgeRanges=[];state.bridgeStart=null;state.selectedTeeth=[];state.work='';state.workOption='';state.form.construction='';state.form.material=''}
+function resetCurrentVariant({keepWork=false}={}){const work=keepWork?state.work:'';state.currentVariantBase=null;state.toothMode='Одиночка';state.bridgeRanges=[];state.bridgeStart=null;state.selectedTeeth=[];state.work=work;state.workOption='';state.form.construction=work;state.form.material=''}
 function resetOrderDraft(){const due=new Date(Date.now()+14*86400000).toISOString().slice(0,10);state.form={doctorId:'',surname:'',initials:'',birth:'',orderType:'',construction:'',material:'',quantity:'1',due,shade:'A1',comment:''};state.orderVariants=[];resetCurrentVariant();state.uploaded=[];state.step=0}
 function persistCurrentVariant(){
   const variant=currentVariant();
@@ -1245,8 +1245,8 @@ function addOrderVariant(){
   if(!variantIsComplete(currentVariant()))return notify('Сначала выберите зубы и услугу для текущей позиции');
   persistCurrentVariant();
   if(!currentVariantSaved())return;
-  resetCurrentVariant();
-  notify('Услуга добавлена · выберите следующую услугу');
+  resetCurrentVariant({keepWork:true});
+  notify('Услуга добавлена · выберите зубы для следующей услуги');
 }
 function selectWorkOption(option){
   const current=currentVariant(),baseIndex=currentVariantBaseIndex();
@@ -1285,6 +1285,7 @@ function addProstheticAddon(optionName){
   if(isNoTeethSelection(category.name,optionName)){addon.selectedTeeth=[];addon.toothMode='Одиночка';addon.bridgeRanges=[]}
   persistCurrentVariant();
   state.orderVariants=[...(state.orderVariants||[]),cloneVariant(addon)];
+  resetCurrentVariant({keepWork:true});
   refreshOrderBuilder();
   notifyWithoutRender('Позиция добавлена в заказ · выберите следующую услугу');
 }
@@ -1296,6 +1297,7 @@ function addPlanningAddon(optionName){
   if(orderServiceCount(allVariants().filter(variantIsComplete))+1>10)return notify('В одном заказе можно добавить до 10 услуг');
   persistCurrentVariant();
   if(!state.orderVariants.some(variant=>variantSignature(variant)===variantSignature(addon)))state.orderVariants=[...(state.orderVariants||[]),cloneVariant(addon)];
+  resetCurrentVariant({keepWork:true});
   refreshOrderBuilder();
   notifyWithoutRender('Ключ добавлен в заказ');
 }
