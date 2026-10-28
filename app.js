@@ -102,6 +102,8 @@ const estimateWithPromo=variant=>{const base=estimateWork({work:variant.work,opt
 const orderEstimate = () => estimateWithPromo(currentVariant()).amount;
 const orderEstimateText = () => orderEstimate()===null?'Стоимость уточняется':rubles(orderEstimate());
 const currentVariant = () => ({toothMode:state.toothMode,bridgeRanges:state.bridgeRanges.map(range=>[...range]),selectedTeeth:[...state.selectedTeeth],work:state.work,workOption:state.workOption});
+const variantSignature = variant => JSON.stringify({work:variant?.work||'',workOption:variant?.workOption||'',toothMode:variant?.toothMode||'',selectedTeeth:[...(variant?.selectedTeeth||[])].sort((a,b)=>a-b),bridgeRanges:(variant?.bridgeRanges||[]).map(range=>[...range]).sort((a,b)=>(a[0]||0)-(b[0]||0))});
+const currentVariantSaved = () => {const current=variantSignature(currentVariant());return Boolean(current)&&Boolean(state.orderVariants?.some(variant=>variantSignature(variant)===current))};
 const variantIsComplete = variant => Boolean(variant?.work&&(!workCatalog.find(item=>item.name===variant.work)?.options.length||variant.workOption)&&(variantNeedsNoTeeth(variant)||(variantUsesJawSplit(variant)?variantJawCount(variant)>0:variant?.selectedTeeth?.length)));
 const variantEstimate = variant => estimateWithPromo(variant).amount;
 const promoPriceMarkup=(standard,special)=>{if(!Number.isFinite(special))return 'Стоимость уточняется';if(Number.isFinite(standard)&&Number(special)!==Number(standard))return `<span class="promo-price"><del>${rubles(standard)}</del><strong>${rubles(special)}</strong></span>`;return rubles(special)};
@@ -109,7 +111,7 @@ const standardVariantEstimate=variant=>estimateWithPromo(variant).baseAmount;
 const serviceSubtotalStandardEstimate=()=>{const variants=allVariants().filter(variantIsComplete),values=variants.map(standardVariantEstimate);return variants.length&&values.every(Number.isFinite)?values.reduce((sum,value)=>sum+value,0):null};
 const promoSummaryMarkup=()=>{const standard=serviceSubtotalStandardEstimate(),special=serviceSubtotalEstimate();return activePromoCode&&Number.isFinite(standard)&&Number.isFinite(special)&&standard!==special?`<div class="order-promo-row"><span>Цена по промокоду ${escapeHtml(activePromoCode)}</span><strong>${promoPriceMarkup(standard,special)}</strong></div>`:''};
 const currentSurgicalGuideIncluded=()=>{const current=currentVariant(),jaws=['upper','lower'].filter(jaw=>hasSurgicalJaw(current,jaw));return isSurgicalTemplate(current)&&jaws.length>0&&jaws.every(jaw=>(state.orderVariants||[]).some(variant=>isSurgicalTemplate(variant)&&hasSurgicalJaw(variant,jaw)))};
-const allVariants = () => [...(state.orderVariants||[]),...(currentSurgicalGuideIncluded()?[]:[currentVariant()])];
+const allVariants = () => [...(state.orderVariants||[]),...(currentSurgicalGuideIncluded()||currentVariantSaved()?[]:[currentVariant()])];
 const serviceSubtotalEstimate = () => {const variants=allVariants().filter(variantIsComplete),values=variants.map(variantEstimate);return variants.length&&values.every(Number.isFinite)?values.reduce((sum,value)=>sum+value,0):null};
 const deliveryFeeForSubtotal = subtotal => {const threshold=Number(deliverySettings.freeThreshold),fee=Number(deliverySettings.fee);return Number.isFinite(subtotal)?(subtotal<(Number.isFinite(threshold)&&threshold>=0?threshold:4000)?(Number.isFinite(fee)&&fee>=0?fee:500):0):null};
 const orderDeliveryFee = () => deliveryFeeForSubtotal(serviceSubtotalEstimate());
@@ -817,7 +819,7 @@ function variantCard(variant,index,removable=true,sockets=[],displayIndex=index)
   return `<article class="order-variant-card"><div class="order-variant-head"><span>Услуга ${displayIndex+1}</span>${removable?`<button class="order-variant-remove" data-action="remove-variant" data-value="${index}" aria-label="Удалить услугу">×</button>`:''}</div><div class="order-variant-mode">${escapeHtml(variant.toothMode||'Одиночка')}</div><strong>${variantNeedsNoTeeth(variant)?'Зубы не выбираются':'Зубы'}: ${escapeHtml(teethLabel)}</strong><h3>${escapeHtml(variant.work||'')}</h3>${variant.workOption?`<p>${escapeHtml(variant.workOption)}</p>`:''}${socketLines}<dl><div><dt>${quantityLabel}</dt><dd>${quantity||variantUnits(variant)}</dd></div><div><dt>${priceLabel}</dt><dd>${promoPriceMarkup(standardEstimate,estimate)}</dd></div></dl></article>`;
 }
 function orderDraft(){
-  const saved=state.orderVariants||[],current=currentVariant(),complete=variantIsComplete(current),currentIncluded=currentSurgicalGuideIncluded(),cards=[...saved,...(complete&&!currentIncluded?[current]:[])];
+  const saved=state.orderVariants||[],current=currentVariant(),complete=variantIsComplete(current),currentIncluded=currentSurgicalGuideIncluded(),currentSaved=complete&&currentVariantSaved(),cards=[...saved,...(complete&&!currentIncluded&&!currentSaved?[current]:[])];
   if(!cards.length)return `<aside class="order-draft"><button type="button" class="mobile-order-summary" data-action="mobile-cart-toggle" aria-expanded="false"><span><strong>Ваш заказ</strong><small>Пока пусто</small></span><strong>＋</strong></button><h2>Ваш заказ</h2><div class="order-draft-empty">${icon('orders',24)}<strong>Выберите нужные зубы и работу</strong><span>Здесь появится состав заказа и предварительная стоимость.</span></div></aside>`;
   const groupedCards=groupSurgicalSockets(cards),serviceCount=groupedCards.length;
   const threshold=Number.isFinite(Number(deliverySettings.freeThreshold))?Number(deliverySettings.freeThreshold):4000,fee=Number.isFinite(Number(deliverySettings.fee))?Number(deliverySettings.fee):500;
@@ -1206,7 +1208,7 @@ async function hydratePortal(){
 function currentOrderDraft(){return {form:{...state.form},variants:allVariants().filter(variantIsComplete).map(variant=>({...variant,bridgeRanges:variant.bridgeRanges.map(range=>[...range]),selectedTeeth:[...variant.selectedTeeth]})),uploaded:[...state.uploaded],estimate:totalOrderEstimateText()}}
 function resetCurrentVariant(){state.toothMode='Одиночка';state.bridgeRanges=[];state.bridgeStart=null;state.selectedTeeth=[];state.work='';state.workOption='';state.form.construction='';state.form.material=''}
 function resetOrderDraft(){const due=new Date(Date.now()+14*86400000).toISOString().slice(0,10);state.form={doctorId:'',surname:'',initials:'',birth:'',orderType:'',construction:'',material:'',quantity:'1',due,shade:'A2',comment:''};state.orderVariants=[];resetCurrentVariant();state.uploaded=[];state.step=0}
-function addOrderVariant(){const variant=currentVariant();if(!variantIsComplete(variant))return notify('Сначала выберите зубы и услугу для текущей позиции');if(orderServiceCount(state.orderVariants||[])>=10)return notify('В одном заказе можно добавить до 10 услуг');state.orderVariants=[...(state.orderVariants||[]),variant];resetCurrentVariant();notify(`Услуга добавлена · ${orderServiceCount(state.orderVariants)}/10`)}
+function addOrderVariant(){const variant=currentVariant();if(!variantIsComplete(variant))return notify('Сначала выберите зубы и услугу для текущей позиции');if(currentVariantSaved()){resetCurrentVariant();notify('Выберите следующую услугу');return}if(orderServiceCount(state.orderVariants||[])>=10)return notify('В одном заказе можно добавить до 10 услуг');state.orderVariants=[...(state.orderVariants||[]),variant];resetCurrentVariant();notify(`Услуга добавлена · ${orderServiceCount(state.orderVariants)}/10`)}
 function addProstheticAddon(optionName){
   const category=workCatalog.find(item=>item.name==='Протетика'),option=category?.options.find(item=>workOptionName(item)===optionName),current=currentVariant();
   if(!option)return notify('Не удалось найти выбранную позицию протетики');
@@ -1215,7 +1217,6 @@ function addProstheticAddon(optionName){
   const addon={...current,work:category.name,workOption:optionName};
   if(isNoTeethSelection(category.name,optionName)){addon.selectedTeeth=[];addon.toothMode='Одиночка';addon.bridgeRanges=[]}
   state.orderVariants=[...(state.orderVariants||[]),current,addon];
-  resetCurrentVariant();
   refreshOrderBuilder();
   notifyWithoutRender('Позиция добавлена в заказ · выберите следующую услугу');
 }
@@ -1236,8 +1237,6 @@ function addSurgicalSocket(jaw){
     state.orderVariants=[...saved,...(guide?[guide]:[]),{...current,work:SURGICAL_TEMPLATE_CATEGORY,workOption:SURGICAL_SOCKET_OPTION,selectedTeeth:[...arch],toothMode:'Челюсть',bridgeRanges:[],units:1}];guide=null;
   }
   if(guide)state.orderVariants=[...(state.orderVariants||[]),guide];
-  const remainingJaws=['upper','lower'].filter(selectedJaw=>hasSurgicalJaw(current,selectedJaw)&&!(state.orderVariants||[]).some(variant=>isSurgicalSocket(variant)&&hasSurgicalJaw(variant,selectedJaw)));
-  if(!remainingJaws.length)resetCurrentVariant();
   refreshOrderBuilder();
   notifyWithoutRender(`Добавлено гнездо · ${jaw==='upper'?'верхняя':'нижняя'} челюсть`);
 }
