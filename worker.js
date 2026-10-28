@@ -260,6 +260,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   }
   function arrangeWorkerHistory(){
     if(state.page!=='detail')return;
+    const order=myOrders().find(item=>item.id===state.orderId)||{};
     const grid=root().querySelector('.tech-detail-grid');
     if(!grid)return;
     const dataPanel=Array.from(grid.children).find(node=>node.matches('section.tech-panel'));
