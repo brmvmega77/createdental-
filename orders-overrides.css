@@ -1174,3 +1174,18 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
   .tech-order-tools>.tech-order-searchbar>input{height:44px!important;min-height:44px!important}
   .tech-order-tools>.tech-order-searchbar>.tech-order-filter-panel{max-height:65vh!important}
 }
+
+/* Outline hover must not wash out the white label of an active filter. */
+.btn.outline.tech-filter-button:hover,
+.btn.outline.tech-filter-button:focus-visible{
+  background:#f5f5f5;
+  border-color:#dedede;
+  color:#333;
+}
+.btn.outline.tech-filter-button.active,
+.btn.outline.tech-filter-button.active:hover,
+.btn.outline.tech-filter-button.active:focus-visible{
+  background:#333;
+  border-color:#333;
+  color:#fff;
+}
