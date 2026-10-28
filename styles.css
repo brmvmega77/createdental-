@@ -3255,5 +3255,5 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 
 /* Keep long order values readable instead of letting one line stretch the overview. */
 .detail-main-column .facts>div{min-width:0}
-.detail-main-column .facts>div>strong{min-width:0;max-width:760px;line-height:1.45;overflow-wrap:anywhere;word-break:normal}
+.detail-main-column .facts>div>strong{min-width:0;width:min(100%,680px);line-height:1.45;overflow-wrap:anywhere;word-break:normal}
 @media(max-width:760px){.detail-main-column .facts>div>strong{max-width:100%}}
