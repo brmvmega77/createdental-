@@ -6,7 +6,13 @@ import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {workCatalog,normalizeWorkCatalog,reorderCatalogService,reorderCatalogCategory} from './work-catalog.js';
-import {orderVariantConstructionLabel,orderWorkLabel} from './order-list-utils.js';
+import {orderVariantConstructionLabel,orderWorkLabel,displayOrderId} from './order-list-utils.js';
+
+test('human-facing order ids use compact format while preserving readable suffix',()=>{
+ assert.equal(displayOrderId('CD-MVON8QHG-5793_W2'), 'MVON8QHG-5793_2');
+ assert.equal(displayOrderId('CD-MVON8QHG-5793'), 'MVON8QHG-5793');
+ assert.equal(displayOrderId({id:'CD-TEST_W12'}), 'TEST_12');
+});
 
 test('surgical socket quantity stays visible in service labels',()=>{
  const socket={work:'Хирургические шаблоны',workOption:'Дополнительное гнездо под имплантант в хирургическом шаблоне',selectedTeeth:[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28],units:9};

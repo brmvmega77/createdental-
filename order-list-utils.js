@@ -1,6 +1,13 @@
 const clean = value => typeof value === 'string' ? value.trim() : '';
 const isSurgicalSocketOption = value => /дополнительное\s+гн[её]здо\s+под\s+имплантант(?:\s+в\s+хирургическом\s+шаблоне)?/i.test(clean(value).replace(/\s+/g, ' '));
 
+// Internal IDs keep their original form for links, storage and API calls.
+// This is the compact human-facing form used in cabinets and printouts.
+export function displayOrderId(value) {
+  const raw = clean(typeof value === 'object' ? value?.id : value);
+  return raw.replace(/^CD-/i, '').replace(/_W(\d+)$/i, '_$1');
+}
+
 function constructionLabelWithQuantity(variant, label) {
   if (!isSurgicalSocketOption(variant?.workOption)) return label;
   const units = Math.max(1, Math.trunc(Number(variant?.units) || 1));

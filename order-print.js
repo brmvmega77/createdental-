@@ -1,7 +1,7 @@
 const {default:qrcode}=await import(import.meta.url.startsWith('file:')
   ? './public/assets/vendor/qrcode-generator.js'
   : './assets/vendor/qrcode-generator.js?v=2.0.4');
-import {orderVariantConstructionLabel} from './order-list-utils.js?v=order-fields-3';
+import {orderVariantConstructionLabel,displayOrderId} from './order-list-utils.js?v=order-fields-4';
 
 let printInProgress=false;
 
@@ -96,7 +96,7 @@ function sheetMarkup(order,variants,toothChart,logo){
   const services=servicesByTooth(order,variants);
   const serviceLabels=[...new Set(variants.map(variant=>serviceName(order,variant)).filter(Boolean))];
   const serviceLabel=serviceLabels.join('; ');
-  return `<article class="order-print-sheet"><div class="order-print-project">Заказ-наряд № <strong>${escapeValue(order.id||'')}</strong>${serviceLabel?`<small class="order-print-service-title">${escapeValue(serviceLabel)}</small>`:''}</div><div class="order-print-top"><div class="order-print-fields">${lineField('Клиника',order.clinic)}${lineField('Доктор',orderDoctor(order)||'Не указан')}${lineField('Пациент',order.patient)}${lineField('Создан',displayDate(order.createdAt))}${lineField('Ожидаемая дата',displayDate(order.date))}</div><div class="order-print-brand"><img src="${escapeValue(logo)}" alt="Create Dental"><span>e-mail: orders@createdental.io</span></div></div><h1 class="order-print-formula-title">Зубная формула</h1>${formulaMarkup()}<div class="order-print-main"><div class="order-print-side order-print-side-left">${sideToothLines([11,12,13,14,15,16,17,18,48,47,46,45,44,43,42,41],services,'left')}</div><div class="order-print-jaw">${chart||'<span>Схема не указана</span>'}</div><div class="order-print-side order-print-side-right">${sideToothLines([21,22,23,24,25,26,27,28,38,37,36,35,34,33,32,31],services,'right')}</div></div><div class="order-print-bottom"><div class="order-print-color">${lineField('ЦВЕТ',order.shade||'')}</div><div class="order-print-note">${lineField('Примечание',order.comment||'')}</div>${qrMarkup(order)}</div></article>`;
+  return `<article class="order-print-sheet"><div class="order-print-project">Заказ-наряд № <strong>${escapeValue(displayOrderId(order))}</strong>${serviceLabel?`<small class="order-print-service-title">${escapeValue(serviceLabel)}</small>`:''}</div><div class="order-print-top"><div class="order-print-fields">${lineField('Клиника',order.clinic)}${lineField('Доктор',orderDoctor(order)||'Не указан')}${lineField('Пациент',order.patient)}${lineField('Создан',displayDate(order.createdAt))}${lineField('Ожидаемая дата',displayDate(order.date))}</div><div class="order-print-brand"><img src="${escapeValue(logo)}" alt="Create Dental"><span>e-mail: orders@createdental.io</span></div></div><h1 class="order-print-formula-title">Зубная формула</h1>${formulaMarkup()}<div class="order-print-main"><div class="order-print-side order-print-side-left">${sideToothLines([11,12,13,14,15,16,17,18,48,47,46,45,44,43,42,41],services,'left')}</div><div class="order-print-jaw">${chart||'<span>Схема не указана</span>'}</div><div class="order-print-side order-print-side-right">${sideToothLines([21,22,23,24,25,26,27,28,38,37,36,35,34,33,32,31],services,'right')}</div></div><div class="order-print-bottom"><div class="order-print-color">${lineField('ЦВЕТ',order.shade||'')}</div><div class="order-print-note">${lineField('Примечание',order.comment||'')}</div>${qrMarkup(order)}</div></article>`;
 }
 
 export function openOrderPrint({order,toothChart,logo='/assets/create-dental-logo.png'}){
