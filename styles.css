@@ -1802,6 +1802,16 @@ html[data-theme="dark"] .tech-order-type-row.analog{color:#ffc766!important}
   }
 }
 
+/* At reduced desktop widths the status menu may use two rows. Keep both
+   rows visible and let the toolbar reserve their full height. */
+@media(min-width:761px) and (max-width:1000px){
+  .tech-order-tools>.tech-segment{
+    width:100%;
+    flex-wrap:wrap;
+    overflow:visible;
+  }
+}
+
 /* Distribute the laboratory order table evenly across all columns. */
 @media(min-width:761px){
   .tech-orders-table{table-layout:fixed}
@@ -3324,3 +3334,15 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 .detail-main-column .facts>div{min-width:0}
 .detail-main-column .facts>div>strong{min-width:0;width:min(100%,560px);line-height:1.45;overflow-wrap:anywhere;word-break:normal}
 @media(max-width:760px){.detail-main-column .facts>div>strong{max-width:100%}}
+
+/* Reserve space for wrapped status tabs at reduced desktop widths. */
+@media(min-width:761px) and (max-width:1000px){
+  .tech-order-tools>.tech-segment{
+    width:100%;
+    height:auto;
+    min-height:36px;
+    flex-wrap:wrap;
+    overflow:visible;
+    align-content:center;
+  }
+}
