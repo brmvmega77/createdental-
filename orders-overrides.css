@@ -1114,51 +1114,63 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
   .tech-orders-table-grouped .tech-order-group-summary>.tech-stage{position:static!important;left:auto!important}
 }
 
-/* Filter popover: keep the order table in place while the controls float above it. */
+/* A stable two-control toolbar: the view switch lives above this row.
+   Explicit placement prevents obsolete three-column rules creating empty tracks. */
 .tech-order-tools,
-.tech-order-tools .tech-order-searchbar,
-.tech-order-tools .tech-order-searchbar:has(.tech-order-filter-panel){
-  overflow:visible!important;
+.tech-order-tools>.tech-order-searchbar{overflow:visible!important}
+.tech-order-tools>.tech-order-searchbar,
+.tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel){
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:max-content minmax(0,1fr)!important;
+  grid-template-rows:36px!important;
+  align-items:center!important;
+  gap:8px!important;
+  height:36px!important;
+  min-height:36px!important;
 }
-@media(min-width:761px){
-  .tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel){
-    position:relative!important;
-    display:grid!important;
-    grid-template-columns:auto minmax(0,1fr)!important;
-    grid-template-rows:auto 36px!important;
-    height:auto!important;
-    min-height:36px!important;
-    align-items:center!important;
-  }
-  .tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel) .tech-order-filter-panel{
-    position:absolute!important;
-    right:0!important;
-    top:calc(100% + 10px)!important;
-    grid-column:auto!important;
-    grid-row:auto!important;
-    width:min(420px,calc(100vw - 40px))!important;
-    max-height:min(72vh,680px)!important;
-    overflow:auto!important;
-    justify-self:auto!important;
-    box-shadow:0 20px 48px rgba(35,35,35,.18)!important;
-    z-index:80!important;
-  }
+.tech-order-tools>.tech-order-searchbar>.tech-filter-button{
+  grid-column:1!important;
+  grid-row:1!important;
+  justify-self:start!important;
+  width:max-content!important;
+  min-width:96px!important;
+  height:36px!important;
+  min-height:36px!important;
+}
+.tech-order-tools>.tech-order-searchbar>input#tech-search,
+.tech-order-tools>.tech-order-searchbar>input#tech-request-search{
+  grid-column:2!important;
+  grid-row:1!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:36px!important;
+}
+.tech-order-tools>.tech-order-searchbar>.tech-order-filter-panel,
+.tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel)>.tech-order-filter-panel{
+  position:absolute!important;
+  top:calc(100% + 8px)!important;
+  left:0!important;
+  right:auto!important;
+  grid-column:auto!important;
+  grid-row:auto!important;
+  width:min(360px,100%)!important;
+  max-height:min(70vh,560px)!important;
+  overflow:auto!important;
+  justify-self:auto!important;
+  margin:0!important;
+  box-shadow:0 12px 32px rgba(35,35,35,.12)!important;
+  z-index:80!important;
 }
 @media(max-width:760px){
+  .tech-order-tools>.tech-order-searchbar,
   .tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel){
-    position:relative!important;
+    grid-template-rows:44px!important;
+    height:44px!important;
+    min-height:44px!important;
   }
-  .tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel) .tech-order-filter-panel{
-    position:absolute!important;
-    left:0!important;
-    right:0!important;
-    top:calc(100% + 8px)!important;
-    grid-column:1!important;
-    grid-row:auto!important;
-    width:auto!important;
-    max-height:calc(100vh - 150px)!important;
-    overflow:auto!important;
-    box-shadow:0 18px 42px rgba(35,35,35,.18)!important;
-    z-index:80!important;
-  }
+  .tech-order-tools>.tech-order-searchbar>.tech-filter-button,
+  .tech-order-tools>.tech-order-searchbar>input{height:44px!important;min-height:44px!important}
+  .tech-order-tools>.tech-order-searchbar>.tech-order-filter-panel{max-height:65vh!important}
 }
