@@ -152,7 +152,7 @@
 @media print{
   @page{size:A4 landscape;margin:8mm}
   html,body{background:#fff!important;color:#1f2933!important}
-  body>*:not(.order-print-root){display:none!important}
+  body>*:not(.order-print-root):not(.price-print-root){display:none!important}
   .order-print-root{display:block!important;color:#1f2933;font-family:Arial,"Helvetica Neue",sans-serif;font-size:10pt;line-height:1.25}
   .order-print-sheet{display:block;width:100%;box-sizing:border-box;padding:4mm 5mm 3mm;border:1px solid #d8dde2;background:#fff}
   .order-print-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20mm;border-bottom:1px solid #cdd3d9;padding-bottom:4mm}
@@ -520,7 +520,7 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
 @media print{
   @page{size:A4 portrait;margin:0}
   html,body{width:210mm!important;min-height:297mm!important;margin:0!important;background:#fff!important;color:#111!important}
-  body>*:not(.order-print-root){display:none!important}
+  body>*:not(.order-print-root):not(.price-print-root){display:none!important}
   .order-print-root{display:block!important;width:210mm!important;font-family:Arial,"Helvetica Neue",sans-serif;font-size:7pt;line-height:1.1;color:#111}
   .order-print-sheet{
     display:block!important;position:relative;width:210mm!important;height:148mm!important;min-height:148mm!important;max-height:148mm!important;
