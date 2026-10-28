@@ -4,7 +4,7 @@ import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camCanAccept,camCanSubmitQuality,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
 import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=cad-separate-page-2';
-import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadPreviewLink,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js';
+import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadPreviewLink,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js?v=cad-separate-page-1';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,estimateWork,priceUnitsForSelection,camMethodForOrder} from './work-catalog.js';
