@@ -73,8 +73,12 @@ export const loadCadPreviewLink=async(orderId,fileId)=>{
 export const loadCadPreviewSource=async(orderId,fileId)=>{
   const pageUrl=await loadCadPreviewLink(orderId,fileId);
   try{
-    const token=new URL(pageUrl,window.location.href).searchParams.get('token');
-    if(token)return `/api/cad-preview/${encodeURIComponent(token)}`;
+    const parsed=new URL(pageUrl,window.location.href),token=parsed.searchParams.get('token');
+    if(token){
+      const source=new URL(`/api/cad-preview/${encodeURIComponent(token)}`,parsed);
+      if(window.location.hostname==='createdental.io')source.hostname='www.createdental.io';
+      return source.href;
+    }
   }catch{}
   return pageUrl;
 };

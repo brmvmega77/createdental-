@@ -385,7 +385,8 @@ async function handleCadPreview(req,res,url){
   if(!order||!file)return json(res,404,{error:'CAD-файл недоступен'});
   if(req.method!=='GET'&&req.method!=='HEAD')return json(res,405,{error:'Метод не поддерживается'});
   try{
-    const html=await readCadHtml({file}),headers={'Content-Type':'text/html; charset=utf-8','Cache-Control':'private, no-store','Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,'X-Content-Type-Options':'nosniff','X-Frame-Options':'SAMEORIGIN','Content-Security-Policy':"frame-ancestors 'self'"};
+    const html=await readCadHtml({file}),headers={'Content-Type':'text/html; charset=utf-8','Cache-Control':'private, no-store','Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,'X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors https://createdental.io https://www.createdental.io; form-action 'none'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' blob:; frame-src 'none'; worker-src 'self' blob:"};
+    res.removeHeader('X-Frame-Options');
     if(req.method==='HEAD')return res.writeHead(200,headers).end();
     res.writeHead(200,{...headers,'Content-Length':Buffer.byteLength(html,'utf8')});res.end(html);
   }catch(error){console.error('Public CAD preview load failed:',error.message);return json(res,504,{error:'Не удалось загрузить CAD. Откройте ссылку ещё раз.'})}
