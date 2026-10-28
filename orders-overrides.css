@@ -1005,6 +1005,42 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
   .tech-order-viewbar .tech-order-view-toggle{overflow-x:auto!important;flex-wrap:nowrap!important}
 }
 
+/* Keep the three order actions visually separate even when the table is narrow. */
+@media(min-width:761px){
+  .tech-orders-table-list thead tr,
+  .tech-orders-table-list tbody tr{
+    grid-template-columns:11fr 8fr 8fr 9fr 12fr 11fr 8fr 8fr 9fr 7fr minmax(112px,9fr)!important;
+  }
+  .tech-orders-table-grouped{
+    --group-columns:minmax(0,3fr) minmax(0,14fr) minmax(0,11fr) minmax(0,7fr) minmax(0,9fr) minmax(0,18fr) minmax(0,10fr) minmax(0,10fr) minmax(0,10fr) minmax(112px,10fr);
+  }
+  .tech-orders-table .tech-order-actions,
+  .tech-orders-table-list td:last-child .tech-order-actions,
+  .tech-orders-table-grouped td:last-child .tech-order-actions{
+    gap:6px!important;
+    justify-content:flex-start!important;
+    overflow:visible!important;
+  }
+  .tech-orders-table .tech-order-actions .tech-icon-btn,
+  .tech-orders-table .tech-order-actions .tech-link{
+    width:28px!important;
+    min-width:28px!important;
+    max-width:28px!important;
+    height:30px!important;
+    flex:0 0 28px!important;
+  }
+}
+@media(max-width:760px){
+  .tech-orders-table .tech-order-actions{gap:8px!important}
+  .tech-orders-table .tech-order-actions .tech-icon-btn,
+  .tech-orders-table .tech-order-actions .tech-link{
+    width:34px!important;
+    min-width:34px!important;
+    height:34px!important;
+    flex:0 0 34px!important;
+  }
+}
+
 /* One column system for the grouped header, order summary, and work rows.
    Keeping their widths identical avoids the drift caused by nested gutters. */
 @media(min-width:761px){
