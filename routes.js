@@ -25,7 +25,12 @@ export function pathFor(role,page,orderId,locale=null){
   const prefix='';
   if(!role)return `${prefix}${page==='register'?'/register':page==='recover'?'/forgot-password':'/login'}`||'/';
   const defaultPage=role==='clinic'?'home':'overview';
-  if(page==='detail'&&orderId)return `/${role}/orders/${encodeURIComponent(orderId)}`;
+  // Keep URLs readable and consistent with order numbers shown in the UI.
+  // The cabinets resolve this compact slug back to the stored internal ID.
+  if(page==='detail'&&orderId){
+    const compact=String(orderId).replace(/^CD-/i,'').replace(/_W(\d+)$/i,'_$1');
+    return `/${role}/orders/${encodeURIComponent(compact)}`;
+  }
   return page===defaultPage?`/${role}`:`/${role}/${page}`;
 }
 export function navigate(path,{replace=false}={}){

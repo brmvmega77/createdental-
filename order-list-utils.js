@@ -8,6 +8,17 @@ export function displayOrderId(value) {
   return raw.replace(/^CD-/i, '').replace(/_W(\d+)$/i, '_$1');
 }
 
+// Routes use the same compact identifier that people see in the cabinets.
+// Resolve it back to the stored identifier before reading or mutating an order.
+export function resolveOrderId(value, orders = []) {
+  const raw = clean(value);
+  if (!raw) return '';
+  const match = (Array.isArray(orders) ? orders : []).find(order =>
+    clean(order?.id) === raw || displayOrderId(order) === raw || clean(order?.clinicOrder?.id) === raw
+  );
+  return match?.id || raw;
+}
+
 function constructionLabelWithQuantity(variant, label) {
   if (!isSurgicalSocketOption(variant?.workOption)) return label;
   const units = Math.max(1, Math.trunc(Number(variant?.units) || 1));

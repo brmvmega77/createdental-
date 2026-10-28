@@ -7,7 +7,7 @@ import {routeFromPath,pathFor,navigate} from './routes.js?v=production-builder-1
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork,priceUnitsForSelection,camMethodForSelection} from './work-catalog.js';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
-import {orderWorkTypes,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel,displayOrderId} from './order-list-utils.js?v=order-fields-4';
+import {orderWorkTypes,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel,displayOrderId,resolveOrderId} from './order-list-utils.js?v=order-fields-5';
 import {productionStages,compactStageLabel} from './production-stages.js?v=perf-split-2';
 import {SURGICAL_TEMPLATE_CATEGORY,SURGICAL_SOCKET_OPTION,SURGICAL_SOCKETS_PER_JAW,adjustSurgicalSockets,isSurgicalTemplate,isSurgicalSocket,hasSurgicalJaw,maxSurgicalSockets,surgicalVariantUnits,groupSurgicalSockets} from '/assets/surgical-template-utils.js?v=surgical-sockets-3';
 import './location-assist.js?v=country-cities-1';
@@ -1175,7 +1175,14 @@ function syncRoute(){
   const route=routeFromPath(location.pathname);
   if(!portalReady){authMode=route.mode||'login';render();return}
   if(route.role!==portalUser.role){navigate(pathFor(portalUser.role,portalUser.role==='clinic'?'home':'overview'),{replace:true});state.page='home'}
-  else if(portalUser.role==='clinic'){state.page=route.page;state.orderId=route.orderId||state.orderId}
+  else if(portalUser.role==='clinic'){
+    state.page=route.page;
+    if(route.orderId){
+      state.orderId=resolveOrderId(route.orderId,orders);
+      const canonical=pathFor('clinic','detail',state.orderId);
+      if(location.pathname!==canonical)navigate(canonical,{replace:true});
+    }
+  }
   render();
 }
 function applyPortalData(data){
@@ -1199,11 +1206,11 @@ async function hydratePortal(){
   // history and logo payload is fetched in the background for detail pages.
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=cad-popup-same-origin-1');
+      const {createTechnicianCabinet}=await import('./technician.js?v=technician-sidebar-route-1');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},promoCodes:()=>portalPromoCodes,onPromoCodesUpdate:items=>{portalPromoCodes=structuredClone(items)},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=worker-order-files-2');
+    const {createWorkerCabinet}=await import('./worker.js?v=worker-sidebar-route-1');
     workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,orderHistory:()=>portalHistory,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   applyPortalData(data);

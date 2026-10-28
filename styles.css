@@ -1178,6 +1178,8 @@ html[data-theme="dark"] .tech-progress-head{color:#8c959f}html[data-theme="dark"
 .tech-progress{width:100%;box-sizing:border-box;margin:0;padding:7px 10px 8px;background:#fafafa;border:1px solid #eeeeee;border-radius:8px}
 .tech-progress-head{font-size:10px;line-height:1.2}.tech-progress-head b{font-size:11px}.tech-progress-track{height:5px;margin-top:6px;background:#e9e9e9}.tech-progress-track i{background:#7b7b7b}
 .tech-stage-progress{width:min(100%,240px);padding:9px 11px 10px;background:#fafafa;border:1px solid #eeeeee;border-radius:8px}
+/* Keep the stage progress card visually separated from its heading. */
+.worker-detail-side .tech-stage-progress{margin-top:18px}
 html[data-theme="dark"] .tech-timeline-role>div>strong{color:#e6e9ec}html[data-theme="dark"] .tech-progress,html[data-theme="dark"] .tech-stage-progress{background:#252a2f;border-color:#343a41}html[data-theme="dark"] .tech-progress-track{background:#343a41}html[data-theme="dark"] .tech-progress-track i{background:#b6bec7}
 @media(max-width:760px){.tech-timeline-role small{position:static;display:block;margin-top:6px}.tech-timeline-role>div{width:100%}}
 html[data-theme="dark"] .tech-detail-side>.tech-order-files,
@@ -1685,6 +1687,10 @@ html,body,#app{max-width:100%;overflow-x:hidden}
   .tech-order-tools .tech-segment button{flex:0 0 auto}
   .tech-order-tools .tech-order-searchbar{width:365px;max-width:100%;margin-left:0;justify-self:end;align-self:start}
   .tech-order-tools .tech-order-searchbar input#tech-search{width:auto;flex:1 1 0}
+}
+/* Worker tabs should wrap instead of hiding the last status behind the edge. */
+@media(min-width:761px){
+  .worker-order-tools .tech-segment{flex-wrap:wrap;overflow:visible}
 }
 @media(max-width:760px){
   .tech-order-searchbar:has(.tech-order-filter-panel){grid-template-columns:1fr}

@@ -6,7 +6,7 @@ import {reworkRouteChange,qualityReturnChange as qualityReworkChange} from './fl
 import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camAfterMilling,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
-import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel,displayOrderId} from './order-list-utils.js?v=order-fields-4';
+import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel,displayOrderId,resolveOrderId} from './order-list-utils.js?v=order-fields-5';
 import {savePortal,loadPortal,authRequest,portalToken,loadOrderFiles,loadCadPreviewSource,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js?v=cad-popup-same-origin-1';
 import {parseMoneyAmount} from './money.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=production-builder-1';
@@ -294,7 +294,11 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       return {...order,...details,groupSummary,participants,participantLabel:participants.map(person=>person.name).join(' · '),workTypes:orderWorkTypes(order),clinic:clientName(details.clinic),assigneeKey,cadOperatorKey,preprodTechnicianKey,frameTechnicianKey,category1TechnicianKey,painterKey,ceramicistKey:painterKey,technicianKey:frameTechnicianKey,assignee:employeeName(assigneeKey),assignmentLabel,preprodTechnicianName:employeeName(preprodTechnicianKey),frameTechnicianName,painterName,category1TechnicianName:employeeName(category1TechnicianKey),ceramicistName:painterName,cadOperatorName:employeeName(cadOperatorKey),technicianName:frameTechnicianName};
     });
   }
-  function orderById(id){return allOrders().find(order=>order.id===id)||orders.find(order=>order.clinicOrder?.id===id)?.clinicOrder}
+  function orderById(id){
+    const all=allOrders();
+    const resolved=resolveOrderId(id,all);
+    return all.find(order=>order.id===resolved)||orders.find(order=>order.clinicOrder?.id===resolved)?.clinicOrder;
+  }
   function chiefStageLabel(order){return order?.stage==='Изготовление'&&manufacturingStatuses.includes(order.manufacturingStatus)?order.manufacturingStatus:order?.stage||''}
   const qualityStageTitle=kind=>({cad:'ОТК CAD',preprod:'ОТК препрода',cam:'ОТК CAM',esthetic:'ОТК эстетики',final:'Финал ОТК'}[kind]||'ОТК');
   const displayChiefStage=(stage,order)=>stage==='Контроль качества'&&order?.qualityRequest?.kind?qualityStageTitle(order.qualityRequest.kind):compactStageLabel(stage);
@@ -1171,7 +1175,14 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
 
   function render(){
     const route=routeFromPath(location.pathname);
-    if(route.role==='technician'){state.page=route.page;if(route.orderId)state.orderId=route.orderId}
+    if(route.role==='technician'){
+      state.page=route.page;
+      if(route.orderId){
+        state.orderId=resolveOrderId(route.orderId,allOrders());
+        const canonical=pathFor('technician','detail',state.orderId);
+        if(location.pathname!==canonical)navigate(canonical,{replace:true});
+      }
+    }
     try {overrides=JSON.parse(localStorage.getItem('create-dental-tech-orders')||'{}')||{}} catch {overrides={}}
     team=loadEmployees();
     try {const saved=JSON.parse(localStorage.getItem('create-dental-tech-clients')||'null');if(Array.isArray(saved))clients=saved} catch { /* Keep current directory. */ }
