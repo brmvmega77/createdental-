@@ -1189,3 +1189,19 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
   border-color:#333;
   color:#fff;
 }
+
+/* Prioritize the complete status labels over an oversized search field. */
+@media(min-width:761px){
+  .tech-order-viewbar+.tech-panel>.tech-order-tools{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(280px,360px)!important;
+  }
+  .tech-order-viewbar+.tech-panel>.tech-order-tools>.tech-segment{
+    flex-wrap:wrap!important;
+    overflow:visible!important;
+  }
+  .tech-order-viewbar+.tech-panel>.tech-order-tools>.tech-order-searchbar{
+    width:100%!important;
+    max-width:360px!important;
+  }
+}
