@@ -1,8 +1,8 @@
 const clean = value => typeof value === 'string' ? value.trim() : '';
-const SURGICAL_SOCKET_OPTION = 'Дополнительное гнездо под имплантант в хирургическом шаблоне';
+const isSurgicalSocketOption = value => /дополнительное\s+гн[её]здо\s+под\s+имплантант(?:\s+в\s+хирургическом\s+шаблоне)?/i.test(clean(value).replace(/\s+/g, ' '));
 
 function constructionLabelWithQuantity(variant, label) {
-  if (clean(variant?.workOption) !== SURGICAL_SOCKET_OPTION) return label;
+  if (!isSurgicalSocketOption(variant?.workOption)) return label;
   const units = Math.max(1, Math.trunc(Number(variant?.units) || 1));
   return `${label} (${units})`;
 }
@@ -96,7 +96,7 @@ export function orderWorkLabel(order) {
       : orderVariantConstructionLabel(variant, order)).filter(Boolean);
     if (services.length) return services.join(', ');
   }
-  if (variants.length === 1 && clean(variants[0]?.workOption) === SURGICAL_SOCKET_OPTION) {
+  if (variants.length === 1 && isSurgicalSocketOption(variants[0]?.workOption)) {
     const category = clean(order?.work) || clean(variants[0]?.work);
     return category ? `${category} · ${orderVariantConstructionLabel(variants[0], order)}` : orderVariantConstructionLabel(variants[0], order);
   }

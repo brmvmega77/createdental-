@@ -6,14 +6,14 @@ import {reworkRouteChange,qualityReturnChange as qualityReworkChange} from './fl
 import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camAfterMilling,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
-import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel} from './order-list-utils.js?v=order-fields-2';
+import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel} from './order-list-utils.js?v=order-fields-3';
 import {savePortal,authRequest,portalToken,loadOrderFiles,loadCadReviewHtml,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js';
 import {parseMoneyAmount} from './money.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=production-builder-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,reorderCatalogService,reorderCatalogCategory,rubles,estimateWork,priceUnitsForSelection,camMethodLabel,camMethodForOrder} from './work-catalog.js';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
-import {openOrderPrint} from './order-print.js?v=a4-adaptive-2';
+import {openOrderPrint} from './order-print.js?v=a4-adaptive-3';
 import {openPricePrint} from './price-print.js?v=price-pdf-1';
 const surgicalTemplateUtilities = await import(import.meta.url.startsWith('file:')
   ? './public/assets/surgical-template-utils.js'

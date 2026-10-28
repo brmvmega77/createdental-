@@ -3,13 +3,13 @@ import {employeeFlowRole} from './flow-rules.js';
 import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camCanAccept,camCanSubmitQuality,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
-import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=lab-works-18';
+import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=lab-works-19';
 import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadReviewHtml,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,estimateWork,priceUnitsForSelection,camMethodForOrder} from './work-catalog.js';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
-import {orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel} from './order-list-utils.js?v=order-fields-2';
+import {orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel} from './order-list-utils.js?v=order-fields-3';
 import {taskStatuses,taskPriorityLabel,taskDateLabel,taskIsOverdue} from './tasks.js?v=task-flow-4';
 
 const safe=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
