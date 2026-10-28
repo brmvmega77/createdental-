@@ -1,7 +1,7 @@
 const {default:qrcode}=await import(import.meta.url.startsWith('file:')
   ? './public/assets/vendor/qrcode-generator.js'
   : './assets/vendor/qrcode-generator.js?v=2.0.4');
-import {orderVariantConstructionLabel} from './order-list-utils.js?v=order-fields-1';
+import {orderVariantConstructionLabel} from './order-list-utils.js?v=order-fields-2';
 
 let printInProgress=false;
 

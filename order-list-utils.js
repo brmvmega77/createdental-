@@ -1,4 +1,11 @@
 const clean = value => typeof value === 'string' ? value.trim() : '';
+const SURGICAL_SOCKET_OPTION = 'Дополнительное гнездо под имплантант в хирургическом шаблоне';
+
+function constructionLabelWithQuantity(variant, label) {
+  if (clean(variant?.workOption) !== SURGICAL_SOCKET_OPTION) return label;
+  const units = Math.max(1, Math.trunc(Number(variant?.units) || 1));
+  return `${label} (${units})`;
+}
 
 // Use stable employee IDs where available; old orders store original names.
 export function orderParticipants(order, employees = [], history = []) {
@@ -57,8 +64,9 @@ export function orderVariantExecutionLabel(variant, order = {}) {
 }
 
 export function orderVariantConstructionLabel(variant, order = {}) {
-  return clean(variant?.workOption) || clean(variant?.material) ||
+  const label = clean(variant?.workOption) || clean(variant?.material) ||
     (!Array.isArray(order?.variants) || order.variants.length <= 1 ? clean(order?.material) : '') || '—';
+  return constructionLabelWithQuantity(variant, label);
 }
 
 export function orderExecutionLabel(order) {
@@ -83,8 +91,14 @@ export function orderConstructionLabel(order) {
 export function orderWorkLabel(order) {
   const variants = Array.isArray(order?.variants) ? order.variants : [];
   if (variants.length > 1) {
-    const services = variants.map(variant => clean(variant?.workOption || variant?.material || variant?.work)).filter(Boolean);
+    const services = variants.map(variant => orderVariantConstructionLabel(variant, order) === '—'
+      ? clean(variant?.workOption || variant?.material || variant?.work)
+      : orderVariantConstructionLabel(variant, order)).filter(Boolean);
     if (services.length) return services.join(', ');
+  }
+  if (variants.length === 1 && clean(variants[0]?.workOption) === SURGICAL_SOCKET_OPTION) {
+    const category = clean(order?.work) || clean(variants[0]?.work);
+    return category ? `${category} · ${orderVariantConstructionLabel(variants[0], order)}` : orderVariantConstructionLabel(variants[0], order);
   }
   return clean(order?.work) || clean(order?.material) || '—';
 }

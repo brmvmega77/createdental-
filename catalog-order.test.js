@@ -6,6 +6,13 @@ import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {workCatalog,normalizeWorkCatalog,reorderCatalogService,reorderCatalogCategory} from './work-catalog.js';
+import {orderVariantConstructionLabel,orderWorkLabel} from './order-list-utils.js';
+
+test('surgical socket quantity stays visible in service labels',()=>{
+ const socket={work:'Хирургические шаблоны',workOption:'Дополнительное гнездо под имплантант в хирургическом шаблоне',selectedTeeth:[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28],units:9};
+ assert.equal(orderVariantConstructionLabel(socket), 'Дополнительное гнездо под имплантант в хирургическом шаблоне (9)');
+ assert.equal(orderWorkLabel({work:'Хирургические шаблоны',variants:[socket]}), 'Хирургические шаблоны · Дополнительное гнездо под имплантант в хирургическом шаблоне (9)');
+});
 
 test('catalog reorder preserves service identity, prices, units and route metadata within a section',()=>{
  const catalog=structuredClone(workCatalog),original=structuredClone(catalog);
