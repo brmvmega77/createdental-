@@ -3021,6 +3021,7 @@ html[data-theme="dark"] .tech-nav-group-title{color:#aeb6be}
 /* Independent production works inside one clinic order. */
 .clinic-service-progress-list{display:grid;gap:20px;min-width:0}
 .clinic-service-progress{min-width:0;padding:16px;border:1px solid var(--border,#e6e6e6);border-radius:12px}
+.detail-side-column .clinic-stage-progress{width:100%;max-width:none}
 .clinic-service-progress h4{margin:0;font-size:14px;line-height:1.45;overflow-wrap:anywhere}
 .clinic-service-progress p{font-size:13px;line-height:1.5;margin:8px 0}
 .clinic-service-progress details{margin-top:12px}
