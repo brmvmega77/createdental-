@@ -7,7 +7,7 @@ import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camAfterMilling,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
 import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel,displayOrderId} from './order-list-utils.js?v=order-fields-4';
-import {savePortal,authRequest,portalToken,loadOrderFiles,loadCadPreviewSource,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js?v=cad-separate-page-4';
+import {savePortal,loadPortal,authRequest,portalToken,loadOrderFiles,loadCadPreviewSource,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js?v=cad-separate-page-4';
 import {parseMoneyAmount} from './money.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=production-builder-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
@@ -1578,14 +1578,20 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
         if(action.dataset.qualityKind!==undefined&&action.dataset.qualityKind!==(request?.kind||''))return;
         if(state.qualitySavingId)return;
         state.qualitySavingId=id;action.disabled=true;
-        const change=chiefQualityApprovalChange(order,action.dataset.qualityKind??request?.kind??'',qualityApprovedAt);
-        if(!change){state.qualitySavingId='';return}
         try{
-          const decision=request?.kind?{qualityDecision:{kind:request.kind,result:'approved',at:qualityApprovedAt,requestedAt:request.requestedAt||'',reasonCategory:'',reason:''}}:{};
-          const next={...overrides,[id]:{...overrides[id],...change,...decision}};
+          // The CAD operator can submit while this cabinet is open. Refresh the
+          // affected order before building the transition so an old local stage
+          // cannot make the chief's approval look unavailable.
+          const fresh=await loadPortal(),freshDetails=fresh.orderOverrides?.[id]||overrides[id]||{},latestOrder={...order,...freshDetails},latestRequest=freshDetails.qualityRequest||request;
+          if((action.dataset.techAction==='approve-final')!==(latestRequest?.kind==='final'))throw new Error('Заказ уже изменился. Обновите список ОТК.');
+          if(action.dataset.qualityKind!==undefined&&action.dataset.qualityKind!==(latestRequest?.kind||''))throw new Error('Тип ОТК уже изменился. Обновите список ОТК.');
+          const change=chiefQualityApprovalChange(latestOrder,action.dataset.qualityKind??latestRequest?.kind??'',qualityApprovedAt);
+          if(!change)throw new Error('Заказ больше не ожидает этого решения ОТК');
+          const decision=latestRequest?.kind?{qualityDecision:{kind:latestRequest.kind,result:'approved',at:qualityApprovedAt,requestedAt:latestRequest.requestedAt||'',reasonCategory:'',reason:''}}:{};
+          const next={...(fresh.orderOverrides||overrides),[id]:{...freshDetails,...change,...decision}};
           await savePortal('orderOverrides',next);overrides=next;
           localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
-          toast(final?'Финальная ОТК пройдена. Заказ передан на доставку.':change.qualityRequest?.kind==='final'?'ОТК эстетиста принята. Заказ ожидает отдельной финальной ОТК.':'Работа принята.');
+          toast(latestRequest?.kind==='final'?'Финальная ОТК пройдена. Заказ передан на доставку.':change.qualityRequest?.kind==='final'?'ОТК эстетиста принята. Заказ ожидает отдельной финальной ОТК.':'Работа принята.');
         }catch(error){toast('Не удалось принять работу: '+error.message)}
         finally{state.qualitySavingId='';render()}
         return;
