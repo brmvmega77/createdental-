@@ -1113,3 +1113,52 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
   .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-stat,
   .tech-orders-table-grouped .tech-order-group-summary>.tech-stage{position:static!important;left:auto!important}
 }
+
+/* Filter popover: keep the order table in place while the controls float above it. */
+.tech-order-tools,
+.tech-order-tools .tech-order-searchbar,
+.tech-order-tools .tech-order-searchbar:has(.tech-order-filter-panel){
+  overflow:visible!important;
+}
+@media(min-width:761px){
+  .tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel){
+    position:relative!important;
+    display:grid!important;
+    grid-template-columns:auto minmax(0,1fr)!important;
+    grid-template-rows:auto 36px!important;
+    height:auto!important;
+    min-height:36px!important;
+    align-items:center!important;
+  }
+  .tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel) .tech-order-filter-panel{
+    position:absolute!important;
+    right:0!important;
+    top:calc(100% + 10px)!important;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    width:min(420px,calc(100vw - 40px))!important;
+    max-height:min(72vh,680px)!important;
+    overflow:auto!important;
+    justify-self:auto!important;
+    box-shadow:0 20px 48px rgba(35,35,35,.18)!important;
+    z-index:80!important;
+  }
+}
+@media(max-width:760px){
+  .tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel){
+    position:relative!important;
+  }
+  .tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel) .tech-order-filter-panel{
+    position:absolute!important;
+    left:0!important;
+    right:0!important;
+    top:calc(100% + 8px)!important;
+    grid-column:1!important;
+    grid-row:auto!important;
+    width:auto!important;
+    max-height:calc(100vh - 150px)!important;
+    overflow:auto!important;
+    box-shadow:0 18px 42px rgba(35,35,35,.18)!important;
+    z-index:80!important;
+  }
+}
