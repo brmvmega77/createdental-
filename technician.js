@@ -106,7 +106,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   } catch { /* Keep the demo directory if local data is damaged. */ }
   const initialRoute=routeFromPath(location.pathname);
   const savedOrderDisplayMode=(()=>{try{const value=localStorage.getItem('create-dental-order-display-mode');return value==='list'||value==='grouped'?value:'grouped'}catch{return 'grouped'}})();
-  const state={page:initialRoute.role==='technician'?initialRoute.page:'overview',filter:'Все',search:'',orderDueFilter:'',orderId:initialRoute.orderId||'',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',orderSortKey:'createdAt',orderSortDirection:'desc',orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderDoctorFilter:'',orderEmployeeFilter:'',orderWorkFilter:'',orderDisplayMode:savedOrderDisplayMode,expandedOrderGroups:{},taskSearch:'',taskFilterOpen:false,taskEmployeeFilter:'',taskStatusFilter:'',taskPriorityFilter:'',taskCreateOpen:false,taskEditId:null,clientSearch:'',requestFilter:'all',requestSearch:'',requestSearchFilters:{orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderDoctorFilter:'',orderEmployeeFilter:'',orderWorkFilter:''},qualityFilter:'all',qualitySearch:'',qualitySearchFilters:{orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderDoctorFilter:'',orderEmployeeFilter:'',orderWorkFilter:''},editClientId:null,confirmDeleteId:null,employeeSearch:'',employeeFilter:'all',editEmployeeId:null,confirmFireId:null,confirmEmployeeDeleteId:null,qualityReworkOrderId:null,conversations:[],activeConversation:null,conversationMessages:[],messageAttachment:null,messagesError:'',deadlineMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),deadlineDay:new Date().getDate(),profile:null,integration:null,integrationLoading:false,editOrderId:null,editOrderVariants:null,confirmOrderDeleteId:null,orderUpload:null,cadPreview:null,millingSendingOrderId:'',pricingDraft:null,pricingEditingRows:{},pricingEditingCategories:{},pricingSaving:false,pricingOrderChanged:false,camMethodDraft:null,camMethodSaving:false,productionRouteDraft:null,productionRouteContext:'digital',productionRouteSelectedKey:'',productionRouteSearch:'',productionRouteCategory:'all',productionRouteSaving:false,deliverySettingsDraft:null,deliverySettingsSaving:false,promoCodesDraft:null,promoCodesSaving:false,promoOpenIndex:-1,pricingAddingCategory:null,toast:''};
+  const state={page:initialRoute.role==='technician'?initialRoute.page:'overview',filter:'Все',search:'',orderDueFilter:'',orderId:initialRoute.orderId||'',month:new Date().getMonth(),technician:'Все техники',metric:'revenue',sort:'revenue',orderSortKey:'createdAt',orderSortDirection:'desc',orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderDoctorFilter:'',orderEmployeeFilter:'',orderWorkFilter:'',orderDisplayMode:savedOrderDisplayMode,expandedOrderGroups:{},sidebarGroup:'',taskSearch:'',taskFilterOpen:false,taskEmployeeFilter:'',taskStatusFilter:'',taskPriorityFilter:'',taskCreateOpen:false,taskEditId:null,clientSearch:'',requestFilter:'all',requestSearch:'',requestSearchFilters:{orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderDoctorFilter:'',orderEmployeeFilter:'',orderWorkFilter:''},qualityFilter:'all',qualitySearch:'',qualitySearchFilters:{orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderDoctorFilter:'',orderEmployeeFilter:'',orderWorkFilter:''},editClientId:null,confirmDeleteId:null,employeeSearch:'',employeeFilter:'all',editEmployeeId:null,confirmFireId:null,confirmEmployeeDeleteId:null,qualityReworkOrderId:null,conversations:[],activeConversation:null,conversationMessages:[],messageAttachment:null,messagesError:'',deadlineMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),deadlineDay:new Date().getDate(),profile:null,integration:null,integrationLoading:false,editOrderId:null,editOrderVariants:null,confirmOrderDeleteId:null,orderUpload:null,cadPreview:null,millingSendingOrderId:'',pricingDraft:null,pricingEditingRows:{},pricingEditingCategories:{},pricingSaving:false,pricingOrderChanged:false,camMethodDraft:null,camMethodSaving:false,productionRouteDraft:null,productionRouteContext:'digital',productionRouteSelectedKey:'',productionRouteSearch:'',productionRouteCategory:'all',productionRouteSaving:false,deliverySettingsDraft:null,deliverySettingsSaving:false,promoCodesDraft:null,promoCodesSaving:false,promoOpenIndex:-1,pricingAddingCategory:null,toast:''};
   state.productionSearch='';
   state.productionScope='all';
   state.productionFilters={orderFilterOpen:false,orderClinicFilter:'',orderMonthFilter:'',orderDoctorFilter:'',orderEmployeeFilter:'',orderWorkFilter:''};
@@ -232,6 +232,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   }
   function setPage(page){
     state.page=page;
+    state.sidebarGroup='';
     navigate(pathFor('technician',page,state.orderId));
     render();
     if(page==='requests')queueMicrotask(refreshClientRequests);
@@ -1049,7 +1050,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const managementItems=[['pulse','Пульс компании','pulse'],['tasks','Задачи','check',tasks().filter(task=>task.status!=='done').length],['team','Команда','user'],['pricing','Прайс и сроки','tag'],['salary','Зарплаты','wallet']];
     const productionItems=[['production','Производство','layers'],['production-settings','Пути производства','edit'],['cam-settings','Настроить CAM','sliders'],['requests','Клиентские правки','file',pendingRequests],['intake','Отдел качества','shieldCheck',intakeOrders]];
     const navButton=([page,label,ico,count])=>`<a class="nav-link ${navPage===page?'active':''}" href="${pathFor('technician',page)}" data-tech-page="${page}" data-sidebar-label="${label}" title="${label}">${icon(ico,20)}<span>${label}</span>${count?`<i class="tech-nav-count">${count>99?'99+':count}</i>`:''}</a>`;
-    const navGroup=(label,ico,items)=>`<details class="tech-nav-group" ${items.some(([page])=>page===navPage)?'open':''}><summary data-sidebar-label="${label}" title="${label}">${icon(ico,20)}<span>${label}</span>${icon('chevron',14)}</summary><div class="tech-nav-group-items">${items.map(navButton).join('')}</div></details>`;
+    const navGroup=(label,ico,items)=>`<details class="tech-nav-group" ${items.some(([page])=>page===navPage)||state.sidebarGroup===label?'open':''}><summary data-sidebar-label="${label}" title="${label}">${icon(ico,20)}<span>${label}</span>${icon('chevron',14)}</summary><div class="tech-nav-group-items">${items.map(navButton).join('')}</div></details>`;
     const navMarkup=[navButton(['overview','Обзор','home']),navGroup('CRM','crm',crmItems),navGroup('Менеджмент','grid',managementItems),navGroup('Производство','factory',productionItems),navButton(['profile','Профиль','profile'])].join('');
     const profile=chiefProfile();
     const avatar=profile.avatar?`<span class="avatar"><img src="${safe(profile.avatar)}" alt=""></span>`:`<span class="avatar">${safe(initials(profile.displayName||'Главный техник'))}</span>`;
@@ -1306,6 +1307,18 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   document.addEventListener('dragend',()=>{if(taskDragId)clearTaskDrag()});
   document.addEventListener('click',async event=>{
     if(currentUser()?.role!=='technician')return;
+    const groupSummary=event.target.closest?.('.tech-nav-group>summary');
+    if(groupSummary&&root().querySelector('#tech-sidebar')?.classList.contains('sidebar-collapsed')){
+      event.preventDefault();
+      state.sidebarGroup=groupSummary.dataset.sidebarLabel||'';
+      try{localStorage.setItem('create-dental-sidebar-collapsed','0')}catch{}
+      render();
+      return;
+    }
+    if(groupSummary){
+      state.sidebarGroup='';
+      root().querySelectorAll('.tech-nav-group[open]').forEach(group=>{if(!group.contains(groupSummary))group.removeAttribute('open')});
+    }
     if(root().querySelector('.notification-panel')&&!event.target.closest('.notification-center')){closeNotificationCenter();root().querySelector('.notification-panel')?.remove()}
     if(activeOrderFilters().orderFilterOpen&&!event.target.closest('.tech-order-filter-panel')&&!event.target.closest('[data-tech-filter-panel]')){activeOrderFilters().orderFilterOpen=false;root().querySelector('.tech-order-filter-panel')?.remove()}
     if(state.taskFilterOpen&&!event.target.closest('.task-filter-panel')&&!event.target.closest('[data-task-filter-panel]')&&!event.target.closest('[data-task-create]')){state.taskFilterOpen=false;render();return}
