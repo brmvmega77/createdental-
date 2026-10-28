@@ -3000,6 +3000,44 @@ html[data-theme="dark"] .tech-delivery-settings{background:#222;border-color:#33
 .sidebar.sidebar-collapsed .tech-nav-group>summary svg:last-child{display:none}
 .sidebar.sidebar-collapsed .tech-nav-group-items{display:none}
 
+/* In the compact rail, keep the rail narrow and open one grouped menu beside it. */
+@media(min-width:761px){
+  .sidebar.sidebar-collapsed{overflow:visible}
+  .sidebar.sidebar-collapsed .tech-nav-group{position:relative}
+  .sidebar.sidebar-collapsed .tech-nav-group[open] .tech-nav-group-items{
+    position:absolute;
+    left:calc(100% + 12px);
+    top:50%;
+    z-index:80;
+    transform:translateY(-50%);
+    display:grid;
+    gap:4px;
+    width:236px;
+    max-height:calc(100vh - 32px);
+    overflow-y:auto;
+    padding:8px;
+    border:1px solid #eeeeee;
+    border-radius:14px;
+    background:#fff;
+    box-shadow:0 14px 34px rgba(51,51,51,.14);
+  }
+  .sidebar.sidebar-collapsed .tech-nav-group[open] .tech-nav-group-items .nav-link{
+    width:100%;
+    height:38px;
+    margin:0;
+    justify-content:flex-start;
+    gap:10px;
+    padding:0 10px;
+    border-radius:9px;
+  }
+  .sidebar.sidebar-collapsed .tech-nav-group[open] .tech-nav-group-items .nav-link span{display:block}
+  .sidebar.sidebar-collapsed .tech-nav-group[open] .tech-nav-group-items .nav-link:hover,
+  .sidebar.sidebar-collapsed .tech-nav-group[open] .tech-nav-group-items .nav-link.active{background:#f1f2f3;color:#333}
+}
+html[data-theme="dark"] .sidebar.sidebar-collapsed .tech-nav-group[open] .tech-nav-group-items{border-color:#3b4247;background:#252a2f;box-shadow:0 14px 34px #0006}
+html[data-theme="dark"] .sidebar.sidebar-collapsed .tech-nav-group[open] .tech-nav-group-items .nav-link:hover,
+html[data-theme="dark"] .sidebar.sidebar-collapsed .tech-nav-group[open] .tech-nav-group-items .nav-link.active{background:#30363d;color:#f0f1f2}
+
 /* Upload files are intentionally stacked: one file per row at every viewport width. */
 .order-upload-dialog .upload-progress-list{display:grid;grid-template-columns:1fr!important;grid-auto-flow:row;gap:10px;width:100%;min-width:0}
 .order-upload-dialog .upload-progress-file{display:grid;width:100%;min-width:0;max-width:none}

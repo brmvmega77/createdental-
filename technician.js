@@ -1311,7 +1311,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(groupSummary&&root().querySelector('#tech-sidebar')?.classList.contains('sidebar-collapsed')){
       event.preventDefault();
       state.sidebarGroup=groupSummary.dataset.sidebarLabel||'';
-      try{localStorage.setItem('create-dental-sidebar-collapsed','0')}catch{}
+      try{localStorage.setItem('create-dental-sidebar-collapsed','1')}catch{}
       render();
       return;
     }
