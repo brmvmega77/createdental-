@@ -93,3 +93,36 @@ test('clinic cart removes the first saved or current service without deleting si
  const invalid=harness([first],third);invalid.removeOrderVariant(9);
  assert.deepEqual(invalid.state.orderVariants,[first]);assert.deepEqual(invalid.current,third);
 });
+
+test('different restorations keep independent teeth in either selection order',()=>{
+ const source=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
+ const constants=['currentVariant','variantSignature','currentVariantSaved','cloneVariant'].map(name=>source.split('\n').find(line=>line.startsWith(`const ${name} =`))).join('\n');
+ const projection=source.slice(source.indexOf('const currentVariantBaseIndex ='),source.indexOf('const serviceSubtotalEstimate ='));
+ const actions=source.slice(source.indexOf('function persistCurrentVariant(){'),source.indexOf('function addProstheticAddon('));
+ const teethActions=source.slice(source.indexOf('function syncBridgeSelection(){'),source.indexOf('function advanceOrderStep(){'));
+ const reset=source.slice(source.indexOf('function resetCurrentVariant(){'),source.indexOf('function resetOrderDraft(){'));
+ const removal=source.slice(source.indexOf('function removeOrderVariant(index){'),source.indexOf('function addCurrentOrderToCart()'));
+ const create=()=>{
+  const context={state:{work:'Реставрации',workOption:'',selectedTeeth:[],bridgeRanges:[],bridgeStart:null,toothMode:'Одиночка',currentVariantBase:null,orderVariants:[],form:{}},upperTeeth:[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28],lowerTeeth:[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38],variantIsComplete:v=>Boolean(v?.work&&v?.workOption&&v?.selectedTeeth?.length),currentSurgicalGuideIncluded:()=>false,isNoTeethSelection:()=>false,currentUsesJawSplit:()=>false,isSurgicalTemplate:()=>false,orderServiceCount:vs=>vs.length,notify:()=>{},currentProductionDays:()=>7};
+  vm.createContext(context);vm.runInContext(constants+'\n'+projection+'\n'+reset+'\n'+actions+'\n'+teethActions+'\n'+removal,context);
+  context.cart=()=>JSON.parse(vm.runInContext('JSON.stringify(allVariants().filter(variantIsComplete))',context));
+  context.clickTooth=n=>{context.selectOrderTooth(n);vm.runInContext('if(!state.currentVariantBase&&variantIsComplete(currentVariant()))persistCurrentVariant()',context)};
+  return context;
+ };
+ const slav='Реставрация по Славичеку',zirconia='Цирконий';
+ const assertSeparate=c=>assert.deepEqual(c.cart().map(v=>[v.workOption,v.selectedTeeth]),[[slav,[26]],[zirconia,[25]]]);
+ // Teeth first: the second tooth is selected before changing the service.
+ const teethFirst=create();teethFirst.clickTooth(26);teethFirst.selectWorkOption(slav);teethFirst.clickTooth(25);teethFirst.selectWorkOption(zirconia);assertSeparate(teethFirst);
+ teethFirst.persistCurrentVariant();assertSeparate(teethFirst);
+ // Service first: changing service starts a clean tooth selection.
+ const serviceFirst=create();serviceFirst.selectWorkOption(slav);serviceFirst.clickTooth(26);serviceFirst.selectWorkOption(zirconia);assert.deepEqual(Array.from(serviceFirst.state.selectedTeeth),[]);serviceFirst.clickTooth(25);assertSeparate(serviceFirst);
+ // Multiple teeth for one service update that single line instead of duplicating it.
+ const multi=create();multi.clickTooth(26);multi.selectWorkOption(slav);multi.clickTooth(25);
+ assert.deepEqual(multi.cart().map(v=>[v.workOption,v.selectedTeeth]),[[slav,[25,26]]]);
+ multi.persistCurrentVariant();assert.equal(multi.state.orderVariants.length,1);
+ multi.clickTooth(24);multi.removeOrderVariant(0);assert.deepEqual(multi.cart(),[]);
+ // Explicitly starting another service also isolates the selection.
+ const next=create();next.clickTooth(26);next.selectWorkOption(slav);next.addOrderVariant();next.state.work='Реставрации';next.clickTooth(25);next.selectWorkOption(zirconia);assertSeparate(next);
+ const bridges=create();bridges.state.toothMode='Мост';bridges.selectWorkOption(slav);bridges.clickTooth(26);assert.equal(bridges.state.orderVariants.length,0);bridges.clickTooth(24);bridges.selectWorkOption(zirconia);bridges.clickTooth(14);bridges.clickTooth(12);
+ assert.deepEqual(bridges.cart().map(v=>[v.workOption,v.selectedTeeth]),[[slav,[24,25,26]],[zirconia,[12,13,14]]]);
+});
