@@ -1194,7 +1194,7 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
 @media(min-width:761px){
   .tech-order-viewbar+.tech-panel>.tech-order-tools{
     display:grid!important;
-    grid-template-columns:minmax(0,1fr) minmax(280px,360px)!important;
+    grid-template-columns:minmax(0,1fr) minmax(280px,411.2px)!important;
   }
   .tech-order-viewbar+.tech-panel>.tech-order-tools>.tech-segment{
     flex-wrap:wrap!important;
@@ -1202,7 +1202,7 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
   }
   .tech-order-viewbar+.tech-panel>.tech-order-tools>.tech-order-searchbar{
     width:100%!important;
-    max-width:360px!important;
+    max-width:411.2px!important;
   }
 }
 

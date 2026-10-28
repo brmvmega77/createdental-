@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import vm from 'node:vm';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {workCatalog,normalizeWorkCatalog,reorderCatalogService,reorderCatalogCategory} from './work-catalog.js';
@@ -61,4 +62,34 @@ test('saved service order reaches the clinic, survives restart and preserves com
  const businessData=items=>items.map(({_revision,...category})=>category);assert.deepEqual(businessData(after.workCatalog.slice(1)),businessData(before.workCatalog.slice(1)));
  assert.equal((await api('chief',before.workCatalog,before.collectionVersions.workCatalog||0)).status,409);
  await stop();await start();assert.deepEqual(ok(await api('clinic')).workCatalog[0].options.map(o=>o.id),expected);
+});
+
+
+test('clinic cart removes the first saved or current service without deleting siblings',()=>{
+ const source=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
+ const removal=source.slice(source.indexOf('function removeOrderVariant(index){'),source.indexOf('function addCurrentOrderToCart()'));
+ const service=name=>({work:'Реставрации',workOption:name,selectedTeeth:[21],bridgeRanges:[],toothMode:'Одиночка'});
+ const first=service('Первая'),second=service('Вторая'),third=service('Третья');
+ const harness=(saved,current)=>{
+  const context={state:{orderVariants:structuredClone(saved)},current:structuredClone(current),resetCount:0};
+  context.currentVariant=()=>context.current;
+  context.variantSignature=v=>JSON.stringify(v);
+  context.variantIsComplete=v=>Boolean(v?.work&&v?.workOption&&v?.selectedTeeth?.length);
+  context.currentVariantSaved=()=>context.state.orderVariants.some(v=>JSON.stringify(v)===JSON.stringify(context.current));
+  context.currentSurgicalGuideIncluded=()=>false;
+  context.isSurgicalTemplate=()=>false;
+  context.resetCurrentVariant=()=>{context.current={};context.resetCount++};
+  vm.createContext(context);vm.runInContext(removal,context);
+  return context;
+ };
+ const unsaved=harness([],first);unsaved.removeOrderVariant(0);
+ assert.deepEqual(unsaved.state.orderVariants,[]);assert.equal(unsaved.resetCount,1);assert.deepEqual(unsaved.current,{});
+ const selectedFirst=harness([first,second],first);selectedFirst.removeOrderVariant(0);
+ assert.deepEqual(selectedFirst.state.orderVariants,[second]);assert.equal(selectedFirst.resetCount,1);
+ const otherCurrent=harness([first,second],third);otherCurrent.removeOrderVariant(0);
+ assert.deepEqual(otherCurrent.state.orderVariants,[second]);assert.deepEqual(otherCurrent.current,third);assert.equal(otherCurrent.resetCount,0);
+ const unsavedLast=harness([second],third);unsavedLast.removeOrderVariant(1);
+ assert.deepEqual(unsavedLast.state.orderVariants,[second]);assert.equal(unsavedLast.resetCount,1);
+ const invalid=harness([first],third);invalid.removeOrderVariant(9);
+ assert.deepEqual(invalid.state.orderVariants,[first]);assert.deepEqual(invalid.current,third);
 });
