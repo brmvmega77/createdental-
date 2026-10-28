@@ -778,7 +778,7 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
     overflow:hidden;
     background:#f8f8f8;
   }
-  .tech-orders-table-grouped tbody tr.tech-order-group-row:first-child{margin-top:0}
+  .tech-orders-table-grouped tbody tr.tech-order-group-row:first-child{margin-top:14px}
   .tech-orders-table-grouped tbody tr.tech-order-group-row td{
     border:0!important;
     background:#f8f8f8!important;
