@@ -7,6 +7,11 @@ export function reorderCatalogService(catalog,categoryIndex,from,to){
   const reordered=[...options],service=reordered.splice(from,1)[0];reordered.splice(to,0,service);
   return catalog.map((category,index)=>index===categoryIndex?{...category,options:reordered}:category);
 }
+export function reorderCatalogCategory(catalog,from,to){
+  if(!Array.isArray(catalog)||![from,to].every(Number.isInteger)||from<0||to<0||from>=catalog.length||to>=catalog.length||from===to)return catalog;
+  const reordered=[...catalog],category=reordered.splice(from,1)[0];reordered.splice(to,0,category);
+  return reordered;
+}
 export function normalizeWorkCatalog(catalog,previous=[]){
  return catalog.map((category,index)=>{
   const before=previous.find(item=>category.id?item.id===category.id:item.name===category.name);

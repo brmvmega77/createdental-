@@ -11,9 +11,10 @@ import {savePortal,authRequest,portalToken,loadOrderFiles,loadCadReviewHtml,dele
 import {parseMoneyAmount} from './money.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=production-builder-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
-import {workCatalog,reorderCatalogService,rubles,estimateWork,priceUnitsForSelection,camMethodLabel,camMethodForOrder} from './work-catalog.js';
+import {workCatalog,reorderCatalogService,reorderCatalogCategory,rubles,estimateWork,priceUnitsForSelection,camMethodLabel,camMethodForOrder} from './work-catalog.js';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
 import {openOrderPrint} from './order-print.js?v=a4-adaptive-1';
+import {openPricePrint} from './price-print.js?v=price-pdf-1';
 const surgicalTemplateUtilities = await import(import.meta.url.startsWith('file:')
   ? './public/assets/surgical-template-utils.js'
   : '/assets/surgical-template-utils.js?v=surgical-sockets-4');
@@ -118,10 +119,10 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   let cadPreviewRequest=0;
   let taskSaving=false;
   let taskDragId='';
-  let pricingDrag=null,pricingPointerDrag=null;
+  let pricingDrag=null,pricingPointerDrag=null,pricingCategoryDrag=null,pricingCategoryPointerDrag=null;
   function clearPricingDrag(){
-    root().querySelectorAll('.tech-catalog-row.is-dragging,.tech-catalog-row.is-drop-before,.tech-catalog-row.is-drop-after').forEach(row=>row.classList.remove('is-dragging','is-drop-before','is-drop-after'));
-    pricingPointerDrag?.preview?.remove();pricingDrag=null;pricingPointerDrag=null;
+    root().querySelectorAll('.tech-catalog-row.is-dragging,.tech-catalog-row.is-drop-before,.tech-catalog-row.is-drop-after,.tech-pricing-category.is-dragging,.tech-pricing-category.is-drop-before,.tech-pricing-category.is-drop-after').forEach(row=>row.classList.remove('is-dragging','is-drop-before','is-drop-after'));
+    pricingPointerDrag?.preview?.remove();pricingCategoryPointerDrag?.preview?.remove();pricingDrag=null;pricingPointerDrag=null;pricingCategoryDrag=null;pricingCategoryPointerDrag=null;
   }
   function movePricingService(category,from,to){
     if(state.pricingSaving)return false;
@@ -133,10 +134,24 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     queueMicrotask(()=>root().querySelector(`[data-pricing-row][data-category="${category}"][data-option="${to}"] [data-pricing-drag]`)?.focus({preventScroll:true}));
     return true;
   }
+  function movePricingCategory(from,to){
+    if(state.pricingSaving)return false;
+    const previous=state.pricingDraft,next=reorderCatalogCategory(previous,from,to);
+    if(next===previous)return false;
+    const newIndexByCategory=new Map(next.map((category,index)=>[category,index]));
+    const editingCategories={};
+    Object.entries(state.pricingEditingCategories).forEach(([oldIndex,value])=>{if(!value)return;const nextIndex=newIndexByCategory.get(previous[Number(oldIndex)]);if(nextIndex!==undefined)editingCategories[nextIndex]=true});
+    const editingRows={};
+    Object.entries(state.pricingEditingRows).forEach(([key,value])=>{if(!value)return;const [oldCategoryIndex,oldOptionIndex]=key.split(':').map(Number),category=previous[oldCategoryIndex],nextCategoryIndex=newIndexByCategory.get(category),option=category?.options?.[oldOptionIndex],nextOptionIndex=option&&next[nextCategoryIndex]?.options?.indexOf(option);if(nextCategoryIndex!==undefined&&nextOptionIndex>=0)editingRows[`${nextCategoryIndex}:${nextOptionIndex}`]=true});
+    state.pricingDraft=next;state.pricingEditingCategories=editingCategories;state.pricingEditingRows=editingRows;state.pricingAddingCategory=state.pricingAddingCategory===null?null:newIndexByCategory.get(previous[state.pricingAddingCategory])??null;state.pricingOrderChanged=true;render();
+    queueMicrotask(()=>root().querySelector(`[data-pricing-category-row][data-category="${to}"] [data-pricing-category-drag]`)?.focus({preventScroll:true}));
+    return true;
+  }
   function pricingDropTarget(x,y){
     const row=document.elementFromPoint(x,y)?.closest?.('[data-pricing-row]');
     return row&&Number(row.dataset.category)===pricingDrag?.category?row:null;
   }
+  function pricingCategoryDropTarget(x,y){return document.elementFromPoint(x,y)?.closest?.('[data-pricing-category-row]')||null}
   function markPricingDrop(row,y){
     root().querySelectorAll('.tech-catalog-row.is-drop-before,.tech-catalog-row.is-drop-after').forEach(item=>item.classList.remove('is-drop-before','is-drop-after'));
     if(!row||Number(row.dataset.option)===pricingDrag?.from)return;
@@ -146,6 +161,11 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const drag=pricingDrag;if(!drag||!row||Number(row.dataset.category)!==drag.category){clearPricingDrag();return}
     const rect=row.getBoundingClientRect(),insert=Number(row.dataset.option)+(y>rect.top+rect.height/2?1:0),to=insert-(drag.from<insert?1:0);
     clearPricingDrag();movePricingService(drag.category,drag.from,to);
+  }
+  function finishPricingCategoryDrop(row,y){
+    const drag=pricingCategoryDrag;if(!drag||!row){clearPricingDrag();return}
+    const rect=row.getBoundingClientRect(),insert=Number(row.dataset.category)+(y>rect.top+rect.height/2?1:0),to=insert-(drag.from<insert?1:0);
+    clearPricingDrag();movePricingCategory(drag.from,to);
   }
   let productionDrag=null;
   let productionPointerDrag=null;
@@ -912,13 +932,14 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
         const controls=rowEditing?`<label class="tech-pricing-control"><span>Цена</span><div class="tech-pricing-input"><input type="number" aria-label="Цена услуги" min="0" step="50" data-pricing-field="price" data-category="${categoryIndex}" data-option="${optionIndex}" value="${Number(option.price)||0}"><i>₽</i></div></label><label class="tech-pricing-control"><span>Срок</span><select aria-label="Срок производства" data-pricing-field="days" data-category="${categoryIndex}" data-option="${optionIndex}">${dayOptions(days)}</select></label>`:`<div class="tech-pricing-control"><span>Цена</span><div class="tech-pricing-value tech-pricing-price-value">${rubles(Number(option.price)||0)}</div></div><div class="tech-pricing-control"><span>Срок</span><div class="tech-pricing-value">${dayLabel(days)}</div></div>`;
         return `<div class="tech-pricing-row tech-catalog-row ${rowEditing?'is-editing':''} ${!String(option.name||'').trim()?'is-new':''}" data-pricing-row data-category="${categoryIndex}" data-option="${optionIndex}"><div class="tech-pricing-service-cell tech-pricing-name">${handle}${nameControl}</div>${controls}<button type="button" class="tech-pricing-edit" data-tech-pricing-action="edit" data-category="${categoryIndex}" data-option="${optionIndex}" aria-label="${rowEditing?'Завершить редактирование услуги':'Редактировать услугу'}" title="${rowEditing?'Готово':'Редактировать'}">${rowEditing?icon('check',15):icon('edit',16)}</button><button type="button" class="tech-pricing-remove" data-tech-pricing-action="remove" data-category="${categoryIndex}" data-option="${optionIndex}" aria-label="Удалить услугу ${safe(option.name||'')||'без названия'}" title="Удалить услугу">×</button></div>`;
       }).join('');
-      return `<section class="tech-pricing-category ${isNewCategory?'is-new':''}"><header class="tech-pricing-category-head ${categoryEditing?'is-editing':''}"><div><span class="tech-pricing-kicker">РАЗДЕЛ ПРАЙСА</span>${title}</div><div class="tech-pricing-category-actions"><span class="tech-pricing-count">${category.options.length} ${category.options.length===1?'услуга':'услуг'}</span><button type="button" class="tech-link tech-pricing-add" data-tech-pricing-action="add" data-category="${categoryIndex}">+ Добавить услугу</button><button type="button" class="tech-pricing-edit" data-tech-pricing-action="edit-category" data-category="${categoryIndex}" aria-label="${categoryEditing?'Завершить редактирование раздела':'Редактировать раздел'}" title="${categoryEditing?'Готово':'Редактировать'}">${categoryEditing?icon('check',15):icon('edit',16)}</button><button type="button" class="tech-pricing-remove" data-tech-pricing-action="remove-category" data-category="${categoryIndex}" aria-label="Удалить раздел ${safe(category.name||'')||'прайса'}" title="Удалить раздел">×</button></div></header>${category.options.length?`<div class="tech-pricing-labels"><span>Услуга</span><span>Цена</span><span>Срок производства</span><span aria-hidden="true"></span></div><div class="tech-pricing-rows">${rows}</div>`:'<p class="tech-empty">В этом разделе пока нет услуг</p>'}</section>`;
+      const categoryHandle=`<button type="button" class="tech-pricing-category-drag" data-pricing-category-drag aria-label="Переместить раздел ${safe(category.name||'Без названия')}" title="Перетащите раздел; клавиши ↑ и ↓ меняют порядок"><svg width="16" height="20" viewBox="0 0 16 20" fill="currentColor" aria-hidden="true"><circle cx="5" cy="5" r="1.3"/><circle cx="11" cy="5" r="1.3"/><circle cx="5" cy="10" r="1.3"/><circle cx="11" cy="10" r="1.3"/><circle cx="5" cy="15" r="1.3"/><circle cx="11" cy="15" r="1.3"/></svg></button>`;
+      return `<section class="tech-pricing-category ${isNewCategory?'is-new':''}" data-pricing-category-row data-category="${categoryIndex}"><header class="tech-pricing-category-head ${categoryEditing?'is-editing':''}"><div class="tech-pricing-category-title-cell">${categoryHandle}<div><span class="tech-pricing-kicker">РАЗДЕЛ ПРАЙСА</span>${title}</div></div><div class="tech-pricing-category-actions"><span class="tech-pricing-count">${category.options.length} ${category.options.length===1?'услуга':'услуг'}</span><button type="button" class="tech-link tech-pricing-add" data-tech-pricing-action="add" data-category="${categoryIndex}">+ Добавить услугу</button><button type="button" class="tech-pricing-edit" data-tech-pricing-action="edit-category" data-category="${categoryIndex}" aria-label="${categoryEditing?'Завершить редактирование раздела':'Редактировать раздел'}" title="${categoryEditing?'Готово':'Редактировать'}">${categoryEditing?icon('check',15):icon('edit',16)}</button><button type="button" class="tech-pricing-remove" data-tech-pricing-action="remove-category" data-category="${categoryIndex}" aria-label="Удалить раздел ${safe(category.name||'')||'прайса'}" title="Удалить раздел">×</button></div></header>${category.options.length?`<div class="tech-pricing-labels"><span>Услуга</span><span>Цена</span><span>Срок производства</span><span aria-hidden="true"></span></div><div class="tech-pricing-rows">${rows}</div>`:'<p class="tech-empty">В этом разделе пока нет услуг</p>'}</section>`;
     }).join('');
     const threshold=Number.isFinite(Number(delivery.freeThreshold))?Number(delivery.freeThreshold):4000,fee=Number.isFinite(Number(delivery.fee))?Number(delivery.fee):500;
     const promoServices=state.pricingDraft.flatMap(category=>category.options.map(option=>({category:category.name,name:typeof option==='string'?option:option.name})));
     const promoMarkup=state.promoCodesDraft.map((promo,index)=>`<details class="tech-promo-card" data-promo-card="${index}" ${state.promoOpenIndex===index?'open':''}><summary class="tech-promo-summary" data-promo-toggle="${index}"><span class="tech-promo-summary-copy"><strong data-promo-summary-code>${safe(normalizePromoCode(promo.code)||'Новый промокод')}</strong><span data-promo-summary-name ${promo.name?'':'hidden'}>${safe(promo.name||'')}</span></span><span class="tech-promo-summary-status" data-promo-summary-status>${promo.active!==false?'Активен':'Отключён'}</span>${icon('chevron',16)}</summary><div class="tech-promo-body"><div class="tech-promo-head"><div class="tech-delivery-settings-grid"><label>Промокод<input type="text" maxlength="40" data-promo-field="code" data-promo-index="${index}" value="${safe(promo.code||'')}"></label><label>Название акции<input type="text" maxlength="120" data-promo-field="name" data-promo-index="${index}" value="${safe(promo.name||'')}"></label></div><label class="tech-promo-active"><input type="checkbox" data-promo-field="active" data-promo-index="${index}" ${promo.active!==false?'checked':''}> Активен</label><button class="tech-pricing-remove" type="button" data-tech-pricing-action="remove-promo" data-promo-index="${index}" aria-label="Удалить промокод">×</button></div>${promoClinicsMarkup(promo,index)}<details class="tech-promo-clinics tech-promo-prices"><summary>Специальные цены по услугам</summary><p class="tech-promo-hint">Оставьте поле пустым, чтобы использовать обычную цену.</p><div class="tech-promo-price-grid">${promoServices.map(service=>{const key=service.category+'|||'+service.name,value=promo.prices?.[key];return `<label><span>${safe(service.category)} · ${safe(service.name)}</span><input type="number" min="0" step="50" placeholder="Обычная цена" data-promo-price data-promo-index="${index}" data-promo-key="${safe(key)}" value="${value===undefined?'':Number(value)}"><i>₽</i></label>`}).join('')}</div></details></div></details>`).join('');
     const promoSection='<section class="tech-panel tech-promo-settings"><div class="tech-panel-heading"><div><h2>Промокоды</h2><p>Назначайте специальные цены текущим клиникам или приглашайте новые по ссылке с промокодом.</p></div><div><button class="btn outline" data-tech-pricing-action="add-promo">+ Добавить промокод</button><button class="btn primary" data-tech-pricing-action="save-promos" '+(state.promoCodesSaving?'disabled':'')+'>'+(state.promoCodesSaving?'Сохранение…':'Сохранить промокоды')+'</button></div></div>'+(promoMarkup||'<p class="tech-empty">Промокодов пока нет. Добавьте первый код для специального прайса.</p>')+'</section>';
-    return `<div class="tech-heading tech-pricing-heading"><div><span class="tech-eyebrow">КАТАЛОГ</span><h1>Прайс и сроки</h1></div><div class="tech-pricing-heading-actions"><a class="btn outline" href="${pathFor('technician','production-settings')}" data-tech-page="production-settings">Настроить производство</a><a class="btn outline" href="${pathFor('technician','cam-settings')}" data-tech-page="cam-settings">Настроить CAM</a><button class="btn outline" data-tech-pricing-action="add-category">+ Добавить раздел прайса</button><button class="btn primary" data-tech-pricing-action="save" ${state.pricingSaving?'disabled':''}>${state.pricingSaving?'Сохранение…':'Сохранить изменения'}</button></div></div><p class="tech-pricing-order-hint" role="status">${state.pricingOrderChanged?'Порядок изменён. Нажмите «Сохранить изменения», чтобы обновить прайс у клиник.':'Перетаскивайте услуги за значок слева, чтобы изменить порядок внутри раздела.'}</p><div class="tech-pricing-list">${categoryMarkup}</div><section class="tech-panel tech-delivery-settings"><div class="tech-panel-heading"><div><span class="tech-pricing-kicker">УСЛОВИЯ ЗАКАЗОВ</span><h2>Доставка</h2><p>Эти условия применяются к новым заказам клиник и отображаются в корзине до отправки заказа.</p></div><button class="btn primary" data-tech-pricing-action="save-delivery" ${state.deliverySettingsSaving?'disabled':''}>${state.deliverySettingsSaving?'Сохранение…':'Сохранить условия'}</button></div><div class="tech-delivery-settings-grid"><label>Бесплатная доставка от суммы услуг<input type="number" min="0" step="100" data-delivery-setting="freeThreshold" value="${threshold}"><small>Если услуги дешевле этого порога, добавляется платная доставка.</small></label><label>Стоимость доставки ниже порога<input type="number" min="0" step="50" data-delivery-setting="fee" value="${fee}"><small>Можно поставить 0, если доставка всегда бесплатная.</small></label></div><div class="tech-delivery-settings-summary">Сейчас: до ${rubles(threshold)} услуг — доставка ${rubles(fee)}; от ${rubles(threshold)} — бесплатно.</div></section>`+promoSection;
+    return `<div class="tech-heading tech-pricing-heading"><div><span class="tech-eyebrow">КАТАЛОГ</span><h1>Прайс и сроки</h1><p>Порядок разделов и услуг синхронизируется с выбором услуг в кабинете клиники.</p></div><div class="tech-pricing-heading-actions"><button class="btn outline" data-tech-pricing-action="download-pdf">Скачать PDF</button><a class="btn outline" href="${pathFor('technician','production-settings')}" data-tech-page="production-settings">Настроить производство</a><a class="btn outline" href="${pathFor('technician','cam-settings')}" data-tech-page="cam-settings">Настроить CAM</a><button class="btn outline" data-tech-pricing-action="add-category">+ Добавить раздел прайса</button><button class="btn primary" data-tech-pricing-action="save" ${state.pricingSaving?'disabled':''}>${state.pricingSaving?'Сохранение…':'Сохранить изменения'}</button></div></div><p class="tech-pricing-order-hint" role="status">${state.pricingOrderChanged?'Порядок изменён. Нажмите «Сохранить изменения», чтобы обновить прайс у клиник.':'Перетаскивайте разделы или услуги за значок слева. После сохранения этот порядок будет одинаковым у техника и клиники.'}</p><div class="tech-pricing-list">${categoryMarkup}</div><section class="tech-panel tech-delivery-settings"><div class="tech-panel-heading"><div><span class="tech-pricing-kicker">УСЛОВИЯ ЗАКАЗОВ</span><h2>Доставка</h2><p>Эти условия применяются к новым заказам клиник и отображаются в корзине до отправки заказа.</p></div><button class="btn primary" data-tech-pricing-action="save-delivery" ${state.deliverySettingsSaving?'disabled':''}>${state.deliverySettingsSaving?'Сохранение…':'Сохранить условия'}</button></div><div class="tech-delivery-settings-grid"><label>Бесплатная доставка от суммы услуг<input type="number" min="0" step="100" data-delivery-setting="freeThreshold" value="${threshold}"><small>Если услуги дешевле этого порога, добавляется платная доставка.</small></label><label>Стоимость доставки ниже порога<input type="number" min="0" step="50" data-delivery-setting="fee" value="${fee}"><small>Можно поставить 0, если доставка всегда бесплатная.</small></label></div><div class="tech-delivery-settings-summary">Сейчас: до ${rubles(threshold)} услуг — доставка ${rubles(fee)}; от ${rubles(threshold)} — бесплатно.</div></section>`+promoSection;
   }
 
   function camSettingsPage(){
@@ -1164,11 +1185,27 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   }
   document.addEventListener('pointerdown',event=>{
     if(!isActive()||state.page!=='pricing'||event.button!==0||state.pricingSaving)return;
+    const categoryHandle=event.target.closest?.('[data-pricing-category-drag]'),categoryRow=categoryHandle?.closest('[data-pricing-category-row]');
+    if(categoryHandle&&categoryRow){
+      pricingCategoryPointerDrag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,row:categoryRow,started:false};
+      pricingCategoryDrag={from:Number(categoryRow.dataset.category)};event.preventDefault();categoryHandle.focus({preventScroll:true});categoryHandle.setPointerCapture?.(event.pointerId);return;
+    }
     const handle=event.target.closest?.('[data-pricing-drag]'),row=handle?.closest('[data-pricing-row]');if(!row||handle.disabled)return;
     pricingPointerDrag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,row,started:false};
     pricingDrag={category:Number(row.dataset.category),from:Number(row.dataset.option)};event.preventDefault();handle.focus({preventScroll:true});handle.setPointerCapture?.(event.pointerId);
   });
   document.addEventListener('pointermove',event=>{
+    const categoryPointer=pricingCategoryPointerDrag;
+    if(categoryPointer&&categoryPointer.pointerId===event.pointerId){
+      if(!categoryPointer.started&&Math.hypot(event.clientX-categoryPointer.x,event.clientY-categoryPointer.y)<7)return;
+      if(!categoryPointer.started){
+        categoryPointer.started=true;categoryPointer.row.classList.add('is-dragging');categoryPointer.preview=document.createElement('div');categoryPointer.preview.className='tech-pricing-drag-preview';categoryPointer.preview.textContent=state.pricingDraft?.[pricingCategoryDrag.from]?.name||'Раздел прайса';root().append(categoryPointer.preview);
+      }
+      event.preventDefault();categoryPointer.preview.style.left=Math.max(8,Math.min(event.clientX+14,innerWidth-categoryPointer.preview.offsetWidth-8))+'px';categoryPointer.preview.style.top=Math.max(8,Math.min(event.clientY+14,innerHeight-categoryPointer.preview.offsetHeight-8))+'px';
+      root().querySelectorAll('.tech-pricing-category.is-drop-before,.tech-pricing-category.is-drop-after').forEach(item=>item.classList.remove('is-drop-before','is-drop-after'));
+      const target=pricingCategoryDropTarget(event.clientX,event.clientY);if(target&&Number(target.dataset.category)!==pricingCategoryDrag.from){const rect=target.getBoundingClientRect();target.classList.add(event.clientY>rect.top+rect.height/2?'is-drop-after':'is-drop-before')}
+      if(event.clientY<70)window.scrollBy(0,-16);else if(event.clientY>innerHeight-70)window.scrollBy(0,16);return;
+    }
     const drag=pricingPointerDrag;if(!drag||drag.pointerId!==event.pointerId)return;
     if(!drag.started&&Math.hypot(event.clientX-drag.x,event.clientY-drag.y)<7)return;
     if(!drag.started){
@@ -1181,10 +1218,11 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(event.clientY<70)window.scrollBy(0,-16);else if(event.clientY>innerHeight-70)window.scrollBy(0,16);
   },{passive:false});
   document.addEventListener('pointerup',event=>{
+    if(pricingCategoryPointerDrag?.pointerId===event.pointerId){if(pricingCategoryPointerDrag.started)finishPricingCategoryDrop(pricingCategoryDropTarget(event.clientX,event.clientY),event.clientY);else clearPricingDrag();return}
     if(!pricingPointerDrag||pricingPointerDrag.pointerId!==event.pointerId)return;
     if(pricingPointerDrag.started)finishPricingDrop(pricingDropTarget(event.clientX,event.clientY),event.clientY);else clearPricingDrag();
   });
-  document.addEventListener('pointercancel',()=>{if(pricingPointerDrag)clearPricingDrag()});
+  document.addEventListener('pointercancel',()=>{if(pricingPointerDrag||pricingCategoryPointerDrag)clearPricingDrag()});
   document.addEventListener('dragstart',event=>{
     if(!isActive()||state.page!=='production-settings')return;
     const stage=event.target.closest?.('[data-production-route-stage]');
@@ -1640,6 +1678,10 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(state.pricingEditingRows[rowKey])queueMicrotask(()=>root().querySelector(`[data-pricing-field="name"][data-category="${categoryIndex}"][data-option="${optionIndex}"]`)?.focus());
       return;
     }
+    if(pricingAction&&pricingAction.dataset.techPricingAction==='download-pdf'){
+      openPricePrint({catalog:state.pricingDraft||workCatalog,logo});
+      return;
+    }
     if(pricingAction&&pricingAction.dataset.techPricingAction==='copy-promo-link'){
       const link=savedPromoLink(state.promoCodesDraft?.[Number(pricingAction.dataset.promoIndex)]);
       if(!link)return toast('Сначала сохраните активный промокод');
@@ -1720,10 +1762,14 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   });
   document.addEventListener('keydown',event=>{
     if(!isActive())return;
-    if(event.key==='Escape'&&pricingDrag){clearPricingDrag();return}
+    if(event.key==='Escape'&&(pricingDrag||pricingCategoryDrag)){clearPricingDrag();return}
     const handle=event.target.closest?.('[data-pricing-drag]');
     if(state.page==='pricing'&&handle&&['ArrowUp','ArrowDown'].includes(event.key)){
       event.preventDefault();const row=handle.closest('[data-pricing-row]');movePricingService(Number(row.dataset.category),Number(row.dataset.option),Number(row.dataset.option)+(event.key==='ArrowUp'?-1:1));return;
+    }
+    const categoryHandle=event.target.closest?.('[data-pricing-category-drag]');
+    if(state.page==='pricing'&&categoryHandle&&['ArrowUp','ArrowDown'].includes(event.key)){
+      event.preventDefault();const row=categoryHandle.closest('[data-pricing-category-row]');movePricingCategory(Number(row.dataset.category),Number(row.dataset.category)+(event.key==='ArrowUp'?-1:1));return;
     }
 
     if((event.key==='Enter'||event.key===' ')&&event.target.matches('tr[data-tech-order]')){event.preventDefault();event.target.click()}

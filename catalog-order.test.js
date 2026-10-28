@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {workCatalog,normalizeWorkCatalog,reorderCatalogService} from './work-catalog.js';
+import {workCatalog,normalizeWorkCatalog,reorderCatalogService,reorderCatalogCategory} from './work-catalog.js';
 
 test('catalog reorder preserves service identity, prices, units and route metadata within a section',()=>{
  const catalog=structuredClone(workCatalog),original=structuredClone(catalog);
@@ -17,6 +17,13 @@ test('catalog reorder preserves service identity, prices, units and route metada
  assert.equal(normalized[0].pricingUnit,catalog[0].pricingUnit);
  assert.deepEqual(reorderCatalogService(moved,0,2,0),catalog);
  for(const args of [[0,-1,0],[0,0,20],[500,0,1],[0,0,0],[0,.5,1]])assert.equal(reorderCatalogService(catalog,...args),catalog);
+});
+
+test('catalog section reorder preserves each section and its services',()=>{
+ const catalog=structuredClone(workCatalog),original=structuredClone(catalog),moved=reorderCatalogCategory(catalog,0,2);
+ assert.equal(moved[2],catalog[0]);assert.equal(moved[0],catalog[1]);assert.equal(moved[0].options[0].id,original[1].options[0].id);
+ assert.deepEqual(reorderCatalogCategory(moved,2,0),catalog);
+ for(const args of [[-1,0],[0,500],[0,0],[0,.5]])assert.equal(reorderCatalogCategory(catalog,...args),catalog);
 });
 
 test('saved service order reaches the clinic, survives restart and preserves commercial data and privileges',async t=>{
