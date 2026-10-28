@@ -1330,6 +1330,13 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       state.sidebarGroup='';
       root().querySelectorAll('.tech-nav-group[open]').forEach(group=>{if(!group.contains(groupSummary))group.removeAttribute('open')});
     }
+    // A compact flyout is transient: clicking anywhere in the workspace
+    // closes it, while clicks inside the flyout keep it available for a
+    // second navigation choice.
+    if(sidebarCollapsed()&&!groupSummary&&state.sidebarGroup&&!event.target.closest('.tech-nav-group')){
+      state.sidebarGroup='';
+      root().querySelectorAll('.tech-nav-group[open]').forEach(group=>group.removeAttribute('open'));
+    }
     if(root().querySelector('.notification-panel')&&!event.target.closest('.notification-center')){closeNotificationCenter();root().querySelector('.notification-panel')?.remove()}
     if(activeOrderFilters().orderFilterOpen&&!event.target.closest('.tech-order-filter-panel')&&!event.target.closest('[data-tech-filter-panel]')){activeOrderFilters().orderFilterOpen=false;root().querySelector('.tech-order-filter-panel')?.remove()}
     if(state.taskFilterOpen&&!event.target.closest('.task-filter-panel')&&!event.target.closest('[data-task-filter-panel]')&&!event.target.closest('[data-task-create]')){state.taskFilterOpen=false;render();return}
