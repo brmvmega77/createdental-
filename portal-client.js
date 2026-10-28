@@ -70,6 +70,14 @@ export const loadCadPreviewLink=async(orderId,fileId)=>{
   if(!data.url)throw new Error('Не удалось открыть CAD-файл');
   return data.url;
 };
+export const loadCadPreviewSource=async(orderId,fileId)=>{
+  const pageUrl=await loadCadPreviewLink(orderId,fileId);
+  try{
+    const token=new URL(pageUrl,window.location.href).searchParams.get('token');
+    if(token)return `/api/cad-preview/${encodeURIComponent(token)}`;
+  }catch{}
+  return pageUrl;
+};
 export const loadCadReviewHtml=async fileId=>{
   const response=await fetch(`/api/order-files/${encodeURIComponent(fileId)}?content=1`,{headers:{'X-Portal-Token':portalToken()},cache:'no-store',signal:AbortSignal.timeout(45000)});
   if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.error||'Не удалось открыть CAD-файл')}
