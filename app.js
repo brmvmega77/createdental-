@@ -2,7 +2,7 @@ import {workProgress} from './lab-orders.js';
 import {productionFlowLabel} from './production-routes.js';
 import {createClinicMobileUI,clinicSections} from './assets/clinic-mobile-ui.js?v=clinic-info-4';
 import { seedOrders } from './seed-orders.js?v=mobile-fast-1';
-import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadReviewHtml} from './portal-client.js';
+import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadPreviewLink} from './portal-client.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=production-builder-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork,priceUnitsForSelection,camMethodForSelection} from './work-catalog.js';
@@ -1498,6 +1498,20 @@ document.addEventListener('click',event=>{
   }
   state.mobileQuadrant=control.dataset.value;
   render();
+},true);
+document.addEventListener('click',event=>{
+  const button=event.target.closest('[data-action="cad-open"]');
+  if(!button||portalUser?.role!=='clinic')return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  const popup=window.open('about:blank','_blank','noopener,noreferrer');
+  loadCadPreviewLink(state.orderId,button.dataset.value).then(url=>{
+    if(popup&&!popup.closed)popup.location.href=url;
+    else window.location.href=url;
+  }).catch(error=>{
+    if(popup&&!popup.closed)popup.close();
+    notify(error.message);
+  });
 },true);
 document.addEventListener('click',async event=>{
   if(portalUser?.role!=='clinic')return;

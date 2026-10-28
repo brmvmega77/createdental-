@@ -65,6 +65,11 @@ export const sendOrderToMilling=orderId=>request(`/api/orders/${encodeURICompone
 export const deleteOrder=orderId=>request(`/api/orders/${encodeURIComponent(orderId)}`,{method:'DELETE'});
 export const submitCadReview=(orderId,fileId)=>request(`/api/orders/${encodeURIComponent(orderId)}/cad-review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit',fileId})});
 export const decideCadReview=(orderId,action,comment='',attachments=[])=>request(`/api/orders/${encodeURIComponent(orderId)}/cad-review`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,comment,attachments})});
+export const loadCadPreviewLink=async(orderId,fileId)=>{
+  const data=await request(`/api/orders/${encodeURIComponent(orderId)}/cad-preview-link?fileId=${encodeURIComponent(fileId)}`);
+  if(!data.url)throw new Error('Не удалось открыть CAD-файл');
+  return data.url;
+};
 export const loadCadReviewHtml=async fileId=>{
   const response=await fetch(`/api/order-files/${encodeURIComponent(fileId)}?content=1`,{headers:{'X-Portal-Token':portalToken()},cache:'no-store',signal:AbortSignal.timeout(45000)});
   if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.error||'Не удалось открыть CAD-файл')}

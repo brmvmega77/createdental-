@@ -357,6 +357,25 @@ function createCadPreviewLink(order){
   cadPreviewLinks.set(cadPreviewKey(token),{orderId,clinicId,fileId,createdAt:now,expiresAt:now+cadPreviewLinkLifetime});
   return `${publicBaseUrl()}/cad-preview.html?token=${encodeURIComponent(token)}`;
 }
+async function handleCadPreviewLink(req,res,url){
+  const user=session(req);if(!user)return json(res,401,{error:'Войдите в кабинет'});
+  if(req.method!=='GET')return json(res,405,{error:'Метод не поддерживается'});
+  const orderId=url.pathname.match(/^\/api\/orders\/([A-Za-z0-9_-]{1,80})\/cad-preview-link$/)?.[1]||'',fileId=String(url.searchParams.get('fileId')||'');
+  const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===orderId);
+  if(!order||!canAccessOrder(user,order))return json(res,404,{error:'Заказ не найден'});
+  if(!fileId)return json(res,400,{error:'CAD-файл не указан'});
+  const candidates=[order,...snapshot.orders.filter(item=>item.parentOrderId===order.id)];
+  const target=candidates.find(item=>{
+    const details=snapshot.orderOverrides[item.id]||{},serviceFiles=Array.isArray(details.serviceWorks)?details.serviceWorks.map(work=>work.cadReview?.fileId):[];
+    return details.cadReview?.fileId===fileId||serviceFiles.includes(fileId);
+  });
+  if(!target||!canAccessOrder(user,target))return json(res,404,{error:'CAD-файл недоступен'});
+  const file=[...(orderFiles[target.id]||[]),...(target.parentOrderId?orderFiles[target.parentOrderId]||[]:[])].find(item=>item.id===fileId&&item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html');
+  if(!file)return json(res,404,{error:'CAD-файл недоступен'});
+  const urlValue=createCadPreviewLink({...target,cadReview:{fileId}});
+  if(!urlValue)return json(res,404,{error:'CAD-файл недоступен'});
+  return json(res,200,{url:urlValue,name:file.name});
+}
 async function handleCadPreview(req,res,url){
   const match=url.pathname.match(/^\/api\/cad-preview\/([A-Za-z0-9_-]{30,80})$/);
   if(!match)return json(res,404,{error:'Ссылка на CAD не найдена'});
@@ -1890,6 +1909,7 @@ const requestHandler=async (req,res) => {
   if(url.pathname==='/api/clinic-message-files'||url.pathname.startsWith('/api/clinic-message-files/')){
     try{return await handleClinicMessageFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка файла сообщения'})}
   }
+  if(/^\/api\/orders\/[A-Za-z0-9_-]{1,80}\/cad-preview-link$/.test(url.pathname))return handleCadPreviewLink(req,res,url);
   if(url.pathname.startsWith('/api/orders/')&&(url.pathname.endsWith('/files')||url.pathname.endsWith('/rework')||url.pathname.endsWith('/cad-review')||url.pathname.endsWith('/client-request')||url.pathname.endsWith('/milling')||url.pathname.endsWith('/delivery'))){
     try{return url.pathname.endsWith('/delivery')?await handleGroupDelivery(req,res,url):url.pathname.endsWith('/client-request')?await handleClientRequestCreate(req,res,url):url.pathname.endsWith('/cad-review')?await handleCadReview(req,res,url):url.pathname.endsWith('/rework')?await handleOrderRework(req,res,url):url.pathname.endsWith('/milling')?await handleOrderMilling(req,res,url):await handleOrderFiles(req,res,url)}catch(error){console.error('Order request failed:',error.message);return json(res,500,{error:'Ошибка обработки заказа'})}
   }
