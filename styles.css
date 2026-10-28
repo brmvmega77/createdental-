@@ -1791,6 +1791,17 @@ html[data-theme="dark"] .tech-order-type-row.analog{color:#ffc766!important}
   .tech-order-tools>.tech-order-searchbar .tech-filter-button{height:36px;box-sizing:border-box}
 }
 
+/* If the status tabs wrap, let the toolbar grow with them so the table never
+   covers the second line. */
+@media(min-width:761px){
+  .tech-order-tools>.tech-segment{
+    height:auto;
+    min-height:36px;
+    overflow-y:visible;
+    align-content:center;
+  }
+}
+
 /* Distribute the laboratory order table evenly across all columns. */
 @media(min-width:761px){
   .tech-orders-table{table-layout:fixed}
