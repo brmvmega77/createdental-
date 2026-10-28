@@ -3,8 +3,8 @@ import {employeeFlowRole} from './flow-rules.js';
 import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camCanAccept,camCanSubmitQuality,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
-import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=lab-works-21';
-import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadReviewHtml,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js';
+import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=cad-separate-page-2';
+import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadPreviewLink,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,estimateWork,priceUnitsForSelection,camMethodForOrder} from './work-catalog.js';
@@ -318,8 +318,8 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     if(cadAction?.dataset.workerAction==='open-cad'){
       const orderId=cadAction.dataset.orderId,fileId=cadAction.dataset.fileId,order=myOrders().find(item=>item.id===orderId);
       if(!orderId||!fileId||!order)return;
-      const requestId=++cadPreviewRequest;state.cadPreview={orderId,fileId,name:'Загрузка CAD…',url:''};render();
-      try{const html=await loadCadReviewHtml(fileId);if(requestId!==cadPreviewRequest||!state.cadPreview||state.cadPreview.fileId!==fileId)return;const url=URL.createObjectURL(new Blob([html],{type:'text/html'}));state.cadPreview={orderId,fileId,name:state.orderFiles.find(file=>file.id===fileId)?.name||'CAD',url};render()}catch(error){if(requestId!==cadPreviewRequest)return;state.cadPreview=null;toast(error.message||'Не удалось открыть CAD');render()}
+      const popup=window.open('about:blank','_blank','noopener,noreferrer');
+      try{const url=await loadCadPreviewLink(orderId,fileId);if(popup&&!popup.closed)popup.location.href=url;else window.location.href=url}catch(error){if(popup&&!popup.closed)popup.close();toast(error.message||'Не удалось открыть CAD');render()}
       return;
     }
     if(cadAction?.dataset.workerAction==='close-cad'){cadPreviewRequest++;if(state.cadPreview?.url)URL.revokeObjectURL(state.cadPreview.url);state.cadPreview=null;render();return}
