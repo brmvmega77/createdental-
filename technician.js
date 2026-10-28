@@ -1188,6 +1188,13 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     try {const saved=JSON.parse(localStorage.getItem('create-dental-tech-clients')||'null');if(Array.isArray(saved))clients=saved} catch { /* Keep current directory. */ }
     const pages={overview,orders:ordersPage,production:productionPage,pulse:pulsePage,tasks:tasksPage,requests:clientRequestsPage,detail:orderDetail,clients:clientsPage,messages:messagesPage,analytics:analyticsPage,team:teamPage,intake:qualityPage,quality:qualityPage,pricing:pricingPage,'cam-settings':camSettingsPage,'production-settings':productionSettingsPage,salary:salaryPage,profile:profilePage};
     shell((pages[state.page]||overview)());
+    if(sidebarCollapsed()){
+      root().querySelectorAll('.tech-nav-group').forEach(group=>group.addEventListener('pointerleave',()=>{
+        if(!group.hasAttribute('open')||!state.sidebarGroup)return;
+        state.sidebarGroup='';
+        group.removeAttribute('open');
+      }));
+    }
     if(state.page==='salary')queueMicrotask(()=>payrollUI.load());
     const cadFrame=root().querySelector('#tech-cad-preview-frame');if(cadFrame&&state.cadPreview?.url)cadFrame.src=state.cadPreview.url;
     arrangeAssignmentFilters();
