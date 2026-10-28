@@ -3282,17 +3282,16 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 /* Grouped and full-list views use separate column systems. */
 @media(min-width:761px){
   .tech-orders-table-list th,.tech-orders-table-list td{width:auto!important}
-  .tech-orders-table-list th:nth-child(1),.tech-orders-table-list td:nth-child(1){width:11%!important}
+  .tech-orders-table-list th:nth-child(1),.tech-orders-table-list td:nth-child(1){width:12%!important}
   .tech-orders-table-list th:nth-child(2),.tech-orders-table-list td:nth-child(2){width:8%!important}
   .tech-orders-table-list th:nth-child(3),.tech-orders-table-list td:nth-child(3){width:8%!important}
-  .tech-orders-table-list th:nth-child(4),.tech-orders-table-list td:nth-child(4){width:9%!important}
-  .tech-orders-table-list th:nth-child(5),.tech-orders-table-list td:nth-child(5){width:14%!important}
-  .tech-orders-table-list th:nth-child(6),.tech-orders-table-list td:nth-child(6){width:12%!important}
-  .tech-orders-table-list th:nth-child(7),.tech-orders-table-list td:nth-child(7){width:9%!important}
-  .tech-orders-table-list th:nth-child(8),.tech-orders-table-list td:nth-child(8){width:8%!important}
-  .tech-orders-table-list th:nth-child(9),.tech-orders-table-list td:nth-child(9){width:9%!important}
-  .tech-orders-table-list th:nth-child(10),.tech-orders-table-list td:nth-child(10){width:8%!important}
-  .tech-orders-table-list th:nth-child(11),.tech-orders-table-list td:nth-child(11){width:4%!important}
+  .tech-orders-table-list th:nth-child(4),.tech-orders-table-list td:nth-child(4){width:10%!important}
+  .tech-orders-table-list th:nth-child(5),.tech-orders-table-list td:nth-child(5){width:15%!important}
+  .tech-orders-table-list th:nth-child(6),.tech-orders-table-list td:nth-child(6){width:13%!important}
+  .tech-orders-table-list th:nth-child(7),.tech-orders-table-list td:nth-child(7){width:10%!important}
+  .tech-orders-table-list th:nth-child(8),.tech-orders-table-list td:nth-child(8){width:9%!important}
+  .tech-orders-table-list th:nth-child(9),.tech-orders-table-list td:nth-child(9){width:10%!important}
+  .tech-orders-table-list th:nth-child(10),.tech-orders-table-list td:nth-child(10){width:5%!important}
   .tech-orders-table-grouped th,.tech-orders-table-grouped td{width:auto!important}
   .tech-orders-table-grouped th:nth-child(1),.tech-orders-table-grouped td:nth-child(1){width:3%!important}
   .tech-orders-table-grouped th:nth-child(2),.tech-orders-table-grouped td:nth-child(2){width:15%!important}
@@ -3316,11 +3315,10 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
   .tech-orders-table-list td:nth-child(4)::before{content:"Тип заказа"}
   .tech-orders-table-list td:nth-child(5)::before{content:"Тип работы"}
   .tech-orders-table-list td:nth-child(6)::before{content:"Пациент"}
-  .tech-orders-table-list td:nth-child(7)::before{content:"Врач"}
-  .tech-orders-table-list td:nth-child(8)::before{content:"Срок"}
-  .tech-orders-table-list td:nth-child(9)::before{content:"Этап"}
-  .tech-orders-table-list td:nth-child(10)::before{content:"Сотрудники"}
-  .tech-orders-table-list td:nth-child(11)::before{content:"Действия"}
+  .tech-orders-table-list td:nth-child(7)::before{content:"Срок"}
+  .tech-orders-table-list td:nth-child(8)::before{content:"Этап"}
+  .tech-orders-table-list td:nth-child(9)::before{content:"Сотрудники"}
+  .tech-orders-table-list td:nth-child(10)::before{content:"Действия"}
   .tech-orders-table-grouped td:nth-child(4)::before{content:"Подзаказы"}
   .tech-orders-table-grouped td:nth-child(5)::before{content:"Тип заказа"}
   .tech-orders-table-grouped td:nth-child(6)::before{content:"Услуги"}
