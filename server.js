@@ -364,11 +364,10 @@ async function handleCadPreviewLink(req,res,url){
   const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===orderId);
   if(!order||!canAccessOrder(user,order))return json(res,404,{error:'Заказ не найден'});
   if(!fileId)return json(res,400,{error:'CAD-файл не указан'});
-  const candidates=[order,...snapshot.orders.filter(item=>item.parentOrderId===order.id)];
-  const target=candidates.find(item=>{
-    const details=snapshot.orderOverrides[item.id]||{},serviceFiles=Array.isArray(details.serviceWorks)?details.serviceWorks.map(work=>work.cadReview?.fileId):[];
-    return details.cadReview?.fileId===fileId||serviceFiles.includes(fileId);
-  });
+  const relatedIds=new Set([order.id,order.parentOrderId]);
+  snapshot.orders.filter(item=>item.parentOrderId===order.id||item.parentOrderId===order.parentOrderId).forEach(item=>relatedIds.add(item.id));
+  const candidates=snapshot.orders.filter(item=>relatedIds.has(item.id));
+  const target=candidates.find(item=>(orderFiles[item.id]||[]).some(file=>file.id===fileId&&file.purpose==='cad-review'&&path.extname(file.name).toLowerCase()==='.html'));
   if(!target||!canAccessOrder(user,target))return json(res,404,{error:'CAD-файл недоступен'});
   const file=[...(orderFiles[target.id]||[]),...(target.parentOrderId?orderFiles[target.parentOrderId]||[]:[])].find(item=>item.id===fileId&&item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html');
   if(!file)return json(res,404,{error:'CAD-файл недоступен'});
@@ -383,7 +382,7 @@ async function handleCadPreview(req,res,url){
   if(!link||link.expiresAt<=Date.now()){if(link)cadPreviewLinks.delete(cadPreviewKey(token));return json(res,410,{error:'Ссылка на CAD истекла'});}
   const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===link.orderId&&item.clinicId===link.clinicId);
   const details=snapshot.orderOverrides[link.orderId]||{},file=[...(orderFiles[link.orderId]||[]),...(order?.parentOrderId?orderFiles[order.parentOrderId]||[]:[])].find(item=>item.id===link.fileId&&item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html');
-  if(!order||!file||String(details.cadReview?.fileId||'')!==link.fileId)return json(res,404,{error:'CAD-файл недоступен'});
+  if(!order||!file)return json(res,404,{error:'CAD-файл недоступен'});
   if(req.method!=='GET'&&req.method!=='HEAD')return json(res,405,{error:'Метод не поддерживается'});
   try{
     const html=await readCadHtml({file}),headers={'Content-Type':'text/html; charset=utf-8','Cache-Control':'private, no-store','Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,'X-Content-Type-Options':'nosniff','X-Frame-Options':'SAMEORIGIN','Content-Security-Policy':"frame-ancestors 'self'"};
