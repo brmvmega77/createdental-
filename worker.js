@@ -3,8 +3,8 @@ import {employeeFlowRole} from './flow-rules.js';
 import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camCanAccept,camCanSubmitQuality,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
-import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=tech-nav-flyout-2';
-import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadPreviewSource,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js?v=cad-separate-page-4';
+import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=cad-popup-same-origin-1';
+import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadPreviewSource,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js?v=cad-popup-same-origin-1';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,estimateWork,priceUnitsForSelection,camMethodForOrder} from './work-catalog.js';
@@ -53,7 +53,7 @@ const technicianStages=[
 
 export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isActive,currentUser,orderHistory=()=>[],tasks=()=>[],onUserUpdate=()=>{}}){
   const initialRoute=routeFromPath(location.pathname);
-  const state={page:initialRoute.role==='worker'?initialRoute.page:'overview',employeeId:'',orderId:initialRoute.orderId||'',sortKey:'createdAt',sortDirection:'desc',orderStatusFilter:'Все',orderClinicFilter:'',orderMonthFilter:'',orderFilterOpen:false,orderSearch:'',profile:null,toast:'',telegramPairing:null,filesFor:'',orderFiles:[],orderFolderUrl:'',cadUpload:{orderId:'',status:'',message:''},cadPreview:null};
+  const state={page:initialRoute.role==='worker'?initialRoute.page:'overview',employeeId:'',orderId:initialRoute.orderId||'',sortKey:'createdAt',sortDirection:'desc',orderStatusFilter:'Все',orderClinicFilter:'',orderMonthFilter:'',orderFilterOpen:false,orderSearch:'',profile:null,toast:'',telegramPairing:null,filesFor:'',orderFiles:[],orderFolderUrl:'',orderUpload:{orderId:'',status:'',message:''},cadUpload:{orderId:'',status:'',message:''},cadPreview:null};
   const payrollUI=createPayrollUI({root,isActive,worker:true,onSummary:()=>{if(isActive()&&state.page!=='salary')render()}});
   let cadPreviewRequest=0;
   function employees(){return loadEmployees()}
@@ -231,7 +231,11 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     const cad=order.cadReview||{},cadReturned=cad.status==='returned';
     const reviewAttachments=(cad.attachments||[]).map(file=>`<button type="button" class="tech-review-attachment" data-worker-file="${safe(file.id)}"><span>📎</span><strong>${safe(file.name)}</strong><small>${safe(file.type||'Файл')}</small></button>`).join('');
     const cadUpload=order.stage==='Моделирование'?`<section class="tech-panel cad-worker-panel ${cadReturned?'returned':''}"><h3>${cadReturned?'Врач вернул CAD':'Согласование CAD с врачом'}</h3>${cadReturned?`<p><strong>Комментарий врача:</strong> ${safe(cad.comment||'Нужно внести изменения')}</p>${reviewAttachments?`<div class="tech-review-attachments"><span>Прикреплённые файлы</span>${reviewAttachments}</div>`:''}`:'<p>Загрузите готовый HTML-файл. Сначала его проверит главный техник, затем файл уйдёт врачу.</p>'}<label class="btn primary">${cadReturned?'Загрузить исправленный CAD':'Загрузить HTML и отправить на ОТК'}<input type="file" id="worker-cad-file" accept=".html,text/html" hidden></label></section>`:'';
-    const orderFolderMarkup=`<div class="tech-order-files"><h3>Файлы заказа</h3><div class="order-folder-link"><div><strong>Папка заказа на Яндекс Диске</strong><small>Все файлы заказа собраны в одном месте</small></div>${state.orderFolderUrl?`<a class="btn outline" href="${safe(state.orderFolderUrl)}" target="_blank" rel="noopener noreferrer">Открыть папку</a>`:'<span class="tech-empty">Папка создаётся…</span>'}</div></div>`;
+    const folderAction=state.orderFolderUrl?`<a class="btn outline" href="${safe(state.orderFolderUrl)}" target="_blank" rel="noopener noreferrer">Открыть папку</a>`:'<span class="tech-empty">Папка создаётся…</span>';
+    const uploadBusy=state.orderUpload.orderId===order.id&&state.orderUpload.status==='uploading';
+    const uploadAction=`<label class="btn outline ${uploadBusy?'disabled':''}">${uploadBusy?'Загрузка…':'Загрузить файлы'}<input type="file" id="worker-order-upload" data-order-id="${safe(order.id)}" multiple hidden ${uploadBusy?'disabled':''}></label>`;
+    const orderUploadNote=state.orderUpload.orderId===order.id&&state.orderUpload.message?`<small class="tech-order-upload-note">${safe(state.orderUpload.message)}</small>`:'';
+    const orderFolderMarkup=`<div class="tech-order-files"><h3>Файлы заказа</h3><div class="order-folder-link"><div><strong>Папка заказа на Яндекс Диске</strong><small>Все файлы заказа собраны в одном месте</small></div><div class="order-folder-actions">${folderAction}${uploadAction}</div></div>${orderUploadNote}</div>`;
     const cadFiles=state.orderFiles.filter(file=>file.purpose==='cad-review'&&/\.html$/i.test(file.name));
     const cadModelMarkup=isCadOperator()&&cadFiles.length?`<section class="tech-panel tech-cad-model"><div class="tech-panel-heading"><div><h3>CAD-модель</h3><p>Загруженный HTML-файл для повторного просмотра.</p></div><span class="tech-stage ${order.cadReview?.status==='approved'?'ready':order.cadReview?.status==='returned'?'review':'work'}">${order.cadReview?.status==='approved'?'Подтверждено':order.cadReview?.status==='returned'?'Доработка и эстетика':'CAD на согласовании у врача'}</span></div>${cadFiles.slice(-1).map(file=>`<div class="tech-cad-file"><strong>${safe(file.name)}</strong><small>${file.uploadedAt?new Date(file.uploadedAt).toLocaleString('ru-RU'):'CAD-файл'}</small><button class="btn outline" data-worker-action="open-cad" data-order-id="${safe(order.id)}" data-file-id="${safe(file.id)}">Открыть CAD</button></div>`).join('')}</section>`:'';
     const cadPreview=state.cadPreview?.orderId===order.id?`<div class="cad-preview-backdrop" data-worker-modal="cad-preview"><section class="cad-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="worker-cad-preview-title"><header><div><h2 id="worker-cad-preview-title">${safe(state.cadPreview.name||'CAD')}</h2><p>Интерактивный предпросмотр из HTML-файла</p></div><button data-worker-action="close-cad" aria-label="Закрыть">×</button></header><iframe id="worker-cad-preview-frame" src="${safe(state.cadPreview.url||'')}" sandbox="allow-scripts allow-same-origin allow-pointer-lock" referrerpolicy="no-referrer" title="Предпросмотр CAD"></iframe></section></div>`:'';
@@ -449,6 +453,16 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
       if(!/\.html$/i.test(file.name)||file.size>200*1024*1024){state.cadUpload={orderId:order.id,status:'error',message:'Выберите HTML-файл размером до 200 МБ.'};render();return}
       state.cadUpload={orderId:order.id,status:'uploading',message:`Загружаем «${file.name}». Не закрывайте страницу…`};render();
       (async()=>{try{const uploaded=await uploadOrderFile(order.id,file,{purpose:'cad-review'});state.cadUpload={orderId:order.id,status:'uploading',message:'Файл загружен. Отправляем главному технику на ОТК…'};render();const result=await submitCadReview(order.id,uploaded.id),overrides=readOrders();if(result.orderOverride){overrides[order.id]=result.orderOverride;localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides))}state.filesFor='';state.cadUpload={orderId:order.id,status:'success',message:'CAD отправлен главному технику на проверку.'};toast('CAD отправлен на ОТК');render()}catch(error){state.cadUpload={orderId:order.id,status:'error',message:error.message||'Не удалось загрузить CAD-файл. Попробуйте ещё раз.'};render()}})();return;
+    }
+    if(event.target.id==='worker-order-upload'){
+      const order=myOrders().find(item=>item.id===state.orderId),files=Array.from(event.target.files||[]);event.target.value='';
+      if(!order||!files.length)return;
+      const allowed=files.filter(file=>file.size<=200*1024*1024).slice(0,10);
+      if(!allowed.length){toast('Файлы должны быть размером до 200 МБ');return}
+      if(allowed.length<files.length)toast('Можно загрузить до 10 файлов, каждый до 200 МБ');
+      state.orderUpload={orderId:order.id,status:'uploading',message:`Загружаем ${allowed.length} ${allowed.length===1?'файл':'файла'} на Яндекс Диск…`};render();
+      (async()=>{let uploaded=0;try{for(const file of allowed){await uploadOrderFile(order.id,file,{purpose:'order-file'});uploaded++}state.filesFor='';state.orderUpload={orderId:order.id,status:'success',message:`Загружено файлов: ${uploaded}`};toast('Файлы загружены на Яндекс Диск');render()}catch(error){state.orderUpload={orderId:order.id,status:'error',message:`Загружено ${uploaded} из ${allowed.length}. ${error.message||'Ошибка загрузки'}`};render()}})();
+      return;
     }
     if(event.target.id==='worker-profile-avatar'){
       const file=event.target.files?.[0];

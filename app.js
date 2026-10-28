@@ -2,7 +2,7 @@ import {workProgress} from './lab-orders.js';
 import {productionFlowLabel} from './production-routes.js';
 import {createClinicMobileUI,clinicSections} from './assets/clinic-mobile-ui.js?v=clinic-info-4';
 import { seedOrders } from './seed-orders.js?v=mobile-fast-1';
-import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadPreviewSource} from './portal-client.js?v=cad-separate-page-4';
+import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadPreviewSource} from './portal-client.js?v=cad-popup-same-origin-1';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=production-builder-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork,priceUnitsForSelection,camMethodForSelection} from './work-catalog.js';
@@ -1199,11 +1199,11 @@ async function hydratePortal(){
   // history and logo payload is fetched in the background for detail pages.
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=tech-nav-flyout-2');
+      const {createTechnicianCabinet}=await import('./technician.js?v=cad-popup-same-origin-1');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},promoCodes:()=>portalPromoCodes,onPromoCodesUpdate:items=>{portalPromoCodes=structuredClone(items)},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=label-section-1');
+    const {createWorkerCabinet}=await import('./worker.js?v=worker-order-files-1');
     workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,orderHistory:()=>portalHistory,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   applyPortalData(data);

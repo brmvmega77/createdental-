@@ -614,6 +614,7 @@ html[data-theme="dark"] .tech-pricing-category{background:#1b1e22;border-color:#
 .order-folder-link strong{font-size:13px;color:#333}
 .order-folder-link small{font-size:11px;color:#808080}
 .order-folder-link .btn{flex:none;text-decoration:none}
+.tech-order-upload-note{display:block;margin-top:9px;color:#808080;font-size:11px;line-height:1.4}
 @media(max-width:620px){.order-folder-link{align-items:stretch;flex-direction:column}.order-folder-link .btn{width:100%;justify-content:center}}
 
 /* Message attachments */

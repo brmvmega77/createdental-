@@ -74,7 +74,10 @@ export const loadCadPreviewSource=async(orderId,fileId)=>{
   const pageUrl=await loadCadPreviewLink(orderId,fileId);
   try{
     const parsed=new URL(pageUrl,window.location.href),token=parsed.searchParams.get('token')||parsed.pathname.match(/^\/api\/cad-preview\/([A-Za-z0-9_-]+)$/)?.[1];
-    if(token)return `https://www.createdental.io/api/cad-preview/${encodeURIComponent(token)}`;
+    // Keep the preview on the same origin as the cabinet. The token is held by
+    // the current application process, so switching between www and the bare
+    // host can make an otherwise valid CAD link look expired or unavailable.
+    if(token)return new URL(`/api/cad-preview/${encodeURIComponent(token)}`,window.location.origin).href;
   }catch{}
   return pageUrl;
 };
