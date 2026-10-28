@@ -7,7 +7,7 @@ import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camAfterMilling,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
 import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel,displayOrderId} from './order-list-utils.js?v=order-fields-4';
-import {savePortal,authRequest,portalToken,loadOrderFiles,loadCadPreviewLink,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js?v=cad-separate-page-1';
+import {savePortal,authRequest,portalToken,loadOrderFiles,loadCadReviewHtml,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js?v=cad-separate-page-1';
 import {parseMoneyAmount} from './money.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=production-builder-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
@@ -1525,9 +1525,14 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       if(action==='open-cad'){
         const fileId=orderAction.dataset.fileId,order=orderById(id);
         if(!fileId||!order)return;
-        const popup=window.open('about:blank','_blank');
-        try{const url=await loadCadPreviewLink(id,fileId);if(popup&&!popup.closed)popup.location.href=url;else window.location.href=url}
-        catch(error){if(popup&&!popup.closed)popup.close();toast(error.message||'Не удалось открыть CAD');render()}
+        const requestId=++cadPreviewRequest;
+        state.cadPreview={orderId:id,fileId,name:'Загрузка CAD…',html:'',url:''};render();
+        try{
+          const file=orderFilesState.files.find(item=>item.id===fileId),html=await loadCadReviewHtml(fileId);
+          if(requestId!==cadPreviewRequest||!state.cadPreview||state.cadPreview.fileId!==fileId)return;
+          const url=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+          state.cadPreview={orderId:id,fileId,name:file?.name||'CAD',html:'',url};render();
+        }catch(error){if(requestId!==cadPreviewRequest)return;state.cadPreview=null;toast(error.message||'Не удалось открыть CAD');render()}
         return;
       }
       if(action==='close-cad'){cadPreviewRequest++;if(state.cadPreview?.url)URL.revokeObjectURL(state.cadPreview.url);state.cadPreview=null;render();return}
