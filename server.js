@@ -1,3 +1,4 @@
+import {orderDiskFolderPath} from './order-disk-path.js';
 import {promoRulesWithClients,normalizePromoCode,priceNewClinicOrder} from './promo-codes.js';
 import {projectLabSnapshot,isLabGroup,isLabWork,relatedFileOrderIds,stripLabProjection,afterProductionStep} from './lab-orders.js';
 import {requiresDoctorCadApproval,routeForOrder,cadReadyForProduction} from './production-routes.js';
@@ -858,10 +859,8 @@ function newDiskPath({target,orderId,clinicId,name,purpose,largeLinkKey}){
 }
 function orderDiskFolder(orderId){
   const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===orderId);
-  const parent=order?.parentOrderId?snapshot.orders.find(item=>item.id===order.parentOrderId)||order:order;
-  const clinic=safeDiskSegment(parent?.clinic||parent?.clinicId||'Клиника');
-  const patient=safeDiskSegment(parent?.patient||'Пациент');
-  return `/Клиенты/${clinic}/${patient}`;
+  const fileDates=[orderId,order?.parentOrderId].filter(Boolean).flatMap(id=>(orderFiles[id]||[]).map(file=>file.uploadedAt)).filter(Boolean).sort();
+  return orderDiskFolderPath(orderId,snapshot.orders,{fallbackDate:fileDates[0]||new Date()});
 }
 function orderMillingFolder(orderId){return `${orderDiskFolder(orderId)}/фрезеровка`}
 function isMillingFile(name){return /(?:\.constructionInfo|_cad\.stl)$/i.test(String(name||''))}
@@ -888,7 +887,8 @@ function sendTextEmail({to,subject,text,from='orders@createdental.io'}){
 }
 
 async function ensurePublicOrderFolder(orderId){
-  const key=String(orderId||'');
+  const order=portalSnapshot().orders.find(item=>item.id===String(orderId||''));
+  const key=String(order?.parentOrderId||orderId||'');
   if(!key)throw new Error('Не указан ID заказа');
   if(publicOrderFolderLinks.has(key))return publicOrderFolderLinks.get(key);
   const token=readIntegrationSecret('yandexDiskToken');
@@ -926,7 +926,8 @@ async function deleteOrderWithFolder(user,orderId){
 }
 async function ensureOrderFilesOnDisk(orderId){
   const key=String(orderId||'');
-  const legacy=(orderFiles[key]||[]).filter(file=>file.storage!=='yandex-disk');
+  const folder=orderDiskFolder(key);
+  const legacy=(orderFiles[key]||[]).filter(file=>file.storage!=='yandex-disk'||!String(file.diskPath||'').startsWith(folder+'/'));
   if(!legacy.length)return;
   if(orderFileMigrationJobs.has(key))return orderFileMigrationJobs.get(key);
   const job=(async()=>{
@@ -935,6 +936,17 @@ async function ensureOrderFilesOnDisk(orderId){
     await ensurePublicOrderFolder(key);
     let changed=false;
     for(const file of legacy){
+      if(file.storage==='yandex-disk'&&file.diskPath){
+        const destination=`${folder}/${file.purpose==='source-photo'?'Исходные фото/':''}${safeDiskSegment(file.id)}-${cleanUploadName(file.name)}`;
+        const sourceMetadata=await diskMetadata(token,file.diskPath);
+        let targetMetadata;
+        try{targetMetadata=await diskMetadata(token,destination)}catch(error){if(error.status!==404)throw error;}
+        if(!targetMetadata){await copyDiskResource(token,file.diskPath,destination);targetMetadata=await diskMetadata(token,destination)}
+        if(Number(targetMetadata.size)!==Number(sourceMetadata.size)||!sourceMetadata.md5||targetMetadata.md5!==sourceMetadata.md5)throw new Error(`Не удалось проверить копию ${file.name}`);
+        const previousPath=file.diskPath;file.diskPath=destination;
+        try{await persistOrderFiles()}catch(error){file.diskPath=previousPath;throw error}
+        continue;
+      }
       const source=path.join(uploadDir,file.id),diskPath=`${orderDiskFolder(key)}/import-${safeDiskSegment(file.id)}-${cleanUploadName(file.name)}`;
       const data=await fs.promises.readFile(source);
       let metadata=null;
@@ -1169,9 +1181,9 @@ async function handleOrderFiles(req,res,url){
     if(!canAccessOrder(user,order))return json(res,404,{error:'Заказ не найден'});
     if(req.method==='GET'){
       let folderUrl='';
-      try{await ensureOrderFilesOnDisk(orderId)}catch(error){console.error('Legacy order file migration failed:',error.message)}
-      try{folderUrl=await ensurePublicOrderFolder(order.parentOrderId||orderId)}catch(error){console.error('Yandex Disk folder publication failed:',error.message)}
       const fileIds=relatedFileOrderIds(order,portalSnapshot().orders,{all:user.role!=='worker'});
+      for(const id of fileIds)try{await ensureOrderFilesOnDisk(id)}catch(error){console.error('Order file migration failed:',error.message)}
+      try{folderUrl=await ensurePublicOrderFolder(order.parentOrderId||orderId)}catch(error){console.error('Yandex Disk folder publication failed:',error.message)}
       const rawFiles=[...new Map(fileIds.flatMap(id=>(orderFiles[id]||[]).filter(file=>canAccessOrderFile(user,{orderId:id,file}))).map(file=>[file.id,file])).values()];
       for(const file of rawFiles.filter(item=>item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html'))void readCadHtml({file}).catch(error=>console.error('CAD prefetch failed:',error.message));
       const visibleFiles=rawFiles.map(({id,name,size,type,uploadedAt,uploadedBy,purpose})=>({id,name,size,type,uploadedAt,uploadedBy,purpose:purpose||'order-file'}));
@@ -1451,7 +1463,7 @@ async function handleTelegramIntegration(req,res){
   for(const [name] of supplied)if(!validIntegrationSecret(name,body[name].trim()))return json(res,400,{error:name==='telegramBotToken'?'Проверьте токен Telegram-бота':name==='employeeTelegramBotToken'?'Проверьте токен Telegram-бота сотрудников':name==='folderId'?'Проверьте ID каталога Yandex Cloud':name==='yandexDiskToken'?'Проверьте OAuth-токен Яндекс Диска':'Проверьте API-ключ Yandex Cloud'});
   try{
     const diskEntry=supplied.find(([name])=>name==='yandexDiskToken');
-    if(diskEntry)await ensureDiskFolder(body.yandexDiskToken.trim(),'/Клиенты');
+    if(diskEntry)await ensureDiskFolder(body.yandexDiskToken.trim(),'/clients');
     for(const [name,file] of supplied)await writeIntegrationSecret(file,body[name].trim());
     await telegramBridge.reloadSecrets();
     await employeeTelegramBridge?.reloadSecrets();
