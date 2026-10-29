@@ -299,8 +299,8 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     // A grouped row points to the clinic's parent order. Keep that id intact;
     // resolving it through a child would make the detail page lose the
     // whole-order card and would also make delete/edit target the wrong record.
-    const parentRecord=orders.find(order=>order.clinicOrder?.id===id);
-    const resolved=parentRecord ? id : resolveOrderId(id,all);
+    const parentRecord=orders.find(order=>order.clinicOrder?.id===id||displayOrderId(order.clinicOrder?.id)===id);
+    const resolved=parentRecord ? parentRecord.clinicOrder.id : resolveOrderId(id,all);
     const direct=all.find(order=>order.id===resolved);
     if(direct)return direct;
     const parent=parentRecord?.clinicOrder||orders.find(order=>order.clinicOrder?.id===resolved)?.clinicOrder;
@@ -1191,7 +1191,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(route.role==='technician'){
       state.page=route.page;
       if(route.orderId){
-        const parentRoute=orders.some(order=>order.clinicOrder?.id===route.orderId);
+        const parentRoute=orders.some(order=>order.clinicOrder?.id===route.orderId||displayOrderId(order.clinicOrder?.id)===route.orderId);
         state.orderId=parentRoute?route.orderId:resolveOrderId(route.orderId,allOrders());
         const canonical=pathFor('technician','detail',state.orderId);
         if(location.pathname!==canonical)navigate(canonical,{replace:true});
