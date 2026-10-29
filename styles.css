@@ -3500,4 +3500,5 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 .price-print-term{display:grid;grid-template-columns:50px 112px;column-gap:8px;align-items:baseline}
 .price-print-term>span{font:inherit;color:inherit;white-space:nowrap;text-align:right}
 .price-print-term>span:last-child{text-align:left}
+.price-print-table-head>span:nth-child(3){padding-left:58px;text-align:left}
 .price-print-intro{padding-bottom:10px}
