@@ -1082,7 +1082,7 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
     justify-self:center!important;
   }
   .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-primary{
-    grid-column:2 / 4!important;
+    grid-column:2!important;
     grid-row:1!important;
     padding-inline:12px!important;
   }
@@ -1239,4 +1239,13 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
 }
 @media(max-width:760px){
  .tech-order-group-summary .tech-order-group-action{grid-column:2 / -1;grid-row:3;justify-content:flex-start;padding:8px 0 0}
+}
+
+/* Order number and customer occupy the columns named in the header. */
+.tech-order-group-customer{min-width:0;color:#555;font-size:12px;font-weight:600;line-height:1.4;overflow-wrap:break-word}
+@media(min-width:761px){.tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-customer{grid-column:3!important;grid-row:1!important;padding-inline:12px}}
+@media(max-width:760px){
+ .tech-order-group-summary>.tech-order-group-customer{grid-column:2 / -1;grid-row:2}
+ .tech-order-group-summary>.tech-stage{grid-row:3}
+ .tech-order-group-summary .tech-order-group-action{grid-row:4}
 }
