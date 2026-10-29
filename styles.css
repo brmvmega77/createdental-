@@ -3483,7 +3483,7 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 .price-print-deadline small{color:#808080!important}
 .price-print-deadline b,.price-print-deadline .is-batch b{color:#333333!important}
 .price-print-table-head span:nth-child(2),.price-print-table-head span:nth-child(3){text-align:right}
-.price-print-brand img{width:198px;height:78px;flex:0 0 auto}
+.price-print-brand img{width:138.6px;height:54.6px;flex:0 0 auto}
 .price-print-deadline{gap:2px;color:#808080;font-weight:400}
 .price-print-deadline>span{color:#808080;font:inherit;font-weight:400}
 .price-print-deadline small,.price-print-deadline b,.price-print-deadline .is-batch b{color:#808080!important;font:inherit;font-weight:400}
@@ -3500,3 +3500,4 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 .price-print-term{display:grid;grid-template-columns:50px 112px;column-gap:8px;align-items:baseline}
 .price-print-term>span{font:inherit;color:inherit;white-space:nowrap;text-align:right}
 .price-print-term>span:last-child{text-align:left}
+.price-print-intro{padding-bottom:10px}
