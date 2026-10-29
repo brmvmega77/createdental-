@@ -3412,3 +3412,48 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 @media(min-width:761px){
  .sidebar.sidebar-collapsed .tech-nav-group[open]::after{content:"";position:absolute;left:100%;top:-12px;bottom:-12px;width:14px;z-index:79}
 }
+
+/* Keep the clinic orders table inside its panel. Long work names wrap in their
+   own column instead of expanding the table and clipping the page on the right. */
+@media(min-width:761px){
+  .clinic-orders-panel>.table-wrap{
+    width:100%;
+    max-width:100%;
+    overflow:hidden;
+  }
+  .clinic-orders-panel>.table-wrap>.orders-table{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    table-layout:fixed!important;
+  }
+  .clinic-orders-panel>.table-wrap>.orders-table th,
+  .clinic-orders-panel>.table-wrap>.orders-table td{
+    box-sizing:border-box;
+    min-width:0!important;
+    max-width:none!important;
+    vertical-align:middle;
+  }
+  .clinic-orders-panel>.table-wrap>.orders-table th:nth-child(1),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(1){width:15%!important}
+  .clinic-orders-panel>.table-wrap>.orders-table th:nth-child(2),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(2){width:16%!important;white-space:normal!important;overflow-wrap:anywhere!important}
+  .clinic-orders-panel>.table-wrap>.orders-table th:nth-child(3),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(3){width:9%!important}
+  .clinic-orders-panel>.table-wrap>.orders-table th:nth-child(4),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(4){width:22%!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal}
+  .clinic-orders-panel>.table-wrap>.orders-table th:nth-child(5),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(5){width:10%!important}
+  .clinic-orders-panel>.table-wrap>.orders-table th:nth-child(6),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(6){width:10%!important;min-width:0!important}
+  .clinic-orders-panel>.table-wrap>.orders-table th:nth-child(7),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(7){width:10%!important}
+  .clinic-orders-panel>.table-wrap>.orders-table th:nth-child(8),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(8){width:8%!important}
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(1),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(3),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(5),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(6),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(7),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(8){white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis}
+}
