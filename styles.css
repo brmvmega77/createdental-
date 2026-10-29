@@ -1800,7 +1800,7 @@ html[data-theme="dark"] .tech-order-type-row.analog{color:#ffc766!important}
 /* Give the clinic search a deliberate reading width while keeping the filter
    button aligned to it instead of letting the grid collapse the field. */
 @media(min-width:761px){
-  .clinic-orders-panel>.toolbar{width:min(100%,484px)}
+  .clinic-orders-panel>.toolbar{width:484px;max-width:100%}
   .clinic-orders-panel>.toolbar .search{flex:1 1 auto;width:auto;max-width:none}
 }
 
