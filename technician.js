@@ -14,7 +14,7 @@ import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCente
 import {workCatalog,reorderCatalogService,reorderCatalogCategory,rubles,estimateWork,priceUnitsForSelection,camMethodLabel,camMethodForOrder,isHighVolumeLithiumRestoration} from './work-catalog.js?v=deadline-batch-1';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
 import {openOrderPrint} from './order-print.js?v=a4-adaptive-4';
-import {openPricePrint} from './price-print.js?v=price-pdf-5';
+import {openPricePrint} from './price-print.js?v=price-pdf-6';
 const surgicalTemplateUtilities = await import(import.meta.url.startsWith('file:')
   ? './public/assets/surgical-template-utils.js'
   : '/assets/surgical-template-utils.js?v=surgical-sockets-4');
@@ -1768,7 +1768,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       return;
     }
     if(pricingAction&&pricingAction.dataset.techPricingAction==='download-pdf'){
-      openPricePrint({catalog:state.pricingDraft||workCatalog,logo});
+      openPricePrint({catalog:state.pricingDraft||workCatalog,logo:`${assets}create-dental-logo-print.png`});
       return;
     }
     if(pricingAction&&pricingAction.dataset.techPricingAction==='copy-promo-link'){

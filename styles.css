@@ -3477,8 +3477,9 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 
 /* Final price PDF finish: one mark, one-line labels, and the neutral palette. */
 .price-print-brand>span{display:none!important}
-.price-print-brand img{width:132px;height:132px;object-fit:contain}
+.price-print-brand img{width:132px;height:60px;object-fit:contain}
 .price-print-summary span{display:inline-block;min-width:max-content;white-space:nowrap!important}
 .price-print-summary br{display:none!important}
 .price-print-deadline small{color:#808080!important}
 .price-print-deadline b,.price-print-deadline .is-batch b{color:#333333!important}
+.price-print-table-head span:nth-child(2),.price-print-table-head span:nth-child(3){text-align:right}
