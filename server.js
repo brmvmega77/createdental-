@@ -912,7 +912,8 @@ async function deleteOrderWithFolder(user,orderId){
   let cleanupPending=false;
   // Orders belonging to one patient share a folder. Remove only the files
   // owned by this order and keep the patient folder for sibling orders.
-  const files=[...(orderFiles[orderId]||[])];
+  const fileOrderIds=[orderId,...(order.labWorkIds||[])];
+  const files=fileOrderIds.flatMap(id=>orderFiles[id]||[]);
   for(const file of files){
     if(file.storage==='yandex-disk'&&file.diskPath)await deleteDiskResource(token,file.diskPath).catch(error=>{cleanupPending=true;console.error('Deleted order file cleanup failed:',error.message)});
   }
