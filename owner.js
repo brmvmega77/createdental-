@@ -1,4 +1,4 @@
-import './theme.js?v=light-only-1';
+import './theme.js?v=light-only-2';
 import {displayOrderId} from './order-list-utils.js?v=order-fields-4';
 const root=document.querySelector('#owner-app');
 const titles={overview:'Обзор бизнеса',finance:'Финансы',economics:'Юнит-экономика',production:'Производство',team:'Команда и нагрузка',clients:'Клиенты',settings:'Цели и данные'};

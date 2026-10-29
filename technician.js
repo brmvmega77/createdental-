@@ -12,7 +12,7 @@ import {parseMoneyAmount} from './money.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=order-routing-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,reorderCatalogService,reorderCatalogCategory,rubles,estimateWork,priceUnitsForSelection,camMethodLabel,camMethodForOrder,isHighVolumeLithiumRestoration} from './work-catalog.js?v=deadline-batch-1';
-import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
+import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-2';
 import {openOrderPrint} from './order-print.js?v=a4-adaptive-4';
 import {openPricePrint} from './price-print.js?v=price-print-compact-15';
 const surgicalTemplateUtilities = await import(import.meta.url.startsWith('file:')

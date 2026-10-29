@@ -1,25 +1,16 @@
 const themeKey='create-dental-theme';
 
-function readTheme(){
-  try{return localStorage.getItem(themeKey)==='dark'?'dark':'light'}catch{return 'light'}
+// The portal uses one visual language: the Create Dental light palette.
+// Keep this module as a compatibility shim for existing imports while making
+// the old theme preference and toggle permanently unavailable.
+function applyLightTheme(){
+  document.documentElement.removeAttribute('data-theme');
+  document.body?.removeAttribute('data-theme');
+  try{localStorage.removeItem(themeKey)}catch{}
+  return 'light';
 }
 
-function applyTheme(value){
-  const theme=value==='dark'?'dark':'light';
-  document.documentElement.dataset.theme=theme;
-  if(document.body)document.body.dataset.theme=theme;
-  try{localStorage.setItem(themeKey,theme)}catch{}
-  document.querySelectorAll('[data-theme-toggle]').forEach(button=>{
-    const dark=theme==='dark';
-    button.setAttribute('aria-label',dark?'Включить светлую тему':'Включить тёмную тему');
-    button.setAttribute('aria-pressed',String(dark));
-    const icon=button.querySelector('[data-theme-icon]');
-    if(icon)icon.textContent=dark?'☀':'☾';
-  });
-  return theme;
-}
-
-export const themeToggleMarkup=()=>{const dark=typeof document!=='undefined'?document.documentElement.dataset.theme==='dark':readTheme()==='dark';return `<button type="button" class="theme-toggle" data-theme-toggle aria-label="${dark?'Включить светлую тему':'Включить тёмную тему'}" title="${dark?'Светлая тема':'Тёмная тема'}" aria-pressed="${dark}"><span class="theme-toggle-icon" data-theme-icon aria-hidden="true">${dark?'☀':'☾'}</span></button>`};
+export const themeToggleMarkup=()=>'';
 
 const localeKey='create-dental-locale';
 export const languageSwitcherMarkup=()=>'';
@@ -30,16 +21,12 @@ function applyLocale(){
   document.documentElement.dataset.locale='ru';
   return 'ru';
 }
-export function initializeTheme(){return applyTheme(readTheme())}
-export function toggleTheme(){return applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark')}
+export function initializeTheme(){return applyLightTheme()}
+export function toggleTheme(){return applyLightTheme()}
 
 if(typeof document!=='undefined'){
   initializeTheme();
   applyLocale();
-  document.addEventListener('click',event=>{
-    const button=event.target.closest?.('[data-theme-toggle]');
-    if(button){event.preventDefault();toggleTheme()}
-  },true);
   document.addEventListener('click',event=>{
     const option=event.target.closest?.('[data-language-option]');
     if(option){applyLocale(option.dataset.languageOption);return}

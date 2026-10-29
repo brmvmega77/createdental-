@@ -6,7 +6,7 @@ import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection
 import {routeFromPath,pathFor,navigate} from './routes.js?v=order-routing-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork,priceUnitsForSelection,camMethodForSelection} from './work-catalog.js?v=deadline-batch-1';
-import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
+import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-2';
 import {orderWorkTypes,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel,displayOrderId,resolveOrderId} from './order-list-utils.js?v=order-fields-5';
 import {productionStages,compactStageLabel} from './production-stages.js?v=perf-split-2';
 import {SURGICAL_TEMPLATE_CATEGORY,SURGICAL_SOCKET_OPTION,SURGICAL_SOCKETS_PER_JAW,adjustSurgicalSockets,isSurgicalTemplate,isSurgicalSocket,hasSurgicalJaw,maxSurgicalSockets,surgicalVariantUnits,groupSurgicalSockets} from '/assets/surgical-template-utils.js?v=surgical-sockets-3';
@@ -1212,7 +1212,7 @@ async function hydratePortal(){
   // history and logo payload is fetched in the background for detail pages.
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=price-print-compact-15');
+      const {createTechnicianCabinet}=await import('./technician.js?v=light-only-1');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},promoCodes:()=>portalPromoCodes,onPromoCodesUpdate:items=>{portalPromoCodes=structuredClone(items)},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){

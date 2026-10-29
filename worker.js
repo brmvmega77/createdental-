@@ -8,7 +8,7 @@ import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadPreviewSource,u
 import {routeFromPath,pathFor,navigate} from './routes.js?v=order-routing-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,estimateWork,priceUnitsForSelection,camMethodForOrder} from './work-catalog.js';
-import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
+import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-2';
 import {orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel,displayOrderId,resolveOrderId} from './order-list-utils.js?v=order-fields-5';
 import {taskStatuses,taskPriorityLabel,taskDateLabel,taskIsOverdue} from './tasks.js?v=task-flow-4';
 
