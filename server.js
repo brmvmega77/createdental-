@@ -320,7 +320,7 @@ function cadProductionSiblings(order,snapshot=portalSnapshot()){
   return snapshot.orders.filter(item=>item.id!==order.id&&(item.parentOrderId===parentId||item.id===parentId));
 }
 function hasSiblingCad(order,snapshot=portalSnapshot()){
-  return cadProductionSiblings(order,snapshot).some(item=>snapshot.orderOverrides[item.id]?.cadReview?.fileId||(orderFiles[item.id]||[]).some(file=>file.purpose==='cad-review'));
+  return cadProductionSiblings(order,snapshot).some(item=>requiresDoctorCadApproval(item)&&(snapshot.orderOverrides[item.id]?.cadReview?.fileId||(orderFiles[item.id]||[]).some(file=>file.purpose==='cad-review')));
 }
 function isPreprodEmployee(employee){return /гипсов|препрод|pre\s*prod|предпрод/i.test(String(employee?.specialty||''));}
 function isPainterEmployee(employee){
