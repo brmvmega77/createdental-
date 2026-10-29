@@ -650,8 +650,8 @@ async function handlePortal(req,res,url){
         const failed=created.find(result=>result.status==='rejected');
         if(failed){
           for(const order of newOrders)await removePortalOrder(order.id,{role:user.role,name:actorName(user)});
-          const token=readIntegrationSecret('yandexDiskToken');
-          await Promise.allSettled(newOrders.map(order=>deleteDiskResource(token,orderDiskFolder(order.id))));
+          // Patient folders are shared by sibling orders. Keep the folder if
+          // one order creation fails and let the next upload reuse it.
           for(const order of newOrders)publicOrderFolderLinks.delete(order.id);
           throw new Error('order_folder_failed');
         }
@@ -834,7 +834,7 @@ function cleanUploadName(value){
   return String(value||'').replace(/[\\/\0-\x1f]/g,'_').trim().slice(0,180);
 }
 function safeDiskSegment(value){
-  return String(value||'unknown').replace(/[^A-Za-z0-9._-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)||'unknown';
+  return String(value||'unknown').replace(/[^\p{L}\p{N}._-]+/gu,'-').replace(/^-+|-+$/g,'').slice(0,80)||'unknown';
 }
 function validateUploadDescription({name,size,type,purpose='order-file'}){
   const safeName=cleanUploadName(name),ext=path.extname(safeName).toLowerCase(),storedType=sharedAttachmentTypes[ext],bytes=Number(size);
@@ -856,7 +856,13 @@ function newDiskPath({target,orderId,clinicId,name,purpose,largeLinkKey}){
   const day=new Date().toISOString().slice(0,10),unique=randomBytes(8).toString('hex');
   return `${folder}/${day}-${unique}-${name}`;
 }
-function orderDiskFolder(orderId){const order=portalSnapshot().orders.find(item=>item.id===orderId);return order?.parentOrderId?`/Клиенты/${safeDiskSegment(order.parentOrderId)}/Работы/${safeDiskSegment(orderId)}`:`/Клиенты/${safeDiskSegment(orderId)}`}
+function orderDiskFolder(orderId){
+  const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===orderId);
+  const parent=order?.parentOrderId?snapshot.orders.find(item=>item.id===order.parentOrderId)||order:order;
+  const clinic=safeDiskSegment(parent?.clinic||parent?.clinicId||'Клиника');
+  const patient=safeDiskSegment(parent?.patient||'Пациент');
+  return `/Клиенты/${clinic}/${patient}`;
+}
 function orderMillingFolder(orderId){return `${orderDiskFolder(orderId)}/фрезеровка`}
 function isMillingFile(name){return /(?:\.constructionInfo|_cad\.stl)$/i.test(String(name||''))}
 
@@ -904,10 +910,13 @@ async function deleteOrderWithFolder(user,orderId){
   // recoverable and the cleanup can be retried without losing the order data.
   await removePortalOrder(orderId,{role:user.role,name:actorName(user)});
   let cleanupPending=false;
-  try{await deleteDiskResource(token,orderDiskFolder(orderId));}
-  catch(error){cleanupPending=true;console.error('Deleted order cloud cleanup failed:',error.message)}
+  // Orders belonging to one patient share a folder. Remove only the files
+  // owned by this order and keep the patient folder for sibling orders.
+  const files=[...(orderFiles[orderId]||[])];
+  for(const file of files){
+    if(file.storage==='yandex-disk'&&file.diskPath)await deleteDiskResource(token,file.diskPath).catch(error=>{cleanupPending=true;console.error('Deleted order file cleanup failed:',error.message)});
+  }
   publicOrderFolderLinks.delete(orderId);orderFileMigrationJobs.delete(orderId);
-  const files=orderFiles[orderId]||[];
   for(const file of files)if(file.storage!=='yandex-disk')await fs.promises.unlink(path.join(uploadDir,file.id)).catch(()=>{});
   delete orderFiles[orderId];
   for(const id of order.labWorkIds||[]){delete orderFiles[id];publicOrderFolderLinks.delete(id);orderFileMigrationJobs.delete(id);}
@@ -959,6 +968,13 @@ async function signedDiskRecordUrl(record){
   if(record?.storage!=='yandex-disk'||!record.diskPath)return '';
   return diskDownloadUrl(readIntegrationSecret('yandexDiskToken'),record.diskPath);
 }
+async function streamDiskRecord(res,record){
+  const href=await signedDiskRecordUrl(record),response=await fetch(href,{signal:AbortSignal.timeout(120000)});
+  if(!response.ok)throw new Error('disk_download_failed');
+  const headers={'Content-Type':record.type||response.headers.get('content-type')||'application/octet-stream','Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(record.name||'file')}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'};
+  const length=response.headers.get('content-length');if(length)headers['Content-Length']=length;
+  res.writeHead(200,headers);for await(const chunk of response.body)res.write(chunk);res.end();
+}
 async function completeDiskUpload(item,uploadedBy){
   const token=readIntegrationSecret('yandexDiskToken');
   if(!token)throw new Error('Яндекс Диск не подключён');
@@ -970,7 +986,7 @@ async function completeDiskUpload(item,uploadedBy){
   }
   const id=randomBytes(18).toString('hex'),uploadedAt=new Date().toISOString();
   if(item.target==='message'||item.target==='telegram-draft'){
-    const record={id,clinicId:item.clinicId,name:item.name,size:item.size,type:item.type,uploadedAt,uploadedBy,kind:'document',orderEligible:true,source:'large-upload',largeLinkKey:item.largeLinkKey||'',storage:'yandex-disk',diskPath:item.diskPath};
+    const record={id,clinicId:item.clinicId,name:item.name,size:item.size,type:item.type,uploadedAt,uploadedBy,kind:String(item.type||'').startsWith('image/')?'photo':'document',orderEligible:true,source:'large-upload',largeLinkKey:item.largeLinkKey||'',storage:'yandex-disk',diskPath:item.diskPath};
     clinicMessageFiles[id]=record;await saveClinicMessageFiles();
     return {target:'message',attachment:publicUploadRecord(record)};
   }
@@ -1203,7 +1219,7 @@ async function handleOrderFiles(req,res,url){
       }catch(error){console.error('CAD preview load failed:',error.message);return json(res,504,{error:'Не удалось быстро загрузить CAD. Повторите открытие ещё раз.'})}
     }
     if(record.file.storage==='yandex-disk'){
-      try{const href=await signedDiskRecordUrl(record.file);if(url.searchParams.get('link')==='1')return json(res,200,{url:href,name:record.file.name,type:record.file.type});res.writeHead(302,{Location:href,'Cache-Control':'private, no-store'});return res.end()}
+      try{if(url.searchParams.get('download')==='1')return await streamDiskRecord(res,record.file);const href=await signedDiskRecordUrl(record.file);if(url.searchParams.get('link')==='1')return json(res,200,{url:href,name:record.file.name,type:record.file.type});res.writeHead(302,{Location:href,'Cache-Control':'private, no-store'});return res.end()}
       catch{return json(res,404,{error:'Файл не найден на Яндекс Диске'})}
     }
     try{const data=await fs.promises.readFile(path.join(uploadDir,record.file.id));res.writeHead(200,{'Content-Type':record.file.type,'Content-Length':data.length,'Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(record.file.name)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});return res.end(data)}catch{return json(res,404,{error:'Файл не найден'})}
@@ -1592,7 +1608,7 @@ async function attachTelegramFileToOrder(orderId,clinicId,attachment,telegramAct
   const id=randomBytes(18).toString('hex');
   let storageFields={};
   if(source.storage==='yandex-disk'&&source.diskPath){
-    const token=readIntegrationSecret('yandexDiskToken'),orderFolder=`/Клиенты/${safeDiskSegment(orderId)}/`;
+    const token=readIntegrationSecret('yandexDiskToken'),orderFolder=`${orderDiskFolder(orderId)}/`;
     let diskPath=source.diskPath;
     if(!diskPath.startsWith(orderFolder)){
       const destination=newDiskPath({clinicId,orderId,target:'order',name:source.name,purpose:'order-file'});
@@ -1648,10 +1664,11 @@ async function appendTelegramClinicMessage(clinicId,{text,attachment=null,sender
   const chat=clinicChats[clinicId]||={messages:[],updatedAt:''};
   const externalId=`telegram:${telegramChatId}:${telegramMessageId}`;
   const existing=chat.messages.find(message=>message.externalId===externalId);
-  if(existing){existing.text=cleanTelegramMessage(text);if(attachment&&clinicMessageFiles[String(attachment.id||'')]?.clinicId===clinicId)existing.attachment=attachment;existing.editedAt=new Date().toISOString();chat.updatedAt=existing.editedAt;await saveClinicChats();return existing}
+  if(existing){const known=attachment&&clinicMessageFiles[String(attachment.id||'')]?.clinicId===clinicId?attachment:existing.attachment;existing.text=known?.kind==='photo'?'Послано изображение':cleanTelegramMessage(text);if(attachment&&clinicMessageFiles[String(attachment.id||'')]?.clinicId===clinicId)existing.attachment=attachment;existing.editedAt=new Date().toISOString();chat.updatedAt=existing.editedAt;await saveClinicChats();return existing}
   const from=['support','bot'].includes(messageRole)?messageRole:'client';
   const storedAttachment=attachment&&clinicMessageFiles[String(attachment.id||'')]?.clinicId===clinicId?attachment:null;
-  const entry={id:randomBytes(12).toString('hex'),from,text:cleanTelegramMessage(text),time:new Date().toISOString(),source:'telegram',externalId,sender:String(sender||'Клиент Telegram').slice(0,120),senderUsername:String(senderUsername||'').replace(/^@/,'').slice(0,64),senderLabel:String(senderLabel||'').slice(0,120),...(storedAttachment?{attachment:storedAttachment}:{})};
+  const normalizedText=storedAttachment?.kind==='photo'?'Послано изображение':cleanTelegramMessage(text);
+  const entry={id:randomBytes(12).toString('hex'),from,text:normalizedText,time:new Date().toISOString(),source:'telegram',externalId,sender:String(sender||'Клиент Telegram').slice(0,120),senderUsername:String(senderUsername||'').replace(/^@/,'').slice(0,64),senderLabel:String(senderLabel||'').slice(0,120),...(storedAttachment?{attachment:storedAttachment}:{})};
   chat.messages.push(entry);chat.updatedAt=entry.time;
   await saveClinicChats();
   const eventRole=from==='client'?'clinic':from==='support'?'technician':'telegram';
@@ -1739,7 +1756,7 @@ async function handleClinicMessageFiles(req,res,url){
     const record=clinicMessageFiles[match[1]];
     if(!record||user.role==='clinic'&&record.clinicId!==user.subjectId||!['clinic','technician'].includes(user.role))return json(res,404,{error:'Файл не найден'});
     if(record.storage==='yandex-disk'){
-      try{const href=await signedDiskRecordUrl(record);if(url.searchParams.get('link')==='1')return json(res,200,{url:href,name:record.name,type:record.type});res.writeHead(302,{Location:href,'Cache-Control':'private, no-store'});return res.end()}
+      try{if(url.searchParams.get('download')==='1')return await streamDiskRecord(res,record);const href=await signedDiskRecordUrl(record);if(url.searchParams.get('link')==='1')return json(res,200,{url:href,name:record.name,type:record.type});res.writeHead(302,{Location:href,'Cache-Control':'private, no-store'});return res.end()}
       catch{return json(res,404,{error:'Файл не найден на Яндекс Диске'})}
     }
     try{const data=await fs.promises.readFile(path.join(clinicMessageUploadDir,record.id));res.writeHead(200,{'Content-Type':record.type,'Content-Length':data.length,'Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(record.name)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});return res.end(data)}catch{return json(res,404,{error:'Файл не найден'})}
@@ -1780,7 +1797,7 @@ async function addClinicMessage(req,res,id,from){
   if(!message&&!stored||message.length>2000)return json(res,400,{error:'Добавьте текст или файл'});
   const preview=stored&&typeof requested.preview==='string'&&requested.preview.length<=180000&&/^data:image\/(?:jpeg|png|webp);base64,/i.test(requested.preview)?requested.preview:'';
   const attachment=stored?{id:stored.id,name:stored.name,size:stored.size,type:stored.type,preview}:null;
-  const entry={id:randomBytes(12).toString('hex'),from,text:message,time:new Date().toISOString(),...(attachment?{attachment}:{}),...(from==='support'?{deliveryStatus:'sending',deliveryError:''}:{})};
+  const entry={id:randomBytes(12).toString('hex'),from,text:attachment?.type?.startsWith('image/')?'Послано изображение':message,time:new Date().toISOString(),...(attachment?{attachment}:{}),...(from==='support'?{deliveryStatus:'sending',deliveryError:''}:{})};
   const chat=clinicChats[id]||={messages:[],updatedAt:''};
   chat.messages.push(entry);chat.updatedAt=entry.time;
   try{await saveClinicChats()}catch{return json(res,500,{error:'Не удалось сохранить сообщение'})}

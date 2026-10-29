@@ -2,7 +2,7 @@ import {workProgress} from './lab-orders.js';
 import {productionFlowLabel} from './production-routes.js';
 import {createClinicMobileUI,clinicSections} from './assets/clinic-mobile-ui.js?v=clinic-info-4';
 import { seedOrders } from './seed-orders.js?v=mobile-fast-1';
-import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadPreviewSource} from './portal-client.js?v=cad-popup-same-origin-1';
+import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadPreviewSource} from './portal-client.js?v=owner-patient-files-1';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=order-routing-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=flow-integrity-1';
 import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork,priceUnitsForSelection,camMethodForSelection} from './work-catalog.js?v=deadline-batch-1';
@@ -22,7 +22,7 @@ const icons = {
   file:'<path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v6h5M9 13h6M9 17h6"/>',
   message:'<path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3a2 2 0 0 1-1-2V6a2 2 0 0 1 2-2z"/><path d="M8 9h8M8 13h5"/>',
   book:'<path d="M12 6c-2.4-1.5-5.4-1.7-9-.8v14c3.6-.9 6.6-.7 9 .8 2.4-1.5 5.4-1.7 9-.8v-14c-3.6-.9-6.6-.7-9 .8zM12 6v14"/>',
-  clinic:'<path d="M7.2 4.8c1.4-1.1 3.1-1.1 4.8 0 1.7-1.1 3.4-1.1 4.8 0 1.9 1.4 1.9 4.1 1.3 6.8-.6 3.2-1.4 6.9-2.8 8.6-.7.8-1.9.4-2.1-.6l-.8-3.7c-.2-1-1.6-1-1.8 0l-.8 3.7c-.2 1-1.4 1.4-2.1.6-1.4-1.7-2.2-5.4-2.8-8.6-.6-2.7-.6-5.4 1.3-6.8Z"/><path d="M8.9 6.5c.2 1.7.5 3.1 1.3 4M15.1 6.5c-.2 1.7-.5 3.1-1.3 4"/>',
+  clinic:'<path d="M4 21V8.5L12 4l8 4.5V21"/><path d="M2 21h20M8 21v-5h8v5M12 8v5M9 10.5h6"/>',
   crm:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"/>',
   users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
   factory:'<path d="M3 21V9l6 3V8l6 4V5h6v16"/><path d="M3 21h18M7 17h.01M11 17h.01M16 17h.01M20 17h.01"/>',
@@ -682,7 +682,7 @@ function deadlineCalendar(){
 }
 function recentMessagesMarkup(){
   const recent=state.messages.slice(-3).reverse();
-  return recent.length?recent.map(message=>{const bot=message.from==='bot',support=message.from==='support',clientName=message.source==='telegram'&&message.sender?'Клиент':'Вы',supportName='Create Dental Team';return `<a class="recent-message" href="${pathFor('clinic','messages')}" data-page="messages"><span class="recent-avatar ${support||bot?'support':''}">${bot?'AI':support?'CD':'Я'}</span><span><strong>${bot?'Ответ AI':support?escapeHtml(supportName):escapeHtml(clientName)}</strong><small>${escapeHtml(message.text)}</small></span><time>${new Date(message.time).toLocaleTimeString(clinicIntlLocale(),{hour:'2-digit',minute:'2-digit'})}</time></a>`}).join(''):'<div class="dashboard-empty">Сообщений пока нет. <a class="text-link" href="'+pathFor('clinic','messages')+'" data-page="messages">Написать в поддержку →</a></div>';
+  return recent.length?recent.map(message=>{const bot=message.from==='bot',support=message.from==='support',clientName=message.source==='telegram'&&message.sender?'Клиент':'Вы',supportName='Create Dental Team',preview=message.text||(message.attachment?.kind==='photo'?'Послано изображение':message.attachment?`Файл: ${message.attachment.name}`:'');return `<a class="recent-message" href="${pathFor('clinic','messages')}" data-page="messages"><span class="recent-avatar ${support||bot?'support':''}">${bot?'AI':support?'CD':'Я'}</span><span><strong>${bot?'Ответ AI':support?escapeHtml(supportName):escapeHtml(clientName)}</strong><small>${escapeHtml(preview)}</small></span><time>${new Date(message.time).toLocaleTimeString(clinicIntlLocale(),{hour:'2-digit',minute:'2-digit'})}</time></a>`}).join(''):'<div class="dashboard-empty">Сообщений пока нет. <a class="text-link" href="'+pathFor('clinic','messages')+'" data-page="messages">Написать в поддержку →</a></div>';
 }
 function recentMessagesCard(){return `<section class="dashboard-card recent-card"><div class="dashboard-card-heading"><h2>Последние сообщения</h2><a class="text-link" href="${pathFor('clinic','messages')}" data-page="messages">Все →</a></div><div id="recent-messages">${recentMessagesMarkup()}</div></section>`}
 function currentOrders(){
@@ -1212,7 +1212,7 @@ async function hydratePortal(){
   // history and logo payload is fetched in the background for detail pages.
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=cad-scope-3');
+      const {createTechnicianCabinet}=await import('./technician.js?v=owner-patient-files-1');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},promoCodes:()=>portalPromoCodes,onPromoCodesUpdate:items=>{portalPromoCodes=structuredClone(items)},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){

@@ -112,7 +112,7 @@ export const uploadOrderFile=async(orderId,file,{purpose='order-file',onProgress
   return result.file;
 };
 export const loadOrderFilePreview=async fileId=>{
-  const response=await fetch(`/api/order-files/${encodeURIComponent(fileId)}?link=1`,{headers:{'X-Portal-Token':portalToken()}});
+  const response=await fetch(`/api/order-files/${encodeURIComponent(fileId)}?download=1`,{headers:{'X-Portal-Token':portalToken()}});
   if(!response.ok)throw new Error('Не удалось открыть фото результата');
   if(response.headers.get('Content-Type')?.includes('application/json')){const data=await response.json();if(data.url)return data.url}
   const blob=await response.blob();
@@ -120,7 +120,7 @@ export const loadOrderFilePreview=async fileId=>{
   return URL.createObjectURL(blob);
 };
 export const downloadOrderFile=async fileId=>{
-  const response=await fetch(`/api/order-files/${encodeURIComponent(fileId)}?link=1`,{headers:{'X-Portal-Token':portalToken()}});
+  const response=await fetch(`/api/order-files/${encodeURIComponent(fileId)}?download=1`,{headers:{'X-Portal-Token':portalToken()}});
   if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.error||'Не удалось скачать файл')}
   if(response.headers.get('Content-Type')?.includes('application/json')){const data=await response.json();if(data.url){const anchor=document.createElement('a');anchor.href=data.url;anchor.download=data.name||'order-file';anchor.rel='noopener';document.body.append(anchor);anchor.click();anchor.remove();return}}
   const blob=await response.blob(),url=URL.createObjectURL(blob),anchor=document.createElement('a'),header=response.headers.get('Content-Disposition')||'',encoded=header.match(/filename\*=UTF-8''([^;]+)/i)?.[1];anchor.href=url;anchor.download=encoded?decodeURIComponent(encoded):'order-file';document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
@@ -131,7 +131,7 @@ export const uploadClinicMessageFile=async(file,clinicId='')=>{
   return result.attachment;
 };
 export const downloadClinicMessageFile=async fileId=>{
-  const response=await fetch(`/api/clinic-message-files/${encodeURIComponent(fileId)}?link=1`,{headers:{'X-Portal-Token':portalToken()}});
+  const response=await fetch(`/api/clinic-message-files/${encodeURIComponent(fileId)}?download=1`,{headers:{'X-Portal-Token':portalToken()}});
   if(!response.ok){let data={};try{data=await response.json()}catch{}throw new Error(data.error||'Не удалось скачать файл')}
   if(response.headers.get('Content-Type')?.includes('application/json')){const data=await response.json();if(data.url){const anchor=document.createElement('a');anchor.href=data.url;anchor.download=data.name||'message-file';anchor.rel='noopener';document.body.append(anchor);anchor.click();anchor.remove();return}}
   const blob=await response.blob(),url=URL.createObjectURL(blob),anchor=document.createElement('a'),header=response.headers.get('Content-Disposition')||'',encoded=header.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
