@@ -1197,8 +1197,10 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
     grid-template-columns:minmax(0,1fr) minmax(280px,411.2px)!important;
   }
   .tech-order-viewbar+.tech-panel>.tech-order-tools>.tech-segment{
-    flex-wrap:wrap!important;
-    overflow:visible!important;
+    flex-wrap:nowrap!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    white-space:nowrap!important;
   }
   .tech-order-viewbar+.tech-panel>.tech-order-tools>.tech-order-searchbar{
     width:100%!important;
