@@ -3493,7 +3493,7 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 
 /* Align every price row on one shared four-column rhythm. */
 @media(min-width:761px){
-  .price-print-table-head,.price-print-row{grid-template-columns:minmax(0,1fr) 90px 66px 112px;gap:12px}
+  .price-print-table-head,.price-print-row{grid-template-columns:minmax(0,1fr) 90px 66px 112px;gap:20px}
   .price-print-table-head span:nth-child(1){grid-column:1}
   .price-print-table-head span:nth-child(2){grid-column:2;text-align:right}
   .price-print-table-head span:nth-child(3){grid-column:3/5;text-align:right}
