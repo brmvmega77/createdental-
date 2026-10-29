@@ -3087,6 +3087,25 @@ html[data-theme="dark"] .tech-delivery-settings{background:#222;border-color:#33
     border-radius:9px;
   }
   .sidebar.sidebar-collapsed .tech-nav-group[open] .tech-nav-group-items .nav-link span{display:block}
+  .sidebar.sidebar-collapsed .tech-nav-group-items .nav-link .tech-nav-count{
+    position:static;
+    inset:auto;
+    transform:none;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    align-self:center;
+    flex:0 0 auto;
+    min-width:18px;
+    height:18px;
+    margin:0 0 0 auto;
+    padding:0 5px;
+    border-radius:9px;
+    font-size:10px;
+    line-height:1;
+    font-variant-numeric:tabular-nums;
+  }
+
   .sidebar.sidebar-collapsed .tech-nav-group[open] .tech-nav-group-items .nav-link:hover,
   .sidebar.sidebar-collapsed .tech-nav-group[open] .tech-nav-group-items .nav-link.active{background:#f1f2f3;color:#333}
 }
