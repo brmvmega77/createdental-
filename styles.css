@@ -3365,3 +3365,5 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
   .tech-order-tools>.tech-segment::-webkit-scrollbar{display:none}
   .tech-order-tools>.tech-segment button{flex:0 0 auto!important}
 }
+/* Batch deadline hint for lithium-disilicate restorations. */
+.tech-pricing-deadline-value{display:grid;gap:3px}.tech-pricing-deadline-note{display:block;color:#b46a17;font-size:10px;font-weight:700;line-height:1.25}.price-print-deadline{display:grid;gap:3px;text-align:right;color:#808080;font-size:10px;line-height:1.25}.price-print-deadline strong{color:#b46a17;font-size:9px;font-weight:800}

@@ -141,13 +141,43 @@ export function catalogForPrompt(){
   return workCatalog.map(category=>({category:category.name,services:category.options.map(option=>({name:option.name,price:option.price,productionDays:option.productionDays??null}))}));
 }
 
-export function productionDaysForSelection(workValue,optionValue=''){
-  return resolveWorkSelection(workValue,optionValue).option?.productionDays??null;
+const catalogText=value=>String(value||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/[^а-яa-z0-9]+/gi,' ').trim();
+
+// Lithium-disilicate restorations have a batch rule: once the order contains
+// more than ten units of either of these services, the production term is 14
+// working days regardless of the regular per-service term.
+export function isHighVolumeLithiumRestoration(workValue,optionValue=''){
+  const selection=resolveWorkSelection(workValue,optionValue);
+  const categoryName=catalogText(selection.category?.name||workValue);
+  const optionName=catalogText(selection.option?.name||optionValue);
+  return categoryName.includes('реставрац')&&optionName.includes('дисиликат')&&optionName.includes('лития');
+}
+
+export function productionDaysForSelection(workValue,optionValue='',teeth=[],units,pricingUnit){
+  const selection=resolveWorkSelection(workValue,optionValue);
+  if(isHighVolumeLithiumRestoration(workValue,optionValue)&&priceUnitsForSelection(workValue,teeth,units,pricingUnit||selection.category?.pricingUnit)>10)return 14;
+  return selection.option?.productionDays??null;
 }
 
 export function productionDaysForOrder(order={}){
   const variants=Array.isArray(order.variants)&&order.variants.length?order.variants:[{work:order.work,workOption:order.workOption||order.material}];
-  const terms=variants.map(variant=>productionDaysForSelection(variant?.work,variant?.workOption)).filter(Number.isFinite);
+  const lines=variants.map(variant=>{
+    const workValue=variant?.workId||variant?.work,optionValue=variant?.serviceId||variant?.workOption;
+    const selection=resolveWorkSelection(workValue,optionValue),teeth=variant?.selectedTeeth||variant?.teeth||[],units=priceUnitsForSelection(workValue,teeth,variant?.units,variant?.pricingUnit||selection.category?.pricingUnit);
+    return {workValue,optionValue,selection,teeth,units};
+  });
+  const batchUnits=new Map();
+  for(const line of lines)if(isHighVolumeLithiumRestoration(line.workValue,line.optionValue)){
+    const key=line.selection.option?.id||`${line.workValue}|||${line.optionValue}`;
+    batchUnits.set(key,(batchUnits.get(key)||0)+line.units);
+  }
+  const terms=lines.map(line=>{
+    if(isHighVolumeLithiumRestoration(line.workValue,line.optionValue)){
+      const key=line.selection.option?.id||`${line.workValue}|||${line.optionValue}`;
+      if((batchUnits.get(key)||0)>10)return 14;
+    }
+    return line.selection.option?.productionDays??null;
+  }).filter(Number.isFinite);
   return terms.length?Math.max(...terms):null;
 }
 
