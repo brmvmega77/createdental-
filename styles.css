@@ -3333,14 +3333,19 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 .detail-main-column .facts>div>strong{min-width:0;width:min(100%,560px);line-height:1.45;overflow-wrap:anywhere;word-break:normal}
 @media(max-width:760px){.detail-main-column .facts>div>strong{max-width:100%}}
 
-/* Reserve space for wrapped status tabs at reduced desktop widths. */
+/* Keep the order status tabs on one horizontal line at reduced desktop widths. */
 @media(min-width:761px) and (max-width:1000px){
   .tech-order-tools>.tech-segment{
     width:100%;
+    max-width:100%;
     height:auto;
     min-height:36px;
-    flex-wrap:wrap;
-    overflow:visible;
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    overflow-y:hidden;
     align-content:center;
+    white-space:nowrap;
+    scrollbar-width:none;
   }
+  .tech-order-tools>.tech-segment::-webkit-scrollbar{display:none}
 }
