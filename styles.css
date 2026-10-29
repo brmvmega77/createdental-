@@ -3502,5 +3502,5 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
   .price-print-row>.price-print-deadline{display:contents;width:auto}
   .price-print-row>.price-print-deadline>span{grid-column:3/5;width:auto!important;display:grid!important;grid-template-columns:max-content max-content;justify-content:start!important;gap:12px}
   .price-print-row>span{grid-column:3/5;text-align:right}
-  .price-print-table-head span:nth-child(2),.price-print-row>b{position:relative;left:-12px}
+  .price-print-table-head span:nth-child(2),.price-print-row>b{position:relative;left:-42px}
 }
