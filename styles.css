@@ -3487,4 +3487,6 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 .price-print-deadline{gap:2px;color:#808080;font-weight:400}
 .price-print-deadline>span{color:#808080;font:inherit;font-weight:400}
 .price-print-deadline small,.price-print-deadline b,.price-print-deadline .is-batch b{color:#808080!important;font:inherit;font-weight:400}
+.price-print-deadline{width:112px;justify-self:end}
+.price-print-deadline>span{display:grid!important;grid-template-columns:max-content max-content;justify-content:end!important;gap:8px;width:100%;text-align:right}
 .price-print-deadline .is-batch{padding-top:0;border-top:0}

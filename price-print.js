@@ -34,6 +34,16 @@ export function openPricePrint({catalog,logo='/assets/create-dental-logo.png'}={
   document.title='Create Dental — Прайс и сроки';
   const finish=()=>{root.remove();document.title=previousTitle;printInProgress=false;window.removeEventListener('afterprint',finish)};
   window.addEventListener('afterprint',finish,{once:true});
-  requestAnimationFrame(()=>window.print());
+  const waitForImages=()=>Promise.all([...root.querySelectorAll('img')].map(image=>{
+    if(image.complete)return Promise.resolve();
+    return new Promise(resolve=>{
+      let settled=false;
+      const finish=()=>{if(settled)return;settled=true;resolve()};
+      image.addEventListener('load',finish,{once:true});
+      image.addEventListener('error',finish,{once:true});
+      setTimeout(finish,1500);
+    });
+  }));
+  requestAnimationFrame(()=>waitForImages().then(()=>window.print()));
   return true;
 }
