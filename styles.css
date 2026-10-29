@@ -844,12 +844,12 @@ html[data-theme="dark"] .tech-pricing-category{background:#1b1e22;border-color:#
 .tech-order-files{margin-top:20px;padding-top:18px;border-top:1px solid #f1f1f1}.tech-order-files h3{margin:0 0 10px;color:#555;font-size:14px}.tech-order-files .order-folder-link{margin-top:0}.tech-order-files .order-folder-actions{display:flex;flex-wrap:wrap;gap:8px}.tech-order-files .order-folder-actions .btn{flex:1 1 0;min-width:0;white-space:normal;text-align:center;line-height:1.15;padding-left:10px;padding-right:10px}.tech-order-milling-note{display:block;margin-top:10px;color:#808080;font-size:11px;line-height:1.45;overflow-wrap:anywhere}
 .tech-order-files .order-folder-actions .btn.disabled{pointer-events:none;cursor:not-allowed;opacity:.55;box-shadow:none}
 .tech-cad-model{margin-top:0;padding:18px;border:1px solid #d9e4f2;border-radius:14px;background:#f7fbff}.tech-cad-model .tech-panel-heading{align-items:flex-start;margin:0 0 14px}.tech-cad-model h3{margin:0 0 5px;font-size:16px}.tech-cad-model p{margin:0;color:#7b8490;font-size:12px}.tech-cad-file{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid #e5edf5;border-radius:10px;background:#fff}.tech-cad-file strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.tech-cad-file small{margin-right:auto;color:#8b9299;font-size:11px}.tech-cad-file .btn{flex:none}
-.tech-parent-order-card{min-width:0;border:1px solid #d9e4f2;background:#f8fbff}
+.tech-parent-order-card{min-width:0;border:1px solid #dedede;background:#f7f7f7}
 .tech-parent-order-card .tech-panel-heading{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:16px;margin:0 0 20px}
 .tech-parent-order-card .tech-panel-heading>div{min-width:0}
 .tech-parent-order-card .tech-panel-heading>.tech-stage{max-width:100%;white-space:normal;line-height:1.4;text-align:center}
 .tech-parent-order-card h2{margin:3px 0 8px;font-size:20px;line-height:1.25}
-.tech-parent-order-card p{max-width:60ch;margin:0;color:#7b8490;font-size:13px;line-height:1.5}
+.tech-parent-order-card p{max-width:60ch;margin:0;color:#777777;font-size:13px;line-height:1.5}
 .tech-parent-order-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:10px}
 .tech-parent-order-actions .btn{display:flex;align-items:center;justify-content:center;min-width:0;min-height:44px;height:auto;margin:0;padding:12px;white-space:normal;overflow-wrap:break-word;text-align:center;line-height:1.35}
 @media(max-width:1100px){.tech-parent-order-card .tech-panel-heading{grid-template-columns:1fr;gap:12px}.tech-parent-order-card .tech-panel-heading>.tech-stage{justify-self:start}}
@@ -3386,3 +3386,5 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 /* Patient files follow the shared order card in the main column. */
 .tech-order-main>.tech-order-files{margin:0;padding:22px;border:1px solid #f0f0f0;border-radius:14px;background:#fff}
 @media(max-width:760px){.tech-order-main>.tech-order-files{padding:16px}}
+
+.tech-parent-order-actions .btn:focus-visible{outline:2px solid #808080;outline-offset:2px}
