@@ -299,13 +299,15 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     // A grouped row points to the clinic's parent order. Keep that id intact;
     // resolving it through a child would make the detail page lose the
     // whole-order card and would also make delete/edit target the wrong record.
-    const parentRecord=orders.find(order=>order.clinicOrder?.id===id||displayOrderId(order.clinicOrder?.id)===id);
-    const resolved=parentRecord ? parentRecord.clinicOrder.id : resolveOrderId(id,all);
+    const parentRecord=orders.find(order=>order.clinicOrder?.id===id||displayOrderId(order.clinicOrder?.id)===id||displayOrderId(order.parentOrderId)===id);
+    const resolved=parentRecord ? (parentRecord.clinicOrder?.id||parentRecord.parentOrderId) : resolveOrderId(id,all);
     const direct=all.find(order=>order.id===resolved);
     if(direct)return direct;
-    const parent=parentRecord?.clinicOrder||orders.find(order=>order.clinicOrder?.id===resolved)?.clinicOrder;
-    if(!parent)return null;
     const children=all.filter(order=>order.parentOrderId===resolved);
+    const parent=parentRecord?.clinicOrder||orders.find(order=>order.clinicOrder?.id===resolved)?.clinicOrder||(
+      children[0] ? {...children[0],id:resolved,parentOrderId:'',clinicOrder:undefined} : null
+    );
+    if(!parent)return null;
     const variants=children.flatMap(child=>Array.isArray(child.variants)&&child.variants.length?child.variants:[{toothMode:child.toothMode||'Одиночка',bridgeRanges:child.bridgeRanges||[],selectedTeeth:child.teeth||[],work:child.work,workOption:child.material}]);
     const cadChild=children.find(child=>child.cadReview?.status&&child.cadReview.status!=='not-required');
     return {...parent,labWorkIds:children.map(child=>child.id),variants:variants.length?variants:parent.variants,serviceWorks:children,cadReview:cadChild?.cadReview||parent.cadReview,cadReviewOrderId:cadChild?.id||parent.cadReviewOrderId,stage:parent.stage||children[0]?.stage,groupSummary:children[0]?.groupSummary};
@@ -1191,7 +1193,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(route.role==='technician'){
       state.page=route.page;
       if(route.orderId){
-        const parentRoute=orders.some(order=>order.clinicOrder?.id===route.orderId||displayOrderId(order.clinicOrder?.id)===route.orderId);
+        const parentRoute=orders.some(order=>order.clinicOrder?.id===route.orderId||displayOrderId(order.clinicOrder?.id)===route.orderId||displayOrderId(order.parentOrderId)===route.orderId);
         state.orderId=parentRoute?route.orderId:resolveOrderId(route.orderId,allOrders());
         const canonical=pathFor('technician','detail',state.orderId);
         if(location.pathname!==canonical)navigate(canonical,{replace:true});
