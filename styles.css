@@ -3420,6 +3420,16 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
  .sidebar.sidebar-collapsed .tech-nav-group[open]::after{content:"";position:absolute;left:100%;top:-12px;bottom:-12px;width:14px;z-index:79}
 }
 
+/* Price PDF: keep the print header and service rows calm, neutral and single-line. */
+.price-print-brand{gap:0}
+.price-print-brand img{width:88px;height:88px;object-fit:contain}
+.price-print-intro>div:first-child{min-width:0;flex:1 1 auto}
+.price-print-intro p:not(.price-print-eyebrow){max-width:none;white-space:nowrap;font-size:11px;letter-spacing:-.012em}
+.price-print-summary{background:#f5f5f5;color:#333333;white-space:nowrap}
+.price-print-summary span{white-space:nowrap}
+.price-print-table-head,.price-print-row{grid-template-columns:minmax(0,1fr) 82px 112px;gap:12px}
+.price-print-row strong{font-size:10px;line-height:1.2;letter-spacing:-.012em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 /* Keep the clinic orders table inside its panel. Long work names wrap in their
    own column instead of expanding the table and clipping the page on the right. */
 @media(min-width:761px){
