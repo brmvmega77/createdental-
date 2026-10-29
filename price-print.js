@@ -11,8 +11,8 @@ const dayLabel=days=>{
 };
 const deadlineMarkup=(category,option)=>{
   const days=typeof option==='string'?null:option?.productionDays;
-  if(!isHighVolumeLithiumRestoration(category?.name,typeof option==='string'?option:option?.name))return `<span>${dayLabel(days)}</span>`;
-  return `<div class="price-print-deadline"><span><small>≤ 10 ед.</small><b>${dayLabel(days)}</b></span><span class="is-batch"><small>11+ ед.</small><b>14 рабочих дней</b></span></div>`;
+  if(!isHighVolumeLithiumRestoration(category?.name,typeof option==='string'?option:option?.name))return `<div class="price-print-terms"><span class="price-print-term"><span></span><span>${dayLabel(days)}</span></span></div>`;
+  return `<div class="price-print-terms"><span class="price-print-term"><span>≤ 10 ед.</span><span>${dayLabel(days)}</span></span><span class="price-print-term"><span>11+ ед.</span><span>14 рабочих дней</span></span></div>`;
 };
 
 function markup(catalog,logo){
