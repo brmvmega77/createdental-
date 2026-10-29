@@ -7,7 +7,7 @@ import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camAfterMilling,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
 import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel,displayOrderId,resolveOrderId} from './order-list-utils.js?v=order-fields-5';
-import {savePortal,loadPortal,authRequest,portalToken,loadOrderFiles,loadCadPreviewSource,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js?v=owner-patient-files-4';
+import {savePortal,loadPortal,authRequest,portalToken,loadOrderFiles,loadCadPreviewSource,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js?v=compact-parent-actions-1';
 import {parseMoneyAmount} from './money.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=order-routing-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
@@ -344,7 +344,8 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   async function saveOrderRecord(id,change){
     const index=orders.findIndex(order=>order.id===id),record=index>=0?orders[index]:orderById(id);
     if(!record)return toast('Заказ не найден');
-    const updated={...record,...change,id:record.id,clinicId:record.clinicId,createdAt:record.createdAt};
+    const storedParent=orders.find(order=>order.clinicOrder?.id===record.id)?.clinicOrder;
+    const updated={...(storedParent||record),...change,id:record.id,clinicId:record.clinicId,createdAt:record.createdAt};
     const previous=[...orders],next=[...orders];if(index>=0)next[index]=updated;else next.push(updated);
     orders.splice(0,orders.length,...next);
     try{await savePortal('orders',next);orders.splice(0,orders.length,...next);toast('Заказ сохранён');render();return true}catch(error){orders.splice(0,orders.length,...previous);render();toast('Не удалось сохранить заказ: '+error.message);return false}
@@ -359,7 +360,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       orders.splice(0,orders.length,...next);
       overrides=nextOverrides;
       localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides));
-      state.page='orders';state.orderId='';toast(result?.cleanupPending?'Заказ удалён. Очистка папки на Яндекс Диске будет повторена.':'Заказ и папка на Яндекс Диске удалены');render();
+      state.page='orders';state.orderId='';navigate(pathFor('technician','orders'));toast(result?.cleanupPending?'Заказ удалён. Очистка его файлов будет повторена.':'Заказ и его файлы удалены');render();
     }catch(error){toast('Не удалось удалить заказ: '+error.message)}
   }
   function toast(message){
@@ -502,7 +503,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const first=group.items[0],parent=first.clinicOrder||{},groupId=first.parentOrderId||first.id,expanded=Boolean(state.expandedOrderGroups[groupId]);
     const allCount=Number(first.groupSummary?.count)||group.items.length,works=[...new Set(group.items.flatMap(order=>order.workTypes?.length?order.workTypes:[orderWorkLabel(order)]))],workLabel=works.length>2?`${works.slice(0,2).join(' · ')} +${works.length-2}`:works.join(' · '),stages=group.items.map(order=>{const acceptance=doctorAcceptanceInfo(order);return acceptance?.overdue?'Врач не принял 2 дня':chiefDisplayStageLabel(order)}),stageLabel=[...new Set(stages)].length===1?stages[0]:'Несколько этапов',people=[...new Map(group.items.flatMap(order=>order.participants||[]).map(person=>[person.id||person.name,person])).values()],typeLabels=[...new Set(group.items.map(order=>order.productionType==='analog'?'Аналоговый':'Цифровой'))];
     const countWord=allCount%100>=11&&allCount%100<=14?'подзаказов':allCount%10===1?'подзаказ':allCount%10>=2&&allCount%10<=4?'подзаказа':'подзаказов';
-    return `<tr class="tech-order-group-row"><td colspan="10"><button type="button" class="tech-order-group-summary" data-tech-order-group-toggle="${safe(groupId)}" aria-expanded="${expanded?'true':'false'}"><span class="tech-order-group-chevron" aria-hidden="true">${icon('chevron',15)}</span><span class="tech-order-group-primary"><strong>${safe(displayOrderId(groupId))}</strong><small>${safe(first.clinic)} · ${safe(first.patient||'Пациент не указан')}</small></span><span class="tech-order-group-stat tech-order-group-count"><b>${allCount}</b> ${countWord}</span><span class="tech-order-group-stat tech-order-group-type">${safe(typeLabels.join(' · '))}</span><span class="tech-order-group-stat tech-order-group-work">${safe(workLabel||'Несколько услуг')}</span><span class="tech-order-group-stat tech-order-group-deadline">${safe(first.date||'—')}</span><span class="tech-stage ${stageLabel==='Несколько этапов'?'work':orderListStageTone(first)}">${safe(stageLabel)}</span><span class="tech-order-group-stat tech-order-group-people">${people.length?`${people.length} ${people.length===1?'сотрудник':'сотрудника'}`:'Не назначены'}</span><span class="tech-order-group-action" aria-hidden="true"></span></button><div class="tech-order-parent-action-row"><button type="button" class="tech-order-parent-open" data-tech-order-parent="${safe(groupId)}">Открыть весь заказ</button></div></td></tr>${expanded?group.items.map((order,index)=>groupedOrderRow(order,{child:true,first:index===0,last:index===group.items.length-1})).join(''):''}`;
+    return `<tr class="tech-order-group-row"><td colspan="10"><div class="tech-order-group-summary" data-tech-order-parent="${safe(groupId)}" tabindex="0" role="link" aria-label="Открыть весь заказ ${safe(displayOrderId(groupId))}"><button type="button" class="tech-order-group-chevron" data-tech-order-group-toggle="${safe(groupId)}" aria-expanded="${expanded?'true':'false'}" aria-label="${expanded?'Свернуть':'Раскрыть'} подзаказы ${safe(displayOrderId(groupId))}">${icon('chevron',15)}</button><span class="tech-order-group-primary"><strong>${safe(displayOrderId(groupId))}</strong><small>${safe(first.clinic)} · ${safe(first.patient||'Пациент не указан')}</small></span><span class="tech-order-group-stat tech-order-group-count"><b>${allCount}</b> ${countWord}</span><span class="tech-order-group-stat tech-order-group-type">${safe(typeLabels.join(' · '))}</span><span class="tech-order-group-stat tech-order-group-work">${safe(workLabel||'Несколько услуг')}</span><span class="tech-order-group-stat tech-order-group-deadline">${safe(first.date||'—')}</span><span class="tech-stage ${stageLabel==='Несколько этапов'?'work':orderListStageTone(first)}">${safe(stageLabel)}</span><span class="tech-order-group-stat tech-order-group-people">${people.length?`${people.length} ${people.length===1?'сотрудник':'сотрудника'}`:'Не назначены'}</span><div class="tech-order-group-action tech-order-actions"><button type="button" class="tech-icon-btn disk" data-tech-order-action="disk" data-id="${safe(groupId)}" aria-label="Открыть папку всего заказа ${safe(displayOrderId(groupId))}" title="Папка пациента">${icon('disk',15)}</button><button type="button" class="tech-icon-btn" data-tech-order-action="edit" data-id="${safe(groupId)}" aria-label="Редактировать весь заказ ${safe(displayOrderId(groupId))}" title="Редактировать весь заказ">✎</button><button type="button" class="tech-icon-btn danger" data-tech-order-action="delete" data-id="${safe(groupId)}" aria-label="Удалить весь заказ ${safe(displayOrderId(groupId))}" title="Удалить весь заказ">×</button></div></div></td></tr>${expanded?group.items.map((order,index)=>groupedOrderRow(order,{child:true,first:index===0,last:index===group.items.length-1})).join(''):''}`;
   }
   function orderRows(list){
     const sorted=sortedOrderRows(list);
@@ -593,7 +594,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(!state.confirmOrderDeleteId)return '';
     const order=orderById(state.confirmOrderDeleteId);
     if(!order)return '';
-    return `<div class="tech-dialog-backdrop" data-tech-modal="order-delete"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="tech-order-delete-title"><button class="tech-dialog-close" data-tech-order-action="close-modal" aria-label="Закрыть">×</button><h2 id="tech-order-delete-title">${order.parentOrderId?'Удалить весь заказ клиники?':'Удалить заказ?'}</h2><p>${order.parentOrderId?`Весь заказ клиники ${safe(displayOrderId(order.parentOrderId))} со всеми ${order.groupSummary?.count||1} производственными работами`:`Заказ ${safe(displayOrderId(order))}`}, его папка на Яндекс Диске и все файлы в ней будут удалены без возможности восстановления. Данные клиники и остальные заказы не изменятся.</p><div><button class="btn outline" data-tech-order-action="close-modal">Отмена</button><button class="btn danger" data-tech-order-action="confirm-delete" data-id="${safe(order.id)}">${order.parentOrderId?'Удалить весь заказ':'Удалить'}</button></div></section></div>`;
+    return `<div class="tech-dialog-backdrop" data-tech-modal="order-delete"><section class="tech-dialog" role="dialog" aria-modal="true" aria-labelledby="tech-order-delete-title"><button class="tech-dialog-close" data-tech-order-action="close-modal" aria-label="Закрыть">×</button><h2 id="tech-order-delete-title">${order.parentOrderId?'Удалить весь заказ клиники?':'Удалить заказ?'}</h2><p>${order.parentOrderId?`Весь заказ клиники ${safe(displayOrderId(order.parentOrderId))} со всеми ${order.groupSummary?.count||1} производственными работами`:`Заказ ${safe(displayOrderId(order))}`}, его файлы будут удалены без возможности восстановления. Общая папка пациента сохранится. Данные клиники и остальные заказы не изменятся.</p><div><button class="btn outline" data-tech-order-action="close-modal">Отмена</button><button class="btn danger" data-tech-order-action="confirm-delete" data-id="${safe(order.id)}">${order.parentOrderId?'Удалить весь заказ':'Удалить'}</button></div></section></div>`;
   }
   function ordersPage(){
     const all=allOrders();
@@ -1424,7 +1425,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const orderView=event.target.closest('[data-tech-order-view]');
     if(orderView){state.orderDisplayMode=orderView.dataset.techOrderView==='list'?'list':'grouped';try{localStorage.setItem('create-dental-order-display-mode',state.orderDisplayMode)}catch{}render();return}
     const orderParentOpen=event.target.closest('[data-tech-order-parent]');
-    if(orderParentOpen){state.orderId=orderParentOpen.dataset.techOrderParent;state.detailReturnPage='orders';setPage('detail');return}
+    if(orderParentOpen&&!event.target.closest('button')){state.orderId=orderParentOpen.dataset.techOrderParent;state.detailReturnPage='orders';setPage('detail');return}
     const orderGroupToggle=event.target.closest('[data-tech-order-group-toggle]');
     if(orderGroupToggle){const groupId=orderGroupToggle.dataset.techOrderGroupToggle;state.expandedOrderGroups[groupId]=!state.expandedOrderGroups[groupId];render();return}
     const orderFilterButton=event.target.closest('[data-tech-filter-panel]');
@@ -1841,6 +1842,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     }
 
     if((event.key==='Enter'||event.key===' ')&&event.target.matches('tr[data-tech-order]')){event.preventDefault();event.target.click()}
+    if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-tech-order-parent]')){event.preventDefault();event.target.click()}
     if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-tech-order-group-toggle]')){event.preventDefault();event.target.click()}
   });
   document.addEventListener('change',event=>{

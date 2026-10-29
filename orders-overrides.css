@@ -1226,3 +1226,17 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
   text-align:center!important;
 }
 .tech-orders-table tbody td.tech-empty[colspan]::before{content:none!important}
+
+/* The whole order shares the same compact actions as its production works. */
+.tech-order-group-summary .tech-order-group-action{display:flex!important;align-items:center;justify-content:flex-end;gap:6px;min-width:0;padding:0 8px}
+.tech-order-group-action .tech-icon-btn{width:30px;height:34px;flex:0 0 30px;cursor:pointer}
+.tech-order-group-summary .tech-order-group-chevron{padding:0;cursor:pointer}
+.tech-order-group-chevron[aria-expanded="true"]{transform:rotate(90deg)}
+.tech-order-group-summary:focus-visible{outline:2px solid #808080;outline-offset:-2px}
+@media(min-width:761px){
+ .tech-orders-table-grouped{--group-columns:minmax(0,3fr) minmax(0,14fr) minmax(0,11fr) minmax(0,7fr) minmax(0,9fr) minmax(0,18fr) minmax(0,10fr) minmax(0,10fr) minmax(0,10fr) minmax(114px,8fr)}
+ .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-action{grid-column:10!important;grid-row:1!important;position:static!important}
+}
+@media(max-width:760px){
+ .tech-order-group-summary .tech-order-group-action{grid-column:2 / -1;grid-row:3;justify-content:flex-start;padding:8px 0 0}
+}
