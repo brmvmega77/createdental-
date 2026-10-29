@@ -35,7 +35,7 @@ export function openPricePrint({catalog,logo='/assets/create-dental-logo.png'}={
   const finish=()=>{root.remove();document.title=previousTitle;printInProgress=false;window.removeEventListener('afterprint',finish)};
   window.addEventListener('afterprint',finish,{once:true});
   const waitForImages=()=>Promise.all([...root.querySelectorAll('img')].map(image=>{
-    if(image.complete)return Promise.resolve();
+    if(image.complete&&image.naturalWidth>0)return Promise.resolve();
     return new Promise(resolve=>{
       let settled=false;
       const finish=()=>{if(settled)return;settled=true;resolve()};
