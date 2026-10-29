@@ -3388,3 +3388,8 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 @media(max-width:760px){.tech-order-main>.tech-order-files{padding:16px}}
 
 .tech-parent-order-actions .btn:focus-visible{outline:2px solid #808080;outline-offset:2px}
+
+/* Bridge the gap between the compact rail and its flyout. */
+@media(min-width:761px){
+ .sidebar.sidebar-collapsed .tech-nav-group[open]::after{content:"";position:absolute;left:100%;top:-12px;bottom:-12px;width:14px;z-index:79}
+}

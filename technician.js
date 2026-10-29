@@ -231,6 +231,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     });
   }
   function setPage(page){
+    cancelSidebarClose();
     state.page=page;
     state.sidebarGroup='';
     navigate(pathFor('technician',page,state.orderId));
@@ -1205,13 +1206,6 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     try {const saved=JSON.parse(localStorage.getItem('create-dental-tech-clients')||'null');if(Array.isArray(saved))clients=saved} catch { /* Keep current directory. */ }
     const pages={overview,orders:ordersPage,production:productionPage,pulse:pulsePage,tasks:tasksPage,requests:clientRequestsPage,detail:orderDetail,clients:clientsPage,messages:messagesPage,analytics:analyticsPage,team:teamPage,intake:qualityPage,quality:qualityPage,pricing:pricingPage,'cam-settings':camSettingsPage,'production-settings':productionSettingsPage,salary:salaryPage,profile:profilePage};
     shell((pages[state.page]||overview)());
-    if(sidebarCollapsed()){
-      root().querySelectorAll('.tech-nav-group').forEach(group=>group.addEventListener('pointerleave',()=>{
-        if(!group.hasAttribute('open')||!state.sidebarGroup)return;
-        state.sidebarGroup='';
-        group.removeAttribute('open');
-      }));
-    }
     if(state.page==='salary')queueMicrotask(()=>payrollUI.load());
     const cadFrame=root().querySelector('#tech-cad-preview-frame');if(cadFrame&&state.cadPreview?.url)cadFrame.src=state.cadPreview.url;
     arrangeAssignmentFilters();
@@ -1219,6 +1213,30 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(state.page==='messages')queueMicrotask(()=>{refreshMessages();scrollChiefChat()});
     if(state.page==='profile'&&!state.integration)queueMicrotask(loadIntegrationStatus);
   }
+  let sidebarCloseTimer=null;
+  function cancelSidebarClose(){clearTimeout(sidebarCloseTimer);sidebarCloseTimer=null}
+  function scheduleSidebarClose(group){
+    cancelSidebarClose();
+    const label=group.querySelector('summary')?.dataset.sidebarLabel;
+    if(!label||state.sidebarGroup!==label)return;
+    sidebarCloseTimer=setTimeout(()=>{
+      sidebarCloseTimer=null;
+      if(!isActive()||!sidebarCollapsed()||state.sidebarGroup!==label)return;
+      state.sidebarGroup='';
+      root().querySelectorAll('.tech-nav-group[open]').forEach(item=>item.removeAttribute('open'));
+    },400);
+  }
+  document.addEventListener('pointerover',event=>{
+    if(!isActive()||!sidebarCollapsed()||event.pointerType==='touch')return;
+    const group=event.target.closest?.('.tech-nav-group[open]');
+    if(group)cancelSidebarClose();
+  });
+  document.addEventListener('pointerout',event=>{
+    if(!isActive()||!sidebarCollapsed()||event.pointerType==='touch')return;
+    const group=event.target.closest?.('.tech-nav-group[open]');
+    if(!group||group.contains(event.relatedTarget))return;
+    scheduleSidebarClose(group);
+  });
   document.addEventListener('pointerdown',event=>{
     if(!isActive()||state.page!=='pricing'||event.button!==0||state.pricingSaving)return;
     const categoryHandle=event.target.closest?.('[data-pricing-category-drag]'),categoryRow=categoryHandle?.closest('[data-pricing-category-row]');
@@ -1345,6 +1363,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const groupSummary=event.target.closest?.('.tech-nav-group>summary');
     if(groupSummary&&root().querySelector('#tech-sidebar')?.classList.contains('sidebar-collapsed')){
       event.preventDefault();
+      cancelSidebarClose();
       state.sidebarGroup=groupSummary.dataset.sidebarLabel||'';
       try{localStorage.setItem('create-dental-sidebar-collapsed','1')}catch{}
       render();
@@ -1358,6 +1377,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     // closes it, while clicks inside the flyout keep it available for a
     // second navigation choice.
     if(sidebarCollapsed()&&!groupSummary&&state.sidebarGroup&&!event.target.closest('.tech-nav-group')){
+      cancelSidebarClose();
       state.sidebarGroup='';
       root().querySelectorAll('.tech-nav-group[open]').forEach(group=>group.removeAttribute('open'));
     }
