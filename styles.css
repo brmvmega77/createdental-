@@ -2894,11 +2894,11 @@ html[data-theme="dark"] .tech-delivery-settings{background:#222;border-color:#33
 .tech-pricing-category-head>div:first-child{min-width:0;flex:1}
 .tech-pricing-category-name{display:block;width:min(100%,560px);height:38px;padding:0 10px;border:1px solid #dfe4e8;border-radius:8px;background:#fff;color:#333;font-size:18px;font-weight:750;letter-spacing:-.2px}
 .tech-pricing-category-name:focus{border-color:#808080;outline:2px solid #808080;outline-offset:1px}
-.tech-pricing-category-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px}
+.tech-pricing-category-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px;margin-right:22px}
 .tech-pricing-remove{width:30px;height:30px;display:inline-grid;place-items:center;padding:0;border:1px solid #e4e8eb;border-radius:7px;background:#fff;color:#808080;font-size:20px;line-height:1}
 .tech-pricing-remove:hover{border-color:#b86b6b;background:#fff6f6;color:#9b4f4f}
 .tech-pricing-labels,.tech-pricing-row{grid-template-columns:minmax(0,1fr) 125px 200px 34px}
-@media(max-width:620px){.tech-pricing-category-name{width:100%;font-size:16px}.tech-pricing-category-actions{justify-content:flex-start}.tech-pricing-labels{grid-template-columns:1fr 1fr 34px}.tech-pricing-row{grid-template-columns:1fr 1fr 34px}.tech-pricing-name{grid-column:1/-1}.tech-pricing-row>.tech-pricing-remove{grid-column:3;grid-row:2}}
+@media(max-width:620px){.tech-pricing-category-name{width:100%;font-size:16px}.tech-pricing-category-actions{justify-content:flex-start;margin-right:0}.tech-pricing-labels{grid-template-columns:1fr 1fr 34px}.tech-pricing-row{grid-template-columns:1fr 1fr 34px}.tech-pricing-name{grid-column:1/-1}.tech-pricing-row>.tech-pricing-remove{grid-column:3;grid-row:2}}
 
 /* Клинический список заказов: врач в таблице и фильтрах. */
 @media(min-width:761px){
