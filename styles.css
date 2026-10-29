@@ -3349,3 +3349,19 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
   }
   .tech-order-tools>.tech-segment::-webkit-scrollbar{display:none}
 }
+
+/* The status menu must never create a second row at any desktop width. */
+@media(min-width:761px){
+  .tech-order-tools>.tech-segment{
+    flex-wrap:nowrap!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    height:36px!important;
+    min-height:36px!important;
+    align-content:center!important;
+    white-space:nowrap!important;
+    scrollbar-width:none;
+  }
+  .tech-order-tools>.tech-segment::-webkit-scrollbar{display:none}
+  .tech-order-tools>.tech-segment button{flex:0 0 auto!important}
+}
