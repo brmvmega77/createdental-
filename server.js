@@ -1000,6 +1000,7 @@ async function beginDiskUpload(item){
 }
 async function uploadEmployeeCadFile({employee,order,name,type,data}){
   if(!employee||employee.status!=='active'||!order||!Buffer.isBuffer(data))throw new Error('Неверные данные CAD-файла');
+  if(!requiresDoctorCadApproval(order))throw new Error('Для этой услуги согласование CAD не требуется');
   const description=validateUploadDescription({name,size:data.length,type,purpose:'cad-review'}),snapshot=portalSnapshot(),details=snapshot.orderOverrides[order.id]||{};
   if(!isCadOperatorEmployee(employee)||(details.cadOperator||details.assignee)!==employee.originalName||details.stage!=='Моделирование')throw new Error('CAD-файл можно загрузить только назначенному CAD оператору на этапе «Моделирование»');
   const token=readIntegrationSecret('yandexDiskToken');if(!token)throw new Error('Яндекс Диск не подключён');
@@ -1032,6 +1033,7 @@ async function handleUploads(req,res,url){
       }
       if(description.purpose==='result-photo'&&(user.role==='clinic'||!['.jpg','.jpeg','.png'].includes(description.ext)))return json(res,403,{error:'Фото результата может добавить только лаборатория в формате JPG или PNG'});
       if(description.purpose==='source-photo'&&(order.productionType!=='analog'||user.role!=='technician'||!['.jpg','.jpeg','.png','.webp'].includes(description.ext)))return json(res,403,{error:'Исходные фото доступны только для аналогового заказа и только главному технику в формате JPG, PNG или WebP'});
+      if(description.purpose==='cad-review'&&!requiresDoctorCadApproval(order))return json(res,409,{error:'Для этой услуги согласование CAD не требуется'});
       if(description.purpose==='result-photo'&&user.role==='worker'&&portalSnapshot().orderOverrides[order.id]?.stage!=='Контроль качества')return json(res,409,{error:'Фото результата можно добавить на этапе контроля качества'});
       if(description.purpose==='cad-review'&&user.role!=='technician'&&(user.role!=='worker'||!isCadOperatorEmployee(portalEmployee(user.subjectId))||(portalSnapshot().orderOverrides[order.id]?.cadOperator||portalSnapshot().orderOverrides[order.id]?.assignee)!==portalEmployee(user.subjectId)?.originalName||portalSnapshot().orderOverrides[order.id]?.stage!=='Моделирование'))return json(res,409,{error:'CAD-файл можно отправить только CAD оператору на этапе «Моделирование»'});
       if(duplicateOrderFile(order.id,description))return json(res,409,{error:`Файл «${description.name}» уже загружен в этот заказ`});
@@ -1158,6 +1160,7 @@ async function handleOrderFiles(req,res,url){
     if(purpose==='result-photo'&&(user.role==='clinic'||!['.jpg','.jpeg','.png'].includes(ext)))return json(res,403,{error:'Фото результата может добавить только лаборатория в формате JPG или PNG'});
     if(purpose==='source-photo'&&(order.productionType!=='analog'||user.role!=='technician'||!['.jpg','.jpeg','.png','.webp'].includes(ext)))return json(res,403,{error:'Исходные фото доступны только для аналогового заказа и только главному технику в формате JPG, PNG или WebP'});
     if(purpose==='result-photo'&&user.role==='worker'&&portalSnapshot().orderOverrides[orderId]?.stage!=='Контроль качества')return json(res,409,{error:'Фото результата можно добавить на этапе контроля качества'});
+    if(purpose==='cad-review'&&!requiresDoctorCadApproval(order))return json(res,409,{error:'Для этой услуги согласование CAD не требуется'});
     if(ext==='.html'&&purpose!=='cad-review'||purpose==='cad-review'&&ext!=='.html')return json(res,400,{error:'Для согласования CAD нужен HTML-файл'});
     if(purpose==='cad-review'&&user.role!=='technician'&&(user.role!=='worker'||!isCadOperatorEmployee(portalEmployee(user.subjectId))||(portalSnapshot().orderOverrides[orderId]?.cadOperator||portalSnapshot().orderOverrides[orderId]?.assignee)!==portalEmployee(user.subjectId)?.originalName||portalSnapshot().orderOverrides[orderId]?.stage!=='Моделирование'))return json(res,409,{error:'CAD-файл можно отправить только CAD оператору на этапе «Моделирование»'});
     const allowed=sharedAttachmentTypes;
@@ -1265,6 +1268,7 @@ async function handleCadReview(req,res,url){
   if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
   const orderId=url.pathname.match(/^\/api\/orders\/([A-Za-z0-9_-]{1,80})\/cad-review$/)?.[1]||'',snapshot=portalSnapshot();
   const order=snapshot.orders.find(item=>item.id===orderId);if(!order)return json(res,404,{error:'Заказ не найден'});
+  if(!requiresDoctorCadApproval(order))return json(res,409,{error:'Для этой услуги согласование CAD не требуется'});
   if(isLabGroup(order))return json(res,409,{error:'Выберите CAD конкретной услуги в общем заказе'});
   let body;try{body=await readBody(req,12000)}catch{return json(res,400,{error:'Неверные данные'})}
   const details=snapshot.orderOverrides[orderId]||{},now=new Date().toISOString();

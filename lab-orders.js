@@ -135,8 +135,13 @@ export function projectLabSnapshot(snapshot,role){
  if(role==='clinic'){
   for(const parent of result.orders.filter(isLabGroup)){
    const serviceWorks=parent.labWorkIds.map(id=>byId.get(id)).filter(Boolean).map(order=>workSummary(order,result.orderOverrides[order.id]||{}));
+   // CAD is reviewed once for the patient/order. The production lines remain
+   // separate for costing and progress, but the clinic receives one shared
+   // review card and one decision target.
+   const cadWork=serviceWorks.find(work=>work.cadReview?.status==='pending')||serviceWorks.find(work=>work.cadReview?.status==='returned')||serviceWorks.find(work=>work.cadReview);
+   if(cadWork)for(const work of serviceWorks)if(work!==cadWork)delete work.cadReview;
    const total=serviceWorks.reduce((n,w)=>n+w.total,0),completed=serviceWorks.reduce((n,w)=>n+w.completed,0);
-   result.orderOverrides[parent.id]={...(result.orderOverrides[parent.id]||{}),serviceWorks,assigned:parent.labWorkIds.some(id=>Object.keys(roleFields).some(role=>roleFields[role].slice(0,-1).some(field=>result.orderOverrides[id]?.[field]))),progress:total?Math.round(completed/total*100):0};
+   result.orderOverrides[parent.id]={...(result.orderOverrides[parent.id]||{}),serviceWorks,...(cadWork?{cadReview:clone(cadWork.cadReview),cadReviewOrderId:cadWork.id}:{}),assigned:parent.labWorkIds.some(id=>Object.keys(roleFields).some(role=>roleFields[role].slice(0,-1).some(field=>result.orderOverrides[id]?.[field]))),progress:total?Math.round(completed/total*100):0};
   }
   const parentId=id=>byId.get(id)?.parentOrderId||id;
   result.orderHistory=result.orderHistory.map(e=>({...e,orderId:parentId(e.orderId),...(byId.get(e.orderId)?.parentOrderId?{service:byId.get(e.orderId).material}:{})}));

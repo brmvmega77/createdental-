@@ -69,13 +69,24 @@ export function orderServices(order = {}) {
   }));
 }
 
+// CAD is a clinical review step only for restorations and wax-up services.
+// Other catalogue sections must go directly through their production route.
+export function requiresCadForService(work='',service=''){
+  const selection=resolveWorkSelection(work,service);
+  const workName=category(selection.category?.name||work);
+  const serviceName=category(selection.option?.name||service);
+  if(workName==='реставрации')return true;
+  if(workName==='планирование и диагностика')return /wax\s*up|воксап/.test(serviceName);
+  return false;
+}
+
 export function requiresDoctorCadApproval(order={}){
-  return orderServices(order).some(item=>{
-    const selection=resolveWorkSelection(item.work,item.service);
-    const name=category(selection.category?.name||item.work);
-    // Unknown historical categories keep their existing approval contract.
-    return ['реставрации','планирование и диагностика'].includes(name)||!selection.category;
-  });
+  const services=orderServices(order);
+  if(services.some(item=>requiresCadForService(item.work,item.service)))return true;
+  // Keep already-started historical CAD orders reviewable after the route rule
+  // changes, while new non-CAD services never acquire a CAD stage.
+  const hasUnknownService=services.some(item=>!resolveWorkSelection(item.work,item.service).category);
+  return hasUnknownService&&Boolean(order.cadReview||['Моделирование','Согласование CAD'].includes(order.stage));
 }
 
 export function isRestorationRoute(order = {}) {
@@ -114,9 +125,10 @@ function legacyDefaultFlow(order={}){
   const restoration=hasRestorationService(order);
   const category1=requiresCategory1AfterCam(order);
   const direct=isDirectCategory1(order);
+  const cadRequired=requiresDoctorCadApproval(order);
   const flow=['intake'];
   if(analog)flow.push('preprod');
-  if(!direct){flow.push('cad');if(requiresDoctorCadApproval(order))flow.push('doctor');flow.push('cam');}
+  if(!direct){if(cadRequired){flow.push('cad');flow.push('doctor');}flow.push('cam');}
   else if(category1)flow.push('category1');
   if(!direct&&category1)flow.push('category1');
   if(!direct&&restoration)flow.push('esthetic');
@@ -134,8 +146,10 @@ export function configuredProductionFlowForService(work='',service='',production
   const option=selection.option;
   const context=productionContextForService(selection.category?.name||work,option?.name||service,productionType);
   const fallback=defaultProductionFlowForService(selection.category?.name||work,option?.name||service,productionType);
-  const flow=normalizeProductionFlow(option?.productionFlows?.[context],fallback).filter(id=>id!=='doctor');
-  if(flow.includes('cad')&&requiresDoctorCadApproval({work:selection.category?.name||work,material:option?.name||service}))flow.splice(flow.indexOf('cad')+1,0,'doctor');
+  const needsCad=requiresCadForService(selection.category?.name||work,option?.name||service);
+  let flow=normalizeProductionFlow(option?.productionFlows?.[context],fallback).filter(id=>id!=='doctor');
+  if(!needsCad)flow=flow.filter(id=>id!=='cad');
+  if(flow.includes('cad')&&needsCad)flow.splice(flow.indexOf('cad')+1,0,'doctor');
   if(category(selection.category?.name||work)==='реставрации')return flow.filter(id=>id!=='category1');
   return flow;
 }
