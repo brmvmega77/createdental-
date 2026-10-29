@@ -1,0 +1,217 @@
+/* Create Dental uses a neutral black, white and gray accent palette. */
+.order-variant-head,
+.order-variant-head strong,
+.order-service-card > header span,
+.tech-order-service > header span,
+.cad-review-label,
+.upload-dialog-eyebrow,
+.tech-pricing-kicker,
+.tech-pricing-count,
+.tech-pricing-add,
+.tech-edit-variant > header span,
+.surgical-socket-order-heading > span,
+.surgical-socket-order-price,
+.surgical-socket-order-price strong,
+.task-order-ref,
+.production-card-id {
+  color: #707070 !important;
+}
+
+.order-variant-add,
+.order-cart-add,
+.upload-dialog-picker,
+.surgical-socket-quantity button {
+  border-color: #c8c8c8 !important;
+  background: #f7f7f7 !important;
+  color: #555 !important;
+}
+.order-variant-add:hover,
+.order-cart-add:hover,
+.upload-dialog-picker:hover,
+.surgical-socket-quantity button:hover:not(:disabled) {
+  border-color: #808080 !important;
+  background: #eeeeee !important;
+  color: #333 !important;
+}
+
+.cad-worker-panel,
+.cad-review-card {
+  border-color: #e2e2e2 !important;
+  background: #f7f7f7 !important;
+}
+.cad-worker-panel.returned,
+.cad-review-card.returned {
+  border-color: #f0d5b5 !important;
+  background: #fff8ee !important;
+}
+.cad-review-card.approved {
+  border-color: #cce9d9 !important;
+  background: #f4fcf7 !important;
+}
+.cad-upload-status:not(.error):not(.success) {
+  background: #f5f5f5 !important;
+  color: #555 !important;
+}
+.cad-upload-spinner {
+  border-color: #c8c8c8 !important;
+  border-top-color: #555 !important;
+}
+
+.upload-progress-track i { background: #808080 !important; }
+.tech-stage.work,
+.tech-stage.review,
+.tech-orders-table td .tech-stage.work,
+.tech-orders-table td .tech-stage.review,
+.tech-orders-table td:nth-child(8) .tech-stage.work,
+.tech-orders-table td:nth-child(8) .tech-stage.review {
+  border-color: #e5e5e5 !important;
+  background: #f1f1f1 !important;
+  color: #555 !important;
+}
+.tech-event-alert.orders,
+.tech-event-alert.clients {
+  border-color: #e5e5e5 !important;
+  background: #f7f7f7 !important;
+}
+.tech-event-alert.orders strong,
+.tech-event-alert.clients strong {
+  background: #808080 !important;
+  color: #fff !important;
+}
+.tech-event-alert.orders b,
+.tech-event-alert.clients b {
+  color: #555 !important;
+}
+
+.tech-pricing-service-name,
+.tech-pricing-category-name,
+.tech-pricing-count {
+  border-color: #c8c8c8 !important;
+}
+.tech-pricing-kicker,
+.tech-pricing-count,
+.tech-pricing-add,
+.production-card-id { color: #707070 !important; }
+.tech-pricing-row.is-new {
+  background: #f7f7f7 !important;
+}
+.tech-pricing-category.is-new {
+  border-color: #c8c8c8 !important;
+}
+.tech-cad-model,
+.order-upload-card {
+  border-color: #c8c8c8 !important;
+  background: #f7f7f7 !important;
+  color: #555 !important;
+}
+.tech-edit-teeth span:hover {
+  border-color: #808080 !important;
+  background: #f5f5f5 !important;
+}
+.task-priority.normal { color: #707070 !important; }
+
+.surgical-socket-order-addon {
+  border-color: #e2e2e2 !important;
+  background: #f7f7f7 !important;
+}
+.surgical-socket-order-heading > span { color: #707070 !important; }
+.order-print-line-field,
+.order-print-formula,
+.order-print-formula > div,
+.order-print-formula span,
+.order-print-main,
+.order-print-tooth-line,
+.order-print-tooth-line i { border-color: #777 !important; }
+.order-print-project,
+.order-print-service-heading span,
+.order-print-notes strong { color: #666 !important; }
+
+html[data-theme="dark"] .order-variant-add,
+html[data-theme="dark"] .order-cart-add,
+html[data-theme="dark"] .upload-dialog-picker,
+html[data-theme="dark"] .surgical-socket-quantity button {
+  border-color: #555 !important;
+  background: #252525 !important;
+  color: #dedede !important;
+}
+html[data-theme="dark"] .order-variant-add:hover,
+html[data-theme="dark"] .order-cart-add:hover,
+html[data-theme="dark"] .upload-dialog-picker:hover,
+html[data-theme="dark"] .surgical-socket-quantity button:hover:not(:disabled) {
+  border-color: #888 !important;
+  background: #303030 !important;
+  color: #fff !important;
+}
+html[data-theme="dark"] .cad-worker-panel,
+html[data-theme="dark"] .cad-review-card:not(.returned):not(.approved) {
+  border-color: #343434 !important;
+  background: #202020 !important;
+}
+html[data-theme="dark"] .cad-upload-status:not(.error):not(.success) {
+  background: #252525 !important;
+  color: #d0d0d0 !important;
+}
+html[data-theme="dark"] .cad-upload-spinner {
+  border-color: #555 !important;
+  border-top-color: #ddd !important;
+}
+html[data-theme="dark"] .tech-event-alert.orders,
+html[data-theme="dark"] .tech-event-alert.clients,
+html[data-theme="dark"] .tech-pricing-row.is-new {
+  border-color: #3a3a3a !important;
+  background: #252525 !important;
+}
+html[data-theme="dark"] .tech-event-alert.orders strong,
+html[data-theme="dark"] .tech-event-alert.clients strong {
+  background: #777 !important;
+  color: #fff !important;
+}
+html[data-theme="dark"] .tech-stage.work,
+html[data-theme="dark"] .tech-stage.review,
+html[data-theme="dark"] .tech-orders-table td .tech-stage.work,
+html[data-theme="dark"] .tech-orders-table td .tech-stage.review,
+html[data-theme="dark"] .tech-orders-table td:nth-child(8) .tech-stage.work,
+html[data-theme="dark"] .tech-orders-table td:nth-child(8) .tech-stage.review {
+  border-color: #444 !important;
+  background: #303030 !important;
+  color: #ddd !important;
+}
+html[data-theme="dark"] .tech-pricing-service-name,
+html[data-theme="dark"] .tech-pricing-category-name,
+html[data-theme="dark"] .tech-pricing-count {
+  border-color: #555 !important;
+}
+html[data-theme="dark"] .tech-pricing-kicker,
+html[data-theme="dark"] .tech-pricing-count,
+html[data-theme="dark"] .tech-pricing-add,
+html[data-theme="dark"] .production-card-id { color: #d0d0d0 !important; }
+html[data-theme="dark"] .tech-pricing-row.is-new,
+html[data-theme="dark"] .tech-cad-model,
+html[data-theme="dark"] .order-upload-card {
+  border-color: #3a3a3a !important;
+  background: #252525 !important;
+  color: #dedede !important;
+}
+html[data-theme="dark"] .surgical-socket-order-addon {
+  border-color: #3a3a3a !important;
+  background: #252525 !important;
+}
+html[data-theme="dark"] .surgical-socket-order-heading > span,
+html[data-theme="dark"] .surgical-socket-order-price,
+html[data-theme="dark"] .surgical-socket-order-price strong { color: #d0d0d0 !important; }
+
+@media print {
+  .order-print-root,
+  .order-print-root * {
+    --print-accent: #666;
+  }
+  .order-print-line-field,
+  .order-print-formula,
+  .order-print-formula > div,
+  .order-print-formula span,
+  .order-print-main,
+  .order-print-tooth-line,
+  .order-print-tooth-line i {
+    border-color: var(--print-accent) !important;
+  }
+}
