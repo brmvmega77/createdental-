@@ -12,7 +12,7 @@ const dayLabel=days=>{
 const deadlineMarkup=(category,option)=>{
   const days=typeof option==='string'?null:option?.productionDays;
   if(!isHighVolumeLithiumRestoration(category?.name,typeof option==='string'?option:option?.name))return `<span>${dayLabel(days)}</span>`;
-  return `<div class="price-print-deadline"><span>до 10 ед. включительно: ${dayLabel(days)}</span><strong>с 11 ед.: 14 рабочих дней</strong></div>`;
+  return `<div class="price-print-deadline"><span><small>≤ 10 ед.</small><b>${dayLabel(days)}</b></span><span class="is-batch"><small>11+ ед.</small><b>14 рабочих дней</b></span></div>`;
 };
 
 function markup(catalog,logo){
