@@ -1797,6 +1797,13 @@ html[data-theme="dark"] .tech-order-type-row.analog{color:#ffc766!important}
   .clinic-orders-panel>.table-wrap{grid-column:1/-1}
 }
 
+/* Give the clinic search a deliberate reading width while keeping the filter
+   button aligned to it instead of letting the grid collapse the field. */
+@media(min-width:761px){
+  .clinic-orders-panel>.toolbar{width:min(100%,484px)}
+  .clinic-orders-panel>.toolbar .search{flex:1 1 auto;width:auto;max-width:none}
+}
+
 /* Match chief technician search and filter controls to the status menu height. */
 @media(min-width:761px){
   .tech-order-tools>.tech-segment{height:36px;box-sizing:border-box;align-items:center}
