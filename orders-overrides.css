@@ -1249,3 +1249,10 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
  .tech-order-group-summary>.tech-stage{grid-row:3}
  .tech-order-group-summary .tech-order-group-action{grid-row:4}
 }
+
+/* Full-list header and row dividers reach the card edges. Toolbar keeps its inset. */
+@media(min-width:761px){
+ .tech-order-viewbar+.tech-panel:has(.tech-orders-table-list){padding-left:0;padding-right:0}
+ .tech-order-viewbar+.tech-panel:has(.tech-orders-table-list)>.tech-order-tools{margin-left:21px;margin-right:21px}
+ .tech-orders-table-list tbody td.tech-order-actions-cell .tech-order-actions{justify-content:flex-end!important}
+}
