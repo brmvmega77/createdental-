@@ -22,7 +22,7 @@ const icons = {
   file:'<path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v6h5M9 13h6M9 17h6"/>',
   message:'<path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3a2 2 0 0 1-1-2V6a2 2 0 0 1 2-2z"/><path d="M8 9h8M8 13h5"/>',
   book:'<path d="M12 6c-2.4-1.5-5.4-1.7-9-.8v14c3.6-.9 6.6-.7 9 .8 2.4-1.5 5.4-1.7 9-.8v-14c-3.6-.9-6.6-.7-9 .8zM12 6v14"/>',
-  clinic:'<path d="M4 21V8.5L12 4l8 4.5V21"/><path d="M2 21h20M8 21v-5h8v5M12 8v5M9 10.5h6"/>',
+  clinic:'<path d="M5 5V2h14v3M8 6H2v3h6M16 6h6v3h-6M3 9v13h18V9"/><circle cx="12" cy="7.5" r="4.3"/><path d="M12 5.8v3.4M10.3 7.5h3.4M9 22v-6h6v6M12 16v6M5.5 13H7M5.5 16H7M5.5 19H7M17 13h1.5M17 16h1.5M17 19h1.5"/>',
   crm:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2"/>',
   users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
   factory:'<path d="M3 21V9l6 3V8l6 4V5h6v16"/><path d="M3 21h18M7 17h.01M11 17h.01M16 17h.01M20 17h.01"/>',
