@@ -7,7 +7,7 @@ import {createPayrollUI} from './payroll-ui.js?v=flow-integrity-1';
 import {employeeRank} from './payroll.js';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camAfterMilling,camWorkflowStagesForOrder} from './cam-workflow.js?v=cam-settings-1';
 import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel,displayOrderId,resolveOrderId} from './order-list-utils.js?v=order-fields-5';
-import {savePortal,loadPortal,authRequest,portalToken,loadOrderFiles,loadCadPreviewSource,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js?v=owner-patient-files-2';
+import {savePortal,loadPortal,authRequest,portalToken,loadOrderFiles,loadCadPreviewSource,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js?v=owner-patient-files-3';
 import {parseMoneyAmount} from './money.js';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=order-routing-1';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=flow-integrity-1';
@@ -296,10 +296,14 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   }
   function orderById(id){
     const all=allOrders();
-    const resolved=resolveOrderId(id,all);
+    // A grouped row points to the clinic's parent order. Keep that id intact;
+    // resolving it through a child would make the detail page lose the
+    // whole-order card and would also make delete/edit target the wrong record.
+    const parentRecord=orders.find(order=>order.clinicOrder?.id===id);
+    const resolved=parentRecord ? id : resolveOrderId(id,all);
     const direct=all.find(order=>order.id===resolved);
     if(direct)return direct;
-    const parent=orders.find(order=>order.clinicOrder?.id===resolved)?.clinicOrder;
+    const parent=parentRecord?.clinicOrder||orders.find(order=>order.clinicOrder?.id===resolved)?.clinicOrder;
     if(!parent)return null;
     const children=all.filter(order=>order.parentOrderId===resolved);
     const variants=children.flatMap(child=>Array.isArray(child.variants)&&child.variants.length?child.variants:[{toothMode:child.toothMode||'Одиночка',bridgeRanges:child.bridgeRanges||[],selectedTeeth:child.teeth||[],work:child.work,workOption:child.material}]);
@@ -496,7 +500,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     const first=group.items[0],parent=first.clinicOrder||{},groupId=first.parentOrderId||first.id,expanded=Boolean(state.expandedOrderGroups[groupId]);
     const allCount=Number(first.groupSummary?.count)||group.items.length,works=[...new Set(group.items.flatMap(order=>order.workTypes?.length?order.workTypes:[orderWorkLabel(order)]))],workLabel=works.length>2?`${works.slice(0,2).join(' · ')} +${works.length-2}`:works.join(' · '),stages=group.items.map(order=>{const acceptance=doctorAcceptanceInfo(order);return acceptance?.overdue?'Врач не принял 2 дня':chiefDisplayStageLabel(order)}),stageLabel=[...new Set(stages)].length===1?stages[0]:'Несколько этапов',people=[...new Map(group.items.flatMap(order=>order.participants||[]).map(person=>[person.id||person.name,person])).values()],typeLabels=[...new Set(group.items.map(order=>order.productionType==='analog'?'Аналоговый':'Цифровой'))];
     const countWord=allCount%100>=11&&allCount%100<=14?'подзаказов':allCount%10===1?'подзаказ':allCount%10>=2&&allCount%10<=4?'подзаказа':'подзаказов';
-    return `<tr class="tech-order-group-row"><td colspan="10"><button type="button" class="tech-order-group-summary" data-tech-order-group-toggle="${safe(groupId)}" aria-expanded="${expanded?'true':'false'}"><span class="tech-order-group-chevron" aria-hidden="true">${icon('chevron',15)}</span><span class="tech-order-group-primary"><strong>${safe(displayOrderId(groupId))}</strong><small>${safe(first.clinic)} · ${safe(first.patient||'Пациент не указан')}</small></span><span class="tech-order-group-stat tech-order-group-count"><b>${allCount}</b> ${countWord}</span><span class="tech-order-group-stat tech-order-group-type">${safe(typeLabels.join(' · '))}</span><span class="tech-order-group-stat tech-order-group-work">${safe(workLabel||'Несколько услуг')}</span><span class="tech-order-group-stat tech-order-group-deadline">${safe(first.date||'—')}</span><span class="tech-stage ${stageLabel==='Несколько этапов'?'work':orderListStageTone(first)}">${safe(stageLabel)}</span><span class="tech-order-group-stat tech-order-group-people">${people.length?`${people.length} ${people.length===1?'сотрудник':'сотрудника'}`:'Не назначены'}</span><span class="tech-order-group-action" aria-hidden="true"></span></button><button type="button" class="tech-order-parent-open" data-tech-order-parent="${safe(groupId)}">Открыть весь заказ</button></td></tr>${expanded?group.items.map((order,index)=>groupedOrderRow(order,{child:true,first:index===0,last:index===group.items.length-1})).join(''):''}`;
+    return `<tr class="tech-order-group-row"><td colspan="10"><button type="button" class="tech-order-group-summary" data-tech-order-group-toggle="${safe(groupId)}" aria-expanded="${expanded?'true':'false'}"><span class="tech-order-group-chevron" aria-hidden="true">${icon('chevron',15)}</span><span class="tech-order-group-primary"><strong>${safe(displayOrderId(groupId))}</strong><small>${safe(first.clinic)} · ${safe(first.patient||'Пациент не указан')}</small></span><span class="tech-order-group-stat tech-order-group-count"><b>${allCount}</b> ${countWord}</span><span class="tech-order-group-stat tech-order-group-type">${safe(typeLabels.join(' · '))}</span><span class="tech-order-group-stat tech-order-group-work">${safe(workLabel||'Несколько услуг')}</span><span class="tech-order-group-stat tech-order-group-deadline">${safe(first.date||'—')}</span><span class="tech-stage ${stageLabel==='Несколько этапов'?'work':orderListStageTone(first)}">${safe(stageLabel)}</span><span class="tech-order-group-stat tech-order-group-people">${people.length?`${people.length} ${people.length===1?'сотрудник':'сотрудника'}`:'Не назначены'}</span><span class="tech-order-group-action" aria-hidden="true"></span></button><div class="tech-order-parent-action-row"><button type="button" class="tech-order-parent-open" data-tech-order-parent="${safe(groupId)}">Открыть весь заказ</button></div></td></tr>${expanded?group.items.map((order,index)=>groupedOrderRow(order,{child:true,first:index===0,last:index===group.items.length-1})).join(''):''}`;
   }
   function orderRows(list){
     const sorted=sortedOrderRows(list);
@@ -1187,7 +1191,8 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(route.role==='technician'){
       state.page=route.page;
       if(route.orderId){
-        state.orderId=resolveOrderId(route.orderId,allOrders());
+        const parentRoute=orders.some(order=>order.clinicOrder?.id===route.orderId);
+        state.orderId=parentRoute?route.orderId:resolveOrderId(route.orderId,allOrders());
         const canonical=pathFor('technician','detail',state.orderId);
         if(location.pathname!==canonical)navigate(canonical,{replace:true});
       }
@@ -1537,6 +1542,9 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
     if(modal&&event.target===modal){if(state.orderUpload?.uploading)return;if(modal.dataset.techModal==='cad-preview'){cadPreviewRequest++;if(state.cadPreview?.url)URL.revokeObjectURL(state.cadPreview.url)}state.editOrderId=null;state.editOrderVariants=null;state.confirmOrderDeleteId=null;state.orderUpload=null;state.cadPreview=null;render();return}
       const orderAction=event.target.closest('[data-tech-order-action]');
     if(orderAction){
+      // Actions live inside clickable table rows. Stop the row activation so
+      // folder/edit/delete always use their own handler and target id.
+      event.stopPropagation();
       const action=orderAction.dataset.techOrderAction,id=orderAction.dataset.id;
       if(action==='group-delivery'){try{const response=await fetch(`/api/orders/${encodeURIComponent(id)}/delivery`,{method:'POST',headers:{'X-Portal-Token':portalToken()}});const data=await response.json();if(!response.ok)throw new Error(data.error);window.location.reload();}catch(error){toast(error.message)}return}
       if(action==='print-order'){const order=orderById(id);if(order)openOrderPrint({order:order.clinicOrder||order,toothChart,logo});return}
