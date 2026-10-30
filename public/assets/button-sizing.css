@@ -1,0 +1,16 @@
+/* Match the visible white action surface to the primary button's full box. */
+:root{--action-button-height:43px}
+.btn.outline:not(.tech-filter-button){
+  box-sizing:border-box;
+  height:var(--action-button-height)!important;
+  min-height:var(--action-button-height)!important;
+  padding-block:0;
+  border-color:transparent!important;
+  background-clip:border-box;
+  align-items:center;
+  justify-content:center;
+}
+@media(max-width:760px){
+  :root{--action-button-height:44px}
+  .btn.outline:not(.tech-filter-button){height:auto!important;padding-block:10px}
+}
