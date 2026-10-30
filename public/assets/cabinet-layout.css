@@ -1,4 +1,22 @@
 /* Shared cabinet corrections: neutral surfaces and content-sized layout. */
+/* Clinic statuses and search must expose their complete labels. */
+@media(min-width:901px){
+  .clinic-orders-panel{grid-template-columns:minmax(0,1fr);gap:16px}
+  .clinic-orders-panel>.clinic-status-segment{grid-column:1;grid-row:1;display:flex;flex-wrap:wrap;overflow:visible;width:max-content;max-width:100%;height:auto;min-height:43px;align-items:center;margin:0}
+  .clinic-orders-panel>.clinic-status-segment button{flex:none;min-height:37px;white-space:nowrap;font-size:11px;padding:7px 8px}
+  .clinic-orders-panel>.toolbar{grid-column:1;grid-row:2;justify-self:end;width:350px;max-width:100%;height:43px;margin:0;gap:10px}
+  .clinic-orders-panel>.toolbar .search{height:43px!important;min-height:43px;gap:8px;padding:0 10px;border-color:#eee;min-width:0}
+  .clinic-orders-panel>.toolbar .search svg{flex:none}
+  .clinic-orders-panel>.toolbar .search input{font-size:12px}
+  .clinic-orders-panel>.toolbar .clinic-filter-wrap>.btn{padding-inline:12px;font-size:12px}
+}
+@media(min-width:1440px){
+  .clinic-orders-panel{grid-template-columns:max-content minmax(350px,1fr);column-gap:12px}
+  .clinic-orders-panel>.clinic-status-segment{flex-wrap:nowrap}
+  .clinic-orders-panel>.clinic-status-segment button{font-size:11px;padding-inline:7px}
+  .clinic-orders-panel>.toolbar{grid-column:2;grid-row:1;width:350px}
+}
+@media(min-width:1700px){.clinic-orders-panel>.clinic-status-segment button{font-size:11px;padding-inline:8px}}
 /* One control style for orders, client requests and quality in every cabinet. */
 .tech-order-tools>.tech-order-searchbar>input:is(#tech-search,#tech-request-search){
   appearance:none;-webkit-appearance:none;box-sizing:border-box;
