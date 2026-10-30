@@ -30,8 +30,12 @@
 .production-card-status{background:#f1f1f1;color:#666}
 .production-card-footer{border-color:#eee}
 .tech-pricing-heading{display:flex;flex-direction:column;align-items:stretch;gap:28px;max-width:none}
-.tech-pricing-heading-actions{display:grid;grid-template-columns:repeat(4,max-content);justify-content:end;align-items:center;gap:12px;padding-top:8px}
-.tech-pricing-heading-actions>[data-tech-pricing-action="save"]{grid-column:1/-1;justify-self:end;margin-top:12px}
+.tech-pricing-heading-actions{display:grid;grid-template-columns:repeat(5,max-content);justify-content:end;align-items:stretch;gap:12px;padding-top:8px}
+.tech-pricing-heading-actions>[data-tech-pricing-action="save"]{grid-column:auto;justify-self:stretch;margin:0}
+@media(min-width:761px) and (max-width:1439px){
+  .tech-pricing-heading-actions{grid-template-columns:repeat(5,minmax(0,auto));gap:10px}
+  .tech-pricing-heading-actions>.btn{min-width:0;height:auto;min-height:43px;padding:10px 12px;font-size:12px;white-space:normal;text-align:center}
+}
 .tech-pricing-heading .tech-pricing-order-hint{margin:6px 0 0;font-size:12px;line-height:1.5;color:#808080}
 @media(min-width:761px){
   .tech-order-tools,.tech-order-viewbar+.tech-panel>.tech-order-tools{display:grid!important;grid-template-columns:minmax(0,1fr)!important;align-items:center!important;gap:16px!important;min-width:0}
