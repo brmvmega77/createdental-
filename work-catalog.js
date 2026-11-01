@@ -83,7 +83,8 @@ const jawPricedCategories=new Set(['Каппы','Ложки прикуса','С�
 const upperJawTeeth=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
 const lowerJawTeeth=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
 
-export function priceUnitsForSelection(work,teeth=[],units,pricingUnit){
+export function priceUnitsForSelection(work,teeth=[],units,pricingUnit,option=''){
+  if(isFixedQuantityService(work,option))return 1;
   if(units!==undefined&&units!==null&&units!==''&&Number.isFinite(Number(units)))return Math.max(1,Number(units));
   const category=workCatalog.find(item=>item.id===work||item.name===work||item.aliases?.includes(work));
   if((pricingUnit||category?.pricingUnit)==='jaw'||!category&&!pricingUnit&&jawPricedCategories.has(String(work||''))){
@@ -95,6 +96,11 @@ export function priceUnitsForSelection(work,teeth=[],units,pricingUnit){
 }
 
 const normalizeCatalogText=value=>String(value||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/[^а-яa-z0-9]+/gi,' ').trim();
+
+export function isFixedQuantityService(work,option=''){
+  const selection=resolveWorkSelection(work,option),names=['Силиконовый ключ','Прозрачный силиконовый ключ'].map(normalizeCatalogText);
+  return [selection.option?.name,...(selection.option?.aliases||[]),option].some(value=>value&&names.includes(normalizeCatalogText(value)));
+}
 
 export function isProstheticVariant(variant){
   const category=resolveWorkSelection(variant?.workId||variant?.work,variant?.serviceId||variant?.workOption).category;
@@ -232,7 +238,7 @@ export function rubles(amount){return new Intl.NumberFormat('ru-RU').format(amou
 
 export function estimateWork({work='',option='',teeth=[],units}={}){
   const selection=resolveWorkSelection(work,option);
-  const quantity=priceUnitsForSelection(selection.category?.name||work,teeth,units);
+  const quantity=priceUnitsForSelection(selection.category?.name||work,teeth,units,selection.option?.pricingUnit||selection.category?.pricingUnit,option);
   const amount=Number.isFinite(selection.price)?selection.price*quantity:null;
   return {...selection,units:quantity,amount,text:amount===null?'Стоимость уточняется':rubles(amount)};
 }

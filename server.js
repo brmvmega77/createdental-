@@ -22,7 +22,7 @@ import {createTelegramBridge} from './telegram-bot.js';
 import {createEmployeeTelegramBridge} from './employee-telegram-bot.js';
 import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource,unpublishDiskResource} from './yandex-disk-storage.js';
 import {workCatalog,rubles,orderDeadlineError,earliestDueDateForOrder,isWorkingDay,isoDateLocal,isValidIsoDate,estimateWork,resolveWorkSelection,prostheticSelectionError} from './work-catalog.js';
-import {orderWorkLabel} from './order-list-utils.js';
+import {orderWorkLabel,displayOrderId} from './order-list-utils.js';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
@@ -1404,7 +1404,7 @@ async function handleNotifications(req,res){
     };
     const notificationMeta=event=>{
       if(event.action==='clinic_registered')return {type:'registration',target:'clients',clinicId:event.clinicId||''};
-      if(event.action==='message_received')return {type:'message',target:'messages',clinicId:event.clinicId||''};
+      if(['message_received','message_replied'].includes(event.action))return {type:'message',target:'messages',clinicId:event.clinicId||''};
       if(event.action==='telegram_binding_requested')return {type:'registration',target:'profile',clinicId:event.clinicId||''};
       if(event.action==='order_created')return {type:'order',target:'detail',clinicId:event.clinicId||''};
       if(event.action==='stage_changed'&&event.to==='Контроль качества')return {type:'quality',target:'detail',clinicId:event.clinicId||''};
@@ -1711,9 +1711,9 @@ async function deliverSupportMessage(clinicId,message){
   if(!message||message.from!=='support')return message;
   message.deliveryStatus='sending';message.deliveryError='';message.deliveryAttempts=(Number(message.deliveryAttempts)||0)+1;await saveClinicChats();
   try{
-    const delivered=await telegramBridge?.sendClinicMessage(clinicId,message.text,message.attachment);
-    if(!delivered)throw new Error('Чат Telegram не подключён');
-    message.deliveryStatus='delivered';message.deliveredAt=new Date().toISOString();message.deliveryError='';
+    const text=message.orderId?`Заказ ${message.orderLabel||displayOrderId(message.orderId)}\n\n${message.text||''}`:message.text;
+    const delivered=await telegramBridge?.sendClinicMessage(clinicId,text,message.attachment);
+    message.deliveryStatus=delivered?'delivered':'portal';message.deliveredAt=new Date().toISOString();message.deliveryError='';
   }catch(error){message.deliveryStatus='error';message.deliveryError=String(error.message||'Ошибка Telegram').slice(0,300)}
   await saveClinicChats();return message;
 }
@@ -1788,13 +1788,13 @@ async function handleClinicMessages(req,res,url){
   }
   if(user.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
   if(req.method==='GET'&&url.pathname==='/api/chief/conversations'){
-    const conversations=Object.entries(clinicChats).filter(([id])=>portalClient(id)).map(([id,chat])=>{const clinic=portalClient(id),last=chat.messages.at(-1);return {id,name:clinic.name,logo:clinic.logo||'',lastMessage:last?.text||(last?.attachment?`📎 ${last.attachment.name}`:''),updatedAt:chat.updatedAt}}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+    const conversations=portalSnapshot().clients.filter(clinic=>!clinic.deleted).map(clinic=>{const chat=clinicChats[clinic.id],last=chat?.messages?.at(-1),preview=last?.text||(last?.attachment?`Файл: ${last.attachment.name}`:'');return {id:clinic.id,name:clinic.name,logo:clinic.logo||'',lastMessage:last?.orderId?`Заказ ${last.orderLabel||displayOrderId(last.orderId)} · ${preview}`:preview,updatedAt:chat?.updatedAt||''}}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||a.name.localeCompare(b.name,'ru'));
     return json(res,200,{conversations});
   }
   const match=url.pathname.match(/^\/api\/chief\/conversations\/([A-Za-z0-9_-]+)(?:\/(reply|retry)\/?)?(?:\/([a-f0-9]{24}))?$/);
   if(!match||!portalClient(match[1]))return json(res,404,{error:'Диалог не найден'});
   if(req.method==='GET'&&!match[2])return json(res,200,{messages:clinicChats[match[1]]?.messages||[]});
-  if(req.method==='POST'&&match[2]==='reply'&&clinicChats[match[1]])return addClinicMessage(req,res,match[1],'support');
+  if(req.method==='POST'&&match[2]==='reply')return addClinicMessage(req,res,match[1],'support');
   if(req.method==='POST'&&match[2]==='retry'&&match[3]){
     const message=clinicChats[match[1]]?.messages?.find(item=>item.id===match[3]&&item.from==='support');
     if(!message)return json(res,404,{error:'Сообщение не найдено'});
@@ -1806,19 +1806,21 @@ async function handleClinicMessages(req,res,url){
 async function addClinicMessage(req,res,id,from){
   let body;try{body=await readBody(req,220000)}catch{return json(res,400,{error:'Неверное сообщение'})}
   const message=String(body.text||'').trim();
+  const orderId=String(body.orderId||'').trim(),order=orderId?portalSnapshot().orders.find(item=>item.id===orderId&&item.clinicId===id):null;
+  if(orderId&&!order)return json(res,400,{error:'Заказ не найден или не относится к этой клинике'});
   const requested=body.attachment&&typeof body.attachment==='object'?body.attachment:null;
   const stored=requested&&clinicMessageFiles[String(requested.id||'')];
   if(requested&&(!stored||stored.clinicId!==id))return json(res,400,{error:'Не удалось найти прикреплённый файл'});
   if(!message&&!stored||message.length>2000)return json(res,400,{error:'Добавьте текст или файл'});
   const preview=stored&&typeof requested.preview==='string'&&requested.preview.length<=180000&&/^data:image\/(?:jpeg|png|webp);base64,/i.test(requested.preview)?requested.preview:'';
   const attachment=stored?{id:stored.id,name:stored.name,size:stored.size,type:stored.type,preview}:null;
-  const entry={id:randomBytes(12).toString('hex'),from,text:attachment?.type?.startsWith('image/')?'Послано изображение':message,time:new Date().toISOString(),...(attachment?{attachment}:{}),...(from==='support'?{deliveryStatus:'sending',deliveryError:''}:{})};
+  const entry={id:randomBytes(12).toString('hex'),from,text:attachment?.type?.startsWith('image/')?'Послано изображение':message,time:new Date().toISOString(),...(order?{orderId:order.id,orderLabel:displayOrderId(order),orderParentId:order.parentOrderId||order.id}:{}),...(attachment?{attachment}:{}),...(from==='support'?{deliveryStatus:'sending',deliveryError:''}:{})};
   const chat=clinicChats[id]||={messages:[],updatedAt:''};
   chat.messages.push(entry);chat.updatedAt=entry.time;
   try{await saveClinicChats()}catch{return json(res,500,{error:'Не удалось сохранить сообщение'})}
-  await recordPortalEvent('',{role:from==='client'?'clinic':'technician',name:from==='client'?(portalClient(id)?.name||'Клиника'):'Главный техник'},from==='client'?'message_received':'message_replied',{clinicId:id,summary:from==='client'?'Новое сообщение от клиники':'Лаборатория ответила на сообщение'}).catch(()=>{});
+  await recordPortalEvent(order?.id||'',{role:from==='client'?'clinic':'technician',name:from==='client'?(portalClient(id)?.name||'Клиника'):'Главный техник'},from==='client'?'message_received':'message_replied',{clinicId:id,summary:(order?`Заказ ${displayOrderId(order)} · `:'')+(from==='client'?'Новое сообщение от клиники':'Лаборатория ответила на сообщение')}).catch(()=>{});
   if(from==='support')await deliverSupportMessage(id,entry);
-  return json(res,from==='support'&&entry.deliveryStatus!=='delivered'?202:201,{message:entry});
+  return json(res,from==='support'&&entry.deliveryStatus==='error'?202:201,{message:entry});
 }
 
 async function handleLocations(req,res,url){

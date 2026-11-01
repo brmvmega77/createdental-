@@ -2,9 +2,25 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {mergeOrderVariant,reviseOrderServices,reviseOrderVariants,clientRequestConflict,reconcilePayment} from './order-revision.js';
 import {assignmentChange,workerTransitionAllowed} from './flow-rules.js';
 import {qualityApprovalChange} from './technician.js';
-import {workCatalog,normalizeWorkCatalog,orderDeadlineError,prostheticSelectionError,isProstheticVariant} from './work-catalog.js';
+import {workCatalog,normalizeWorkCatalog,orderDeadlineError,prostheticSelectionError,isProstheticVariant,estimateWork,priceUnitsForSelection} from './work-catalog.js';
+import {priceNewClinicOrder} from './promo-codes.js';
 import {telegramInternals} from './telegram-bot.js';
 const variant={work:'Вкладки',workOption:'Вкладка культевая',selectedTeeth:[11],toothMode:'Одиночка',unitPrice:3500};
+test('silicone keys have one fixed price regardless of teeth and explicit quantity',()=>{
+ const category=workCatalog.find(item=>item.name==='Дополнительные работы'),original=structuredClone(category.options);
+ try{
+  category.options.push({id:'fixture-key',name:'Силиконовый ключ',price:1500},{id:'fixture-clear-key',name:'Прозрачный силиконовый ключ',price:2700});
+  for(const option of category.options.filter(item=>item.id?.startsWith('fixture-'))){
+   const selectedTeeth=[21,22,23,24],v={work:category.name,workOption:option.name,selectedTeeth,units:99};
+   assert.equal(priceUnitsForSelection(category.id,selectedTeeth,99,'tooth',option.id),1);
+   assert.equal(estimateWork({work:v.work,option:v.workOption,teeth:selectedTeeth,units:99}).amount,option.price);
+   assert.equal(priceNewClinicOrder({variants:[v]},{}).servicesTotal,option.price);
+   const edited=reviseOrderVariants({variants:[]},[v]);
+   assert.equal(edited.quantity,1);assert.equal(edited.servicesTotal,option.price);assert.deepEqual(edited.teeth,selectedTeeth);
+  }
+  assert.equal(estimateWork({work:'Реставрации',option:'PMMA коронка CAD/CAM',teeth:[21,22,23,24]}).units,4);
+ }finally{category.options.splice(0,category.options.length,...original)}
+});
 test('each tooth has one prosthetic component while its restoration remains independent',()=>{
  const options=workCatalog.find(item=>item.name==='Протетика').options;
  const component=(index,teeth)=>({work:'Протетика',workOption:options[index].name,selectedTeeth:teeth});

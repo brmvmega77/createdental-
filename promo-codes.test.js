@@ -76,6 +76,8 @@ test('HTTP promo saves assign prices atomically, preserve agreed orders, enforce
  chief=await get('chief');assert.equal(chief.clients.find(c=>c.email==='new@example.test').promoCode,'RENAMED');assert.ok(chief.promoCodes[0].clinicIds.includes(chief.clients.find(c=>c.email==='new@example.test').id));
  assert.equal((await api('/api/auth/register','',{...registration,email:'b@example.test',promoCode:''},{},'POST')).status,201);
  assert.equal((await get('clinic-b')).promoCode,'RENAMED');
+ assert.equal((await api('/api/auth/register','',{...registration,email:'without-code@example.test',promoCode:''},{},'POST')).status,201);
+ assert.equal((await get('chief')).clients.find(c=>c.email==='without-code@example.test').promoCode,'');
  chief=await get('chief');ok(await save(chief.promoCodes.map(p=>({...p,active:false}))));assert.equal((await api('/api/auth/register','',{...registration,email:'inactive@example.test'},{},'POST')).status,400);assert.deepEqual((await get('clinic-b')).promoPrices,{});
  await stop();await start();chief=await get('chief');assert.equal(chief.promoCodes[0].active,false);assert.equal(chief.clients.find(c=>c.id==='clinic-b').promoCode,'RENAMED');assert.deepEqual((await get('clinic-a')).orders,original);
  ok(await save([]));assert.equal((await get('clinic-b')).promoCode,'');

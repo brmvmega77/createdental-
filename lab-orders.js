@@ -92,10 +92,10 @@ export function reconcileLabOrders(state,previousState=null,changedKey=''){
    allocatedIds.add(id);
    const variants=group.variants.map(v=>({...v,labWorkId:id}));
    let total=0;
-   for(const v of variants){const selection=resolveWorkSelection(v.workId||v.work,v.serviceId||v.workOption),units=priceUnitsForSelection(v.workId||v.work,v.selectedTeeth||v.teeth||[],v.units,v.pricingUnit);if(v.unitPrice===undefined&&Number.isFinite(Number(selection.price)))v.unitPrice=Number(selection.price);total+=Number.isFinite(v.amount)?v.amount:(Number(v.unitPrice)||0)*units;}
+   for(const v of variants){const selection=resolveWorkSelection(v.workId||v.work,v.serviceId||v.workOption),units=priceUnitsForSelection(v.workId||v.work,v.selectedTeeth||v.teeth||[],v.units,v.pricingUnit,v.serviceId||v.workOption);if(v.unitPrice===undefined&&Number.isFinite(Number(selection.price)))v.unitPrice=Number(selection.price);total+=Number.isFinite(v.amount)?v.amount:(Number(v.unitPrice)||0)*units;}
    total=Math.round(total*100)/100;subtotal+=total;
    const first=variants[0],teeth=[...new Set(variants.flatMap(v=>v.selectedTeeth||v.teeth||[]))].sort((a,b)=>a-b);
-   const child={...parent,...(existing||{}),id,_revision:existing?._revision||0,parentOrderId:parent.id,serviceKey:group.key,variants,work:first.work,material:first.workOption,teeth,bridgeRanges:variants.flatMap(v=>v.bridgeRanges||[]),quantity:variants.reduce((n,v)=>n+priceUnitsForSelection(v.workId||v.work,v.selectedTeeth||[],v.units,v.pricingUnit),0),servicesTotal:total,deliveryFee:0,sum:rubles(total)};
+   const child={...parent,...(existing||{}),id,_revision:existing?._revision||0,parentOrderId:parent.id,serviceKey:group.key,variants,work:first.work,material:first.workOption,teeth,bridgeRanges:variants.flatMap(v=>v.bridgeRanges||[]),quantity:variants.reduce((n,v)=>n+priceUnitsForSelection(v.workId||v.work,v.selectedTeeth||[],v.units,v.pricingUnit,v.serviceId||v.workOption),0),servicesTotal:total,deliveryFee:0,sum:rubles(total)};
    for(const key of ['labWorkIds','nextLabWorkNumber','clinicOrder','groupSummary','serviceWorks','paidAt','paidAmount','paymentStatus'])delete child[key];
    for(const key of ['patient','doctor','doctorId','birth','clinic','clinicId','productionType','date','shade','comment','priority','createdAt','promoCode'])if(parent[key]!==undefined&&(key!=='comment'||!existing||!oldParent||parent.comment!==oldParent.comment))child[key]=parent[key];
    if(!existing){overrides[id]=inheritedDetail(parent,child,overrides[parent.id],state);}
