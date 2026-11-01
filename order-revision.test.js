@@ -2,9 +2,28 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {mergeOrderVariant,reviseOrderServices,reviseOrderVariants,clientRequestConflict,reconcilePayment} from './order-revision.js';
 import {assignmentChange,workerTransitionAllowed} from './flow-rules.js';
 import {qualityApprovalChange} from './technician.js';
-import {workCatalog,normalizeWorkCatalog,orderDeadlineError} from './work-catalog.js';
+import {workCatalog,normalizeWorkCatalog,orderDeadlineError,prostheticSelectionError,isProstheticVariant} from './work-catalog.js';
 import {telegramInternals} from './telegram-bot.js';
 const variant={work:'Вкладки',workOption:'Вкладка культевая',selectedTeeth:[11],toothMode:'Одиночка',unitPrice:3500};
+test('each tooth has one prosthetic component while its restoration remains independent',()=>{
+ const options=workCatalog.find(item=>item.name==='Протетика').options;
+ const component=(index,teeth)=>({work:'Протетика',workOption:options[index].name,selectedTeeth:teeth});
+ const crown={work:'Реставрации',workOption:'PMMA коронка CAD/CAM',selectedTeeth:[25,26]};
+ assert.equal(isProstheticVariant({work:'Неизвестная услуга'}),false);
+ assert.equal(prostheticSelectionError([crown,component(0,[26]),component(1,[25])]),'');
+ for(let index=0;index<options.length;index++){
+  assert.match(prostheticSelectionError([component(0,[26]),component(index,[25,26])]),/зуба 26/);
+ }
+ assert.equal(prostheticSelectionError([component(2,[])],{requireTeeth:true}),'Выберите зубы для каждой комплектующей.');
+ assert.equal(prostheticSelectionError([component(2,[])]),''); // Historical unnumbered bases stay readable.
+ const byId={workId:workCatalog.find(item=>item.name==='Протетика').id,serviceId:options[1].id,selectedTeeth:[26]};
+ assert.match(prostheticSelectionError([component(0,[26]),byId]),/зуба 26/);
+ const order={variants:[crown,component(0,[26]),component(1,[25])]};
+ const incoming=structuredClone(order.variants);incoming[2].selectedTeeth=[26];
+ assert.throws(()=>reviseOrderVariants(order,incoming),/зуба 26/);
+ incoming[2].selectedTeeth=[24,25];
+ assert.deepEqual(reviseOrderVariants(order,incoming).variants[2].selectedTeeth,[24,25]);
+});
 test('non-service edits preserve total, delivery, agreed unit prices and legacy snapshots',()=>{
  const order={work:variant.work,material:variant.workOption,variants:[variant],servicesTotal:3500,deliveryFee:500,sum:'4 000 ₽'};
  const result=reviseOrderVariants(order,[{...variant,unitPrice:4000}]);assert.equal(result.sum,order.sum);assert.equal(result.deliveryFee,500);assert.equal(result.variants[0].unitPrice,3500);

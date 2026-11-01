@@ -96,6 +96,25 @@ export function priceUnitsForSelection(work,teeth=[],units,pricingUnit){
 
 const normalizeCatalogText=value=>String(value||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/[^а-яa-z0-9]+/gi,' ').trim();
 
+export function isProstheticVariant(variant){
+  const category=resolveWorkSelection(variant?.workId||variant?.work,variant?.serviceId||variant?.workOption).category;
+  return Boolean(category&&category===workCatalog.find(item=>item.name==='Протетика'||item.aliases?.includes('Протетика')));
+}
+
+export function prostheticSelectionError(variants,{requireTeeth=false}={}){
+  const occupied=new Set();
+  for(const variant of variants||[]){
+    if(!isProstheticVariant(variant))continue;
+    const teeth=[...new Set((variant.selectedTeeth||[]).map(Number))];
+    if(requireTeeth&&!teeth.length)return 'Выберите зубы для каждой комплектующей.';
+    for(const tooth of teeth){
+      if(occupied.has(tooth))return `Для зуба ${tooth} уже выбрана комплектующая. Удалите её, чтобы выбрать другую.`;
+      occupied.add(tooth);
+    }
+  }
+  return '';
+}
+
 export function isValidIsoDate(value){
  const raw=String(value||'');
  if(!/^\d{4}-\d{2}-\d{2}$/.test(raw))return false;

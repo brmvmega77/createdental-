@@ -1,4 +1,4 @@
-import {resolveWorkSelection,priceUnitsForSelection,rubles} from './work-catalog.js';
+import {resolveWorkSelection,priceUnitsForSelection,rubles,prostheticSelectionError} from './work-catalog.js';
 import {samePortalValue} from './collection-concurrency.js';
 export class OrderRevisionError extends Error{constructor(message,code='invalid_revision'){super(message);this.code=code;this.status=400;}}
 export function reconcilePayment(previous,next){
@@ -42,6 +42,8 @@ export function reviseOrderVariants(order,incoming,{deliverySettings={freeThresh
  const before=orderVariants(order);
  // No service edit means no recalculation, including delivery and legacy prices.
  if(incoming.length===before.length&&incoming.every((v,i)=>samePortalValue(shape(v),shape(before[i]))))return {...Object.fromEntries(['work','material','teeth','quantity','toothMode','bridgeRanges','servicesTotal','deliveryFee','sum'].filter(key=>Object.hasOwn(order,key)).map(key=>[key,structuredClone(order[key])])),variants:structuredClone(order.variants?.length?order.variants:before)};
+ const prostheticIssue=prostheticSelectionError(incoming);
+ if(prostheticIssue)throw new OrderRevisionError(prostheticIssue);
  let servicesTotal=0;
  const variants=incoming.map((raw,index)=>{
   const variant=structuredClone(raw),selection=resolveWorkSelection(variant.work,variant.workOption);

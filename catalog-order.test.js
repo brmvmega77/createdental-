@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {workCatalog,normalizeWorkCatalog,reorderCatalogService,reorderCatalogCategory} from './work-catalog.js';
+import {workCatalog,normalizeWorkCatalog,reorderCatalogService,reorderCatalogCategory,isProstheticVariant,prostheticSelectionError} from './work-catalog.js';
 import {orderVariantConstructionLabel,orderWorkLabel,displayOrderId} from './order-list-utils.js';
 
 test('human-facing order ids use compact format while preserving readable suffix',()=>{
@@ -53,6 +53,15 @@ test('saved service order reaches the clinic, survives restart and preserves com
  const api=async(user,body,version)=>{const r=await fetch(`http://127.0.0.1:${port}/api/portal${body?'/workCatalog':''}`,{method:body?'PUT':'GET',headers:{'X-Portal-Token':user,'Content-Type':'application/json',...(version===undefined?{}:{'X-Portal-Version':String(version)})},...(body?{body:JSON.stringify(body)}:{})});return {status:r.status,body:await r.json()};};
  const ok=r=>{assert.ok(r.status>=200&&r.status<300,JSON.stringify(r));return r.body;};
  const before=ok(await api('chief')),clinicBefore=ok(await api('clinic')),next=reorderCatalogService(before.workCatalog,0,0,2),expected=next[0].options.map(o=>o.id);
+ const prosthetics=before.workCatalog.find(item=>item.name==='Протетика');
+ const component=(index,selectedTeeth)=>({work:prosthetics.name,workOption:prosthetics.options[index].name,selectedTeeth});
+ for(const variants of [[component(0,[26]),component(1,[26])],[component(2,[])]]){
+  const invalid={...order,id:'CD-INVALID-COMPONENT',variants};
+  const response=await fetch(`http://127.0.0.1:${port}/api/portal/orders`,{method:'PUT',headers:{'X-Portal-Token':'clinic','Content-Type':'application/json'},body:JSON.stringify([...clinicBefore.orders,invalid])});
+  assert.equal(response.status,400);
+  assert.match((await response.json()).error,/комплектующ/);
+ }
+ assert.deepEqual(ok(await api('clinic')).orders,clinicBefore.orders);
  assert.equal((await api('clinic',next)).status,403);assert.equal((await api('worker',next)).status,403);
  ok(await api('chief',next,before.collectionVersions.workCatalog||0));
  const after=ok(await api('chief')),clinic=ok(await api('clinic'));
@@ -98,6 +107,7 @@ test('different restorations keep independent teeth in either selection order',(
  const source=fs.readFileSync(new URL('./app.js',import.meta.url),'utf8');
  const constants=['currentVariant','variantSignature','currentVariantSaved','cloneVariant'].map(name=>source.split('\n').find(line=>line.startsWith(`const ${name} =`))).join('\n');
  const projection=source.slice(source.indexOf('const currentVariantBaseIndex ='),source.indexOf('const serviceSubtotalEstimate ='));
+ const occupied=source.slice(source.indexOf('function occupiedProstheticTeeth(){'),source.indexOf('function toothChart('));
  const actions=source.slice(source.indexOf('function persistCurrentVariant(){'),source.indexOf('function addProstheticAddon('));
  const addons=source.slice(source.indexOf('function addProstheticAddon('),source.indexOf('function addSurgicalSocket('));
  const teethActions=source.slice(source.indexOf('function syncBridgeSelection(){'),source.indexOf('function advanceOrderStep(){'));
@@ -105,7 +115,8 @@ test('different restorations keep independent teeth in either selection order',(
  const removal=source.slice(source.indexOf('function removeOrderVariant(index){'),source.indexOf('function addCurrentOrderToCart()'));
  const create=()=>{
   const context={state:{work:'Реставрации',workOption:'',selectedTeeth:[],bridgeRanges:[],bridgeStart:null,toothMode:'Одиночка',currentVariantBase:null,orderVariants:[],form:{}},upperTeeth:[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28],lowerTeeth:[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38],variantIsComplete:v=>Boolean(v?.work&&v?.workOption&&v?.selectedTeeth?.length),currentSurgicalGuideIncluded:()=>false,isNoTeethSelection:()=>false,currentUsesJawSplit:()=>false,isSurgicalTemplate:()=>false,orderServiceCount:vs=>vs.length,notify:()=>{},currentProductionDays:()=>7,workCatalog:[{name:'Протетика',options:['Абатмент']},{name:'Дополнительные работы',options:['Силиконовый ключ']}],workOptionName:o=>o,refreshOrderBuilder:()=>{},notifyWithoutRender:()=>{}};
-  vm.createContext(context);vm.runInContext(constants+'\n'+projection+'\n'+reset+'\n'+actions+'\n'+addons+'\n'+teethActions+'\n'+removal,context);
+  Object.assign(context,{isProstheticVariant,prostheticSelectionError,variantUsesShade:v=>v.work==='Реставрации',document:{querySelector:()=>null}});
+  vm.createContext(context);vm.runInContext(constants+'\n'+projection+'\n'+occupied+'\n'+reset+'\n'+actions+'\n'+addons+'\n'+teethActions+'\n'+removal,context);
   context.cart=()=>JSON.parse(vm.runInContext('JSON.stringify(allVariants().filter(variantIsComplete))',context));
   context.clickTooth=n=>{context.selectOrderTooth(n);vm.runInContext('if(!state.currentVariantBase&&variantIsComplete(currentVariant()))persistCurrentVariant()',context)};
   return context;
@@ -130,7 +141,10 @@ test('different restorations keep independent teeth in either selection order',(
  added.clickTooth(28);added.selectWorkOption(zirconia);
  assert.deepEqual(added.cart().map(v=>v.selectedTeeth),[[21],[28]]);
  const accessory=create();accessory.clickTooth(21);accessory.selectWorkOption(slav);accessory.addProstheticAddon('Абатмент');
- assert.deepEqual(accessory.cart().map(v=>v.selectedTeeth),[[21],[21]]);assert.deepEqual(Array.from(accessory.state.selectedTeeth),[]);assert.equal(accessory.state.work,'Реставрации');assert.equal(accessory.state.workOption,'');
+ assert.deepEqual(accessory.cart().map(v=>v.selectedTeeth),[[21]]);
+ accessory.toggleProstheticAddonTooth(21);accessory.confirmProstheticAddon();
+ assert.deepEqual(accessory.cart().map(v=>v.selectedTeeth),[[21],[21]]);assert.deepEqual(Array.from(accessory.state.selectedTeeth),[21]);assert.equal(accessory.state.work,'Реставрации');
+ accessory.addOrderVariant();
  accessory.clickTooth(28);accessory.selectWorkOption(zirconia);
  assert.deepEqual(accessory.cart().map(v=>v.selectedTeeth),[[21],[21],[28]]);
  const planning=create();planning.state.work='Планирование и диагностика';planning.clickTooth(21);planning.selectWorkOption('Wax up');planning.addPlanningAddon('Силиконовый ключ');

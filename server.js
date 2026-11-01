@@ -21,7 +21,7 @@ import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,up
 import {createTelegramBridge} from './telegram-bot.js';
 import {createEmployeeTelegramBridge} from './employee-telegram-bot.js';
 import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource,unpublishDiskResource} from './yandex-disk-storage.js';
-import {workCatalog,rubles,orderDeadlineError,earliestDueDateForOrder,isWorkingDay,isoDateLocal,isValidIsoDate,estimateWork,resolveWorkSelection} from './work-catalog.js';
+import {workCatalog,rubles,orderDeadlineError,earliestDueDateForOrder,isWorkingDay,isoDateLocal,isValidIsoDate,estimateWork,resolveWorkSelection,prostheticSelectionError} from './work-catalog.js';
 import {orderWorkLabel} from './order-list-utils.js';
 
 const root = process.cwd();
@@ -513,6 +513,8 @@ async function handlePortal(req,res,url){
         const additions=value.filter(item=>!existing.has(item.id));
         if(!additions.length||additions.length>20||value.length!==snapshot.orders.filter(item=>item.clinicId===user.subjectId&&!isLabWork(item)).length+additions.length||additions.some(item=>item.clinicId!==user.subjectId||snapshot.orders.some(existingOrder=>existingOrder.id===item.id)))return json(res,403,{error:'Можно добавить до 20 своих заказов за один раз'});
         if(additions.some(order=>!orderCatalogIsValid(order)))return json(res,400,{error:'Выберите услугу из актуального прайса'});
+        const prostheticIssue=additions.map(order=>prostheticSelectionError(order.variants?.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[]}],{requireTeeth:true})).find(Boolean);
+        if(prostheticIssue)return json(res,400,{error:prostheticIssue});
         const invalidDeadline=additions.map(order=>orderDeadlineValidation(order)).find(Boolean);
         if(invalidDeadline)return json(res,400,{error:invalidDeadline});
         // Keep the delivery rule authoritative on the server as well. The

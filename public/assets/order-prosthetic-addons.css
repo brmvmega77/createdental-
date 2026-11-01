@@ -16,6 +16,21 @@
 .prosthetic-addon-cta small{color:#666;font-size:9px;font-weight:700}
 .prosthetic-addon-list button:hover:not(:disabled) .prosthetic-addon-name svg{background:#808080;border-color:#808080;stroke:#fff}
 .prosthetic-addons-note{color:#555;font-size:10px;line-height:1.4}
+.prosthetic-tooth-editor{display:grid;gap:12px;padding:6px 12px 14px}
+.prosthetic-tooth-editor>p{font-weight:600;color:#333}
+.prosthetic-tooth-options{display:flex;flex-wrap:wrap;gap:8px}
+.prosthetic-addon-list .prosthetic-tooth-options button{width:40px;min-height:40px;padding:0;align-items:center;justify-content:center;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.prosthetic-addon-list .prosthetic-tooth-options button.selected{background:#333;border-color:#333;color:#fff}
+.prosthetic-addon-list .prosthetic-tooth-options button:disabled{background:#e8e8e8;border-color:#ddd;color:#666;text-decoration:line-through;opacity:1}
+.prosthetic-tooth-editor>small{color:#555;font-size:10px;line-height:1.5}
+.prosthetic-tooth-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px}
+.prosthetic-addon-list .prosthetic-tooth-actions button{width:auto;min-height:36px;padding:8px 12px;justify-content:center}
+.prosthetic-addon-list .prosthetic-tooth-actions [data-action="prosthetic-addon-confirm"]{background:#333;border-color:#333;color:#fff}
+.prosthetic-addon-list .prosthetic-tooth-actions [data-action="prosthetic-addon-confirm"]:disabled{opacity:.5}
+.prosthetic-addon-list .prosthetic-tooth-actions [data-action="prosthetic-addon-confirm"]:hover:not(:disabled){background:#444;border-color:#444}
+.tooth.unavailable{opacity:.35;cursor:not-allowed}
+@media(max-width:900px){body .order-builder .tooth-picker .desktop-tooth-chart{display:block}}
+@media(max-width:600px){.prosthetic-tooth-editor{padding:4px 0 12px}.prosthetic-addon-list .prosthetic-tooth-options button{width:44px;min-height:44px}.prosthetic-addon-list .prosthetic-tooth-actions button{min-height:44px}}
 html[data-theme="dark"] .prosthetic-addons{border-color:#555;background:#202020}
 html[data-theme="dark"] .prosthetic-addons h3{color:#eef0f2}
 html[data-theme="dark"] .prosthetic-addons p,html[data-theme="dark"] .prosthetic-addons-note{color:#c8c8c8}
