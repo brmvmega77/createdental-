@@ -72,7 +72,7 @@ if(location.pathname.split('/').filter(Boolean).length>0&&['ru','am','uz','kz','
   const canonical=initialRoute.role?pathFor(initialRoute.role,initialRoute.page,initialRoute.orderId):pathFor(null,initialRoute.mode);
   navigate(canonical,{replace:true});
 }
-const state = {role:initialRoute.role||'clinic',page:initialRoute.role==='clinic'?initialRoute.page:'home',step:0,filter:'Все',query:'',dueDateFilter:'',orderMonthFilter:'',orderWorkFilter:'',orderStatusFilter:'',orderDoctorFilter:'',orderFilterOpen:false,sortKey:'',sortDirection:'asc',orderId:initialRoute.orderId||'',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',clinicMobileSection:'',clinicDrafts:{},selectedTeeth:[],bridgeRanges:[],bridgeStart:null,dentition:'Постоянные зубы',toothMode:'Одиночка',work:'',workOption:'',currentVariantBase:null,prostheticAddon:null,planningAddon:null,orderVariants:[],cart:[],messages:[],chatText:'',chatOrder:null,chatSending:false,chatAttachment:null,chatStatus:'Служба поддержки онлайн · отвечаем 10:00–21:00 МСК',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),datePickerOpen:false,datePickerField:'due',datePickerMonth:'',datePickerYearOpen:false,uploaded:[],orderFiles:[],orderFolderUrl:'',filesFor:'',orderUpload:null,reworkOrderId:'',cadReturnOrderId:'',cadReturnComment:'',cadReturnAttachments:[],cadPreview:null,clientRequest:null,form:{doctorId:'',surname:'',initials:'',birth:'',orderType:'',construction:'',material:'',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A1',comment:''},toast:''};
+const state = {role:initialRoute.role||'clinic',page:initialRoute.role==='clinic'?initialRoute.page:'home',step:0,filter:'Все',query:'',dueDateFilter:'',orderMonthFilter:'',orderWorkFilter:'',orderStatusFilter:'',orderDoctorFilter:'',orderFilterOpen:false,sortKey:'',sortDirection:'asc',orderId:initialRoute.orderId||'',detailTab:'Обзор',fileTab:'Все файлы',clinicTab:'Основная информация',clinicMobileSection:'',clinicDrafts:{},selectedTeeth:[],bridgeRanges:[],bridgeStart:null,dentition:'Постоянные зубы',toothMode:'Одиночка',work:'',workOption:'',currentVariantBase:null,prostheticAddon:null,planningAddon:null,orderVariants:[],cart:[],messages:[],chatUnreadCount:0,chatText:'',chatOrder:null,chatSending:false,chatAttachment:null,chatStatus:'Служба поддержки онлайн · отвечаем 10:00–21:00 МСК',calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1),calendarDay:new Date().getDate(),datePickerOpen:false,datePickerField:'due',datePickerMonth:'',datePickerYearOpen:false,uploaded:[],orderFiles:[],orderFolderUrl:'',filesFor:'',orderUpload:null,reworkOrderId:'',cadReturnOrderId:'',cadReturnComment:'',cadReturnAttachments:[],cadPreview:null,clientRequest:null,form:{doctorId:'',surname:'',initials:'',birth:'',orderType:'',construction:'',material:'',quantity:'1',due:new Date(Date.now()+14*86400000).toISOString().slice(0,10),shade:'A1',comment:''},toast:''};
 let cadPreviewRequest=0;
 let messagesRequestController=null;
 let orderCreationInFlight=false;
@@ -152,8 +152,15 @@ const badge = s => `<span class="badge ${statusClass(s)}">${s}</span>`;
 const button = (label,action,kind='primary',extra='') => `<button class="btn ${kind}" data-action="${action}" ${extra}>${label}</button>`;
 const sidebarCollapsed = () => { try { return localStorage.getItem('create-dental-sidebar-collapsed') === '1'; } catch { return false; } };
 const sidebarCollapseMarkup = () => `<button class="sidebar-collapse-toggle" data-action="sidebar-toggle" aria-label="${sidebarCollapsed()?'Развернуть':'Свернуть'} боковое меню" title="${sidebarCollapsed()?'Развернуть':'Свернуть'} боковое меню">${icon('chevron',16)}</button>`;
-function sidebar(){return `<aside class="sidebar ${sidebarCollapsed()?'sidebar-collapsed':''}" id="sidebar"><a class="brand brand-home" href="${pathFor('clinic','home')}" data-page="home" aria-label="На главную"><img class="portal-logo" src="${logo}" alt="Create Dental">${sidebarMark}</a>${sidebarCollapseMarkup()}<div class="tech-side-label">КАБИНЕТ КЛИНИКИ</div><nav class="sidebar-nav">${nav.map(([id,label,ico])=>`<a class="nav-link ${state.page===id||(state.page==='detail'&&id==='orders')?'active':''}" href="${pathFor('clinic',id)}" data-page="${id}" data-sidebar-label="${label}" title="${label}">${icon(ico,20)}<span>${label}</span></a>`).join('')}</nav><a class="help-box" href="${pathFor('clinic','messages')}" data-page="messages">${icon('message',20)}<span><strong>Нужна помощь?</strong><small>Напишите нам</small></span></a><button type="button" class="mobile-sidebar-logout" data-auth-logout>↪ <span>Выйти из кабинета</span></button></aside>`}
-function mobileBottomNav(){const items=[['home','Главная','home'],['orders','Заказы','orders'],['new','Создать','plus'],['messages','Сообщения','message']],moreActive=!['home','orders','new','messages','detail'].includes(state.page);return `<nav class="mobile-bottom-nav" aria-label="Основная навигация">${items.map(([page,label,ico])=>`<a class="mobile-bottom-item ${state.page===page||(state.page==='detail'&&page==='orders')?'active':''}" href="${pathFor('clinic',page)}" data-page="${page}" aria-label="${page==='new'?'Создать новый заказ':label}" ${state.page===page||(state.page==='detail'&&page==='orders')?'aria-current="page"':''}>${icon(ico,20)}<span>${label}</span></a>`).join('')}<button type="button" class="mobile-bottom-item ${moreActive?'active':''}" data-action="menu" aria-label="Ещё разделы" ${moreActive?'aria-current="page"':''}>${icon('more',20)}<span>Ещё</span></button></nav>`}
+function clinicChatUnreadMarkup(){return `<i class="clinic-chat-unread" data-clinic-chat-unread aria-hidden="true" ${state.chatUnreadCount?'':'hidden'}>${state.chatUnreadCount>99?'99+':state.chatUnreadCount}</i>`}
+function clinicChatLinkLabel(){return 'Написать в лабораторию'+(state.chatUnreadCount?`, непрочитанных сообщений: ${state.chatUnreadCount}`:'')}
+function updateClinicChatUnread(count){
+  state.chatUnreadCount=Number.isSafeInteger(count)&&count>0?count:0;
+  document.querySelectorAll('[data-clinic-chat-unread]').forEach(badge=>{badge.hidden=!state.chatUnreadCount;badge.textContent=state.chatUnreadCount>99?'99+':String(state.chatUnreadCount)});
+  document.querySelectorAll('.help-box,.mobile-bottom-item[data-page="messages"]').forEach(link=>link.setAttribute('aria-label',clinicChatLinkLabel()));
+}
+function sidebar(){return `<aside class="sidebar ${sidebarCollapsed()?'sidebar-collapsed':''}" id="sidebar"><a class="brand brand-home" href="${pathFor('clinic','home')}" data-page="home" aria-label="На главную"><img class="portal-logo" src="${logo}" alt="Create Dental">${sidebarMark}</a>${sidebarCollapseMarkup()}<div class="tech-side-label">КАБИНЕТ КЛИНИКИ</div><nav class="sidebar-nav">${nav.map(([id,label,ico])=>`<a class="nav-link ${state.page===id||(state.page==='detail'&&id==='orders')?'active':''}" href="${pathFor('clinic',id)}" data-page="${id}" data-sidebar-label="${label}" title="${label}">${icon(ico,20)}<span>${label}</span></a>`).join('')}</nav><a class="help-box" href="${pathFor('clinic','messages')}" data-page="messages" aria-label="${escapeHtml(clinicChatLinkLabel())}">${icon('message',20)}<span><strong>Нужна помощь?</strong><small>Напишите нам</small></span>${clinicChatUnreadMarkup()}</a><button type="button" class="mobile-sidebar-logout" data-auth-logout>↪ <span>Выйти из кабинета</span></button></aside>`}
+function mobileBottomNav(){const items=[['home','Главная','home'],['orders','Заказы','orders'],['new','Создать','plus'],['messages','Сообщения','message']],moreActive=!['home','orders','new','messages','detail'].includes(state.page);return `<nav class="mobile-bottom-nav" aria-label="Основная навигация">${items.map(([page,label,ico])=>`<a class="mobile-bottom-item ${state.page===page||(state.page==='detail'&&page==='orders')?'active':''}" href="${pathFor('clinic',page)}" data-page="${page}" aria-label="${escapeHtml(page==='new'?'Создать новый заказ':page==='messages'?clinicChatLinkLabel():label)}" ${state.page===page||(state.page==='detail'&&page==='orders')?'aria-current="page"':''}>${icon(ico,20)}<span>${label}</span>${page==='messages'?clinicChatUnreadMarkup():''}</a>`).join('')}<button type="button" class="mobile-bottom-item ${moreActive?'active':''}" data-action="menu" aria-label="Ещё разделы" ${moreActive?'aria-current="page"':''}>${icon('more',20)}<span>Ещё</span></button></nav>`}
 function header(){const clinic=clinicRecord();return `<header class="topbar"><button class="mobile-menu" data-action="menu" aria-label="Открыть меню">☰</button><div class="topbar-spacer"></div>${languageSwitcherMarkup()}${themeToggleMarkup()}<button class="role-toggle" data-auth-logout>Выйти</button><span class="topbar-clinic-name">${escapeHtml(clinic?.name||'Клиника')}</span>${notificationCenterMarkup()}<a class="profile" href="${pathFor('clinic','clinic')}" data-page="clinic"><span class="avatar">${clinic?.logo?`<img src="${escapeHtml(clinic.logo)}" alt="Логотип ${escapeHtml(clinic.name||'клиники')}">`:'К'}</span><span><strong>${escapeHtml(clinic?.contact||clinic?.name||'Клиника')}</strong><small>Стоматологическая клиника</small></span>${icon('chevron',13)}</a></header>`}
 const clinicLocaleOptions=['ru','am','uz','kk','ar'];
 function clinicIntlLocale(){const locale=(()=>{try{return localStorage.getItem('create-dental-locale')||'ru'}catch{return 'ru'}})();return ({ru:'ru-RU',am:'hy-AM',uz:'uz-UZ',kk:'kk-KZ',ar:'ar-AE'})[locale]||'ru-RU'}
@@ -1037,19 +1044,21 @@ function imageChatPreview(file){return new Promise((resolve,reject)=>{if(!file.t
 async function selectChatAttachment(file){if(!file)return;const allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|constructionInfo|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf)$/i;if(!allowed.test(file.name))return notify('Выберите изображение, PDF, 3D-файл, архив, Word, Excel или текстовый документ');if(file.size>200*1024*1024)return notify('Файл должен быть не больше 200 МБ');try{state.chatAttachment={file,name:file.name,size:file.size,type:file.type||'application/octet-stream',preview:await imageChatPreview(file)};messagesPage()}catch(error){notify(error.message)}}
 async function loadMessages(){
   if(!portalReady||state.role!=='clinic') return;
-  if(state.page!=='messages'&&state.page!=='home') return;
-  const subjectId=portalUser?.subjectId;
+  if(document.visibilityState!=='visible')return;
+  const subjectId=portalUser?.subjectId,token=portalToken(),full=state.page==='messages'||state.page==='home';
   messagesRequestController?.abort();
   const controller=new AbortController();
   messagesRequestController=controller;
   try{
-    const response=await fetch('/api/clinic-messages',{cache:'no-store',headers:{'X-Portal-Token':portalToken()},signal:controller.signal});
+    const response=await fetch(full?'/api/clinic-messages':'/api/clinic-messages/unread',{cache:'no-store',headers:{'X-Portal-Token':token},signal:controller.signal});
     if(!response.ok) throw new Error('Чат временно недоступен');
     const data=await response.json();
-    if(portalUser?.subjectId!==subjectId)return;
+    if(portalUser?.subjectId!==subjectId||portalToken()!==token||controller.signal.aborted)return;
+    updateClinicChatUnread(data.unreadCount);
+    if(!full)return;
     state.chatStatus='Служба поддержки онлайн · отвечаем 10:00–21:00 МСК';
     if($('#chat-status'))$('#chat-status').textContent=state.chatStatus;
-    if(JSON.stringify(data.messages)!==JSON.stringify(state.messages)){
+    if(Array.isArray(data.messages)&&JSON.stringify(data.messages)!==JSON.stringify(state.messages)){
       state.messages=data.messages;
       const bubbles=$('#chat-bubbles');
       if(bubbles){
@@ -1058,6 +1067,12 @@ async function loadMessages(){
         if(follow)scrollClinicChatToEnd();else if(scroller)scroller.scrollTop=scrollTop;
       }
       if($('#recent-messages'))$('#recent-messages').innerHTML=recentMessagesMarkup();
+    }
+    if(state.page==='messages'&&document.visibilityState==='visible'&&$('#chat-bubbles')&&data.unreadCount>0&&data.lastMessageId){
+      const read=await fetch('/api/clinic-messages/read',{method:'POST',headers:{'Content-Type':'application/json','X-Portal-Token':token},body:JSON.stringify({messageId:data.lastMessageId}),signal:controller.signal});
+      if(!read.ok)throw new Error('Не удалось сохранить прочтение сообщений');
+      const saved=await read.json();
+      if(portalUser?.subjectId===subjectId&&portalToken()===token&&!controller.signal.aborted)updateClinicChatUnread(saved.unreadCount);
     }
   }catch(error){if(error?.name==='AbortError')return;state.chatStatus=error.message; if($('#chat-status'))$('#chat-status').textContent=state.chatStatus}
   finally{if(messagesRequestController===controller)messagesRequestController=null}
@@ -1210,7 +1225,7 @@ function loginView(){
   $('#app').innerHTML=`<main class="portal-login"><div class="portal-login-tools">${languageSwitcherMarkup()}${themeToggleMarkup()}</div><section><img class="portal-logo" src="${logo}" alt="Create Dental"><h1>${authMode==='register'?labels.register:authMode==='recover'?labels.recover:labels.login}</h1>${authMode==='recover'?'':`<p>${labels.subtitle}</p>`}${content}${links}${authNotice?`<p class="portal-login-success">${escapeHtml(authNotice)}</p>`:''}${portalError?`<p class="portal-login-error">${escapeHtml(portalError)}</p>`:''}</section>${portalFooter()}</main>`;
   localizeAuth();
 }
-function render(){if(!portalReady){if(portalToken()){$('#app').innerHTML='<div class="startup-notice">Загрузка кабинета...</div>';return}loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(state.datePickerOpen)queueMicrotask(positionDatePicker);if(page==='messages'||page==='home')queueMicrotask(loadMessages)}
+function render(){if(!portalReady){if(portalToken()){$('#app').innerHTML='<div class="startup-notice">Загрузка кабинета...</div>';return}loginView();return}state.role=portalUser.role;if(state.role==='technician'){technicianCabinet.render();return}if(state.role==='worker'){workerCabinet.render();return}const page=state.page;({home:dashboard,new:newOrder,orders:ordersPage,detail,files:filesPage,messages:messagesPage,clinic:clinicPage,reference:referencePage}[page]||dashboard)();if(state.datePickerOpen)queueMicrotask(positionDatePicker);queueMicrotask(loadMessages)}
 function syncRoute(){
   const route=routeFromPath(location.pathname);
   if(!portalReady){authMode=route.mode||'login';render();return}
@@ -1226,7 +1241,7 @@ function syncRoute(){
   render();
 }
 function applyPortalData(data){
-  if(portalUser?.subjectId!==data.user.subjectId){state.messages=[];state.chatOrder=null;state.chatText='';state.chatAttachment=null;clinicDoctorEditId='';doctorReturnToOrder=false;}
+  if(portalUser?.subjectId!==data.user.subjectId){state.messages=[];state.chatUnreadCount=0;state.chatOrder=null;state.chatText='';state.chatAttachment=null;clinicDoctorEditId='';doctorReturnToOrder=false;}
   portalUser=data.user;
   activePromoCode=String(data.promoCode||'').toUpperCase();
   promoPrices=data.promoPrices&&typeof data.promoPrices==='object'?data.promoPrices:{};
@@ -1600,7 +1615,7 @@ function notifyWithoutRender(message){
 }
 function notify(message){state.toast=message;render();clearTimeout(notify.timer);notify.timer=setTimeout(()=>{state.toast='';$('.toast')?.classList.remove('visible')},3000)}
 document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';authNotice='';navigate(pathFor(null,authMode,null,currentAuthLocale()));loginView();if(authMode==='register')import('./location-assist.js?v=country-cities-1').catch(()=>{})});
-document.addEventListener('click',async event=>{if(!event.target.closest('[data-auth-logout]'))return;try{await authRequest('logout',{})}catch{}clearPortalToken();portalReady=false;portalUser=null;state.messages=[];state.chatText='';state.role='clinic';authMode='login';navigate('/login',{replace:true});render()});
+document.addEventListener('click',async event=>{if(!event.target.closest('[data-auth-logout]'))return;try{await authRequest('logout',{})}catch{}clearPortalToken();portalReady=false;portalUser=null;state.messages=[];state.chatUnreadCount=0;state.chatText='';state.role='clinic';authMode='login';navigate('/login',{replace:true});render()});
 document.addEventListener('click',event=>{const sort=event.target.closest('[data-order-sort]');if(!sort||state.role!=='clinic')return;const key=sort.dataset.orderSort;state.sortDirection=state.sortKey===key&&state.sortDirection==='asc'?'desc':'asc';state.sortKey=key;const table=$('.table-wrap');if(table)table.outerHTML=orderTable(filteredOrders().slice(0,state.page==='home'?4:Infinity))});
 document.addEventListener('click',event=>{
   const control=event.target.closest('[data-action="mobile-cart-toggle"],[data-action="mobile-quadrant"]');

@@ -1803,12 +1803,33 @@ async function handleClinicMessageFiles(req,res,url){
   return json(res,404,{error:'Не найдено'});
 }
 
+function clinicMessageReadState(chat){
+  const messages=chat?.messages||[],readIndex=chat?.clinicReadMessageId?messages.findIndex(message=>message.id===chat.clinicReadMessageId):-1;
+  return {unreadCount:messages.slice(readIndex+1).filter(message=>['support','bot'].includes(message.from)).length,lastMessageId:messages.at(-1)?.id||''};
+}
+
 async function handleClinicMessages(req,res,url){
   const user=session(req);
   if(!user)return json(res,401,{error:'Войдите в кабинет'});
-  if(url.pathname==='/api/clinic-messages'&&user.role==='clinic'){
-    if(req.method==='GET')return json(res,200,{messages:clinicChats[user.subjectId]?.messages||[]});
-    if(req.method==='POST')return addClinicMessage(req,res,user.subjectId,'client');
+  if(['/api/clinic-messages','/api/clinic-messages/unread','/api/clinic-messages/read'].includes(url.pathname)){
+    if(user.role!=='clinic')return json(res,403,{error:'Доступ запрещён'});
+    const chat=clinicChats[user.subjectId];
+    if(req.method==='GET'&&url.pathname==='/api/clinic-messages/unread')return json(res,200,clinicMessageReadState(chat));
+    if(req.method==='GET'&&url.pathname==='/api/clinic-messages')return json(res,200,{messages:chat?.messages||[],...clinicMessageReadState(chat)});
+    if(req.method==='POST'&&url.pathname==='/api/clinic-messages')return addClinicMessage(req,res,user.subjectId,'client');
+    if(req.method==='POST'&&url.pathname==='/api/clinic-messages/read'){
+      let body;try{body=await readBody(req,2000)}catch{return json(res,400,{error:'Неверная отметка прочтения'})}
+      if(!body||typeof body.messageId!=='string'||body.messageId.length>120)return json(res,400,{error:'Неверная отметка прочтения'});
+      const index=chat?.messages.findIndex(message=>message.id===body.messageId)??-1;
+      if(index<0)return json(res,400,{error:'Сообщение не найдено'});
+      const previous=chat.clinicReadMessageId,readIndex=previous?chat.messages.findIndex(message=>message.id===previous):-1;
+      if(index>readIndex){
+        chat.clinicReadMessageId=body.messageId;
+        try{await saveClinicChats()}catch{if(chat.clinicReadMessageId===body.messageId)chat.clinicReadMessageId=previous;return json(res,500,{error:'Не удалось сохранить прочтение'})}
+      }
+      return json(res,200,clinicMessageReadState(chat));
+    }
+    return json(res,405,{error:'Метод не поддерживается'});
   }
   if(user.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
   if(req.method==='GET'&&url.pathname==='/api/chief/conversations'){
@@ -1993,7 +2014,7 @@ const requestHandler=async (req,res) => {
   if(url.pathname==='/api/employee-telegram/pair')return handleEmployeeTelegramPair(req,res);
   if(url.pathname.startsWith('/api/order-files/')){try{return await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка чтения файла'})}}
   if(url.pathname==='/api/locations')return handleLocations(req,res,url);
-  if(url.pathname==='/api/clinic-messages'||url.pathname.startsWith('/api/chief/conversations')){
+  if(url.pathname==='/api/clinic-messages'||url.pathname.startsWith('/api/clinic-messages/')||url.pathname.startsWith('/api/chief/conversations')){
     try{return await handleClinicMessages(req,res,url)}catch{return json(res,500,{error:'Ошибка сообщений'})}
   }
   if(url.pathname.startsWith('/api/client-requests/'))return handleClientRequestDecision(req,res,url);
