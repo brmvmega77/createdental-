@@ -2,22 +2,42 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {mergeOrderVariant,reviseOrderServices,reviseOrderVariants,clientRequestConflict,reconcilePayment} from './order-revision.js';
 import {assignmentChange,workerTransitionAllowed} from './flow-rules.js';
 import {qualityApprovalChange} from './technician.js';
-import {workCatalog,normalizeWorkCatalog,orderDeadlineError,prostheticSelectionError,isProstheticVariant,estimateWork,priceUnitsForSelection} from './work-catalog.js';
+import {workCatalog,normalizeWorkCatalog,orderDeadlineError,prostheticSelectionError,isProstheticVariant,estimateWork,priceUnitsForSelection,isSiliconeKeySelection,siliconeKeyJaws,siliconeKeySelectionError} from './work-catalog.js';
 import {priceNewClinicOrder} from './promo-codes.js';
 import {telegramInternals} from './telegram-bot.js';
 const variant={work:'Вкладки',workOption:'Вкладка культевая',selectedTeeth:[11],toothMode:'Одиночка',unitPrice:3500};
-test('silicone keys have one fixed price regardless of teeth and explicit quantity',()=>{
+test('silicone keys are priced and validated by jaw, with at most one key per jaw',()=>{
  const category=workCatalog.find(item=>item.name==='Дополнительные работы'),original=structuredClone(category.options);
+ const upper=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28],lower=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
  try{
-  category.options.push({id:'fixture-key',name:'Силиконовый ключ',price:1500},{id:'fixture-clear-key',name:'Прозрачный силиконовый ключ',price:2700});
+  category.options.push({id:'fixture-key',name:'Силиконовый ключ',price:1500},{id:'fixture-clear-key',name:'Прозрачный силиконовый ключ',price:2700},{id:'fixture-renamed-key',name:'Обновлённый ключ',aliases:['Прозрачный силиконовый ключ'],price:2700});
   for(const option of category.options.filter(item=>item.id?.startsWith('fixture-'))){
-   const selectedTeeth=[21,22,23,24],v={work:category.name,workOption:option.name,selectedTeeth,units:99};
-   assert.equal(priceUnitsForSelection(category.id,selectedTeeth,99,'tooth',option.id),1);
-   assert.equal(estimateWork({work:v.work,option:v.workOption,teeth:selectedTeeth,units:99}).amount,option.price);
-   assert.equal(priceNewClinicOrder({variants:[v]},{}).servicesTotal,option.price);
-   const edited=reviseOrderVariants({variants:[]},[v]);
-   assert.equal(edited.quantity,1);assert.equal(edited.servicesTotal,option.price);assert.deepEqual(edited.teeth,selectedTeeth);
+   assert.equal(isSiliconeKeySelection(category.id,option.id),true);
+   for(const selectedTeeth of [upper,lower,[...upper,...lower]]){
+    const v={work:category.name,workOption:option.name,selectedTeeth,units:99},quantity=selectedTeeth.length/16;
+    assert.equal(priceUnitsForSelection(category.id,selectedTeeth,99,'tooth',option.id),quantity);
+    assert.equal(estimateWork({work:v.work,option:v.workOption,teeth:selectedTeeth,units:99}).amount,option.price*quantity);
+    assert.equal(priceNewClinicOrder({variants:[v]},{}).servicesTotal,option.price*quantity);
+    const edited=reviseOrderVariants({variants:[]},[v]);
+    assert.equal(edited.quantity,quantity);assert.equal(edited.servicesTotal,option.price*quantity);assert.deepEqual(edited.teeth,[...selectedTeeth].sort((a,b)=>a-b));
+    assert.equal(edited.variants[0].units,quantity);assert.equal(edited.variants[0].pricingUnit,'jaw');assert.equal(edited.variants[0].toothMode,'Челюсть');
+   }
   }
+  const key=(option,selectedTeeth)=>({work:category.name,workOption:option,selectedTeeth});
+  const upperKey=key('Силиконовый ключ',upper),lowerKey=key('Прозрачный силиконовый ключ',lower);
+  assert.equal(siliconeKeySelectionError([upperKey,lowerKey]),'');
+  assert.match(siliconeKeySelectionError([upperKey,key('Прозрачный силиконовый ключ',upper)]),/верхнюю челюсть уже/);
+  assert.throws(()=>reviseOrderVariants({variants:[]},[upperKey,key('Силиконовый ключ',upper)]),/верхнюю челюсть уже/);
+  assert.match(siliconeKeySelectionError([lowerKey,key('Силиконовый ключ',lower)]),/нижнюю челюсть уже/);
+  for(const teeth of [[],[21,22,23,24],[...upper,31],[99]])assert.match(siliconeKeySelectionError([key('Силиконовый ключ',teeth)]),/челюсть целиком/);
+  const partial=key('Силиконовый ключ',[21,22,23,24]);
+  assert.deepEqual(siliconeKeyJaws(partial),['upper']);assert.deepEqual(siliconeKeyJaws(partial,{completeOnly:true}),[]);
+  assert.equal(priceUnitsForSelection(category.name,partial.selectedTeeth,99,'tooth',partial.workOption),1);
+  assert.equal(siliconeKeySelectionError([partial],{requireComplete:false}),'');
+  assert.throws(()=>reviseOrderVariants({variants:[]},[partial]),/челюсть целиком/);
+  const legacy={variants:[{...partial,unitPrice:1500}],quantity:4,servicesTotal:6000,deliveryFee:0,sum:'6 000 ₽'};
+  const unchanged=reviseOrderVariants(legacy,legacy.variants);assert.equal(unchanged.sum,legacy.sum);assert.equal(unchanged.quantity,4);
+  assert.equal(reviseOrderVariants(legacy,[{...legacy.variants[0],selectedTeeth:upper}]).servicesTotal,1500);
   assert.equal(estimateWork({work:'Реставрации',option:'PMMA коронка CAD/CAM',teeth:[21,22,23,24]}).units,4);
  }finally{category.options.splice(0,category.options.length,...original)}
 });

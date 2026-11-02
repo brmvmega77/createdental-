@@ -6,6 +6,36 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 
+test('printed silicone keys are listed once by jaw without tooth labels or chart highlights',()=>{
+ const source=`
+ import assert from 'node:assert/strict';
+ let printed='',finish,selection;
+ globalThis.document={querySelector:()=>({remove(){},querySelectorAll:()=>[]}),querySelectorAll:()=>[],body:{insertAdjacentHTML:(_position,html)=>{printed=html}}};
+ globalThis.window={addEventListener:(type,handler)=>{if(type==='afterprint')finish=handler},print(){throw Error('No physical printing in tests')}};
+ globalThis.requestAnimationFrame=()=>{};
+ const {openOrderPrint}=await import(${JSON.stringify(pathToFileURL(path.resolve('order-print.js')).href)});
+ const upper=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28],lower=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
+ const key=(name,selectedTeeth)=>({work:'Дополнительные работы',workOption:name,selectedTeeth,bridgeRanges:[[21,22]],toothMode:'Челюсть'});
+ const print=order=>{assert.equal(openOrderPrint({order,toothChart:(_interactive,selected,ranges)=>{selection={selected,ranges};return '<svg></svg>'}}),true);finish();return printed};
+ for(const [teeth,label] of [[upper,'верхняя челюсть'],[lower,'нижняя челюсть'],[[...upper,...lower],'верхняя и нижняя челюсти']]){
+  const html=print({id:'KEY',variants:[key('Силиконовый ключ',teeth)]});
+  assert.equal((html.match(/Силиконовый ключ/g)||[]).length,1);assert.ok(html.includes('Силиконовый ключ · '+label));
+  assert.deepEqual(selection,{selected:[],ranges:[]});assert.equal((html.match(/order-print-sheet/g)||[]).length,1);
+ }
+ let html=print({id:'SPLIT',variants:[key('Силиконовый ключ',upper),key('Силиконовый ключ',lower)]});
+ assert.equal((html.match(/Силиконовый ключ/g)||[]).length,1);assert.ok(html.includes('Силиконовый ключ · верхняя и нижняя челюсти'));
+ html=print({id:'MIXED',variants:[key('Силиконовый ключ',upper),key('Прозрачный силиконовый ключ',lower),{work:'Реставрации',workOption:'PMMA коронка CAD/CAM',selectedTeeth:[25,26],bridgeRanges:[[25,26]]}]});
+ assert.equal((html.match(/Силиконовый ключ/g)||[]).length,1);assert.equal((html.match(/Прозрачный силиконовый ключ/g)||[]).length,1);
+ assert.ok(html.includes('Прозрачный силиконовый ключ · нижняя челюсть'));assert.deepEqual(selection,{selected:[25,26],ranges:[[25,26]]});
+ assert.equal((html.match(/PMMA коронка CAD\\/CAM/g)||[]).length,3);
+ html=print({id:'LEGACY',work:'Дополнительные работы',material:'Силиконовый ключ',teeth:upper});
+ assert.equal((html.match(/Силиконовый ключ/g)||[]).length,1);assert.ok(html.includes('Силиконовый ключ · верхняя челюсть'));assert.deepEqual(selection,{selected:[],ranges:[]});
+ console.log('silicone print checks passed');
+ `;
+ const result=execFileSync(process.execPath,['--input-type=module','-e',source],{encoding:'utf8',timeout:10000});
+ assert.match(result,/silicone print checks passed/);
+});
+
 test('Clinic doctor changes are versioned; orders bind only their clinic doctor and retain printed names',()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'cd-doctors-')),data=path.join(dir,'.data');fs.mkdirSync(data);
  fs.writeFileSync(path.join(data,'portal.json'),JSON.stringify({orders:[],clients:[{id:'a',name:'Клиника А',approved:true},{id:'b',name:'Клиника Б',approved:true}],employees:[],orderOverrides:{},orderHistory:[]}));

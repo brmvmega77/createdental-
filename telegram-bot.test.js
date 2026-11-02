@@ -1,6 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {telegramInternals} from './telegram-bot.js';
+import {workCatalog} from './work-catalog.js';
+
+test('silicone keys request jaws, price per jaw and omit individual teeth from Telegram summaries',()=>{
+ const category=workCatalog.find(item=>item.name==='Дополнительные работы'),before=structuredClone(category.options);
+ try{
+  category.options.push({id:'fixture-key',name:'Силиконовый ключ',price:1500,productionDays:3},{id:'fixture-clear-key',name:'Прозрачный силиконовый ключ',price:2700,productionDays:3});
+  const fields={patient:'Иванов Сергей',work:category.name,material:'Силиконовый ключ',productionType:'digital',shade:'Не требуется',dueDate:'2026-12-01'};
+  const missing=telegramInternals.canonicalizeCatalogSelection(telegramInternals.normalizeAnalysis({intent:'create_order',fields:{...fields,teeth:[26],toothMode:'Одиночка'}}));
+  assert.equal(telegramInternals.isJawSplitSelection(category.name,fields.material),true);
+  assert.ok(telegramInternals.missingCreateFields(missing).includes('челюсть для силиконового ключа'));
+  assert.match(telegramInternals.createOrderWizardPrompt(missing),/челюсть для силиконового ключа/);
+  assert.deepEqual(telegramInternals.createOrderChoiceMarkup(missing).inline_keyboard.flat().filter(item=>item.callback_data.startsWith('tgnew:jaw:')).map(item=>item.callback_data),['tgnew:jaw:upper','tgnew:jaw:lower','tgnew:jaw:both']);
+  const upper=telegramInternals.canonicalizeCatalogSelection(telegramInternals.normalizeAnalysis({intent:'create_order',fields:{...fields,jaw:'upper',teeth:[26]}}));
+  assert.equal(upper.fields.toothMode,'Челюсть');assert.equal(upper.fields.teeth.length,16);assert.equal(telegramInternals.priceEstimate(upper).amount,1500);
+  const both=telegramInternals.canonicalizeCatalogSelection(telegramInternals.normalizeAnalysis({intent:'create_order',fields:{...fields,jaw:'both'}}));
+  assert.equal(both.fields.teeth.length,32);assert.equal(telegramInternals.priceEstimate(both).amount,3000);
+  const summary=telegramInternals.summaryLines(both,null,{name:'Тестовая клиника'}).join('\n');assert.match(summary,/Челюсть: верхняя и нижняя/);assert.doesNotMatch(summary,/Зубы:/);
+  const overlap=telegramInternals.canonicalizeCatalogSelection(telegramInternals.normalizeAnalysis({intent:'create_order',fields:{patient:fields.patient,productionType:'digital',shade:fields.shade,variants:[{...fields,jaw:'upper'},{...fields,material:'Прозрачный силиконовый ключ',jaw:'upper'}]}}));
+  assert.ok(telegramInternals.missingCreateFields(overlap).some(message=>message.includes('уже добавлен силиконовый ключ')));
+ }finally{category.options.splice(0,category.options.length,...before)}
+});
 
 test('extracts a clinic code from a Telegram group title',()=>{
   assert.equal(telegramInternals.codeFromText('Армянская клиника · cd-cl-83017426'),'CD-CL-83017426');

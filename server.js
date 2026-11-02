@@ -1,6 +1,6 @@
 import {orderDiskFolderPath} from './order-disk-path.js';
 import {promoRulesWithClients,normalizePromoCode,priceNewClinicOrder} from './promo-codes.js';
-import {projectLabSnapshot,isLabGroup,isLabWork,relatedFileOrderIds,stripLabProjection,afterProductionStep} from './lab-orders.js';
+import {projectLabSnapshot,isLabGroup,isLabWork,relatedFileOrderIds,stripLabProjection,afterProductionStep,reconcileLabOrders} from './lab-orders.js';
 import {requiresDoctorCadApproval,routeForOrder,cadReadyForProduction} from './production-routes.js';
 import {samePortalValue} from './collection-concurrency.js';
 import {clientRequestConflict,reviseOrderVariants,reviseOrderServices,reconcilePayment} from './order-revision.js';
@@ -21,7 +21,7 @@ import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,up
 import {createTelegramBridge} from './telegram-bot.js';
 import {createEmployeeTelegramBridge} from './employee-telegram-bot.js';
 import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource,unpublishDiskResource} from './yandex-disk-storage.js';
-import {workCatalog,rubles,orderDeadlineError,earliestDueDateForOrder,isWorkingDay,isoDateLocal,isValidIsoDate,estimateWork,resolveWorkSelection,prostheticSelectionError} from './work-catalog.js';
+import {workCatalog,rubles,orderDeadlineError,earliestDueDateForOrder,isWorkingDay,isoDateLocal,isValidIsoDate,estimateWork,resolveWorkSelection,prostheticSelectionError,isSiliconeKeySelection,siliconeKeySelectionError,siliconeKeyJaws} from './work-catalog.js';
 import {orderWorkLabel,displayOrderId} from './order-list-utils.js';
 
 const root = process.cwd();
@@ -515,6 +515,8 @@ async function handlePortal(req,res,url){
         if(additions.some(order=>!orderCatalogIsValid(order)))return json(res,400,{error:'Выберите услугу из актуального прайса'});
         const prostheticIssue=additions.map(order=>prostheticSelectionError(order.variants?.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[]}],{requireTeeth:true})).find(Boolean);
         if(prostheticIssue)return json(res,400,{error:prostheticIssue});
+        const siliconeKeyIssue=additions.map(order=>siliconeKeySelectionError(order.variants?.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[]}])).find(Boolean);
+        if(siliconeKeyIssue)return json(res,400,{error:siliconeKeyIssue});
         const invalidDeadline=additions.map(order=>orderDeadlineValidation(order)).find(Boolean);
         if(invalidDeadline)return json(res,400,{error:invalidDeadline});
         // Keep the delivery rule authoritative on the server as well. The
@@ -523,7 +525,14 @@ async function handlePortal(req,res,url){
         // cannot save a mismatched total.
         const normalizedAdditions=additions.map(raw=>{
           const order=stripLabProjection(raw);delete order.parentOrderId;delete order.labWorkIds;delete order.serviceKey;if(order.variants)order.variants=order.variants.map(v=>{const copy={...v};delete copy.labWorkId;return copy;});
-          return priceNewClinicOrder(order,snapshot.clients.find(clinic=>clinic.id===user.subjectId),snapshot.promoCodes,snapshot.deliverySettings);
+          const priced=priceNewClinicOrder(order,snapshot.clients.find(clinic=>clinic.id===user.subjectId),snapshot.promoCodes,snapshot.deliverySettings);
+          if(priced.variants.some(variant=>isSiliconeKeySelection(variant.work,variant.workOption))){
+            priced.variants=priced.variants.map(variant=>isSiliconeKeySelection(variant.work,variant.workOption)?{...variant,units:siliconeKeyJaws(variant).length,pricingUnit:'jaw',toothMode:'Челюсть',bridgeRanges:[]}:variant);
+            priced.quantity=priced.variants.reduce((sum,variant)=>sum+estimateWork({work:variant.work,option:variant.workOption,teeth:variant.selectedTeeth||[],units:variant.units}).units,0);
+            priced.teeth=[...new Set(priced.variants.flatMap(variant=>variant.selectedTeeth||[]))].sort((a,b)=>a-b);
+            if(priced.variants.length===1)priced.toothMode='Челюсть';
+          }
+          return priced;
         });
         value=[...normalizedAdditions,...snapshot.orders];
       }else if(key==='orderOverrides'){
@@ -635,7 +644,17 @@ async function handlePortal(req,res,url){
         const serviceChanged=JSON.stringify(before.variants||[])!==JSON.stringify(updated.variants||[]);
         if(updated.date!==before.date||serviceChanged){const issue=orderDeadlineError(updated,updated.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)throw new Error(issue);}
         return updated;
-      });}catch(error){return json(res,400,{error:error.message})}
+      });
+        // A production work can be edited separately from its sibling key.
+        // Validate the same merged commercial lines that persistence will use.
+        const grouped=reconcileLabOrders({...snapshot,orders:value},snapshot,'orders');
+        for(const order of grouped.orders.filter(item=>!isLabWork(item))){
+          const before=snapshot.orders.find(item=>item.id===order.id);
+          if(before&&samePortalValue(before.variants||[],order.variants||[]))continue;
+          const issue=siliconeKeySelectionError(order.variants?.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[]}]);
+          if(issue)throw new Error(issue);
+        }
+      }catch(error){return json(res,400,{error:error.message})}
     }
     const newOrders=key==='orders'&&Array.isArray(value)?value.filter(order=>!snapshot.orders.some(existing=>existing.id===order.id)):[];
     try {

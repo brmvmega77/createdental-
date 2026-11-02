@@ -23,6 +23,14 @@
 .prosthetic-addon-list .prosthetic-tooth-options button.selected{background:#333;border-color:#333;color:#fff}
 .prosthetic-addon-list .prosthetic-tooth-options button:disabled{background:#e8e8e8;border-color:#ddd;color:#666;text-decoration:line-through;opacity:1}
 .prosthetic-tooth-editor>small{color:#555;font-size:10px;line-height:1.5}
+.planning-jaw-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.prosthetic-addon-list .planning-jaw-options button{display:grid;align-content:center;align-items:center;justify-content:center;min-height:58px;gap:4px;text-align:center}
+.prosthetic-addon-list .planning-jaw-options button.selected{background:#333;border-color:#333;color:#fff}
+.prosthetic-addon-list .planning-jaw-options button:disabled{background:#e8e8e8;border-color:#ddd;color:#666;opacity:1}
+.planning-jaw-options small{font-size:10px;line-height:1.4}
+.key-jaw-note{margin:0;color:#555;font-size:12px;line-height:1.6}
+.jaw-choice button:disabled{background:#e8e8e8;color:#666;cursor:not-allowed}
+.order-service-body:has(>dl:only-child),.tech-order-service-body:has(>dl:only-child){grid-template-columns:1fr}
 .prosthetic-tooth-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px}
 .prosthetic-addon-list .prosthetic-tooth-actions button{width:auto;min-height:36px;padding:8px 12px;justify-content:center}
 .prosthetic-addon-list .prosthetic-tooth-actions [data-action="prosthetic-addon-confirm"]{background:#333;border-color:#333;color:#fff}

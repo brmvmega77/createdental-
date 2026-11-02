@@ -1,4 +1,4 @@
-import {resolveWorkSelection,priceUnitsForSelection,rubles,prostheticSelectionError} from './work-catalog.js';
+import {resolveWorkSelection,priceUnitsForSelection,rubles,prostheticSelectionError,isSiliconeKeySelection,siliconeKeySelectionError} from './work-catalog.js';
 import {samePortalValue} from './collection-concurrency.js';
 export class OrderRevisionError extends Error{constructor(message,code='invalid_revision'){super(message);this.code=code;this.status=400;}}
 export function reconcilePayment(previous,next){
@@ -44,6 +44,8 @@ export function reviseOrderVariants(order,incoming,{deliverySettings={freeThresh
  if(incoming.length===before.length&&incoming.every((v,i)=>samePortalValue(shape(v),shape(before[i]))))return {...Object.fromEntries(['work','material','teeth','quantity','toothMode','bridgeRanges','servicesTotal','deliveryFee','sum'].filter(key=>Object.hasOwn(order,key)).map(key=>[key,structuredClone(order[key])])),variants:structuredClone(order.variants?.length?order.variants:before)};
  const prostheticIssue=prostheticSelectionError(incoming);
  if(prostheticIssue)throw new OrderRevisionError(prostheticIssue);
+ const siliconeKeyIssue=siliconeKeySelectionError(incoming);
+ if(siliconeKeyIssue)throw new OrderRevisionError(siliconeKeyIssue);
  let servicesTotal=0;
  const variants=incoming.map((raw,index)=>{
   const variant=structuredClone(raw),selection=resolveWorkSelection(variant.work,variant.workOption);
@@ -54,8 +56,10 @@ export function reviseOrderVariants(order,incoming,{deliverySettings={freeThresh
   const promo=selection.option?promoPrices[`${selection.category.name}|||${selection.option.name}`]:undefined;
   const unitPrice=knownPrice??(Number.isFinite(promo)?promo:Number(selection.price));
   if(!Number.isFinite(unitPrice)||unitPrice<0)throw new OrderRevisionError('Не удалось определить цену услуги');
-  const pricingUnit=variant.pricingUnit||selection.category?.pricingUnit,selectedTeeth=teethOf(variant);
+  const siliconeKey=isSiliconeKeySelection(selection.category?.id||variant.work,selection.option?.id||variant.workOption);
+  const pricingUnit=siliconeKey?'jaw':variant.pricingUnit||selection.category?.pricingUnit,selectedTeeth=teethOf(variant);
   const quantity=priceUnitsForSelection(selection.category?.id||variant.work,selectedTeeth,variant.units,pricingUnit,variant.serviceId||variant.workOption);
+  if(siliconeKey){variant.units=quantity;variant.toothMode='Челюсть';variant.bridgeRanges=[]}
   if(pricingUnit==='jaw'&&!variant.units){const selected=new Set(selectedTeeth),jaws=[[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28],[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38]];if(!jaws.some(jaw=>jaw.every(n=>selected.has(n))))throw new OrderRevisionError('Для этой услуги выберите целую челюсть');}
   const bridgeRanges=variant.toothMode==='Мост'?(variant.bridgeRanges?.length?variant.bridgeRanges:[selectedTeeth]).map(range=>[...new Set(range.map(Number))].sort((a,b)=>a-b)):[];
   if(variant.toothMode==='Мост'&&selectedTeeth.length<2)throw new OrderRevisionError('Для моста выберите не меньше двух зубов');

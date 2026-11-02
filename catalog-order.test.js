@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {workCatalog,normalizeWorkCatalog,reorderCatalogService,reorderCatalogCategory,isProstheticVariant,prostheticSelectionError} from './work-catalog.js';
+import {workCatalog,normalizeWorkCatalog,reorderCatalogService,reorderCatalogCategory,isProstheticVariant,prostheticSelectionError,isSiliconeKeySelection,siliconeKeyJaws,siliconeKeySelectionError} from './work-catalog.js';
 import {orderVariantConstructionLabel,orderWorkLabel,displayOrderId} from './order-list-utils.js';
 
 test('human-facing order ids use compact format while preserving readable suffix',()=>{
@@ -108,6 +108,7 @@ test('different restorations keep independent teeth in either selection order',(
  const constants=['currentVariant','variantSignature','currentVariantSaved','cloneVariant'].map(name=>source.split('\n').find(line=>line.startsWith(`const ${name} =`))).join('\n');
  const projection=source.slice(source.indexOf('const currentVariantBaseIndex ='),source.indexOf('const serviceSubtotalEstimate ='));
  const occupied=source.slice(source.indexOf('function occupiedProstheticTeeth(){'),source.indexOf('function toothChart('));
+ const keyJaws=source.slice(source.indexOf('function occupiedKeyJaws(){'),source.indexOf('function occupiedProstheticTeeth(){'));
  const actions=source.slice(source.indexOf('function persistCurrentVariant(){'),source.indexOf('function addProstheticAddon('));
  const addons=source.slice(source.indexOf('function addProstheticAddon('),source.indexOf('function addSurgicalSocket('));
  const teethActions=source.slice(source.indexOf('function syncBridgeSelection(){'),source.indexOf('function advanceOrderStep(){'));
@@ -115,8 +116,8 @@ test('different restorations keep independent teeth in either selection order',(
  const removal=source.slice(source.indexOf('function removeOrderVariant(index){'),source.indexOf('function addCurrentOrderToCart()'));
  const create=()=>{
   const context={state:{work:'Реставрации',workOption:'',selectedTeeth:[],bridgeRanges:[],bridgeStart:null,toothMode:'Одиночка',currentVariantBase:null,orderVariants:[],form:{}},upperTeeth:[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28],lowerTeeth:[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38],variantIsComplete:v=>Boolean(v?.work&&v?.workOption&&v?.selectedTeeth?.length),currentSurgicalGuideIncluded:()=>false,isNoTeethSelection:()=>false,currentUsesJawSplit:()=>false,isSurgicalTemplate:()=>false,orderServiceCount:vs=>vs.length,notify:()=>{},currentProductionDays:()=>7,workCatalog:[{name:'Протетика',options:['Абатмент']},{name:'Дополнительные работы',options:['Силиконовый ключ']}],workOptionName:o=>o,refreshOrderBuilder:()=>{},notifyWithoutRender:()=>{}};
-  Object.assign(context,{isProstheticVariant,prostheticSelectionError,variantUsesShade:v=>v.work==='Реставрации',document:{querySelector:()=>null}});
-  vm.createContext(context);vm.runInContext(constants+'\n'+projection+'\n'+occupied+'\n'+reset+'\n'+actions+'\n'+addons+'\n'+teethActions+'\n'+removal,context);
+  Object.assign(context,{isProstheticVariant,prostheticSelectionError,isSiliconeKeySelection,siliconeKeyJaws,siliconeKeySelectionError,variantUsesShade:v=>v.work==='Реставрации',document:{querySelector:()=>null}});
+  vm.createContext(context);vm.runInContext(constants+'\n'+projection+'\n'+keyJaws+'\n'+occupied+'\n'+reset+'\n'+actions+'\n'+addons+'\n'+teethActions+'\n'+removal,context);
   context.cart=()=>JSON.parse(vm.runInContext('JSON.stringify(allVariants().filter(variantIsComplete))',context));
   context.clickTooth=n=>{context.selectOrderTooth(n);vm.runInContext('if(!state.currentVariantBase&&variantIsComplete(currentVariant()))persistCurrentVariant()',context)};
   return context;
@@ -148,7 +149,8 @@ test('different restorations keep independent teeth in either selection order',(
  accessory.clickTooth(28);accessory.selectWorkOption(zirconia);
  assert.deepEqual(accessory.cart().map(v=>v.selectedTeeth),[[21],[21],[28]]);
  const planning=create();planning.state.work='Планирование и диагностика';planning.clickTooth(21);planning.selectWorkOption('Wax up');planning.addPlanningAddon('Силиконовый ключ');
- assert.equal(planning.state.work,'Планирование и диагностика');assert.deepEqual(Array.from(planning.state.selectedTeeth),[]);assert.deepEqual(planning.cart().map(v=>v.selectedTeeth),[[21],[21]]);
+ assert.equal(planning.cart().length,1);planning.togglePlanningAddonJaw('upper');planning.confirmPlanningAddon();
+ assert.equal(planning.state.work,'Планирование и диагностика');assert.deepEqual(Array.from(planning.state.selectedTeeth),[21]);assert.deepEqual(planning.cart().map(v=>v.selectedTeeth),[[21],Array.from(planning.upperTeeth)]);
  const bridges=create();bridges.state.toothMode='Мост';bridges.selectWorkOption(slav);bridges.clickTooth(26);assert.equal(bridges.state.orderVariants.length,0);bridges.clickTooth(24);bridges.selectWorkOption(zirconia);bridges.clickTooth(14);bridges.clickTooth(12);
  assert.deepEqual(bridges.cart().map(v=>[v.workOption,v.selectedTeeth]),[[slav,[24,25,26]],[zirconia,[12,13,14]]]);
 });
