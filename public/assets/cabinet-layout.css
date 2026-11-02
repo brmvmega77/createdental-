@@ -66,6 +66,8 @@
 .help-box>span{flex:1;min-width:0}
 .clinic-chat-unread{display:grid;place-items:center;flex:none;min-width:21px;height:21px;padding:0 5px;border-radius:12px;background:#e04b43;color:#fff;font-size:10px;font-weight:700;font-style:normal;line-height:1;font-variant-numeric:tabular-nums}
 .clinic-chat-unread[hidden]{display:none!important}
+.sidebar-nav .clinic-chat-unread{margin-left:auto;min-width:19px;height:19px;padding:0 5px}
+.sidebar.sidebar-collapsed .nav-link .clinic-chat-unread{position:absolute;top:4px;right:2px;min-width:13px;height:13px;margin:0;padding:0 3px;border:0;font-size:8px}
 .sidebar.sidebar-collapsed .help-box .clinic-chat-unread{position:absolute;right:1px;top:1px;min-width:18px;height:18px;padding:0 4px;border:2px solid #f5f5f5;font-size:9px}
 .mobile-bottom-item[data-page="messages"]{position:relative}
 .mobile-bottom-item .clinic-chat-unread{position:absolute;top:1px;right:calc(50% - 26px);min-width:18px;height:18px;padding:0 4px;border:2px solid #fff;font-size:9px}
