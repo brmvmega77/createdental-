@@ -33,6 +33,10 @@
 .tech-order-heading-actions>.btn{margin:0;white-space:nowrap}
 .source-photo-upload label.btn:has(>input[type="file"]){cursor:pointer}
 .tech-client-promo-code{white-space:nowrap;color:#333;font-weight:650}
+.tech-employee-table .tech-client-actions.tech-employee-icon-actions{display:flex!important;flex-wrap:nowrap;gap:6px;width:max-content!important;max-width:100%}
+.tech-employee-table .tech-client-actions.tech-employee-icon-actions>button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px!important;width:32px;height:32px;min-height:32px;padding:0!important;border-radius:8px;cursor:pointer}
+.tech-employee-icon-action svg{display:block;flex:none;pointer-events:none}
+@media(max-width:900px){.tech-employee-table .tech-client-actions.tech-employee-icon-actions>button{flex-basis:44px!important;width:44px;height:44px;min-height:44px}}
 .tech-client-save-error{grid-column:1/-1;margin:0;color:#555;font-size:12px;line-height:1.5}
 @media(min-width:761px){
   .tech-client-table{table-layout:fixed;min-width:950px}
