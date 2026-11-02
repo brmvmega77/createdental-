@@ -625,11 +625,16 @@ async function handlePortal(req,res,url){
       value=normalizedOverrides;
     }
     if(user.role==='technician'&&key==='clients'&&Array.isArray(value)){
+      const invalidPromo=value.some(client=>{
+        const previous=snapshot.clients.find(item=>item.id===client?.id),code=normalizePromoCode(Object.hasOwn(client||{},'promoCode')?client.promoCode:previous?.promoCode);
+        return !client?.deleted&&code&&code!==normalizePromoCode(previous?.promoCode)&&!snapshot.promoCodes?.some(rule=>rule.active!==false&&normalizePromoCode(rule.code)===code);
+      });
+      if(invalidPromo)return json(res,400,{error:'Выберите действующий промокод из списка или «Без промокода»'});
       // Compact technician loads omit heavy logo data. Preserve an existing
       // logo when a quick edit is saved before the background refresh arrives.
       value=value.map(client=>{
         const previous=snapshot.clients.find(item=>item.id===client?.id);
-        return client&&previous?.logo&& !Object.prototype.hasOwnProperty.call(client,'logo')?{...client,logo:previous.logo}:client;
+        return client?{...client,promoCode:normalizePromoCode(Object.hasOwn(client,'promoCode')?client.promoCode:previous?.promoCode),...(previous?.logo&&!Object.hasOwn(client,'logo')?{logo:previous.logo}:{})}:client;
       });
     }
     if(user.role==='technician'&&key==='employees'&&Array.isArray(value)&&value.some(employee=>employee.email&&!emailAvailableForEmployee(employee.email,employee.id)))return json(res,409,{error:'Email сотрудника уже используется другим входом'});

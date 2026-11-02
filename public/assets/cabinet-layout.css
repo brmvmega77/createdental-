@@ -31,6 +31,28 @@
 .tech-order-heading-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px}
 .tech-order-heading-actions>.btn{margin:0;white-space:nowrap}
 .source-photo-upload label.btn:has(>input[type="file"]){cursor:pointer}
+.tech-client-promo-code{white-space:nowrap;color:#333;font-weight:650}
+.tech-client-save-error{grid-column:1/-1;margin:0;color:#555;font-size:12px;line-height:1.5}
+@media(min-width:761px){
+  .tech-client-table{table-layout:fixed;min-width:950px}
+  .tech-client-table th:nth-child(1){width:20%}
+  .tech-client-table th:nth-child(2){width:14%}
+  .tech-client-table th:nth-child(3){width:11%}
+  .tech-client-table th:nth-child(4){width:18%}
+  .tech-client-table th:nth-child(5){width:7%}
+  .tech-client-table th:nth-child(6){width:13%}
+  .tech-client-table th:nth-child(7){width:17%}
+  .tech-client-table td:nth-child(n){width:auto;max-width:none}
+  .tech-client-table .tech-client-actions{flex-wrap:nowrap}
+  .tech-client-table .tech-telegram-code strong{white-space:nowrap}
+}
+@media(max-width:760px){
+  .tech-client-table td:nth-child(3)::before{content:"Промокод"}
+  .tech-client-table td:nth-child(4)::before{content:"Контакт"}
+  .tech-client-table td:nth-child(5)::before{content:"Заказов"}
+  .tech-client-table td:nth-child(6)::before{content:"Доступ"}
+  .tech-client-table td:nth-child(7)::before{content:"Действия"}
+}
 .chat-order-context{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #e5e5e5;border-radius:8px;background:#f5f5f5;color:#555;font-size:12px;line-height:1.5}
 .chat-order-context>span{min-width:0;overflow-wrap:anywhere}
 .chat-order-context strong{color:#333}

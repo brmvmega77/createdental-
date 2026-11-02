@@ -61,6 +61,15 @@ test('HTTP promo saves assign prices atomically, preserve agreed orders, enforce
  assert.equal(result.clients.find(c=>c.id==='clinic-a').promoCode,'WELCOME');assert.deepEqual(result.saved[0].clinicIds,['clinic-a']);
  let clinic=await get('clinic-a');assert.equal(clinic.promoCode,'WELCOME');assert.equal(clinic.promoPrices['Реставрации|||PMMA коронка CAD/CAM'],900);assert.deepEqual(clinic.orders,original);
  assert.deepEqual((await get('clinic-b')).promoPrices,{});
+ // The chief can assign and clear a code directly through the client editor.
+ chief=await get('chief');chief.clients.find(c=>c.id==='clinic-b').promoCode=' welcome ';
+ result=ok(await api('/api/portal/clients','chief',chief.clients));assert.equal(result.saved.find(c=>c.id==='clinic-b').promoCode,'WELCOME');
+ assert.equal((await get('clinic-b')).promoPrices['Реставрации|||PMMA коронка CAD/CAM'],900);
+ assert.ok((await get('chief')).promoCodes[0].clinicIds.includes('clinic-b'));
+ chief=await get('chief');chief.clients.find(c=>c.id==='clinic-b').promoCode='';ok(await api('/api/portal/clients','chief',chief.clients));
+ assert.deepEqual((await get('clinic-b')).promoPrices,{});
+ chief=await get('chief');chief.clients.find(c=>c.id==='clinic-b').promoCode='MISSING';assert.equal((await api('/api/portal/clients','chief',chief.clients)).status,400);
+ assert.equal((await get('clinic-b')).promoCode,'');assert.deepEqual((await get('clinic-a')).orders,original);
  chief=await get('chief');assert.equal((await save([{...chief.promoCodes[0],clinicIds:['missing']}])).status,400);
  assert.equal((await save([{...chief.promoCodes[0],clinicIds:['clinic-a']},rule('OTHER',['clinic-a'])])).status,400);
  assert.equal((await get('clinic-a')).promoCode,'WELCOME');
@@ -79,6 +88,8 @@ test('HTTP promo saves assign prices atomically, preserve agreed orders, enforce
  assert.equal((await api('/api/auth/register','',{...registration,email:'without-code@example.test',promoCode:''},{},'POST')).status,201);
  assert.equal((await get('chief')).clients.find(c=>c.email==='without-code@example.test').promoCode,'');
  chief=await get('chief');ok(await save(chief.promoCodes.map(p=>({...p,active:false}))));assert.equal((await api('/api/auth/register','',{...registration,email:'inactive@example.test'},{},'POST')).status,400);assert.deepEqual((await get('clinic-b')).promoPrices,{});
+ chief=await get('chief');chief.clients.find(c=>c.id==='clinic-b').city='Москва';ok(await api('/api/portal/clients','chief',chief.clients));
+ chief=await get('chief');chief.clients.find(c=>c.id==='clinic-a').promoCode='RENAMED';assert.equal((await api('/api/portal/clients','chief',chief.clients)).status,400);
  await stop();await start();chief=await get('chief');assert.equal(chief.promoCodes[0].active,false);assert.equal(chief.clients.find(c=>c.id==='clinic-b').promoCode,'RENAMED');assert.deepEqual((await get('clinic-a')).orders,original);
  ok(await save([]));assert.equal((await get('clinic-b')).promoCode,'');
 });
