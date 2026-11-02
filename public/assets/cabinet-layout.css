@@ -30,6 +30,7 @@
 /* Page actions share the title row and the content's right edge. */
 .tech-order-heading-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px}
 .tech-order-heading-actions>.btn{margin:0;white-space:nowrap}
+.source-photo-upload label.btn:has(>input[type="file"]){cursor:pointer}
 .chat-order-context{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #e5e5e5;border-radius:8px;background:#f5f5f5;color:#555;font-size:12px;line-height:1.5}
 .chat-order-context>span{min-width:0;overflow-wrap:anywhere}
 .chat-order-context strong{color:#333}
