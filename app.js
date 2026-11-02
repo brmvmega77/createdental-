@@ -45,6 +45,7 @@ const icons = {
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   filter:'<path d="M3 5h18l-7 8v6l-4 2v-8z"/>',
   paperclip:'<path d="m20 11-8 8a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/>',
+  reply:'<path d="m9 10-5 5 5 5"/><path d="M4 15h10a6 6 0 0 0 6-6V4"/>',
   check:'<path d="m5 12 5 5L20 7"/>',
   back:'<path d="m15 18-6-6 6-6"/>',
   more:'<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>'
@@ -997,7 +998,7 @@ function cadReturnAttachmentMarkup(){return (state.cadReturnAttachments||[]).map
 function formattedChatText(value){return escapeHtml(value).replace(/\s+(?=(?:Клиника|Заказ|Пациент|Работа|Раздел|Конструкция|Зубы|Режим|Челюсть|Срок|Цвет|Причина|Содержание|Запросил|Выполнить это действие в CRM)\s*:)/g,'\n')}
 function chatOrderMarkup(message){
   if(!message.orderId)return '';
-  return `<div class="chat-message-order"><a href="${pathFor('clinic','detail',message.orderParentId||message.orderId)}">Заказ ${escapeHtml(message.orderLabel||displayOrderId(message.orderId))}</a><button type="button" data-action="message-order" data-value="${escapeHtml(message.orderId)}">Ответить по заказу</button></div>`;
+  return `<div class="chat-message-order"><a href="${pathFor('clinic','detail',message.orderParentId||message.orderId)}" title="Открыть заказ ${escapeHtml(message.orderLabel||displayOrderId(message.orderId))}">Заказ ${escapeHtml(message.orderLabel||displayOrderId(message.orderId))}</a><button type="button" data-action="message-order" data-value="${escapeHtml(message.orderId)}" title="Ответить по заказу" aria-label="Ответить по заказу ${escapeHtml(message.orderLabel||displayOrderId(message.orderId))}">${icon('reply',16)}</button></div>`;
 }
 function clinicChatOrderContext(){
   const order=state.chatOrder;
@@ -1010,7 +1011,7 @@ function openOrderChat(id){
   state.page='messages';navigate(pathFor('clinic','messages'));render();
   requestAnimationFrame(()=>$('#chat-input')?.focus());
 }
-function chatMessageMarkup(message){const bot=message.from==='bot',sender=String(message.sender||'').trim(),author=bot?'Ответ AI':message.source==='telegram'&&message.from==='support'?(String(message.senderLabel||'').trim()||'Create Dental Team'):message.source==='telegram'&&sender?`Клиент · ${sender}`:'';return `<div class="bubble ${message.from==='client'?'me':'them'} ${bot?'bot':''}">${chatOrderMarkup(message)}${author?`<small class="message-author">${escapeHtml(author)}</small>`:''}${message.text?`<p>${formattedChatText(message.text)}</p>`:''}${chatAttachmentMarkup(message.attachment)}<time>${new Date(message.time).toLocaleTimeString(clinicIntlLocale(),{hour:'2-digit',minute:'2-digit'})}</time></div>`}
+function chatMessageMarkup(message){const bot=message.from==='bot',sender=String(message.sender||'').trim(),author=bot?'Ответ AI':message.source==='telegram'&&message.from==='support'?(String(message.senderLabel||'').trim()||'Create Dental Team'):message.source==='telegram'&&sender?`Клиент · ${sender}`:'';return `<div class="bubble ${message.from==='client'?'me':'them'} ${bot?'bot':''}">${chatOrderMarkup(message)}${author?`<small class="message-author">${escapeHtml(author)}</small>`:''}${message.text?`<p>${formattedChatText(message.text)}</p>`:''}${chatAttachmentMarkup(message.attachment)}<div class="chat-message-meta"><time datetime="${escapeHtml(message.time)}">${new Date(message.time).toLocaleTimeString(clinicIntlLocale(),{hour:'2-digit',minute:'2-digit'})}</time></div></div>`}
 function clinicChatScrollElement(){
   return window.matchMedia('(max-width: 900px)').matches?document.scrollingElement:$('#chat-bubbles');
 }
@@ -1245,7 +1246,7 @@ async function hydratePortal(){
   // history and logo payload is fetched in the background for detail pages.
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=employee-archive-9');
+      const {createTechnicianCabinet}=await import('./technician.js?v=compact-messages-10');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},promoCodes:()=>portalPromoCodes,onPromoCodesUpdate:items=>{portalPromoCodes=structuredClone(items)},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){

@@ -63,11 +63,29 @@
 .chat-order-context strong{color:#333}
 .chat-order-context>button{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;padding:0;border:0;border-radius:6px;background:transparent;color:#555}
 .chat-order-context>button:hover{background:#e8e8e8}
-.chat-message-order{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #d6d6d6;font-size:11px;line-height:1.5}
-.chat-message-order>a,.chat-message-order>a:visited{color:inherit;font-weight:650;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
-.chat-message-order>button{padding:2px 0;border:0;background:transparent;color:inherit;font-size:10px;text-decoration:underline;text-underline-offset:3px}
-.chat-message-order>button:hover,.chat-message-order>a:hover{opacity:.75}
-@media(max-width:900px){.tech-order-heading-actions{justify-content:flex-start}.chat-order-context>button,.chat-message-order>button{min-height:44px}.chat-order-context{font-size:12px}}
+.messages-layout .bubble{width:fit-content;max-width:70%;min-width:0;padding:16px 18px;border-radius:16px;overflow-wrap:anywhere}
+.messages-layout .bubble p{font-size:13px;line-height:1.55}
+.chat-message-order{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;font-size:11px;line-height:1.4}
+.chat-message-order>a,.chat-message-order>a:visited{display:block;min-width:0;padding:5px 8px;border-radius:6px;background:#e8e8e8;color:#555;font-weight:600;text-decoration:none;overflow-wrap:anywhere}
+.chat-message-order>button{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;padding:0;border:0;border-radius:8px;background:transparent;color:inherit;cursor:pointer}
+.chat-message-order>button svg{pointer-events:none}
+.chat-message-order>button:hover{background:#e8e8e8}
+.chat-message-order>a:hover{background:#ddd}
+.messages-layout .bubble:is(.message-support,.message-bot,.them,.bot) .chat-message-order>a{background:#484848;color:#eee}
+.messages-layout .bubble.message-client .chat-message-order>a{background:#e8e8e8;color:#555}
+.messages-layout .bubble:is(.message-support,.message-bot,.them,.bot) .chat-message-order>button:hover{background:#484848}
+.messages-layout .bubble.message-client .chat-message-order>button:hover{background:#e8e8e8}
+.chat-message-order :is(a,button):focus-visible{outline:2px solid currentColor;outline-offset:3px}
+.messages-layout .bubble .chat-message-meta{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px 10px;margin-top:10px;color:#707070;font-size:10px;line-height:1.4;font-variant-numeric:tabular-nums}
+.messages-layout .bubble:is(.message-support,.message-bot,.them,.bot) .chat-message-meta{color:#d4d4d4}
+.messages-layout .bubble.message-client .chat-message-meta{color:#707070}
+.messages-layout .bubble .chat-message-meta>time{display:inline;margin:0;color:inherit;font-size:inherit;white-space:nowrap}
+.messages-layout .bubble .message-delivery{display:inline-flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:4px;margin:0;color:inherit;font-size:inherit}
+.message-delivery>svg{flex:none}
+.message-delivery>span{white-space:nowrap}
+.messages-layout .bubble .message-delivery>button{min-height:28px;padding:4px 7px;border:1px solid currentColor;border-radius:5px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.messages-layout .bubble p.chat-delivery-error-detail{margin-top:8px;color:inherit;font-size:11px;line-height:1.5}
+@media(max-width:900px){.tech-order-heading-actions{justify-content:flex-start}.chat-order-context>button,.chat-message-order>button{min-height:44px}.chat-order-context{font-size:12px}.messages-layout .bubble{max-width:90%;padding:14px 16px}.chat-message-order{gap:8px}.chat-message-order>button{flex-basis:44px;width:44px;height:44px}.messages-layout .bubble .message-delivery>button{min-height:44px}}
 @media(min-width:901px){
   .tech-heading:has(>.tech-order-heading-actions){display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center}
   .tech-heading>.tech-order-heading-actions{max-width:650px}
