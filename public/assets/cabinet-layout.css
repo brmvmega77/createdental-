@@ -12,6 +12,7 @@
   .clinic-orders-panel>.toolbar .search input{font-size:12px}
   .clinic-orders-panel>.toolbar .clinic-filter-wrap>.btn{padding-inline:12px;font-size:12px}
 }
+
 @media(min-width:1440px){
   .clinic-orders-panel{grid-template-columns:max-content minmax(350px,1fr);column-gap:12px}
   .clinic-orders-panel>.clinic-status-segment{flex-wrap:nowrap}
@@ -128,4 +129,9 @@
   .tech-pricing-heading-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   .tech-pricing-heading-actions>.btn{width:100%;min-width:0;white-space:normal;min-height:44px}
   .tech-pricing-heading-actions>[data-tech-pricing-action="save"]{grid-column:1/-1;margin-top:12px;margin-left:0}
+}
+/* Desktop segmented controls share the clinic order tabs' compact dimensions. */
+@media(min-width:901px){
+  :is(.tech-segment,.tech-request-filters,.production-route-contexts,.payroll-section-tabs,.tabs.segmented-tabs){height:auto!important;min-height:33px!important;padding:3px!important;gap:2px!important;border-radius:8px}
+  :is(.tech-segment,.tech-request-filters,.production-route-contexts,.payroll-section-tabs,.tabs.segmented-tabs)>button{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;height:27px!important;min-height:27px!important;padding:0 9px!important;border-radius:6px;font-size:11px!important;font-weight:650;line-height:13px!important}
 }
