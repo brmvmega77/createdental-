@@ -133,6 +133,8 @@
   .tech-pricing-heading-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   .tech-pricing-heading-actions>.btn{width:100%;min-width:0;white-space:normal;min-height:44px}
   .tech-pricing-heading-actions>[data-tech-pricing-action="save"]{grid-column:1/-1;margin-top:12px;margin-left:0}
+  .tech-employee-filters{display:flex;flex-wrap:wrap;gap:2px;overflow:visible;height:auto;max-width:100%}
+  .tech-employee-filters>button{padding-inline:8px;white-space:nowrap}
 }
 /* Desktop segmented controls share the clinic order tabs' compact dimensions. */
 @media(min-width:901px){
