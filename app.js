@@ -1020,23 +1020,22 @@ function openOrderChat(id){
 }
 function chatMessageMarkup(message){const bot=message.from==='bot',sender=String(message.sender||'').trim(),author=bot?'Ответ AI':message.source==='telegram'&&message.from==='support'?(String(message.senderLabel||'').trim()||'Create Dental Team'):message.source==='telegram'&&sender?`Клиент · ${sender}`:'';return `<div class="bubble ${message.from==='client'?'me':'them'} ${bot?'bot':''}">${chatOrderMarkup(message)}${author?`<small class="message-author">${escapeHtml(author)}</small>`:''}${message.text?`<p>${formattedChatText(message.text)}</p>`:''}${chatAttachmentMarkup(message.attachment)}<div class="chat-message-meta"><time datetime="${escapeHtml(message.time)}">${new Date(message.time).toLocaleTimeString(clinicIntlLocale(),{hour:'2-digit',minute:'2-digit'})}</time></div></div>`}
 function clinicChatScrollElement(){
-  return window.matchMedia('(max-width: 900px)').matches?document.scrollingElement:$('#chat-bubbles');
+  // The conversation owns the scroll area on both desktop and mobile. Using
+  // the document on phones leaves the thread at the top while the composer
+  // remains below the fold, so the latest message is not visible on open.
+  return $('#chat-bubbles')||document.scrollingElement;
 }
 function scrollClinicChatToEnd(){
   const bubbles=$('#chat-bubbles');
   if(!bubbles)return;
-  if(window.matchMedia('(max-width: 900px)').matches){
-    const form=$('#chat-form'),nav=document.querySelector('.mobile-bottom-nav');
-    if(form)window.scrollBy({top:bubbles.getBoundingClientRect().bottom+form.offsetHeight-window.innerHeight+(nav?.getBoundingClientRect().height||0)});
-  }else bubbles.scrollTop=bubbles.scrollHeight;
+  const align=()=>{bubbles.scrollTop=bubbles.scrollHeight};
+  // Wait for the new bubbles to be laid out before measuring scrollHeight.
+  align();
+  requestAnimationFrame(()=>{align();requestAnimationFrame(align)});
 }
 function clinicChatNearEnd(){
   const bubbles=$('#chat-bubbles');
   if(!bubbles)return false;
-  if(window.matchMedia('(max-width: 900px)').matches){
-    const form=$('#chat-form'),nav=document.querySelector('.mobile-bottom-nav');
-    return Boolean(form&&bubbles.getBoundingClientRect().bottom<=window.innerHeight-form.offsetHeight-(nav?.getBoundingClientRect().height||0)+64);
-  }
   return bubbles.scrollHeight-bubbles.scrollTop-bubbles.clientHeight<64;
 }
 function messagesPage(){const previous=clinicChatScrollElement(),scrollTop=$('#chat-bubbles')?previous?.scrollTop:null;shell(`${title('Сообщения')}<div class="messages-layout"><div class="contacts"><button class="contact active"><span class="contact-avatar">CD</span><span><strong>Поддержка Create Dental</strong><small>Ваш диалог со службой поддержки</small></span></button></div><div class="conversation"><div class="conversation-head"><span class="contact-avatar">CD</span><span><strong>Поддержка Create Dental</strong><small id="chat-status">${escapeHtml(state.chatStatus)}</small></span></div><div class="chat-bubbles" id="chat-bubbles">${state.messages.length?state.messages.map(chatMessageMarkup).join(''):'<p class="chat-empty">Напишите сообщение, и оператор увидит его в своей панели.</p>'}</div><form id="chat-form" class="chat-compose chat-compose-files">${clinicChatOrderContext()}${state.chatAttachment?`<div class="chat-pending-file">${chatAttachmentMarkup(state.chatAttachment,true)}</div>`:''}<label class="chat-attach-button" title="Прикрепить файл">📎<input id="clinic-chat-file" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.constructionInfo,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.rtf" hidden></label><input id="chat-input" maxlength="2000" placeholder="Напишите сообщение..." value="${escapeHtml(state.chatText)}" autocomplete="off"><button class="send-btn" aria-label="Отправить сообщение" ${state.chatSending?'disabled':''}>➤</button></form></div></div>`);requestAnimationFrame(()=>{if(state.page!=='messages')return;if(scrollTop===null)scrollClinicChatToEnd();else{const scroller=clinicChatScrollElement();if(scroller)scroller.scrollTop=scrollTop}})}
