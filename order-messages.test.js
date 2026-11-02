@@ -27,6 +27,10 @@ test('chief can start any registered clinic conversation and order context is sc
  const sent=await api('/api/clinic-messages','clinic-a',{text:'Вопрос о заказе',orderId:order.id,orderLabel:'Поддельный номер'});
  assert.equal(sent.status,201);assert.equal(sent.body.message.orderId,order.id);assert.equal(sent.body.message.orderLabel,'TEST-CHAT');
  const reply=await api(conversations+'/clinic-a/reply','chief',{text:'Ответ лаборатории',orderId:order.id});assert.equal(reply.status,201);assert.equal(reply.body.message.orderId,order.id);
+ const chiefList=await api(conversations,'chief');assert.equal(chiefList.body.totalUnreadCount,1);assert.equal(chiefList.body.conversations.find(item=>item.id==='clinic-a').unreadCount,1);
+ const chiefThread=await api(conversations+'/clinic-a','chief');assert.equal(chiefThread.body.unreadCount,1);
+ const chiefRead=await api(conversations+'/clinic-a/read','chief',{messageId:chiefThread.body.lastMessageId});assert.equal(chiefRead.body.totalUnreadCount,0);
+ assert.equal((await api(conversations+'/clinic-a','chief')).body.unreadCount,0);
  assert.equal((await api('/api/clinic-messages','clinic-b',{text:'Чужой заказ',orderId:order.id})).status,400);
  assert.equal((await api(conversations+'/clinic-b/reply','chief',{text:'Неверная клиника',orderId:order.id})).status,400);
  assert.equal((await api(conversations+'/deleted/reply','chief',{text:'Удалённая клиника'})).status,404);

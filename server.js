@@ -1808,6 +1808,15 @@ function clinicMessageReadState(chat){
   return {unreadCount:messages.slice(readIndex+1).filter(message=>['support','bot'].includes(message.from)).length,lastMessageId:messages.at(-1)?.id||''};
 }
 
+function chiefMessageReadState(chat){
+  const messages=chat?.messages||[],readIndex=chat?.chiefReadMessageId?messages.findIndex(message=>message.id===chat.chiefReadMessageId):-1;
+  return {unreadCount:messages.slice(readIndex+1).filter(message=>message.from==='client').length,lastMessageId:messages.at(-1)?.id||''};
+}
+
+function chiefUnreadMessageCount(){
+  return portalSnapshot().clients.filter(clinic=>!clinic.deleted).reduce((total,clinic)=>total+chiefMessageReadState(clinicChats[clinic.id]).unreadCount,0);
+}
+
 async function handleClinicMessages(req,res,url){
   const user=session(req);
   if(!user)return json(res,401,{error:'Войдите в кабинет'});
@@ -1833,12 +1842,25 @@ async function handleClinicMessages(req,res,url){
   }
   if(user.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
   if(req.method==='GET'&&url.pathname==='/api/chief/conversations'){
-    const conversations=portalSnapshot().clients.filter(clinic=>!clinic.deleted).map(clinic=>{const chat=clinicChats[clinic.id],last=chat?.messages?.at(-1),preview=last?.text||(last?.attachment?`Файл: ${last.attachment.name}`:'');return {id:clinic.id,name:clinic.name,logo:clinic.logo||'',lastMessage:last?.orderId?`Заказ ${last.orderLabel||displayOrderId(last.orderId)} · ${preview}`:preview,updatedAt:chat?.updatedAt||''}}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||a.name.localeCompare(b.name,'ru'));
-    return json(res,200,{conversations});
+    const conversations=portalSnapshot().clients.filter(clinic=>!clinic.deleted).map(clinic=>{const chat=clinicChats[clinic.id],last=chat?.messages?.at(-1),preview=last?.text||(last?.attachment?`Файл: ${last.attachment.name}`:''),readState=chiefMessageReadState(chat);return {id:clinic.id,name:clinic.name,logo:clinic.logo||'',lastMessage:last?.orderId?`Заказ ${last.orderLabel||displayOrderId(last.orderId)} · ${preview}`:preview,updatedAt:chat?.updatedAt||'',unreadCount:readState.unreadCount}}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||a.name.localeCompare(b.name,'ru'));
+    return json(res,200,{conversations,totalUnreadCount:chiefUnreadMessageCount()});
   }
-  const match=url.pathname.match(/^\/api\/chief\/conversations\/([A-Za-z0-9_-]+)(?:\/(reply|retry)\/?)?(?:\/([a-f0-9]{24}))?$/);
+  const match=url.pathname.match(/^\/api\/chief\/conversations\/([A-Za-z0-9_-]+)(?:\/(reply|retry|read)\/?)?(?:\/([a-f0-9]{24}))?$/);
   if(!match||!portalClient(match[1]))return json(res,404,{error:'Диалог не найден'});
-  if(req.method==='GET'&&!match[2])return json(res,200,{messages:clinicChats[match[1]]?.messages||[]});
+  const chat=clinicChats[match[1]]||={messages:[],updatedAt:''};
+  if(req.method==='GET'&&!match[2])return json(res,200,{messages:chat.messages||[],...chiefMessageReadState(chat),totalUnreadCount:chiefUnreadMessageCount()});
+  if(req.method==='POST'&&match[2]==='read'){
+    let body;try{body=await readBody(req,2000)}catch{return json(res,400,{error:'Неверная отметка прочтения'})}
+    if(!body||typeof body.messageId!=='string'||body.messageId.length>120)return json(res,400,{error:'Неверная отметка прочтения'});
+    const index=chat.messages.findIndex(message=>message.id===body.messageId);
+    if(index<0)return json(res,400,{error:'Сообщение не найдено'});
+    const previous=chat.chiefReadMessageId,readIndex=previous?chat.messages.findIndex(message=>message.id===previous):-1;
+    if(index>readIndex){
+      chat.chiefReadMessageId=body.messageId;
+      try{await saveClinicChats()}catch{if(chat.chiefReadMessageId===body.messageId)chat.chiefReadMessageId=previous;return json(res,500,{error:'Не удалось сохранить прочтение'})}
+    }
+    return json(res,200,{...chiefMessageReadState(chat),totalUnreadCount:chiefUnreadMessageCount()});
+  }
   if(req.method==='POST'&&match[2]==='reply')return addClinicMessage(req,res,match[1],'support');
   if(req.method==='POST'&&match[2]==='retry'&&match[3]){
     const message=clinicChats[match[1]]?.messages?.find(item=>item.id===match[3]&&item.from==='support');
