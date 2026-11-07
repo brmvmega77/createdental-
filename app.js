@@ -811,15 +811,66 @@ function toothChart(interactive=true, selectedTeeth=state.selectedTeeth, bridgeR
 function stepper(){return `<div class="stepper" aria-label="Шаг ${state.step+1} из ${steps.length}">${steps.map((s,i)=>`<button class="step ${state.step===i?'active':''} ${state.step>i?'done':''}" data-step="${i}" ${state.step===i?'aria-current="step"':''}><b>${state.step>i?icon('check',13):i+1}</b><span class="step-label">${s}</span></button>${i<steps.length-1?'<span class="step-line" aria-hidden="true"></span>':''}`).join('')}</div>`}
 function field(label,control){return `<label class="field"><span>${label}</span>${control}</label>`}
 function dateValueParts(value){const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!match)return null;const date=new Date(Number(match[1]),Number(match[2])-1,Number(match[3]));return Number.isNaN(date.getTime())?null:date}
+function handleBirthDateAction(action,value){
+  const today=new Date(),todayIso=isoDateLocal(today);
+  if(action==='date-open'){
+    if(value!=='birth')return false;
+    const selected=dateValueParts(state.form.birth),view=selected&&isoDateLocal(selected)<=todayIso?selected:today;
+    state.datePickerField='birth';state.datePickerMonth=isoDateLocal(view).slice(0,7);
+    state.datePickerOpen=true;state.datePickerYearOpen=true;state.datePickerMonthOpen=false;
+    return true;
+  }
+  if(!state.datePickerOpen||state.datePickerField!=='birth')return false;
+  const [year,month]=state.datePickerMonth.split('-').map(Number);
+  if(action==='date-year-toggle'){state.datePickerYearOpen=!state.datePickerYearOpen;state.datePickerMonthOpen=false;}
+  else if(action==='date-year-nav'){state.datePickerMonth=`${Math.min(today.getFullYear(),year+Number(value))}-${String(month).padStart(2,'0')}`;}
+  else if(action==='date-year-select'){
+    if(Number(value)>today.getFullYear())return true;
+    state.datePickerMonth=`${Number(value)}-${String(month).padStart(2,'0')}`;
+    state.datePickerYearOpen=false;state.datePickerMonthOpen=true;
+  }else if(action==='date-month-select'){
+    const next=new Date(year,Number(value)-1,1);
+    if(next>today)return true;
+    state.datePickerMonth=isoDateLocal(next).slice(0,7);state.datePickerMonthOpen=false;
+  }else if(action==='date-month-toggle'){state.datePickerMonthOpen=true;}
+  else if(action==='date-nav'){
+    const next=new Date(year,month-1+Number(value),1);
+    if(next<=today)state.datePickerMonth=isoDateLocal(next).slice(0,7);
+  }else if(action==='date-select'){
+    if(!dateValueParts(value)||value>todayIso)return true;
+    state.form.birth=value;state.datePickerOpen=false;
+  }else if(action==='date-clear'){state.form.birth='';state.datePickerOpen=false;}
+  else if(action==='date-today')return true;
+  else return false;
+  return true;
+}
+document.addEventListener('click',event=>{
+  const control=event.target.closest('[data-action^="date-"]');
+  if(!control||control.disabled||!handleBirthDateAction(control.dataset.action,control.dataset.value))return;
+  event.preventDefault();event.stopImmediatePropagation();render();
+});
 function datePickerControl(field='due'){
-  const value=state.form[field]||'',selected=dateValueParts(value)||new Date(),viewKey=state.datePickerMonth||`${selected.getFullYear()}-${String(selected.getMonth()+1).padStart(2,'0')}`,viewParts=viewKey.split('-').map(Number),view=new Date(viewParts[0],viewParts[1]-1,1),year=view.getFullYear(),month=view.getMonth(),days=new Date(year,month+1,0).getDate(),leading=(new Date(year,month,1).getDay()+6)%7,monthName=new Intl.DateTimeFormat(clinicIntlLocale(),{month:'long'}).format(view),display=value?`${String(selected.getDate()).padStart(2,'0')}.${String(selected.getMonth()+1).padStart(2,'0')}.${selected.getFullYear()}`:'ДД.ММ.ГГГГ';
+  const today=new Date(),todayIso=isoDateLocal(today),birth=field==='birth';
+  const value=state.form[field]||'',selected=dateValueParts(value)||today;
+  const viewKey=state.datePickerMonth||isoDateLocal(selected).slice(0,7),[year,monthNumber]=viewKey.split('-').map(Number),month=monthNumber-1,view=new Date(year,month,1);
+  const monthName=new Intl.DateTimeFormat(clinicIntlLocale(),{month:'long'}).format(view),display=value?`${String(selected.getDate()).padStart(2,'0')}.${String(selected.getMonth()+1).padStart(2,'0')}.${selected.getFullYear()}`:'ДД.ММ.ГГГГ';
+  const minimumDue=field==='due'?currentEarliestDueIso():'',days=new Date(year,month+1,0).getDate(),leading=(view.getDay()+6)%7;
   const cells=Array.from({length:leading},()=>'<span class="date-picker-empty"></span>');
-  const minimumDue=field==='due'?currentEarliestDueIso():'';
-  for(let day=1;day<=days;day++){const dateKey=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`,isSelected=dateKey===value,isToday=dateKey===new Date().toISOString().slice(0,10),date=dateValueParts(dateKey),blocked=field==='due'&&(!isWorkingDay(date)||(minimumDue&&dateKey<minimumDue));cells.push(`<button type="button" class="date-picker-day ${isSelected?'selected':''} ${isToday?'today':''} ${blocked?'disabled':''}" ${blocked?'disabled title="Недоступно для выбранной услуги"':`data-action="date-select" data-value="${dateKey}"`}>${day}</button>`)}
-  const open=state.datePickerOpen&&state.datePickerField===field,yearOpen=open&&state.datePickerYearOpen,currentYear=new Date().getFullYear(),yearRangeEnd=field==='birth'?Math.min(year+6,currentYear):year+6,yearRangeStart=yearRangeEnd-11;
+  for(let day=1;day<=days;day++){
+    const dateKey=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`,date=dateValueParts(dateKey);
+    const blocked=birth?dateKey>todayIso:!isWorkingDay(date)||(minimumDue&&dateKey<minimumDue);
+    cells.push(`<button type="button" class="date-picker-day ${dateKey===value?'selected':''} ${dateKey===todayIso?'today':''} ${blocked?'disabled':''}" ${blocked?`disabled title="${birth?'Дата рождения не может быть в будущем':'Недоступно для выбранной услуги'}"`:`data-action="date-select" data-value="${dateKey}"`}>${day}</button>`);
+  }
+  const open=state.datePickerOpen&&state.datePickerField===field,yearOpen=open&&state.datePickerYearOpen,monthOpen=open&&birth&&!yearOpen&&state.datePickerMonthOpen;
+  const yearRangeEnd=birth?Math.min(year+6,today.getFullYear()):year+6,yearRangeStart=yearRangeEnd-11;
   const years=Array.from({length:12},(_,index)=>yearRangeStart+index).map(item=>`<button type="button" class="date-picker-year ${item===year?'selected':''}" data-action="date-year-select" data-value="${item}">${item}</button>`).join('');
+  const months=Array.from({length:12},(_,index)=>{const date=new Date(year,index,1),name=new Intl.DateTimeFormat(clinicIntlLocale(),{month:'long'}).format(date);return `<button type="button" class="date-picker-year ${index===month?'selected':''}" data-action="date-month-select" data-value="${index+1}" ${date>today?'disabled':''}>${name.charAt(0).toUpperCase()+name.slice(1)}</button>`}).join('');
+  const yearButton=`<button type="button" class="date-picker-year-trigger" data-action="date-year-toggle" data-value="${field}">Год: ${year}</button>`;
+  const heading=yearOpen?`<div class="date-picker-year-mode-head"><strong class="date-picker-year-mode-title">Выберите год</strong><div class="date-picker-year-nav"><button type="button" data-action="date-year-nav" data-value="-12" aria-label="Предыдущие годы">‹ Раньше</button><button type="button" data-action="date-year-nav" data-value="12" aria-label="Следующие годы" ${birth&&yearRangeEnd>=today.getFullYear()?'disabled':''}>Позже ›</button></div></div>`:`<div class="date-picker-title">${monthOpen?'<strong>Выберите месяц</strong>':birth?`<button type="button" class="date-picker-year-trigger" data-action="date-month-toggle">${monthName.charAt(0).toUpperCase()+monthName.slice(1)}</button>`:`<strong>${monthName.charAt(0).toUpperCase()+monthName.slice(1)}</strong>`}${yearButton}</div>`;
+  const navigation=yearOpen||monthOpen?'':`<div class="date-picker-month-nav"><button type="button" data-action="date-nav" data-value="-1" aria-label="Предыдущий месяц">‹</button><button type="button" data-action="date-nav" data-value="1" aria-label="Следующий месяц" ${birth&&new Date(year,month+1,1)>today?'disabled':''}>›</button></div>`;
+  const calendar=yearOpen?`<div class="date-picker-years">${years}</div>${birth?'':`<button type="button" class="date-picker-back" data-action="date-year-toggle" data-value="${field}">← Вернуться к календарю</button>`}`:monthOpen?`<div class="date-picker-years date-picker-months">${months}</div>`:`<div class="date-picker-weekdays">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day=>`<span>${day}</span>`).join('')}</div><div class="date-picker-days">${cells.join('')}</div>`;
   const dueHint=field==='due'&&minimumDue?`<small class="date-picker-hint">Минимальная дата для выбранных услуг: ${displayIsoDate(minimumDue)}</small>`:'';
-  return `<div class="date-picker"><button type="button" class="date-picker-trigger ${value?'has-value':''}" data-action="date-open" data-value="${field}"><span>${display}</span><span class="date-picker-icon" aria-hidden="true"></span></button>${open?`<div class="date-picker-popover"><div class="date-picker-head">${yearOpen?`<div class="date-picker-year-mode-head"><strong class="date-picker-year-mode-title">Выберите год</strong><div class="date-picker-year-nav"><button type="button" data-action="date-year-nav" data-value="-12" aria-label="Предыдущие годы">‹ Раньше</button><button type="button" data-action="date-year-nav" data-value="12" aria-label="Следующие годы">Позже ›</button></div></div>`:`<div class="date-picker-title"><strong>${monthName.charAt(0).toUpperCase()+monthName.slice(1)}</strong><button type="button" class="date-picker-year-trigger" data-action="date-year-toggle" data-value="${field}">Год: ${year}</button></div>`}${yearOpen?'':`<div class="date-picker-month-nav"><button type="button" data-action="date-nav" data-value="-1" aria-label="Предыдущий месяц">‹</button><button type="button" data-action="date-nav" data-value="1" aria-label="Следующий месяц">›</button></div>`}</div>${yearOpen?`<div class="date-picker-years">${years}</div><button type="button" class="date-picker-back" data-action="date-year-toggle" data-value="${field}">← Вернуться к календарю</button>`:`<div class="date-picker-weekdays">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day=>`<span>${day}</span>`).join('')}</div><div class="date-picker-days">${cells.join('')}</div>`}<div class="date-picker-foot"><button type="button" data-action="date-clear" data-value="${field}">Очистить</button><button type="button" data-action="date-today" data-value="${field}">Сегодня</button>${dueHint}</div></div>`:''}</div>`;
+  return `<div class="date-picker"><button type="button" class="date-picker-trigger ${value?'has-value':''}" data-action="date-open" data-value="${field}"><span>${display}</span><span class="date-picker-icon" aria-hidden="true"></span></button>${open?`<div class="date-picker-popover"><div class="date-picker-head">${heading}${navigation}</div>${calendar}<div class="date-picker-foot"><button type="button" data-action="date-clear" data-value="${field}">Очистить</button>${birth?'':`<button type="button" data-action="date-today" data-value="${field}">Сегодня</button>`}${dueHint}</div></div>`:''}</div>`;
 }
 function positionDatePicker(){const pop=document.querySelector('.date-picker-popover'),trigger=document.querySelector('.date-picker-trigger');if(!pop||!trigger)return;const rect=trigger.getBoundingClientRect(),spaceBelow=window.innerHeight-rect.bottom,spaceAbove=rect.top;pop.classList.toggle('above',spaceBelow<pop.offsetHeight+12&&spaceAbove>spaceBelow)}
 function textInput(value='',placeholder='',key=''){return `<input ${key?`data-field="${key}"`:''} value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}">`}
@@ -893,11 +944,20 @@ function confirmStep(){
   const allTeeth=[...new Set(variants.filter(variant=>!isSiliconeKeySelection(variant.work,variant.workOption)).flatMap(variant=>variant.selectedTeeth||[]))].sort((a,b)=>a-b);
   return `<h2>Проверьте данные заказа</h2><div class="confirmation"><div>${allTeeth.length?toothChart(false,allTeeth,[]):`<div class="no-teeth-confirmation">Номера зубов не требуются</div>`}</div><div class="summary-list"><div><span>Пациент</span><strong>${escapeHtml(`${state.form.surname} ${state.form.initials}`)}</strong></div><div><span>Врач</span><strong>${escapeHtml(activeClinicDoctors().find(item=>item.id===state.form.doctorId)?.name||'Не указан')}</strong></div>${state.form.birth?`<div><span>Дата рождения</span><strong>${escapeHtml(state.form.birth.split('-').reverse().join('.'))}</strong></div>`:''}<div><span>Тип работы</span><strong>${state.form.orderType==='analog'?'Аналоговый':'Цифровой'}</strong></div><div><span>Заказы</span><strong>${orderCount}</strong></div><div><span>Услуги</span><strong>${groups.length}</strong></div><div><span>Зубы</span><strong>${escapeHtml(allTeeth.join(', ')||'Не выбираются')}</strong></div>${serviceRows}${activePromoCode?`<div><span>Промокод</span><strong>${escapeHtml(activePromoCode)}</strong></div>`:''}<div><span>Желаемый срок</span><strong>${escapeHtml(state.form.due?state.form.due.split('-').reverse().join('.'):orderDateLabel(''))}</strong></div>${promoSummaryMarkup()}<div><span>Услуги без доставки</span><strong>${escapeHtml(serviceSubtotalText())}</strong></div><div><span>Доставка</span><strong>${escapeHtml(deliveryFeeText())}</strong></div><div><span>Итого с доставкой</span><strong>${escapeHtml(totalOrderEstimateText())}</strong></div>${shadeVariants().length?`<div><span>Цвет реставраций</span><strong>${escapeHtml(state.form.shade)}</strong></div>`:''}<div><span>Комментарий</span><strong>${escapeHtml(state.form.comment||'—')}</strong></div><div><span>Файлы</span><strong>${state.uploaded.length} файла</strong></div>${attachmentTiles()}</div></div>`;
 }
-function newOrder(){const body=[patientStep,teethStep,extraStep,confirmStep][state.step](),final=state.step===3,subtitle=orderServiceCount(state.orderVariants||[])?`Добавлено услуг: ${orderServiceCount(state.orderVariants||[])}. Можно добавить до 10 услуг для одного пациента.`:'';shell(`${title(state.step===1?'Зубы и работа':state.step===2?'Дополнительные параметры':state.step===3?'Подтверждение':'Новый заказ',subtitle)}${stepper()}<section class="wizard order-flow ${state.step===1?'order-builder-wizard':''}">${body}<div class="wizard-actions">${state.step>0?button('Назад','previous','outline'):''}${button(final?'Создать заказ':'Далее →','next')}</div></section>`)}
+function newOrder(){
+  const previousBuilder=state.step===1?document.querySelector('.order-builder-wizard'):null;
+  const scrollPosition=previousBuilder?{left:window.scrollX,top:window.scrollY}:null;
+  // Keep enough page height to preserve the viewport when a long service list closes.
+  const builderHeight=previousBuilder?previousBuilder.getBoundingClientRect().height:0;
+  const body=[patientStep,teethStep,extraStep,confirmStep][state.step](),final=state.step===3;
+  const subtitle=`Добавлено услуг: <span class="order-service-count">${orderServiceCount(state.orderVariants||[])}</span>. Можно добавить до 10 услуг для одного пациента.`;
+  shell(`<div class="order-flow-heading">${title(state.step===1?'Зубы и работа':state.step===2?'Дополнительные параметры':state.step===3?'Подтверждение':'Новый заказ',subtitle)}</div>${stepper()}<section class="wizard order-flow ${state.step===1?'order-builder-wizard':''}" ${builderHeight?`style="min-height:${builderHeight}px"`:''}>${body}<div class="wizard-actions">${state.step>0?button('Назад','previous','outline'):''}${button(final?'Создать заказ':'Далее →','next')}</div></section>`);
+  if(scrollPosition)window.scrollTo({...scrollPosition,behavior:'instant'});
+}
 function isoDate(value){const match=String(value||'').match(/^(\d{2})\.(\d{2})\.(\d{4})$/);return match?`${match[3]}-${match[2]}-${match[1]}`:''}
 function clientRequestControl(order,field){
   if(field==='patient')return `<label>Новое ФИО<input name="value" required value="${escapeHtml(order.patient||'')}" placeholder="Фамилия Имя Отчество"></label>`;
-  if(field==='birth')return `<label>Новая дата рождения<input name="value" type="date" required value="${escapeHtml(order.birth||'')}"></label>`;
+  if(field==='birth')return `<label>Новая дата рождения<input name="value" type="date" max="${isoDateLocal(new Date())}" required value="${escapeHtml(order.birth||'')}"></label>`;
   if(field==='teeth')return `<label>Номера зубов<input name="value" required value="${escapeHtml((order.teeth||[]).join(', '))}" placeholder="Например: 11, 12, 21"></label>`;
   if(field==='mode')return `<label>Новый режим<select name="value" required><option value="single" ${order.toothMode==='Одиночка'?'selected':''}>Одиночка</option><option value="bridge" ${order.toothMode==='Мост'?'selected':''}>Мост</option><option value="upper" ${order.toothMode==='Челюсть'&&(order.teeth||[]).some(tooth=>tooth<30)?'selected':''}>Верхняя челюсть</option><option value="lower" ${order.toothMode==='Челюсть'&&(order.teeth||[]).some(tooth=>tooth>30)?'selected':''}>Нижняя челюсть</option></select></label>`;
   if(field==='service')return `<label>Новая услуга<select name="value" required>${workCatalog.filter(category=>category.options.length).map(category=>`<optgroup label="${escapeHtml(category.name)}">${category.options.map(option=>`<option value="${escapeHtml(`${category.name}|||${option.name}`)}" ${order.work===category.name&&order.material===option.name?'selected':''}>${escapeHtml(option.name)} · ${rubles(option.price)}</option>`).join('')}</optgroup>`).join('')}</select></label>`;
@@ -1559,6 +1619,7 @@ function selectOrderTooth(number){
 }
 
 function advanceOrderStep(){
+  if(state.form.birth&&(!dateValueParts(state.form.birth)||state.form.birth>isoDateLocal(new Date()))){notify('Дата рождения не может быть в будущем');return false}
   if(state.step===1){
     if(state.planningAddon?.jaws.length){notify('Добавьте выбранный ключ в заказ или нажмите «Отмена».');return false}
     if(state.prostheticAddon?.selectedTeeth.length){notify('Добавьте выбранную комплектующую в заказ или нажмите «Отмена».');return false}
