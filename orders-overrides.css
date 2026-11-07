@@ -1227,14 +1227,14 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
 }
 .tech-orders-table tbody td.tech-empty[colspan]::before{content:none!important}
 
-/* The whole order shares the same compact actions as its production works. */
+/* The whole order shares one patient folder; child rows only edit or delete. */
 .tech-order-group-summary .tech-order-group-action{display:flex!important;align-items:center;justify-content:flex-end;gap:6px;min-width:0;padding:0 8px}
 .tech-order-group-action .tech-icon-btn{width:30px;height:34px;flex:0 0 30px;cursor:pointer}
 .tech-order-group-summary .tech-order-group-chevron{padding:0;cursor:pointer}
 .tech-order-group-chevron[aria-expanded="true"]{transform:rotate(90deg)}
 .tech-order-group-summary:focus-visible{outline:2px solid #808080;outline-offset:-2px}
 @media(min-width:761px){
- .tech-orders-table-grouped{--group-columns:minmax(0,3fr) minmax(0,14fr) minmax(0,11fr) minmax(0,7fr) minmax(0,9fr) minmax(0,18fr) minmax(0,10fr) minmax(0,10fr) minmax(0,10fr) minmax(114px,8fr)}
+ .tech-orders-table-grouped{--group-columns:minmax(0,3fr) minmax(0,14fr) minmax(0,11fr) minmax(0,7fr) minmax(0,9fr) minmax(0,18fr) minmax(0,10fr) minmax(0,10fr) minmax(0,10fr) minmax(128px,8fr)}
  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-action{grid-column:10!important;grid-row:1!important;position:static!important}
 }
 @media(max-width:760px){
@@ -1243,6 +1243,16 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
 
 /* Order number and customer occupy the columns named in the header. */
 .tech-order-group-customer{min-width:0;color:#555;font-size:12px;font-weight:600;line-height:1.4;overflow-wrap:break-word}
+.tech-orders-table td.tech-order-actions-cell{padding-inline:0!important}
+.tech-orders-table .tech-order-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:6px!important;flex-wrap:nowrap!important;width:100%!important;padding-inline:8px;box-sizing:border-box}
+.tech-orders-table.tech-orders-table-grouped tbody .tech-order-group-summary .tech-order-actions,.tech-orders-table.tech-orders-table-grouped tbody td.tech-order-actions-cell .tech-order-actions,.tech-orders-table.tech-orders-table-list tbody td.tech-order-actions-cell .tech-order-actions{justify-content:flex-end!important}
+.tech-orders-table .tech-order-actions .tech-icon-btn{display:inline-flex!important;align-items:center;justify-content:center;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;flex:0 0 32px!important;padding:0!important;border:1px solid #e7e7e7;border-radius:9px;background:#fff;color:#737373;line-height:1;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}
+.tech-orders-table .tech-order-actions .tech-icon-btn svg{display:block;width:16px;height:16px;stroke-width:1.8;flex:none}
+.tech-orders-table .tech-order-actions .tech-icon-btn:hover{background:#f2f2f2;border-color:#ccc;color:#333}
+.tech-orders-table .tech-order-actions .tech-icon-btn.danger{border-color:#f0d6d6;color:#bf4545}
+.tech-orders-table .tech-order-actions .tech-icon-btn.danger:hover{background:#fff1f1;border-color:#dbabab;color:#a73232}
+.tech-orders-table .tech-order-actions .tech-icon-btn:focus-visible{outline:2px solid #808080;outline-offset:2px}
+@media(max-width:760px){.tech-orders-table .tech-order-actions .tech-icon-btn{width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;flex-basis:40px!important}}
 @media(min-width:761px){.tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-customer{grid-column:3!important;grid-row:1!important;padding-inline:12px}}
 @media(max-width:760px){
  .tech-order-group-summary>.tech-order-group-customer{grid-column:2 / -1;grid-row:2}
