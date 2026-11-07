@@ -970,10 +970,16 @@ function clientRequestDialog(order){
   const cancel=state.clientRequest.type==='cancel';
   const heading=cancel?'Запросить отмену заказа':'Запросить правку заказа';
   const description=cancel?'Заказ отменится после подтверждения главным техником.':'Главный техник рассмотрит запрос и внесёт изменения в заказ.';
-  return `<div class="tech-dialog-backdrop"><section class="tech-dialog client-request-dialog" role="dialog" aria-modal="true" aria-labelledby="client-request-title"><h2 id="client-request-title">${heading}</h2><p>${description}</p><form id="clinic-client-request-form"><input type="hidden" name="type" value="${cancel?'cancel':'edit'}">${cancel?'':'<input type="hidden" name="field" value="request">'}<label>${cancel?'Причина отмены':'Что нужно изменить'}<textarea name="reason" required minlength="3" maxlength="2000" rows="4" placeholder="${cancel?'Коротко укажите причину':'Опишите, что нужно изменить в заказе'}">${escapeHtml(state.clientRequest.reason||'')}</textarea></label><div class="order-rework-actions"><button type="button" class="btn outline" data-action="client-request-close">Назад</button><button type="submit" class="btn primary">Отправить запрос</button></div></form></section></div>`;
+  return `<div class="tech-dialog-backdrop client-request-backdrop"><section class="tech-dialog client-request-dialog" role="dialog" aria-modal="true" aria-labelledby="client-request-title"><h2 id="client-request-title">${heading}</h2><p>${description}</p><form id="clinic-client-request-form"><input type="hidden" name="type" value="${cancel?'cancel':'edit'}">${cancel?'':'<input type="hidden" name="field" value="request">'}<label>${cancel?'Причина отмены':'Что нужно изменить'}<textarea name="reason" required minlength="3" maxlength="2000" rows="4" placeholder="${cancel?'Коротко укажите причину':'Опишите, что нужно изменить в заказе'}">${escapeHtml(state.clientRequest.reason||'')}</textarea></label><div class="order-rework-actions"><button type="button" class="btn outline" data-action="client-request-close">Назад</button><button type="submit" class="btn primary">Отправить запрос</button></div></form></section></div>`;
 }
 document.addEventListener('input',event=>{
   if(event.target.form?.id==='clinic-client-request-form'&&event.target.name==='reason'&&state.clientRequest)state.clientRequest.reason=event.target.value;
+});
+document.addEventListener('click',event=>{
+  if(!event.target.matches('.client-request-backdrop'))return;
+  const action=state.clientRequest?.type==='cancel'?'request-cancel':'request-edit';
+  state.clientRequest=null;render();
+  document.querySelector(`[data-action="${action}"]`)?.focus({preventScroll:true});
 });
 const orderUploadAccept='*/*';
 function orderUploadDialog(){
