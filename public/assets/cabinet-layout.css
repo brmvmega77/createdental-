@@ -74,6 +74,9 @@
 .messages-layout:not(.chief-messages){height:min(760px,calc(100dvh - 185px));min-height:460px;overflow:hidden}
 .messages-layout:not(.chief-messages)>.contacts{min-height:0;overflow-y:auto}
 .messages-layout:not(.chief-messages)>.conversation{min-height:0;overflow:hidden}
+.messages-layout .conversation-head{flex:0 0 auto;height:auto;min-height:68px;padding-block:12px}
+.messages-layout .conversation-head>span:nth-child(2){min-width:0}
+.messages-layout .chat-bubbles>.bubble{flex-shrink:0}
 .messages-layout:not(.chief-messages) .chat-bubbles{min-height:0;max-height:none;overflow-y:auto;flex:1 1 auto}
 .messages-layout:not(.chief-messages) .chat-compose{flex:0 0 auto}
 main.content:has(.messages-layout)+.portal-footer{display:none}
