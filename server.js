@@ -740,11 +740,16 @@ async function handleClientRequestCreate(req,res,url){
   const type=body.type==='cancel'?'cancel':body.type==='edit'?'edit':'';
   if(!type)return json(res,400,{error:'Выберите тип запроса'});
   const requestedBy=actorName(user),createdAt=new Date().toISOString();
+  const manual=type==='edit'&&body.field==='request';
   let reason='',summary='',changes={},requestType=type;
   if(type==='cancel'){
     reason=cleanRequestText(body.reason);
     if(reason.length<3)return json(res,400,{error:'Коротко укажите причину отмены'});
     summary=`Отмена заказа: ${reason}`;
+  }else if(manual){
+    reason=cleanRequestText(body.reason);
+    if(reason.length<3)return json(res,400,{error:'Опишите, что нужно изменить в заказе'});
+    summary=`Правка заказа: ${reason}`;
   }else{
     const field=cleanRequestText(body.field,40),value=body.value;
     if(field==='patient'){
@@ -788,7 +793,7 @@ async function handleClientRequestCreate(req,res,url){
   if(changes.date||changes.variants){const issue=orderDeadlineError({...order,...changes},changes.date||order.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)return json(res,400,{error:issue});}
   if(snapshot.clientRequests.some(item=>item.orderId===order.id&&item.type===requestType&&item.status==='pending'))return json(res,409,{error:requestType==='cancel'?'Запрос на отмену уже ожидает решения':requestType==='deadline'?'Запрос на изменение срока уже ожидает решения':'По заказу уже есть правка, ожидающая решения'});
   const before=Object.fromEntries(Object.keys(changes).map(key=>[key,order[key]??'']));
-  const request={id:`cr-${randomBytes(10).toString('hex')}`,baseOrderRevision:order._revision||0,...(body.variantIndex!==undefined?{variantIndex:Number(body.variantIndex)}:{}),orderId:order.id,clinicId:order.clinicId,type:requestType,status:'pending',requestedBy,confirmedBy:requestedBy,summary,reason,changes,before,createdAt,source:'portal'};
+  const request={id:`cr-${randomBytes(10).toString('hex')}`,baseOrderRevision:order._revision||0,...(manual?{manual:true}:{}),...(body.variantIndex!==undefined?{variantIndex:Number(body.variantIndex)}:{}),orderId:order.id,clinicId:order.clinicId,type:requestType,status:'pending',requestedBy,confirmedBy:requestedBy,summary,reason,changes,before,createdAt,source:'portal'};
   try{
     await replacePortalCollection('clientRequests',[request,...snapshot.clientRequests],{role:'clinic',name:requestedBy});
     await recordPortalEvent(order.id,{role:'clinic',name:requestedBy},'client_change_requested',{clinicId:order.clinicId,summary:`Запрошено ${clientRequestLabel(requestType)}`,clientRequestId:request.id}).catch(()=>{});
@@ -810,7 +815,8 @@ async function handleClientRequestDecision(req,res,url){
   if(request.status!=='pending')return json(res,409,{error:'По этому запросу уже принято решение'});
   const order=snapshot.orders.find(item=>item.id===request.orderId&&item.clinicId===request.clinicId);
   if(!order)return json(res,404,{error:'Заказ не найден'});
-  if(decision==='approve'&&clientRequestConflict(request,order)&&!(request.baseOrderRevision===undefined&&!Object.keys(request.before||{}).length&&decisionBody.orderRevision===(order._revision||0)))return json(res,409,{error:'Заказ изменился после создания запроса. Проверьте актуальные данные и создайте новый запрос.'});
+  if(decision==='approve'&&request.manual&&(order._revision||0)<=(request.baseOrderRevision||0))return json(res,409,{error:'Сначала внесите и сохраните изменения в заказе, затем отметьте правки выполненными.'});
+  if(decision==='approve'&&!request.manual&&clientRequestConflict(request,order)&&!(request.baseOrderRevision===undefined&&!Object.keys(request.before||{}).length&&decisionBody.orderRevision===(order._revision||0)))return json(res,409,{error:'Заказ изменился после создания запроса. Проверьте актуальные данные и создайте новый запрос.'});
   const reviewedAt=new Date().toISOString(),reviewedBy=actorName(user),status='archived',decisionResult=decision==='approve'?'approved':'rejected';
   try{
     if(decision==='approve'){
@@ -819,7 +825,7 @@ async function handleClientRequestDecision(req,res,url){
         await replacePortalCollection('orders',snapshot.orders.map(item=>item.id===order.id?{...item,status:'Отменён',cancelledAt:reviewedAt,cancelReason:reason}:item),{role:'technician',name:reviewedBy});
         const current=portalSnapshot();
         await replacePortalCollection('orderOverrides',{...current.orderOverrides,[order.id]:{...(current.orderOverrides[order.id]||{}),stage:'Отменён',cancelledAt:reviewedAt,cancelReason:reason}},{role:'technician',name:reviewedBy});
-      }else{
+      }else if(!request.manual){
         const allowed=new Set(['patient','birth','work','material','teeth','quantity','toothMode','date','shade','comment','sum','bridgeRanges','variants','servicesTotal','deliveryFee']);
         const changes=Object.fromEntries(Object.entries(request.changes||{}).filter(([key])=>allowed.has(key)));
         if(!changes.variants&&['work','material','teeth','toothMode'].some(key=>Object.hasOwn(changes,key))){const revised=reviseOrderServices(order,changes,{variantIndex:request.variantIndex??decisionBody.variantIndex,deliverySettings:snapshot.deliverySettings,promoPrices:snapshot.promoCodes?.find(item=>item.active!==false&&item.code===order.promoCode)?.prices||{}});Object.assign(changes,revised);}
@@ -831,8 +837,8 @@ async function handleClientRequestDecision(req,res,url){
     const current=portalSnapshot();
     const reviewed=current.clientRequests.map(item=>item.id===request.id?{...item,status,decision:decisionResult,reviewedAt,reviewedBy}:item);
     await replacePortalCollection('clientRequests',reviewed,{role:'technician',name:reviewedBy});
-    await recordPortalEvent(order.id,{role:'technician',name:reviewedBy},decision==='approve'?'client_request_approved':'client_request_rejected',{clinicId:order.clinicId,summary:`Запрос на ${clientRequestLabel(request.type)} ${decision==='approve'?'одобрен':'отклонён'}`,clientRequestId:request.id}).catch(()=>{});
-    const resultText=decision==='approve'?`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} одобрен главным техником.`:`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} отклонён главным техником.`;
+    await recordPortalEvent(order.id,{role:'technician',name:reviewedBy},decision==='approve'?'client_request_approved':'client_request_rejected',{clinicId:order.clinicId,summary:request.manual&&decision==='approve'?'Правки по запросу клиники внесены':`Запрос на ${clientRequestLabel(request.type)} ${decision==='approve'?'одобрен':'отклонён'}`,clientRequestId:request.id}).catch(()=>{});
+    const resultText=decision==='approve'?(request.manual?`Правки по заказу ${order.id} внесены главным техником.`:`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} одобрен главным техником.`):`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} отклонён главным техником.`;
     void telegramBridge?.sendAutomatedMessage(order.clinicId,resultText).catch(error=>console.error('Telegram client request notification failed:',error.message));
     return json(res,200,{ok:true,request:reviewed.find(item=>item.id===request.id),portal:portalSnapshot()});
   }catch(error){if(error.status===400)return json(res,400,{error:error.message});if(error.message==='collection_conflict')return json(res,409,{error:'Данные заказа изменились. Обновите страницу.'});console.error('Client request decision failed:',error.message);return json(res,500,{error:'Не удалось обработать запрос'})}

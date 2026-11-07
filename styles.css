@@ -3523,6 +3523,7 @@ html[data-theme="dark"] .tech-order-child-row{background:#202428}
 .order-flow-heading .order-service-count{display:inline-block;min-width:2ch;font-variant-numeric:tabular-nums}
 .order-builder-wizard{overflow-anchor:none;align-content:start}
 .order-builder{align-content:start}
+.tech-request-reason strong{white-space:pre-wrap;overflow-wrap:anywhere;font-weight:500;line-height:1.55}
 .date-picker-months .date-picker-year{padding-inline:4px;font-size:11px}
 .date-picker-month-nav button:disabled,.date-picker-year-nav button:disabled,.date-picker-months button:disabled{opacity:.4;cursor:not-allowed;background:#f5f5f5;color:#666}
 @media(max-width:900px){

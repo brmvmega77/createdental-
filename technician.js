@@ -906,13 +906,13 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       const needsPosition=!request.changes?.variants&&['work','material','teeth','toothMode'].some(key=>Object.hasOwn(request.changes||{},key))&&(order?.variants?.length||0)>1&&request.variantIndex===undefined;
       const positionPicker=needsPosition?`<label class="tech-assign">Позиция заказа<select data-client-request-position="${safe(request.id)}"><option value="">Выберите услугу</option>${order.variants.map((v,index)=>`<option value="${index}">${index+1}. ${safe(v.workOption||v.work)}</option>`).join('')}</select></label>`:'';
       const actions=request.status==='pending'
-        ?`<div class="tech-request-actions"><button class="btn outline" data-tech-client-request="reject" data-request-id="${safe(request.id)}">Отклонить</button><button class="btn primary" data-tech-client-request="approve" data-request-id="${safe(request.id)}">Одобрить</button></div>`
-        :`<div class="tech-request-reviewed">Решение: ${request.decision==='rejected'||request.status==='rejected'?'Отклонено':'Одобрено'} · Create Dental Team · ${shortDate(request.reviewedAt)}</div>`;
+        ?`<div class="tech-request-actions">${request.manual?`<button type="button" class="btn outline" data-tech-order-action="edit" data-id="${safe(request.orderId)}">Внести правки</button>`:''}<button class="btn outline" data-tech-client-request="reject" data-request-id="${safe(request.id)}">Отклонить</button><button class="btn primary" data-tech-client-request="approve" data-request-id="${safe(request.id)}">${request.manual?'Правки внесены':'Одобрить'}</button></div>`
+        :`<div class="tech-request-reviewed">Решение: ${request.decision==='rejected'||request.status==='rejected'?'Отклонено':request.manual?'Правки внесены':'Одобрено'} · Create Dental Team · ${shortDate(request.reviewedAt)}</div>`;
       const sender=request.confirmedBy&&request.confirmedBy!==request.requestedBy?`<span>Отправил запрос: <strong>${safe('Create Dental Team')}</strong></span>`:'';
       return `<article class="tech-request-card ${safe(archived?'archived':request.status)}"><header><div><span class="tech-request-type">${safe(typeLabel[request.type]||'Правка')}</span><h2>${safe(order?.patient||request.orderId)}</h2><p>${safe(clinic?.name||order?.clinic||'Клиника')} · заказ ${safe(request.orderId)}</p></div><span class="tech-request-status ${safe(archived?'archived':request.status)}">${archived?'Архив':safe(statusLabel[request.status]||request.status)}</span></header><div class="tech-request-meta"><span>Запросил: <strong>${safe(request.requestedBy||'Клиент')}</strong></span>${sender}<span>${shortDate(request.createdAt)}</span></div>${Number.isInteger(request.variantIndex)?`<p>Позиция ${request.variantIndex+1}: ${safe(order?.variants?.[request.variantIndex]?.workOption||'Услуга заказа')}</p>`:''}${details}${request.status==='pending'?positionPicker:''}${actions}</article>`;
     }).join('');
     const filterMarkup=`<section class="tech-panel tech-request-filter-panel"><div class="tech-order-tools"><div class="tech-segment tech-request-filter-tabs">${requestFilters.map(([key,label])=>`<button class="${state.requestFilter===key?'active':''}" data-tech-request-filter="${key}">${label}</button>`).join('')}</div><div class="tech-order-searchbar"><input id="tech-request-search" aria-label="Поиск правок от клиентов" placeholder="Поиск по заказу, клинике или технику…" value="${safe(state.requestSearch)}">${orderFilterPanel(requestOrders)}</div></div></section>`;
-    return `<div class="tech-heading"><div><span class="tech-eyebrow">СОГЛАСОВАНИЕ</span><h1>Правки от клиентов</h1></div><div class="tech-task-count"><strong>${pending}</strong><span>ожидают решения</span></div></div>${filterMarkup}<div class="tech-request-list">${cards||'<section class="tech-panel tech-empty">Запросов в этом разделе пока нет</section>'}</div>`;
+    return `<div class="tech-heading"><div><span class="tech-eyebrow">СОГЛАСОВАНИЕ</span><h1>Правки от клиентов</h1></div><div class="tech-task-count"><strong>${pending}</strong><span>ожидают решения</span></div></div>${filterMarkup}<div class="tech-request-list">${cards||'<section class="tech-panel tech-empty">Запросов в этом разделе пока нет</section>'}</div>${orderEditModal()}`;
   }
   function employeeForm(){
     if(!state.editEmployeeId)return '';
@@ -1584,7 +1584,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
           if(Array.isArray(data.portal.clientRequests)){const list=clientRequests();list.splice(0,list.length,...data.portal.clientRequests)}
           if(Array.isArray(data.portal.orderHistory)){const history=orderHistory();history.splice(0,history.length,...data.portal.orderHistory)}
         }
-        toast(action==='approve'?'Запрос одобрен, заказ обновлён':'Запрос отклонён, заказ не изменён');
+        toast(action==='approve'?(request?.manual?'Правки отмечены выполненными':'Запрос одобрен, заказ обновлён'):'Запрос отклонён, заказ не изменён');
       }catch(error){toast(error.message)}finally{if(clientRequestAction.isConnected)clientRequestAction.disabled=false}
       return;
     }

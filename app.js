@@ -967,13 +967,14 @@ function clientRequestControl(order,field){
 }
 function clientRequestDialog(order){
   if(state.clientRequest?.orderId!==order.id)return '';
-  if(state.clientRequest.type==='cancel')return `<div class="tech-dialog-backdrop"><section class="tech-dialog client-request-dialog" role="dialog" aria-modal="true"><h2>Запросить отмену заказа</h2><p>Заказ отменится после подтверждения главным техником.</p><form id="clinic-client-request-form"><input type="hidden" name="type" value="cancel"><label>Причина отмены<textarea name="reason" required minlength="3" rows="4" placeholder="Коротко укажите причину"></textarea></label><div class="order-rework-actions"><button type="button" class="btn outline" data-action="client-request-close">Назад</button><button type="submit" class="btn primary">Отправить запрос</button></div></form></section></div>`;
-  const field=state.clientRequest.field||'patient';
-  const variants=order.variants?.length?order.variants:[{work:order.work,workOption:order.material}];
-  const position=Math.min(state.clientRequest.variantIndex||0,variants.length-1),selected=variants[position];
-  const positionField=['teeth','mode','service'].includes(field)?`<label>Позиция заказа<select id="client-request-position" name="variantIndex">${variants.map((v,index)=>`<option value="${index}" ${index===position?'selected':''}>${index+1}. ${escapeHtml(v.workOption||v.work)}</option>`).join('')}</select></label>`:'';
-  return `<div class="tech-dialog-backdrop"><section class="tech-dialog client-request-dialog" role="dialog" aria-modal="true"><h2>Запросить правку</h2><p>Выберите один пункт. Изменение применится после подтверждения главным техником.</p><form id="clinic-client-request-form"><input type="hidden" name="type" value="edit"><label>Что изменить<select id="client-request-field" name="field"><option value="patient" ${field==='patient'?'selected':''}>ФИО пациента</option><option value="birth" ${field==='birth'?'selected':''}>Дата рождения</option><option value="teeth" ${field==='teeth'?'selected':''}>Зубы</option><option value="mode" ${field==='mode'?'selected':''}>Режим / челюсть</option><option value="service" ${field==='service'?'selected':''}>Услуга</option><option value="date" ${field==='date'?'selected':''}>Срок</option><option value="shade" ${field==='shade'?'selected':''}>Цвет</option><option value="comment" ${field==='comment'?'selected':''}>Комментарий</option></select></label>${positionField}${clientRequestControl({...order,...selected,material:selected.workOption,teeth:selected.selectedTeeth||order.teeth},field)}<div class="order-rework-actions"><button type="button" class="btn outline" data-action="client-request-close">Назад</button><button type="submit" class="btn primary">Отправить запрос</button></div></form></section></div>`;
+  const cancel=state.clientRequest.type==='cancel';
+  const heading=cancel?'Запросить отмену заказа':'Запросить правку заказа';
+  const description=cancel?'Заказ отменится после подтверждения главным техником.':'Главный техник рассмотрит запрос и внесёт изменения в заказ.';
+  return `<div class="tech-dialog-backdrop"><section class="tech-dialog client-request-dialog" role="dialog" aria-modal="true" aria-labelledby="client-request-title"><h2 id="client-request-title">${heading}</h2><p>${description}</p><form id="clinic-client-request-form"><input type="hidden" name="type" value="${cancel?'cancel':'edit'}">${cancel?'':'<input type="hidden" name="field" value="request">'}<label>${cancel?'Причина отмены':'Что нужно изменить'}<textarea name="reason" required minlength="3" maxlength="2000" rows="4" placeholder="${cancel?'Коротко укажите причину':'Опишите, что нужно изменить в заказе'}">${escapeHtml(state.clientRequest.reason||'')}</textarea></label><div class="order-rework-actions"><button type="button" class="btn outline" data-action="client-request-close">Назад</button><button type="submit" class="btn primary">Отправить запрос</button></div></form></section></div>`;
 }
+document.addEventListener('input',event=>{
+  if(event.target.form?.id==='clinic-client-request-form'&&event.target.name==='reason'&&state.clientRequest)state.clientRequest.reason=event.target.value;
+});
 const orderUploadAccept='*/*';
 function orderUploadDialog(){
   const dialog=state.orderUpload;
@@ -1320,7 +1321,7 @@ async function hydratePortal(){
   // history and logo payload is fetched in the background for detail pages.
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=parent-folder-actions-20261108');
+      const {createTechnicianCabinet}=await import('./technician.js?v=edit-request-text-20261108');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},promoCodes:()=>portalPromoCodes,onPromoCodesUpdate:items=>{portalPromoCodes=structuredClone(items)},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
@@ -1791,7 +1792,7 @@ document.addEventListener('submit',async event=>{
   if(event.target.id!=='clinic-client-request-form')return;
   event.preventDefault();
   const form=event.target,data=new FormData(form),type=String(data.get('type')||''),body={type};
-  if(type==='cancel')body.reason=String(data.get('reason')||'').trim();
+  if(type==='cancel'||data.get('field')==='request'){body.reason=String(data.get('reason')||'').trim();if(type==='edit')body.field='request';}
   else{body.field=String(data.get('field')||'');body.value=String(data.get('value')||'').trim();if(data.has('variantIndex'))body.variantIndex=Number(data.get('variantIndex'))}
   const submit=form.querySelector('[type="submit"]');submit.disabled=true;
   try{
