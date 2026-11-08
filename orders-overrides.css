@@ -1267,7 +1267,6 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
    while leaving the production column intentionally empty for grouped orders. */
 .tech-detail-grid.tech-parent-detail-grid{grid-template-columns:minmax(0,1.1fr) minmax(310px,.9fr)}
 .tech-parent-detail-grid>.tech-detail-side{display:grid;align-content:start;gap:18px;min-width:0}
-.tech-parent-detail-grid>.tech-order-main>.tech-order-history{display:none}
 @media(max-width:760px){.tech-detail-grid.tech-parent-detail-grid{grid-template-columns:1fr}}
 .tech-parent-order-confirmation{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:24px;padding-top:24px;border-top:1px solid #e7e7e7}
 .tech-parent-order-confirmation>div{min-width:0}
