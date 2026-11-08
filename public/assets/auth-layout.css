@@ -58,7 +58,7 @@ html[data-theme="dark"] .portal-footer-legal a:hover, html[data-theme="dark"] .p
 .shell > .portal-footer { margin-top: auto; }
 .portal-login { min-height: 100vh; min-height: 100svh; justify-content: flex-start; padding: 24px 24px 0; }
 .portal-login > section { margin-block: auto; }
-.portal-login > .portal-footer { flex: 0 0 auto; width: 100%; margin: 0 auto; }
+.portal-login > .portal-footer { flex: 0 0 auto; width: 100%; margin: 84px auto 0; }
 .tooth-chart { width: min(300px, 100%); }
 .tooth-chart svg { width: 100%; height: auto; aspect-ratio: 509 / 772; object-fit: contain; }
 @media(max-width:760px) {
