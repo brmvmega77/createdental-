@@ -476,8 +476,8 @@ html[dir="rtl"] .project-dialog-close { right: auto; left: 18px; }
   .hero-actions { width: 100%; order: 4; align-items: stretch; flex-direction: column; gap: 9px; margin-top: 25px; }
   .hero-actions > :first-child, .hero-actions > :last-child { flex: none; }
   .action-primary, .action-secondary { width: 100%; }
-  .hero-meta { order: 6; grid-template-columns: 1fr; gap: 12px; margin-top: 30px; }
-  .hero-meta div { grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; }
+  .hero-meta { order: 6; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 30px; }
+  .hero-meta div { grid-template-columns: 22px minmax(0, 1fr); gap: 9px; align-items: start; }
   .hero-meta span { font-size: 11px; }
   .hero-stage { order: 5; width: 100%; min-height: 0; height: auto; aspect-ratio: 1756 / 430; margin: 22px 0 38px; left: 0; translate: none; container-type: inline-size; }
   .stage-ambience { display: block; }
