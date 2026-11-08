@@ -5,7 +5,7 @@
 
 /* Create Dental identity and order flow */
 .brand{height:93px;padding:0;justify-content:center}
-.portal-logo{display:block;object-fit:cover;object-position:center;background:#fff}
+.portal-logo{display:block;object-fit:contain;object-position:center;background:transparent;padding-block:2px}
 .brand .portal-logo{width:185px;height:74px}
 .sidebar-nav{gap:5px;margin-top:3px;cursor:pointer}
 .nav-link{height:46px;gap:13px}
@@ -1055,7 +1055,7 @@ html[data-theme="dark"] .sidebar{background:linear-gradient(150deg,#1d2024,#181a
 html[data-theme="dark"] .shell{background:radial-gradient(circle at 85% 0%,#252a30 0,transparent 35%),#17191c}
 html[data-theme="dark"] .topbar,html[data-theme="dark"] .content,html[data-theme="dark"] .tech-content{color:#e6e8eb}
 html[data-theme="dark"] .brand,html[data-theme="dark"] .nav-link,html[data-theme="dark"] .profile,html[data-theme="dark"] .topbar-clinic-name{color:#e6e8eb}
-html[data-theme="dark"] .brand .portal-logo,html[data-theme="dark"] .tech-sidebar .brand .portal-logo{content:url('/assets/create-dental-logo-dark.png');filter:none;background:transparent}
+html[data-theme="dark"] .brand .portal-logo,html[data-theme="dark"] .tech-sidebar .brand .portal-logo{content:url('/assets/create-dental-logo-dark-transparent.png');filter:none;background:transparent}
 html[data-theme="dark"] .nav-link:hover,html[data-theme="dark"] .nav-link.active,html[data-theme="dark"] .help-box{background:#272b30;color:#e6e8eb}
 html[data-theme="dark"] .help-box,html[data-theme="dark"] .nav-link svg,html[data-theme="dark"] .profile small,html[data-theme="dark"] .tech-side-label,html[data-theme="dark"] .tech-heading p,html[data-theme="dark"] .page-title p,html[data-theme="dark"] .tech-header-label{color:#9da4ad}
 html[data-theme="dark"] .theme-toggle{background:#25292e;border-color:#3a4047;color:#e6e8eb}
@@ -1138,7 +1138,7 @@ html[data-theme="dark"] .tech-assign-filters select,
 html[data-theme="dark"] .worker-account select,
 html[data-theme="dark"] .clinic-select,
 html[data-theme="dark"] .clinic-order-filter select{background:#1b1e22;border-color:#3a4047;color:#eef0f2}
-html[data-theme="dark"] .portal-login .portal-logo{content:url('/assets/create-dental-logo-dark.png');background:transparent}
+html[data-theme="dark"] .portal-login .portal-logo{content:url('/assets/create-dental-logo-dark-transparent.png');background:transparent}
 html[data-theme="dark"] .stat{background:#202428;border-color:#343a41;box-shadow:0 7px 24px #00000018}
 html[data-theme="dark"] .stat strong{color:#eef0f2}
 html[data-theme="dark"] .stat span:not(.stat-icon){color:#9da4ad}
