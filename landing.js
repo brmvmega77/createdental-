@@ -86,6 +86,54 @@
   const projectDialog = document.querySelector('#project-dialog');
   const projectDialogTrigger = document.querySelector('.action-secondary[aria-controls="project-dialog"]');
   const projectDialogClose = projectDialog?.querySelector('.project-dialog-close');
+  // Landing-only wheel smoothing. Touch and reduced-motion keep native scrolling.
+  const scrollMotionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const fineScrollPointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+  let smoothScroll = null;
+  let smoothScrollWrapper = null;
+  const destroySmoothScroll = () => {
+    smoothScroll?.destroy();
+    smoothScroll = null;
+    smoothScrollWrapper = null;
+  };
+  const configureSmoothScroll = () => {
+    if (!window.Lenis || scrollMotionPreference.matches || !fineScrollPointer.matches || document.hidden) {
+      destroySmoothScroll();
+      return;
+    }
+    const wrapper = projectDialog?.open ? projectDialog : window;
+    if (wrapper === smoothScrollWrapper) return;
+    destroySmoothScroll();
+    smoothScrollWrapper = wrapper;
+    smoothScroll = new window.Lenis({
+      wrapper,
+      content: wrapper === window ? document.documentElement : wrapper,
+      duration: .5,
+      lerp: 0,
+      autoRaf: true,
+      smoothWheel: true,
+      syncTouch: false,
+      respectReducedMotion: true,
+      overscroll: false,
+      anchors: true,
+      stopInertiaOnNavigate: true,
+      prevent: node => node.matches('input, textarea, select, [data-native-scroll]'),
+      virtualScroll: ({event}) => !event.shiftKey && !event.metaKey
+    });
+  };
+  scrollMotionPreference.addEventListener('change', configureSmoothScroll);
+  fineScrollPointer.addEventListener('change', configureSmoothScroll);
+  document.addEventListener('visibilitychange', configureSmoothScroll);
+  window.addEventListener('pagehide', destroySmoothScroll);
+  window.addEventListener('pageshow', configureSmoothScroll);
+  if (projectDialog) new MutationObserver(configureSmoothScroll).observe(projectDialog, {attributes: true, attributeFilter: ['open']});
+  document.addEventListener('keydown', event => {
+    if (!smoothScroll || !['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ', 'Escape'].includes(event.key)) return;
+    if (event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    // Stop residual wheel movement before letting the native keyboard action run.
+    smoothScroll.scrollTo(smoothScroll.actualScroll, {immediate: true});
+  });
+  configureSmoothScroll();
   projectDialogTrigger?.addEventListener('click', () => projectDialog?.showModal());
   projectDialogClose?.addEventListener('click', () => projectDialog?.close());
   projectDialog?.addEventListener('click', event => {

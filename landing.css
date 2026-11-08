@@ -25,6 +25,8 @@ html[data-theme="dark"] {
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+/* Lenis owns wheel easing only while active; keep the browser's real scroll. */
+.lenis { scroll-behavior: auto !important; }
 body {
   margin: 0;
   min-width: 320px;
@@ -393,6 +395,7 @@ html[dir="rtl"] .hero-title-line { justify-content: flex-start; }
   margin: auto;
   padding: clamp(28px, 5vw, 48px);
   overflow: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--landing-line);
   border-radius: 16px;
   background: var(--landing-surface);
