@@ -406,7 +406,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
   }
   function monthName(month){const name=new Intl.DateTimeFormat('ru-RU',{month:'long'}).format(new Date(analyticsYear,month,1));return name.charAt(0).toUpperCase()+name.slice(1)}
   function filters(includeTechnician=true){
-    return `<div class="tech-filters"><label>Месяц<select data-tech-month-select>${monthLabels.map((label,index)=>`<option value="${index}" ${state.month===index?'selected':''}>${monthName(index)} ${analyticsYear}</option>`).join('')}</select></label>${includeTechnician?`<label>Исполнитель<select data-tech-technician><option>Все техники</option>${team.map(employee=>`<option ${state.technician===employee.name?'selected':''}>${safe(employee.name)}</option>`).join('')}</select></label>`:''}<span class="tech-demo-note">По сохранённым заказам · выручка после статуса «Принято врачом»</span></div>`;
+    return `<div class="tech-filters tech-analytics-filters"><label class="tech-analytics-filter-field">Месяц<select data-tech-month-select>${monthLabels.map((label,index)=>`<option value="${index}" ${state.month===index?'selected':''}>${monthName(index)} ${analyticsYear}</option>`).join('')}</select></label>${includeTechnician?`<label>Исполнитель<select data-tech-technician><option>Все техники</option>${team.map(employee=>`<option ${state.technician===employee.name?'selected':''}>${safe(employee.name)}</option>`).join('')}</select></label>`:''}<span class="tech-demo-note">По сохранённым заказам · выручка после статуса «Принято врачом»</span></div>`;
   }
   function kpis(){
     const current=filteredRecords();
