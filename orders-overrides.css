@@ -1251,6 +1251,18 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
 }
 
 /* Order number and customer occupy the columns named in the header. */
+/* Parent and child stages share the same plain-text treatment. */
+.tech-orders-table.tech-orders-table-grouped tbody tr td .tech-stage:is(.work,.review,.new,.ready,.overdue){
+ display:inline-block!important;
+ padding:0!important;
+ border:0!important;
+ border-radius:0!important;
+ background:transparent!important;
+ box-shadow:none!important;
+ font-size:12px!important;
+ font-weight:650!important;
+ line-height:1.4!important;
+}
 .tech-detail-grid.tech-parent-detail-grid{grid-template-columns:minmax(0,1fr)}
 .tech-parent-detail-grid>.tech-detail-side:empty{display:none}
 .tech-parent-order-confirmation{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:24px;padding-top:24px;border-top:1px solid #e7e7e7}
