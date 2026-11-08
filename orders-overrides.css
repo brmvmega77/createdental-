@@ -1266,13 +1266,18 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
 /* Keep parent details at the same compact width as the former two-column layout,
    while leaving the production column intentionally empty for grouped orders. */
 .tech-detail-grid.tech-parent-detail-grid{grid-template-columns:minmax(0,1.1fr) minmax(310px,.9fr)}
-.tech-parent-detail-grid>.tech-detail-side{display:none}
+.tech-parent-detail-grid>.tech-detail-side{display:grid;align-content:start;gap:18px;min-width:0}
 @media(max-width:760px){.tech-detail-grid.tech-parent-detail-grid{grid-template-columns:1fr}}
 .tech-parent-order-confirmation{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:24px;padding-top:24px;border-top:1px solid #e7e7e7}
 .tech-parent-order-confirmation>div{min-width:0}
 .tech-parent-order-confirmation h3{margin:0 0 6px;color:#333;font-size:16px}
 .tech-parent-order-confirmation p{margin:0;color:#777;line-height:1.5}
 .tech-parent-order-confirmation>.btn{flex:none}
+@media(min-width:761px) and (max-width:1100px){
+ .tech-parent-detail-grid .tech-parent-order-actions{grid-template-columns:1fr}
+ .tech-parent-detail-grid .tech-parent-order-confirmation{align-items:stretch;flex-direction:column;gap:16px}
+ .tech-parent-detail-grid .tech-parent-order-confirmation>.btn{width:100%}
+}
 @media(max-width:760px){.tech-parent-order-confirmation{align-items:stretch;flex-direction:column;gap:16px}.tech-parent-order-confirmation>.btn{width:100%}}
 .tech-order-group-customer{min-width:0;color:#555;font-size:12px;font-weight:600;line-height:1.4;overflow-wrap:break-word}
 .tech-orders-table td.tech-order-actions-cell{padding-inline:0!important}
