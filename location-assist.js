@@ -56,6 +56,11 @@ document.addEventListener('input',event=>{
   }
   if(!input.matches('input[name="city"],input[name="address"]'))return;
   clearTimeout(timers.get(input));controllers.get(input)?.abort();
+  const country=input.form?.elements.namedItem('country')?.value||'RU';
+  if(country!=='RU'){
+    suggestions(input,[]);
+    return;
+  }
   const kind=input.name,query=input.value.trim();
   if(kind==='city')suggestions(input,cities.filter(city=>city.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru'))).slice(0,7));
   else suggestions(input,[]);
@@ -76,6 +81,15 @@ document.addEventListener('input',event=>{
 document.addEventListener('focusin',event=>enhancePhoneInput(event.target));
 document.addEventListener('change',event=>{
   if(event.target.matches('select[name="country"]')){
+    const form=event.target.form;
+    const previous=event.target.dataset.locationCountry||'RU';
+    const country=event.target.value||'RU';
+    if(previous!==country){
+      form?.elements.namedItem('city')&&(form.elements.namedItem('city').value='');
+      form?.elements.namedItem('address')&&(form.elements.namedItem('address').value='');
+    }
+    event.target.dataset.locationCountry=country;
+    document.querySelectorAll('.location-options').forEach(list=>list.remove());
     const phone=event.target.form?.querySelector('input[type="tel"]');
     if(phone){phone.setCustomValidity('');enhancePhoneInput(phone)}
     return;

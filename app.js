@@ -10,7 +10,7 @@ import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-
 import {orderWorkTypes,orderWorkLabel,orderEventSummary,orderExecutionLabel,orderConstructionLabel,orderVariantExecutionLabel,orderVariantConstructionLabel,displayOrderId,resolveOrderId} from './order-list-utils.js?v=order-fields-5';
 import {productionStages,compactStageLabel} from './production-stages.js?v=perf-split-2';
 import {SURGICAL_TEMPLATE_CATEGORY,SURGICAL_SOCKET_OPTION,SURGICAL_SOCKETS_PER_JAW,adjustSurgicalSockets,isSurgicalTemplate,isSurgicalSocket,hasSurgicalJaw,maxSurgicalSockets,surgicalVariantUnits,groupSurgicalSockets} from '/assets/surgical-template-utils.js?v=surgical-sockets-3';
-import './location-assist.js?v=country-cities-1';
+import './location-assist.js?v=country-cities-2';
 
 const $ = (selector) => document.querySelector(selector);
 const icons = {
@@ -1681,7 +1681,7 @@ function notifyWithoutRender(message){
   notify.timer=setTimeout(()=>{state.toast='';document.querySelector('.toast')?.classList.remove('visible')},3000);
 }
 function notify(message){state.toast=message;render();clearTimeout(notify.timer);notify.timer=setTimeout(()=>{state.toast='';$('.toast')?.classList.remove('visible')},3000)}
-document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';authNotice='';navigate(pathFor(null,authMode,null,currentAuthLocale()));loginView();if(authMode==='register')import('./location-assist.js?v=country-cities-1').catch(()=>{})});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-auth-mode]');if(!button)return;authMode=button.dataset.authMode;portalError='';authNotice='';navigate(pathFor(null,authMode,null,currentAuthLocale()));loginView();if(authMode==='register')import('./location-assist.js?v=country-cities-2').catch(()=>{})});
 document.addEventListener('click',async event=>{if(!event.target.closest('[data-auth-logout]'))return;try{await authRequest('logout',{})}catch{}clearPortalToken();portalReady=false;portalUser=null;state.messages=[];state.chatUnreadCount=0;state.chatText='';state.role='clinic';authMode='login';navigate('/login',{replace:true});render()});
 document.addEventListener('click',event=>{const sort=event.target.closest('[data-order-sort]');if(!sort||state.role!=='clinic')return;const key=sort.dataset.orderSort;state.sortDirection=state.sortKey===key&&state.sortDirection==='asc'?'desc':'asc';state.sortKey=key;const table=$('.table-wrap');if(table)table.outerHTML=orderTable(filteredOrders().slice(0,state.page==='home'?4:Infinity))});
 document.addEventListener('click',event=>{
