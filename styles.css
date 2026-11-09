@@ -2823,7 +2823,7 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
 @media (min-width: 761px){
   .worker-order-tools{
     display:grid!important;
-    grid-template-columns:minmax(0,1fr) minmax(0,380px)!important;
+    grid-template-columns:minmax(0,1fr) 380px!important;
     gap:12px;
     align-items:center;
     flex-wrap:nowrap!important;
@@ -2848,7 +2848,7 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
     display:grid!important;
     grid-template-columns:auto minmax(0,1fr)!important;
     align-items:center;
-    width:100%!important;
+    width:380px!important;
     max-width:none!important;
     min-width:0;
     margin:0!important;
