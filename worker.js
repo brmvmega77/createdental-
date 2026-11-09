@@ -242,11 +242,13 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     const order=findMyOrder(state.orderId);
     if(!order)return ordersPage();
     if(state.filesFor!==order.id){state.filesFor=order.id;state.orderFiles=[];state.orderFolderUrl='';loadOrderFiles(order.id).then(result=>{if(orderMatches({id:state.orderId},order.id)&&isActive()){state.orderFiles=result.files||[];state.orderFolderUrl=result.folderUrl||'';render()}}).catch(()=>{})}
-    const baseStages=isCadOperator()?stages.filter(stage=>stage!=='Препрод'):order.productionType==='analog'?stages.filter(stage=>!['Моделирование','Согласование CAD'].includes(stage)):stages.filter(stage=>stage!=='Препрод');
-    const workerQualityKind=order.qualityRequest?.kind,workerQualityTimeline=order.stage==='Контроль качества'&&workerQualityKind;
-    const workerQualityAfter={cad:'Моделирование',preprod:'Препрод',cam:'Изготовление',esthetic:'Изготовление',final:'Изготовление'}[workerQualityKind];
-    const overallStages=workerQualityTimeline?baseStages.flatMap(stage=>stage===workerQualityAfter?[stage,workerQualityStageTitle(workerQualityKind)]:[stage]):baseStages;
-    const index=workerQualityTimeline?overallStages.indexOf(workerQualityStageTitle(workerQualityKind)):order.stage==='Работа принята'?overallStages.indexOf('Контроль качества'):overallStages.indexOf(order.stage);
+    // Keep the detail timeline compact and role-specific. The previous legacy
+    // list exposed every internal hand-off, making the card show duplicate
+    // stages that are not actionable for the current employee.
+    const stageItems=visibleProductionStages();
+    const overallStages=stageItems.map(item=>item.label);
+    const currentWorkerStage=isCadOperator()?workerStageLabel(order):technicianStatus(order);
+    const index=stageItems.findIndex(item=>Array.isArray(item.matches)?item.matches.includes(order.stage):item.label===currentWorkerStage);
     const events=orderHistory().filter(event=>event.orderId===order.id).slice().reverse();
     const employee=current(),cadWorker=isCadOperator(),preprodWorker=!cadWorker&&isPreprod(),frameWorker=!cadWorker&&!preprodWorker&&isFrameEmployee(employee),painterWorker=!cadWorker&&!preprodWorker&&isPainterEmployee(employee),techStatus=!cadWorker?technicianStatus(order):'',handedOff=(cadWorker?workerStageLabel(order):techStatus)==='Передал дальше'||techStatus==='Работа сдана';
     const nextByStage=cadWorker?{'Ожидает распределения':'Подготовка','Подготовка':'Моделирование'}:preprodWorker?{'Подготовка':'Препрод'}:{};
