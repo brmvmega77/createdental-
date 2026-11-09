@@ -496,7 +496,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   });
   document.addEventListener('keydown',event=>{
     if(!isActive())return;
-    if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-worker-order]')){event.preventDefault();event.target.click()}
+    if((event.key==='Enter'||event.key===' ')&&event.target.matches('.worker-mobile-order-card,tr[data-worker-order]')){event.preventDefault();event.target.click()}
   });
   return {render};
 }
