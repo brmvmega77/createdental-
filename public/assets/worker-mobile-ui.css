@@ -3,6 +3,8 @@
 .worker-upload-feedback { margin:16px 0 0; color:#555; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
 .worker-upload-feedback.error { color:#b33b3b; }
 .worker-upload-feedback.success { color:#333; }
+.worker-order-upload-backdrop .order-upload-dialog > .worker-upload-feedback { margin:24px 0!important; }
+.worker-order-upload-backdrop .worker-upload-feedback + .upload-dialog-done { margin-top:0!important; }
 .worker-order-upload-backdrop .upload-dialog-picker { cursor:pointer; }
 .worker-order-upload-backdrop .upload-dialog-picker.disabled { pointer-events:none; cursor:progress; opacity:.65; }
 @media (min-width:901px) {
