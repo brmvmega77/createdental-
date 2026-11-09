@@ -239,40 +239,45 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   function workerOrderUploadDialog(){
     const dialog=state.orderUpload;
     if(!dialog||dialog.orderId!==state.orderId||!Array.isArray(dialog.files))return '';
-    const rows=dialog.files.map((item,index)=>`<article class="upload-progress-file ${safe(item.status||'waiting')}" data-worker-upload-row="${index}"><div><strong>${safe(item.file?.name||'Файл')}</strong><small data-worker-upload-label>${item.status==='success'?'Загружен на Яндекс Диск':item.status==='error'?safe(item.error||'Не удалось загрузить'):item.status==='uploading'?`Загрузка · ${item.progress||0}%`:'Ожидает загрузки'}</small></div><div class="upload-progress-track"><i data-worker-upload-bar style="width:${item.progress||0}%"></i></div></article>`).join('');
+    const cadMode=dialog.mode==='cad';
+    const rows=dialog.files.map((item,index)=>`<article class="upload-progress-file ${safe(item.status||'waiting')}" data-worker-upload-row="${index}"><div><strong>${safe(item.file?.name||'Файл')}</strong><small data-worker-upload-label>${item.status==='success'?'Загружен на Яндекс Диск':item.status==='error'?safe(item.error||'Не удалось загрузить'):item.status==='uploading'?(item.progress>=99?'Сохраняем на Яндекс Диске…':item.progress?`Загрузка · ${item.progress}%`:'Подготавливаем загрузку…'):'Ожидает загрузки'}</small></div><div class="upload-progress-track"><i data-worker-upload-bar style="width:${item.progress||0}%"></i></div></article>`).join('');
     const total=dialog.files.length?Math.round(dialog.files.reduce((sum,item)=>sum+(item.progress||0),0)/dialog.files.length):0;
     const finished=dialog.files.length&&dialog.files.every(item=>['success','error'].includes(item.status));
-    return `<div class="tech-dialog-backdrop worker-order-upload-backdrop" data-worker-modal="order-upload"><section class="tech-dialog order-upload-dialog" role="dialog" aria-modal="true" aria-labelledby="worker-order-upload-title"><button class="tech-dialog-close" data-worker-action="close-upload" aria-label="Закрыть" ${dialog.uploading?'disabled':''}>×</button><span class="upload-dialog-eyebrow">ЯНДЕКС ДИСК</span><h2 id="worker-order-upload-title">Загрузка файлов заказа</h2><p>Выберите до 10 файлов. HTML и остальные материалы сразу попадут в папку этого заказа на Яндекс Диске.</p><label class="upload-dialog-picker ${dialog.uploading?'disabled':''}">${icon('upload',22)}<span>${dialog.files.length?'Добавить другие файлы':'Выбрать файлы'}</span><input type="file" id="worker-order-upload-dialog-input" accept=".jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.constructionInfo,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.rtf,.html" multiple hidden ${dialog.uploading?'disabled':''}></label>${dialog.files.length?`<div class="upload-overall"><span>Общий прогресс</span><strong data-worker-upload-total>${total}%</strong><div class="upload-progress-track"><i data-worker-upload-total-bar style="width:${total}%"></i></div></div><div class="upload-progress-list">${rows}</div>`:''}${finished?`<button class="btn primary upload-dialog-done" data-worker-action="close-upload">Готово</button>`:''}</section></div>`;
+    return `<div class="tech-dialog-backdrop worker-order-upload-backdrop" data-worker-modal="order-upload"><section class="tech-dialog order-upload-dialog" role="dialog" aria-modal="true" aria-labelledby="worker-order-upload-title"><button class="tech-dialog-close" data-worker-action="close-upload" aria-label="Закрыть" ${dialog.uploading?'disabled':''}>×</button><span class="upload-dialog-eyebrow">ЯНДЕКС ДИСК</span><h2 id="worker-order-upload-title">${cadMode?'Отправка CAD на проверку':'Загрузка файлов заказа'}</h2><p>${cadMode?'Выберите HTML-файл до 200 МБ. После загрузки он будет отправлен главному технику на ОТК.':'Выберите до 10 файлов, каждый до 200 МБ. Они сразу попадут в папку заказа на Яндекс Диске.'}</p><label class="upload-dialog-picker ${dialog.uploading?'disabled':''}">${icon('upload',22)}<span>${dialog.uploading?'Загрузка…':cadMode?'Выбрать HTML-файл':dialog.files.length?'Добавить другие файлы':'Выбрать файлы'}</span><input type="file" id="worker-order-upload-dialog-input" accept="${cadMode?'.html,text/html':'.jpg,.jpeg,.png,.webp,.pdf,.stl,.ply,.constructionInfo,.zip,.rar,.7z,.doc,.docx,.xls,.xlsx,.txt,.rtf,.html'}" ${cadMode?'':'multiple'} hidden ${dialog.uploading?'disabled':''}></label>${dialog.files.length?`<div class="upload-overall"><span>Общий прогресс</span><strong data-worker-upload-total>${total}%</strong><div class="upload-progress-track"><i data-worker-upload-total-bar style="width:${total}%"></i></div></div><div class="upload-progress-list">${rows}</div>`:''}${dialog.message?`<p class="worker-upload-feedback ${safe(dialog.status)}" role="status" aria-live="polite">${safe(dialog.message)}</p>`:''}${finished?`<button class="btn primary upload-dialog-done" data-worker-action="close-upload">Готово</button>`:''}</section></div>`;
   }
   function syncWorkerOrderUploadProgress(index){
     const dialog=state.orderUpload,row=root().querySelector(`[data-worker-upload-row="${index}"]`);
     if(!dialog||!row)return;
     const item=dialog.files[index],label=row.querySelector('[data-worker-upload-label]'),bar=row.querySelector('[data-worker-upload-bar]');
     row.className=`upload-progress-file ${safe(item.status||'waiting')}`;
-    if(label)label.textContent=item.status==='success'?'Загружен на Яндекс Диск':item.status==='error'?(item.error||'Не удалось загрузить'):item.status==='uploading'?`Загрузка · ${item.progress||0}%`:'Ожидает загрузки';
+    if(label)label.textContent=item.status==='success'?'Загружен на Яндекс Диск':item.status==='error'?(item.error||'Не удалось загрузить'):item.status==='uploading'?(item.progress>=99?'Сохраняем на Яндекс Диске…':item.progress?`Загрузка · ${item.progress}%`:'Подготавливаем загрузку…'):'Ожидает загрузки';
     if(bar)bar.style.width=`${item.progress||0}%`;
     const total=Math.round(dialog.files.reduce((sum,file)=>sum+(file.progress||0),0)/dialog.files.length),totalLabel=root().querySelector('[data-worker-upload-total]'),totalBar=root().querySelector('[data-worker-upload-total-bar]');
     if(totalLabel)totalLabel.textContent=`${total}%`;
     if(totalBar)totalBar.style.width=`${total}%`;
+    const feedback=root().querySelector('.worker-upload-feedback');
+    if(feedback&&dialog.uploading)feedback.textContent=item.status==='error'?item.error:item.progress>=99?'Файл передан. Сохраняем на Яндекс Диске…':item.progress?`Загружаем файл ${index+1} из ${dialog.files.length} · ${item.progress}%`:'Подготавливаем загрузку…';
   }
   async function startWorkerOrderUpload(selected){
     const allowed=/\.(jpg|jpeg|png|webp|pdf|stl|ply|constructionInfo|zip|rar|7z|doc|docx|xls|xlsx|txt|rtf|html)$/i;
-    const chosen=Array.from(selected||[]),files=chosen.filter(file=>allowed.test(file.name)&&file.size<=200*1024*1024).slice(0,10);
+    if(state.orderUpload?.uploading)return;
+    const cadMode=state.orderUpload?.mode==='cad';
+    const chosen=Array.from(selected||[]),files=chosen.filter(file=>(cadMode?/\.html$/i.test(file.name):allowed.test(file.name))&&file.size<=200*1024*1024).slice(0,cadMode?1:10);
     if(chosen.length>files.length)toast('Можно загрузить до 10 поддерживаемых файлов, каждый до 200 МБ');
     if(!files.length)return toast('Выберите поддерживаемые файлы размером до 200 МБ');
     const order=findMyOrder(state.orderId);if(!order)return;
-    state.orderUpload={orderId:order.id,uploading:true,status:'uploading',message:'',files:files.map(file=>({file,progress:0,status:'waiting',error:''}))};
+    state.orderUpload={orderId:order.id,mode:cadMode?'cad':'files',uploading:true,status:'uploading',message:'Подготавливаем загрузку…',files:files.map(file=>({file,progress:0,status:'waiting',error:''}))};
     render();
     for(let index=0;index<state.orderUpload.files.length;index++){
       const item=state.orderUpload.files[index];item.status='uploading';syncWorkerOrderUploadProgress(index);
-      try{await uploadOrderFile(order.id,item.file,{purpose:/\.html$/i.test(item.file.name)?'cad-review':'order-file',onProgress:progress=>{item.progress=progress;syncWorkerOrderUploadProgress(index)}});item.progress=100;item.status='success'}catch(error){item.status='error';item.error=error.message||'Не удалось загрузить файл'}
+      try{const uploaded=await uploadOrderFile(order.id,item.file,{purpose:/\.html$/i.test(item.file.name)?'cad-review':'order-file',onProgress:progress=>{item.progress=cadMode?Math.min(progress,99):progress;syncWorkerOrderUploadProgress(index)}});if(cadMode){state.orderUpload.message='Файл загружен. Отправляем главному технику на ОТК…';render();const result=await submitCadReview(order.id,uploaded.id),overrides=readOrders();if(result.orderOverride){overrides[order.id]=result.orderOverride;localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides))}}item.progress=100;item.status='success'}catch(error){item.status='error';item.error=error.message||'Не удалось загрузить файл'}
       syncWorkerOrderUploadProgress(index);
     }
-    state.orderUpload.uploading=false;
     const result=await loadOrderFiles(order.id).catch(()=>null);
     if(result){state.filesFor='';state.orderFiles=result.files||[];state.orderFolderUrl=result.folderUrl||''}
     const failed=state.orderUpload.files.filter(item=>item.status==='error').length;
-    state.orderUpload.status=failed?'error':'success';state.orderUpload.message=failed?`Не удалось загрузить файлов: ${failed}`:`Загружено: ${files.length} ${files.length===1?'файл':'файлов'}`;
+    state.orderUpload.uploading=false;
+    state.orderUpload.status=failed?'error':'success';state.orderUpload.message=failed?`Не удалось загрузить файлов: ${failed}`:cadMode?'CAD загружен и отправлен главному технику на ОТК.':`Загружено: ${files.length} ${files.length===1?'файл':'файлов'}`;
     toast(failed?`Не удалось загрузить файлов: ${failed}`:'Файлы загружены на Яндекс Диск');
     render();
   }
@@ -310,7 +315,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
       :'';
     const cad=order.cadReview||{},cadReturned=cad.status==='returned';
     const reviewAttachments=(cad.attachments||[]).map(file=>`<button type="button" class="tech-review-attachment" data-worker-file="${safe(file.id)}"><span>📎</span><strong>${safe(file.name)}</strong><small>${safe(file.type||'Файл')}</small></button>`).join('');
-    const cadUpload=order.stage==='Моделирование'?`<section class="tech-panel cad-worker-panel ${cadReturned?'returned':''}"><h3>${cadReturned?'Врач вернул CAD':'Согласование CAD с врачом'}</h3>${cadReturned?`<p><strong>Комментарий врача:</strong> ${safe(cad.comment||'Нужно внести изменения')}</p>${reviewAttachments?`<div class="tech-review-attachments"><span>Прикреплённые файлы</span>${reviewAttachments}</div>`:''}`:'<p>Загрузите готовый HTML-файл. Сначала его проверит главный техник, затем файл уйдёт врачу.</p>'}<label class="btn primary">${cadReturned?'Загрузить исправленный CAD':'Загрузить HTML и отправить на ОТК'}<input type="file" id="worker-cad-file" accept=".html,text/html" hidden></label></section>`:'';
+    const cadUpload=order.stage==='Моделирование'?`<section class="tech-panel cad-worker-panel ${cadReturned?'returned':''}"><h3>${cadReturned?'Врач вернул CAD':'Согласование CAD с врачом'}</h3>${cadReturned?`<p><strong>Комментарий врача:</strong> ${safe(cad.comment||'Нужно внести изменения')}</p>${reviewAttachments?`<div class="tech-review-attachments"><span>Прикреплённые файлы</span>${reviewAttachments}</div>`:''}`:'<p>Загрузите готовый HTML-файл. Сначала его проверит главный техник, затем файл уйдёт врачу.</p>'}<button type="button" class="btn primary" data-worker-action="upload-cad">${cadReturned?'Загрузить исправленный CAD':'Загрузить HTML и отправить на ОТК'}</button></section>`:'';
     const orderUploadMessage=state.orderUpload?.orderId===order.id&&state.orderUpload.message?`<small class="tech-order-upload-status ${safe(state.orderUpload.status)}">${safe(state.orderUpload.message)}</small>`:'';
     const orderFolderMarkup=`<div class="tech-order-files"><h3>Файлы заказа</h3><div class="order-folder-link"><div><strong>Папка заказа на Яндекс Диске</strong><small>Все файлы заказа собраны в одном месте</small></div><div class="order-folder-actions">${state.orderFolderUrl?`<a class="btn outline" href="${safe(state.orderFolderUrl)}" target="_blank" rel="noopener noreferrer">Открыть папку</a>`:'<span class="tech-empty">Папка создаётся…</span>'}<button type="button" class="btn outline" data-worker-action="upload-files">Загрузить файлы</button></div></div>${orderUploadMessage}</div>`;
     const cadFiles=state.orderFiles.filter(file=>file.purpose==='cad-review'&&/\.html$/i.test(file.name));
@@ -425,8 +430,8 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
         render();
         return;
       }
-      if(action.dataset.workerAction==='upload-files'){
-        state.orderUpload={orderId:state.orderId,uploading:false,status:'',message:'',files:[]};
+      if(['upload-files','upload-cad'].includes(action.dataset.workerAction)){
+        state.orderUpload={orderId:state.orderId,mode:action.dataset.workerAction==='upload-cad'?'cad':'files',uploading:false,status:'',message:'',files:[]};
         render();
         return;
       }
@@ -539,13 +544,6 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
       event.target.value='';
       startWorkerOrderUpload(selected);
       return;
-    }
-    if(event.target.id==='worker-cad-file'){
-      const order=findMyOrder(state.orderId),file=event.target.files?.[0];event.target.value='';
-      if(!order||!file)return;
-      if(!/\.html$/i.test(file.name)||file.size>200*1024*1024){state.cadUpload={orderId:order.id,status:'error',message:'Выберите HTML-файл размером до 200 МБ.'};render();return}
-      state.cadUpload={orderId:order.id,status:'uploading',message:`Загружаем «${file.name}». Не закрывайте страницу…`};render();
-      (async()=>{try{const uploaded=await uploadOrderFile(order.id,file,{purpose:'cad-review'});state.cadUpload={orderId:order.id,status:'uploading',message:'Файл загружен. Отправляем главному технику на ОТК…'};render();const result=await submitCadReview(order.id,uploaded.id),overrides=readOrders();if(result.orderOverride){overrides[order.id]=result.orderOverride;localStorage.setItem('create-dental-tech-orders',JSON.stringify(overrides))}state.filesFor='';state.cadUpload={orderId:order.id,status:'success',message:'CAD отправлен главному технику на проверку.'};toast('CAD отправлен на ОТК');render()}catch(error){state.cadUpload={orderId:order.id,status:'error',message:error.message||'Не удалось загрузить CAD-файл. Попробуйте ещё раз.'};render()}})();return;
     }
     if(event.target.id==='worker-profile-avatar'){
       const file=event.target.files?.[0];

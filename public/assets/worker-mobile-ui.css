@@ -1,4 +1,13 @@
 /* Worker mobile screens share the clinic's controls, sheets and section rows. */
+.worker-detail-side > .tech-panel > h2 + .tech-stage-progress { margin-top:16px!important; }
+.worker-upload-feedback { margin:16px 0 0; color:#555; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+.worker-upload-feedback.error { color:#b33b3b; }
+.worker-upload-feedback.success { color:#333; }
+.worker-order-upload-backdrop .upload-dialog-picker { cursor:pointer; }
+.worker-order-upload-backdrop .upload-dialog-picker.disabled { pointer-events:none; cursor:progress; opacity:.65; }
+@media (min-width:901px) {
+  .worker-order-tools > .tech-segment { flex:0 1 auto!important; width:max-content!important; max-width:100%!important; justify-self:start; }
+}
 .worker-profile-sections,.worker-profile-back { display: none; }
 .worker-mobile-search { display: contents; }
 .worker-mobile-search > svg { display: none; }
