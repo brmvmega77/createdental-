@@ -176,3 +176,51 @@
     box-shadow:none!important;
   }
 }
+
+/* Override the legacy flex toolbar on the worker page. The open filter is
+   a normal second grid row, never an absolutely positioned side popover. */
+.worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) {
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr)!important;
+  grid-template-rows:auto auto!important;
+  align-items:start!important;
+  gap:8px 10px!important;
+}
+.worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) > [data-worker-filter-panel] {
+  grid-column:1!important;
+  grid-row:1!important;
+}
+.worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) > .worker-mobile-search {
+  grid-column:2!important;
+  grid-row:1!important;
+}
+.worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) > .tech-order-filter-panel {
+  position:static!important;
+  inset:auto!important;
+  grid-column:1/-1!important;
+  grid-row:2!important;
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+  box-shadow:none!important;
+}
+@media (max-width:900px), ((pointer:coarse) and (hover:none) and (orientation:landscape) and (max-height:560px)) {
+  .worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) {
+    grid-template-columns:1fr!important;
+    grid-template-rows:auto auto auto!important;
+  }
+  .worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) > [data-worker-filter-panel] {
+    grid-column:1!important;
+    grid-row:1!important;
+  }
+  .worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) > .worker-mobile-search {
+    grid-column:1!important;
+    grid-row:2!important;
+  }
+  .worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) > .tech-order-filter-panel {
+    grid-column:1!important;
+    grid-row:3!important;
+  }
+}
