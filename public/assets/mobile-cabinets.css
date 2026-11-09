@@ -874,3 +874,96 @@
   .orders-table tr:has(> td:nth-child(8)) > td:nth-child(6),
   .orders-table tr:has(> td:nth-child(8)) > td:nth-child(8) { grid-column: 2; }
 }
+
+/* Tooth charts use the same compact footprint and graphite state on every
+   cabinet. Keep the anatomical SVG inside its column on phones. */
+@media (max-width: 900px) {
+  .tooth-picker,
+  .tooth-picker .desktop-tooth-chart,
+  .order-service-body,
+  .tech-order-service-body { min-width: 0; }
+
+  .tooth-picker .desktop-tooth-chart {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .tooth-picker .desktop-tooth-chart .tooth-chart {
+    flex: 0 1 252px;
+    width: min(100%, 252px) !important;
+    max-width: 252px !important;
+    margin: 0 auto;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .tooth-picker .desktop-tooth-chart .tooth-chart svg,
+  .order-service-chart .tooth-chart svg,
+  .tech-order-service-chart .tooth-chart svg {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .detail-grid .order-service-chart,
+  .detail-grid .order-service-chart .tooth-chart {
+    width: 84px;
+    max-width: 84px;
+    overflow: visible;
+  }
+
+  .order-service-chart,
+  .tech-order-service-chart {
+    min-width: 0;
+    max-width: 100%;
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .order-service-chart .tooth-chart {
+    flex: 0 1 105px;
+    width: 105px;
+    max-width: 105px;
+    margin-inline: auto;
+    overflow: visible;
+  }
+
+  .tech-order-service-chart .tooth-chart {
+    flex: 0 1 160px;
+    width: 160px;
+    max-width: 160px;
+    margin-inline: auto;
+    overflow: visible;
+  }
+
+  /* Match desktop: selected teeth stay neutral graphite. */
+  .tooth-picker .desktop-tooth-chart .tooth.selected .tooth-image,
+  .order-service-chart .tooth.selected .tooth-image,
+  .tech-order-service-chart .tooth.selected .tooth-image {
+    filter: brightness(.65) saturate(0) !important;
+    opacity: 1;
+  }
+
+  .order-service-chart .tooth-selection-overlay,
+  .tech-order-service-chart .tooth-selection-overlay {
+    display: block;
+    fill: #808080 !important;
+    fill-opacity: .34 !important;
+    opacity: 1 !important;
+  }
+
+  .order-service-chart .tooth.selected text,
+  .tech-order-service-chart .tooth.selected text {
+    fill: #fff;
+    stroke: #808080;
+    stroke-width: 1.5px;
+    paint-order: stroke;
+  }
+}

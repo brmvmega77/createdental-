@@ -104,3 +104,42 @@
   .worker-mobile-cabinet .worker-table td:nth-child(5) { grid-row: 5; }
   .worker-mobile-cabinet .worker-table td:nth-child(6) { grid-row: 6; }
 }
+
+/* Keep the worker cabinet aligned with the desktop tooth treatment on phones. */
+@media (max-width: 900px) {
+  .worker-mobile-cabinet .tech-order-service-chart,
+  .worker-mobile-cabinet .tech-order-service-chart .tooth-chart {
+    min-width: 0;
+    width: 160px;
+    max-width: 160px;
+    margin-inline: auto;
+    overflow: visible;
+  }
+
+  .worker-mobile-cabinet .tech-order-service-chart .tooth-chart svg {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .worker-mobile-cabinet .tech-order-service-chart .tooth.selected .tooth-image {
+    filter: brightness(.65) saturate(0) !important;
+    opacity: 1;
+  }
+
+  .worker-mobile-cabinet .tech-order-service-chart .tooth.selected .tooth-selection-overlay {
+    display: block;
+    fill: #808080 !important;
+    fill-opacity: .34 !important;
+    opacity: 1 !important;
+  }
+
+  .worker-mobile-cabinet .tech-order-service-chart .tooth.selected text {
+    fill: #fff;
+    stroke: #808080;
+    stroke-width: 1.5px;
+    paint-order: stroke;
+  }
+}
