@@ -48,7 +48,7 @@
 .tooth.selected .tooth-detail{fill:none;stroke:#eeeeee}
 .tooth.selected text{fill:#fff;stroke:#808080}
 .tooth-hitbox{fill:transparent;stroke:transparent;stroke-width:2}
-.tooth-image{pointer-events:none;transition:filter .16s ease,opacity .16s ease}.tooth-selection-overlay{display:none;pointer-events:none}
+.tooth-image{pointer-events:none;transition:filter .16s ease,opacity .16s ease}.tooth-selection-overlay{display:none;pointer-events:none}.order-service-chart .tooth-selection-overlay,.tech-order-service-chart .tooth-selection-overlay{display:block;fill:#808080;fill-opacity:.34}
 .tooth[role="button"]{cursor:pointer;outline:none}
 .tooth[role="button"]:not(.selected):hover .tooth-image{filter:brightness(.9)}
 .tooth[role="button"]:focus-visible .tooth-hitbox{stroke:#fff;stroke-dasharray:4 3}
@@ -341,6 +341,7 @@
 html[data-theme="dark"] .tech-pricing-category{background:#202428;border-color:#343a41;box-shadow:none}html[data-theme="dark"] .tech-pricing-category-head{background:linear-gradient(180deg,#24282d,#202428);border-color:#343a41}html[data-theme="dark"] .tech-pricing-row,html[data-theme="dark"] .tech-pricing-labels{border-color:#343a41}html[data-theme="dark"] .tech-pricing-input input,html[data-theme="dark"] .tech-pricing-control select{background:#1b1e22;border-color:#3a4047;color:#eef0f2}html[data-theme="dark"] .tech-pricing-count{border-color:#405264;color:#9fc4df}
 @media ((max-width: 1100px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 1100px))){.tech-pricing-list{grid-template-columns:1fr}}
 @media ((max-width: 620px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 620px))){.tech-pricing-category-head{padding:17px}.tech-pricing-labels{display:none}.tech-pricing-rows{padding:0 17px 7px}.tech-pricing-row{grid-template-columns:1fr 1fr;gap:10px}.tech-pricing-name{grid-column:1/-1}.tech-pricing-control>span{display:block}.tech-pricing-heading{display:flex}.tech-pricing-heading>.btn{width:auto}}
+.btn,a.btn,label.btn{cursor:pointer}
 
 /* Pricing catalogue: compact cards with clear controls and less empty space. */
 .tech-pricing-heading{max-width:1500px}
