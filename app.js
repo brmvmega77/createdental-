@@ -6,7 +6,7 @@ import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCente
 import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork,priceUnitsForSelection} from './work-catalog.js?v=jaw-price-1';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
 import {orderWorkTypes,orderWorkLabel,orderEventSummary} from './order-list-utils.js?v=service-label-4';
-import {productionStages,compactStageLabel} from './production-stages.js?v=perf-split-2';
+import {productionStages,compactStageLabel} from './production-stages.js?v=perf-split-3';
 import {SURGICAL_TEMPLATE_CATEGORY,SURGICAL_SOCKET_OPTION,SURGICAL_SOCKETS_PER_JAW,adjustSurgicalSockets,isSurgicalTemplate,isSurgicalSocket,hasSurgicalJaw,maxSurgicalSockets,surgicalVariantUnits,groupSurgicalSockets} from '/assets/surgical-template-utils.js?v=surgical-sockets-3';
 import './location-assist.js?v=country-cities-1';
 
