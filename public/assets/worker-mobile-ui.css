@@ -7,6 +7,27 @@
 .worker-order-upload-backdrop .worker-upload-feedback + .upload-dialog-done { margin-top:0!important; }
 .worker-order-upload-backdrop .upload-dialog-picker { cursor:pointer; }
 .worker-order-upload-backdrop .upload-dialog-picker.disabled { pointer-events:none; cursor:progress; opacity:.65; }
+/* Full-width file rows override the generic dialog flex layout. */
+.worker-order-upload-backdrop .order-upload-dialog > .upload-progress-list {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  justify-content:stretch;
+  gap:12px;
+}
+.worker-order-upload-backdrop .upload-progress-file { width:100%; min-width:0; box-sizing:border-box; }
+.worker-order-upload-backdrop .upload-progress-file strong,
+.worker-order-upload-backdrop .upload-progress-file small {
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+  line-height:1.5;
+}
+.worker-order-upload-backdrop .order-upload-dialog > .upload-overall {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  justify-content:stretch;
+}
 @media (min-width:901px) {
   .worker-order-tools > .tech-segment { flex:0 1 auto!important; width:max-content!important; max-width:100%!important; justify-self:start; }
 }
