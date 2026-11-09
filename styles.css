@@ -2823,7 +2823,7 @@ html[data-theme="dark"] .tech-delivery-settings{background:#202428;border-color:
 @media (min-width: 761px){
   .worker-order-tools{
     display:grid!important;
-    grid-template-columns:minmax(0,1fr) minmax(330px,380px)!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,380px)!important;
     gap:12px;
     align-items:center;
     flex-wrap:nowrap!important;
