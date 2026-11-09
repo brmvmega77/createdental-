@@ -241,7 +241,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   function detailPage(){
     const order=findMyOrder(state.orderId);
     if(!order)return ordersPage();
-    if(state.filesFor!==order.id){state.filesFor=order.id;state.orderFiles=[];state.orderFolderUrl='';loadOrderFiles(order.id).then(result=>{if(state.orderId===order.id&&isActive()){state.orderFiles=result.files||[];state.orderFolderUrl=result.folderUrl||'';render()}}).catch(()=>{})}
+    if(state.filesFor!==order.id){state.filesFor=order.id;state.orderFiles=[];state.orderFolderUrl='';loadOrderFiles(order.id).then(result=>{if(orderMatches({id:state.orderId},order.id)&&isActive()){state.orderFiles=result.files||[];state.orderFolderUrl=result.folderUrl||'';render()}}).catch(()=>{})}
     const baseStages=isCadOperator()?stages.filter(stage=>stage!=='Препрод'):order.productionType==='analog'?stages.filter(stage=>!['Моделирование','Согласование CAD'].includes(stage)):stages.filter(stage=>stage!=='Препрод');
     const workerQualityKind=order.qualityRequest?.kind,workerQualityTimeline=order.stage==='Контроль качества'&&workerQualityKind;
     const workerQualityAfter={cad:'Моделирование',preprod:'Препрод',cam:'Изготовление',esthetic:'Изготовление',final:'Изготовление'}[workerQualityKind];
