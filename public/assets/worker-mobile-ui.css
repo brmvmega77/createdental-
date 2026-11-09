@@ -2,6 +2,18 @@
 .worker-profile-sections,.worker-profile-back { display: none; }
 .worker-mobile-search { display: contents; }
 .worker-mobile-search > svg { display: none; }
+/* An SVG fill stays visible on iOS even when filtering an SVG image does not. */
+.worker-mobile-cabinet .tech-order-service-chart .tooth.selected .tooth-selection-overlay {
+  display: block;
+  fill: #666;
+  opacity: .9;
+}
+.worker-mobile-cabinet .tech-order-service-chart .tooth.selected text {
+  fill: #fff;
+  stroke: #666;
+  stroke-width: 1.5px;
+  paint-order: stroke;
+}
 @media (max-width: 900px), ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) {
   .worker-mobile-cabinet > .tech-heading .tech-eyebrow { display: none; }
   .worker-mobile-cabinet > .tech-heading { margin: 10px 0 18px; }
@@ -26,6 +38,30 @@
   .worker-mobile-cabinet .worker-table td:nth-child(6) { grid-column: 1 / -1; grid-row: 5; }
   .worker-mobile-cabinet .worker-table .tech-empty { display: block !important; padding: 16px 0; text-align: center; }
   .worker-mobile-cabinet .worker-table .tech-empty::before { content: none; }
+  .worker-mobile-cabinet .tech-order-service-body {
+    display: grid;
+    grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr) !important;
+    align-items: start;
+    gap: 12px;
+  }
+  .worker-mobile-cabinet .tech-order-service-chart {
+    width: 100%;
+    min-width: 0;
+    max-width: 160px;
+  }
+  .worker-mobile-cabinet .tech-order-service-chart .tooth-chart {
+    width: 100%;
+    max-width: 100%;
+  }
+  .worker-mobile-cabinet .tech-order-service-chart svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    overflow: visible;
+  }
+  .worker-mobile-cabinet .tech-order-service-body dl,
+  .worker-mobile-cabinet .tech-order-service-body dd { min-width: 0; overflow-wrap: anywhere; }
   .worker-mobile-profile .worker-profile-sections { display: grid; }
   .worker-mobile-profile .worker-profile-back { display: none; }
   .worker-mobile-profile[data-worker-profile-section=""] .tech-profile-editor,
