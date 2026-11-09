@@ -209,7 +209,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     const rows=sortedOrders(list);
     const mobileRows=rows.map(order=>{
       const teeth=orderTeethLabel(order),status=workerDisplayStatus(workerStageLabel(order));
-      return `<div class="worker-mobile-order-card" data-worker-order="${safe(order.id)}" role="link" tabindex="0"><div class="worker-mobile-order-top"><strong>${safe(order.id)}</strong><span class="tech-stage ${tone(order.stage)}">${safe(status)}</span></div><h3>${safe(order.patient||'Пациент не указан')}</h3><p class="worker-mobile-order-work">${safe(orderWorkLabel(order)||'Работа не указана')}</p><div class="worker-mobile-order-meta"><span>${safe(order.clinic||'Клиника не указана')}</span>${teeth?`<span>Зубы: ${safe(teeth)}</span>`:''}</div><div class="worker-mobile-order-footer"><span>Срок</span><strong>${safe(order.date||'Не указан')}</strong><span class="worker-mobile-order-arrow" aria-hidden="true">→</span></div></div>`;
+      return `<a class="worker-mobile-order-card" data-worker-order="${safe(order.id)}" href="${safe(pathFor('worker','detail',order.id))}" aria-label="Открыть заказ ${safe(order.id)}"><div class="worker-mobile-order-top"><strong>${safe(order.id)}</strong><span class="tech-stage ${tone(order.stage)}">${safe(status)}</span></div><h3>${safe(order.patient||'Пациент не указан')}</h3><p class="worker-mobile-order-work">${safe(orderWorkLabel(order)||'Работа не указана')}</p><div class="worker-mobile-order-meta"><span>${safe(order.clinic||'Клиника не указана')}</span>${teeth?`<span>Зубы: ${safe(teeth)}</span>`:''}</div><div class="worker-mobile-order-footer"><span>Срок</span><strong>${safe(order.date||'Не указан')}</strong><span class="worker-mobile-order-arrow" aria-hidden="true">→</span></div></a>`;
     }).join('');
     const mobileEmpty='<div class="tech-empty">Назначенных заказов пока нет</div>';
     const desktop=`<div class="worker-desktop-order-table"><table class="tech-table worker-table"><thead><tr><th>Заказ / клиника</th>${sortHeading('createdAt','Создан')}${sortHeading('work','Работа / пациент')}${sortHeading('date','Срок')}${sortHeading('stage','Этап')}<th></th></tr></thead><tbody>${rows.map(order=>`<tr data-worker-order="${safe(order.id)}" tabindex="0" class="tech-order-row"><td><strong>${safe(order.id)}</strong><small>${safe(order.clinic)}</small></td><td>${shortDate(order.createdAt)}</td><td>${safe(orderWorkLabel(order))}<small>${safe(order.patient)}</small></td><td>${safe(order.date)}</td><td><span class="tech-stage ${tone(order.stage)}">${safe(workerDisplayStatus(workerStageLabel(order)))}</span></td><td><button class="tech-link" data-worker-order="${safe(order.id)}">Открыть →</button></td></tr>`).join('')||'<tr><td colspan="6" class="tech-empty">Назначенных заказов пока нет</td></tr>'}</tbody></table></div>`;
@@ -447,7 +447,11 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     const page=event.target.closest('[data-worker-page]');
     if(page){root().querySelector('#worker-sidebar')?.classList.remove('open');setPage(page.dataset.workerPage);return}
     const order=event.target.closest('[data-worker-order]');
-    if(order){state.orderId=order.dataset.workerOrder;setPage('detail')}
+    if(order){
+      if(order.tagName==='A'&&event.button===0&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey)event.preventDefault();
+      state.orderId=order.dataset.workerOrder;
+      setPage('detail');
+    }
   });
   document.addEventListener('input',event=>{
     if(!isActive()||event.target.id!=='tech-search'||state.page!=='orders')return;
