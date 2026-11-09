@@ -343,6 +343,8 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   }
   function arrangeWorkerHistory(){
     if(state.page!=='detail')return;
+    const order=findMyOrder(state.orderId);
+    if(!order)return;
     const grid=root().querySelector('.tech-detail-grid');
     if(!grid)return;
     const dataPanel=Array.from(grid.children).find(node=>node.matches('section.tech-panel'));
@@ -363,12 +365,12 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     const order=findMyOrder(state.orderId);
     const timeline=root().querySelector('.worker-detail-side .tech-timeline');
     if(!order||!timeline)return;
-    const stagesForWorker=visibleProductionStages(),current=isCadOperator()?stagesForWorker.findIndex(item=>item.matches.includes(order.stage)):stagesForWorker.findIndex(item=>item.label===technicianStatus(order));
+    const stagesForWorker=visibleProductionStages(),currentIndex=isCadOperator()?stagesForWorker.findIndex(item=>item.matches.includes(order.stage)):stagesForWorker.findIndex(item=>item.label===technicianStatus(order));
     const progress=isFrameEmployee(current())?camWorkflowProgress(order):specialistProgress(isCadOperator()?workerStageLabel(order):technicianStatus(order));
     const progressValue=root().querySelector('[data-worker-stage-progress-value]'),progressBar=root().querySelector('[data-worker-stage-progress-bar]');
     if(progressValue)progressValue.textContent=`${progress}%`;
     if(progressBar)progressBar.style.width=`${progress}%`;
-    timeline.innerHTML=stagesForWorker.map((item,index)=>`<li class="${index<current?'done':index===current?'current':''} ${index===stagesForWorker.length-1&&index===current?'final':''}"><i></i><span>${safe(isCadOperator()&&index===current&&order.cadReview?.status==='returned'?'Возвращено на доработку':item.label)}</span></li>`).join('');
+    timeline.innerHTML=stagesForWorker.map((item,index)=>`<li class="${index<currentIndex?'done':index===currentIndex?'current':''} ${index===stagesForWorker.length-1&&index===currentIndex?'final':''}"><i></i><span>${safe(isCadOperator()&&index===currentIndex&&order.cadReview?.status==='returned'?'Возвращено на доработку':item.label)}</span></li>`).join('');
     if(!isCadOperator())root().querySelector('.cad-worker-panel')?.remove();
     const badge=root().querySelector('.tech-heading .tech-stage');
     if(badge)badge.textContent=workerDisplayStatus(workerDisplayStage(workerStageLabel(order)));
