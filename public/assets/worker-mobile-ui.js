@@ -28,13 +28,21 @@ export function createWorkerMobileUI({root,enabled,getSnapshot,applyFilters,choo
     (profileSection?main.querySelector('.worker-profile-back'):main.querySelector('.worker-profile-sections button'))?.focus({preventScroll:true});
     window.scrollTo({top:0,behavior:'instant'});
   },true);
-  media.addEventListener('change',paintProfile);
+  function paintDetailOrder(){
+    const grid=root().querySelector('.worker-detail-grid');
+    const history=grid?.querySelector('.worker-order-history');
+    const main=grid?.querySelector('.tech-order-main');
+    if(!grid||!history||!main)return;
+    (media.matches?grid:main).append(history);
+  }
+  media.addEventListener('change',()=>{paintProfile();paintDetailOrder()});
 
   return {
     controlsMarkup:controls.controlsMarkup,
     enhance(page){
       const main=root().querySelector('main.content');if(!main)return;
       main.classList.add('worker-mobile-cabinet');
+      if(page==='detail')paintDetailOrder();
       if(page!=='orders')controls.close({restoreFocus:false});
       if(page!=='profile'){profileSection='';return}
       main.classList.add('worker-mobile-profile');

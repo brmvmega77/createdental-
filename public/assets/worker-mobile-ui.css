@@ -1,4 +1,11 @@
 /* Worker mobile screens share the clinic's controls, sheets and section rows. */
+.worker-detail-side .tech-cad-model { min-width:0; max-width:100%; box-sizing:border-box; padding:18px!important; }
+.worker-detail-side .tech-cad-model .tech-panel-heading { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; }
+.worker-detail-side .tech-cad-model .tech-stage { width:fit-content; max-width:100%; white-space:normal; box-sizing:border-box; }
+.worker-detail-side .tech-cad-file { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; min-width:0; max-width:100%; box-sizing:border-box; }
+.worker-detail-side .tech-cad-file strong { white-space:normal; overflow-wrap:anywhere; overflow:visible; text-overflow:clip; }
+.worker-detail-side .tech-cad-file small { margin:0; white-space:normal; }
+.worker-detail-side .tech-cad-file .btn { width:100%!important; min-width:0!important; max-width:100%!important; box-sizing:border-box; justify-self:stretch; }
 .worker-detail-side > .tech-panel > h2 + .tech-stage-progress { margin-top:16px!important; }
 .worker-upload-feedback { margin:16px 0 0; color:#555; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
 .worker-upload-feedback.error { color:#b33b3b; }
