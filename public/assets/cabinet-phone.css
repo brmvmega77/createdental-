@@ -1,5 +1,13 @@
 /* A rotated phone keeps its mobile reading order and control sizes. */
 @media (pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px) {
+  .portal-login {
+    width: min(100%, 560px);
+    max-width: 100%;
+    margin-inline: auto;
+  }
+  .portal-login-tools {
+    right: max(14px, calc((100vw - 560px) / 2 + 14px));
+  }
   .shell, .tech-shell {
     width: min(100%, 560px) !important;
     max-width: 560px !important;
