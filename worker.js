@@ -1,3 +1,4 @@
+import {createWorkerMobileUI} from './assets/worker-mobile-ui.js?v=worker-mobile-1';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camCanAccept,camCanSubmitQuality} from './cam-workflow.js?v=cam-flow-2';
 import {loadEmployees,seedDetails,stages,productionStages,productionStageIndex,productionStageLabel,manufacturingStatuses} from './technician.js?v=surgical-sockets-4';
 import {portalToken,savePortal,authRequest,loadOrderFiles,loadCadReviewHtml,uploadOrderFile,submitCadReview,downloadOrderFile} from './portal-client.js?v=yandex-upload-11';
@@ -51,6 +52,22 @@ const UNIT_PAYOUT=450;
 export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isActive,currentUser,orderHistory=()=>[],tasks=()=>[],onUserUpdate=()=>{}}){
   const initialRoute=routeFromPath(location.pathname);
   const state={page:initialRoute.role==='worker'?initialRoute.page:'overview',employeeId:'',orderId:initialRoute.orderId||'',sortKey:'createdAt',sortDirection:'desc',orderStatusFilter:'Все',orderClinicFilter:'',orderMonthFilter:'',orderFilterOpen:false,orderSearch:'',profile:null,toast:'',telegramPairing:null,filesFor:'',orderFiles:[],orderFolderUrl:'',cadUpload:{orderId:'',status:'',message:''},cadPreview:null};
+  state.orderWorkFilter='';
+  const mobileUI=createWorkerMobileUI({
+    root,enabled:()=>isActive()&&state.page==='orders',
+    getSnapshot:()=>{
+      const all=myOrders(),options=key=>[...new Set(all.map(key).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+      return {
+        filters:{status:state.orderStatusFilter,work:state.orderWorkFilter,clinic:state.orderClinicFilter,month:state.orderMonthFilter},
+        statuses:workerOrderStatusLabels().map(([label,value])=>({label:value==='Все'?'Все заказы':label,value,count:value==='Все'?all.length:all.filter(order=>workerStageLabel(order)===value).length})),
+        works:[{label:'Все типы работ',value:''},...options(order=>order.work).map(value=>({label:value,value}))],
+        clinics:[{label:'Все клиники',value:''},...options(order=>order.clinic).map(value=>({label:value,value}))],
+        months:[{label:'За всё время',value:''},...options(orderMonthKey).reverse().map(value=>({label:orderMonthLabel(value),value}))],
+      };
+    },
+    chooseStatus:status=>{state.orderStatusFilter=status;render()},
+    applyFilters:filters=>{state.orderStatusFilter=filters.status;state.orderWorkFilter=filters.work;state.orderClinicFilter=filters.clinic;state.orderMonthFilter=filters.month;state.orderFilterOpen=false;render()},
+  });
   let cadPreviewRequest=0;
   function employees(){return loadEmployees()}
   function current(){
@@ -160,6 +177,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
         if(status==='Новые'&&!['Ожидает распределения','Черновик из Telegram'].includes(order.stage))return false;
         if(status!=='Все'&&technicianStatus(order)!==status)return false;
       }
+      if(state.orderWorkFilter&&order.work!==state.orderWorkFilter)return false;
       if(state.orderClinicFilter&&order.clinic!==state.orderClinicFilter)return false;
       if(state.orderMonthFilter&&orderMonthKey(order)!==state.orderMonthFilter)return false;
       if(state.orderSearch&&!['id','clinic','work','patient','date','stage','assignee'].some(key=>String(order[key]||'').toLowerCase().includes(state.orderSearch.toLowerCase())))return false;
@@ -169,7 +187,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
   function workerOrderFilterPanel(all){
     const clinics=[...new Set(all.map(order=>order.clinic).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
     const months=[...new Set(all.map(orderMonthKey))].filter(Boolean).sort().reverse();
-    const activeCount=(state.orderClinicFilter?1:0)+(state.orderMonthFilter?1:0);
+    const activeCount=(state.orderClinicFilter?1:0)+(state.orderMonthFilter?1:0)+(state.orderWorkFilter?1:0);
     const button=`<button type="button" class="btn outline tech-filter-button ${activeCount?'active':''}" data-worker-filter-panel="toggle">Фильтр${activeCount?` · ${activeCount}`:''}</button>`;
     if(!state.orderFilterOpen)return button;
     return `${button}<div class="tech-order-filter-panel"><div><strong>Клиника</strong><select data-worker-order-clinic-filter><option value="">Все клиники</option>${clinics.map(clinic=>`<option value="${safe(clinic)}" ${state.orderClinicFilter===clinic?'selected':''}>${safe(clinic)}</option>`).join('')}</select></div><div><strong>Месяц заказа</strong><select data-worker-order-month-filter><option value="">Все месяцы</option>${months.map(month=>`<option value="${month}" ${state.orderMonthFilter===month?'selected':''}>${orderMonthLabel(month)}</option>`).join('')}</select></div><div class="tech-order-filter-actions"><button type="button" class="btn outline" data-worker-filter-panel="reset">Сбросить</button><button type="button" class="btn primary" data-worker-filter-panel="close">Готово</button></div></div>`;
@@ -216,7 +234,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     const mine=tasks().filter(task=>task.assigneeId===current()?.id),card=task=>`<article class="task-card ${taskIsOverdue(task)?'is-overdue':''}"><header><span class="task-priority ${safe(task.priority)}">${safe(taskPriorityLabel(task.priority))}</span><time>${safe(taskDateLabel(task.dueDate))}</time></header><h3>${safe(task.title)}</h3>${task.orderId?`<div class="task-order-ref">${safe(task.orderId)}${task.work?` · ${safe(task.work)}`:''}</div>`:''}${task.clinic||task.patient?`<div class="task-order-meta">${safe([task.clinic,task.patient].filter(Boolean).join(' · '))}</div>`:''}${task.description?`<p>${safe(task.description)}</p>`:''}<footer><span>Главный техник</span><select data-worker-task-status="${safe(task.id)}" aria-label="Статус задачи ${safe(task.title)}">${taskStatuses.map(status=>`<option value="${status.key}" ${task.status===status.key?'selected':''}>${status.label}</option>`).join('')}</select></footer></article>`;
     return `<div class="tech-heading"><div><span class="tech-eyebrow">РАБОЧИЙ КОНТУР</span><h1>Мои задачи</h1><p>Выполняйте поручения главного техника и переводите их по этапам.</p></div></div><section class="task-board worker-task-board">${taskStatuses.map(status=>{const items=mine.filter(task=>task.status===status.key);return `<section class="task-column" data-task-column="${status.key}"><header><h2>${status.label}</h2><b>${items.length}</b></header><div>${items.map(card).join('')||'<p class="task-column-empty">Задач нет</p>'}</div></section>`}).join('')}</section>`;
   }
-  function ordersPage(){const all=myOrders(),list=filteredWorkerOrders(all),statusLabels=workerOrderStatusLabels();return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОИЗВОДСТВО</span><h1>Мои заказы</h1><p>Работы, назначенные вам главным техником.</p></div></div><section class="tech-panel"><div class="tech-order-tools"><div class="tech-segment">${statusLabels.map(([label,key])=>`<button data-worker-order-filter="${safe(key)}" class="${state.orderStatusFilter===key?'active':''}">${safe(label)}</button>`).join('')}</div><div class="tech-order-searchbar">${workerOrderFilterPanel(all)}<input id="tech-search" placeholder="Поиск по заказу, клинике или технику..." value="${safe(state.orderSearch)}"></div></div>${orderList(list)}</section>`}
+  function ordersPage(){const all=myOrders(),list=filteredWorkerOrders(all),statusLabels=workerOrderStatusLabels();return `<div class="tech-heading"><div><span class="tech-eyebrow">ПРОИЗВОДСТВО</span><h1>Мои заказы</h1><p>Работы, назначенные вам главным техником.</p></div></div><section class="tech-panel"><div class="tech-order-tools worker-order-tools">${mobileUI.controlsMarkup()}<div class="tech-segment">${statusLabels.map(([label,key])=>`<button data-worker-order-filter="${safe(key)}" class="${state.orderStatusFilter===key?'active':''}">${safe(label)}</button>`).join('')}</div><div class="tech-order-searchbar">${workerOrderFilterPanel(all)}<label class="worker-mobile-search">${icon('search',20)}<input id="tech-search" aria-label="Поиск заказов" placeholder="Заказ, пациент или тип работы" value="${safe(state.orderSearch)}"></label></div></div>${orderList(list)}</section>`}
   function orderServiceCards(order){
     const variants=Array.isArray(order.variants)&&order.variants.length?order.variants:[{toothMode:order.toothMode||'Одиночка',bridgeRanges:order.bridgeRanges||[],selectedTeeth:order.teeth||[],work:order.work,workOption:order.material}];
     return `<section class="tech-order-services tech-panel"><div class="tech-panel-heading"><div><h2>Услуги заказа</h2><p>${variants.length} ${variants.length===1?'услуга':'услуги'} в одном заказе</p></div></div><div class="tech-order-service-list">${variants.map((variant,index)=>{const teeth=Array.isArray(variant.selectedTeeth)?variant.selectedTeeth:[],ranges=Array.isArray(variant.bridgeRanges)?variant.bridgeRanges:[],workItem=workCatalog.find(item=>item.name===variant.work),option=workItem?.options.find(item=>(typeof item==='string'?item:item.name)===variant.workOption),price=typeof option==='object'&&Number.isFinite(option.price)?option.price:workItem?.price,amount=Number.isFinite(price)?rubles(price*Math.max(1,teeth.length)):'';return `<article class="tech-order-service"><header><span>Услуга ${index+1}</span><strong>${safe(variant.work||'Работа')}</strong></header><div class="tech-order-service-body"><div class="tech-order-service-chart">${toothChart(false,teeth,ranges)}</div><dl><div><dt>Зубы</dt><dd>${safe(teeth.join(', ')||'Не указаны')}</dd></div><div><dt>Режим</dt><dd>${safe(variant.toothMode||'Одиночка')}</dd></div>${ranges.length?`<div><dt>Мосты</dt><dd>${safe(ranges.map(range=>`${range[0]}–${range.at(-1)}`).join(', '))}</dd></div>`:''}${variant.workOption?`<div><dt>Исполнение</dt><dd>${safe(variant.workOption)}</dd></div>`:''}<div><dt>Количество</dt><dd>${Math.max(1,teeth.length)}</dd></div><div><dt>Сумма</dt><dd>${amount||'Стоимость уточняется'}</dd></div></dl></div></article>`}).join('')}</div></section>`;
@@ -318,6 +336,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     arrangeWorkerSpecialtyUi();
     arrangeWorkerHistory();
     arrangeProductionTimeline();
+    mobileUI.enhance(state.page);
   }
   document.addEventListener('click',async event=>{
     if(!isActive())return;
@@ -328,7 +347,7 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
     if(notification){const orderId=notification.dataset.notificationOrder;await markNotificationCenterRead().catch(()=>{});closeNotificationCenter();if(orderId&&myOrders().some(order=>order.id===orderId)){state.orderId=orderId;setPage('detail')}else setPage('overview');return}
     if(state.orderFilterOpen&&!event.target.closest('.tech-order-filter-panel')&&!event.target.closest('[data-worker-filter-panel]')){state.orderFilterOpen=false;render();return}
     const filterAction=event.target.closest('[data-worker-filter-panel]');
-    if(filterAction){const action=filterAction.dataset.workerFilterPanel;if(action==='toggle')state.orderFilterOpen=!state.orderFilterOpen;else if(action==='reset'){state.orderClinicFilter='';state.orderMonthFilter='';state.orderFilterOpen=false}else if(action==='close')state.orderFilterOpen=false;render();return}
+    if(filterAction){const action=filterAction.dataset.workerFilterPanel;if(action==='toggle')state.orderFilterOpen=!state.orderFilterOpen;else if(action==='reset'){state.orderClinicFilter='';state.orderMonthFilter='';state.orderWorkFilter='';state.orderFilterOpen=false}else if(action==='close')state.orderFilterOpen=false;render();return}
     const modal=event.target.closest('[data-worker-modal]');
     if(modal&&event.target===modal){if(modal.dataset.workerModal==='cad-preview'){cadPreviewRequest++;if(state.cadPreview?.url)URL.revokeObjectURL(state.cadPreview.url)}state.cadPreview=null;render();return}
     const cadAction=event.target.closest('[data-worker-action]');
@@ -448,8 +467,8 @@ export function createWorkerCabinet({root,orders,assets,logo,icon,toothChart,isA
       savePortal('tasks',next).then(()=>{tasks().splice(0,tasks().length,...next);toast('Статус задачи обновлён');render()}).catch(error=>{toast('Не удалось обновить задачу: '+error.message);render()});
       return;
     }
-    if(event.target.id==='worker-order-clinic-filter'){state.orderClinicFilter=event.target.value;state.orderFilterOpen=true;render();return}
-    if(event.target.id==='worker-order-month-filter'){state.orderMonthFilter=event.target.value;state.orderFilterOpen=true;render();return}
+    if(event.target.matches('[data-worker-order-clinic-filter]')){state.orderClinicFilter=event.target.value;state.orderFilterOpen=true;render();return}
+    if(event.target.matches('[data-worker-order-month-filter]')){state.orderMonthFilter=event.target.value;state.orderFilterOpen=true;render();return}
     if(event.target.id==='worker-cad-file'){
       const order=myOrders().find(item=>item.id===state.orderId),file=event.target.files?.[0];event.target.value='';
       if(!order||!file)return;

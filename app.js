@@ -1005,7 +1005,7 @@ async function hydratePortal(){
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){
-    const {createWorkerCabinet}=await import('./worker.js?v=mobile-cabinets-13');
+    const {createWorkerCabinet}=await import('./worker.js?v=worker-mobile-1');
     workerCabinet=createWorkerCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='worker',currentUser:()=>portalUser,orderHistory:()=>portalHistory,tasks:()=>portalTasks,onUserUpdate:user=>{portalUser=user}});
   }
   if(portalUser?.subjectId!==data.user.subjectId)state.messages=[];
