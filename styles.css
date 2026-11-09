@@ -282,6 +282,58 @@
   .tech-sidebar .brand .portal-logo{width:172px;height:68px}
   .tech-sidebar .tech-side-label{margin-top:7px;margin-bottom:12px}
 }
+
+/* Keep the filter panel attached to its trigger row. It must never float
+   beside the button and cover the order list. */
+.tech-order-searchbar:has(.tech-order-filter-panel){
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  grid-template-rows:auto auto!important;
+  align-items:start!important;
+  gap:8px 10px!important;
+}
+.tech-order-searchbar:has(.tech-order-filter-panel)>.tech-filter-button{
+  grid-column:1!important;
+  grid-row:1!important;
+  position:relative!important;
+}
+.tech-order-searchbar:has(.tech-order-filter-panel)>input#tech-search,
+.tech-order-searchbar:has(.tech-order-filter-panel)>.worker-mobile-search{
+  grid-column:2!important;
+  grid-row:1!important;
+  min-width:0!important;
+}
+.tech-order-searchbar:has(.tech-order-filter-panel)>.tech-order-filter-panel{
+  position:static!important;
+  inset:auto!important;
+  grid-column:1/-1!important;
+  grid-row:2!important;
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  justify-self:stretch!important;
+  box-sizing:border-box!important;
+  box-shadow:none!important;
+}
+@media (max-width:760px){
+  .tech-order-searchbar:has(.tech-order-filter-panel){
+    grid-template-columns:1fr!important;
+  }
+  .tech-order-searchbar:has(.tech-order-filter-panel)>.tech-filter-button{
+    grid-column:1!important;
+    grid-row:1!important;
+  }
+  .tech-order-searchbar:has(.tech-order-filter-panel)>input#tech-search,
+  .tech-order-searchbar:has(.tech-order-filter-panel)>.worker-mobile-search{
+    grid-column:1!important;
+    grid-row:2!important;
+  }
+  .tech-order-searchbar:has(.tech-order-filter-panel)>.tech-order-filter-panel{
+    grid-column:1!important;
+    grid-row:3!important;
+  }
+}
 @media (((min-width: 761px) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)))) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (min-height: 761px))) and (max-height:700px){
   .tech-sidebar{padding-top:12px;padding-bottom:12px}
   .tech-sidebar .brand{height:56px}

@@ -796,9 +796,8 @@
   }
   .order-service-chart .tooth-selection-overlay,
   .tech-order-service-chart .tooth-selection-overlay {
-    display: block;
-    fill: #666;
-    opacity: .86;
+    display: none !important;
+    opacity: 0 !important;
     pointer-events: none;
   }
 }
@@ -953,10 +952,9 @@
 
   .order-service-chart .tooth-selection-overlay,
   .tech-order-service-chart .tooth-selection-overlay {
-    display: block;
-    fill: #808080 !important;
-    fill-opacity: .34 !important;
-    opacity: 1 !important;
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none;
   }
 
   .order-service-chart .tooth.selected text,

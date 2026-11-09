@@ -5,9 +5,8 @@
 .worker-mobile-order-list { display: none; }
 /* An SVG fill stays visible on iOS even when filtering an SVG image does not. */
 .worker-mobile-cabinet .tech-order-service-chart .tooth.selected .tooth-selection-overlay {
-  display: block;
-  fill: #666;
-  opacity: .9;
+  display: none !important;
+  opacity: 0 !important;
 }
 .worker-mobile-cabinet .tech-order-service-chart .tooth.selected text {
   fill: #fff;
@@ -130,10 +129,8 @@
   }
 
   .worker-mobile-cabinet .tech-order-service-chart .tooth.selected .tooth-selection-overlay {
-    display: block;
-    fill: #808080 !important;
-    fill-opacity: .34 !important;
-    opacity: 1 !important;
+    display: none !important;
+    opacity: 0 !important;
   }
 
   .worker-mobile-cabinet .tech-order-service-chart .tooth.selected text {
@@ -141,5 +138,41 @@
     stroke: #808080;
     stroke-width: 1.5px;
     paint-order: stroke;
+  }
+}
+
+/* The technician cabinet uses the same inline filter pattern as the other
+   cabinets: one trigger, with its panel directly underneath. */
+@media (max-width:900px), ((pointer:coarse) and (hover:none) and (orientation:landscape) and (max-height:560px)) {
+  .worker-order-tools > .clinic-mobile-order-controls > .clinic-mobile-filter-trigger {
+    display:none!important;
+  }
+  .worker-order-tools > .tech-order-searchbar {
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    grid-template-rows:auto auto auto!important;
+    gap:8px!important;
+    width:100%!important;
+    min-width:0!important;
+  }
+  .worker-order-tools > .tech-order-searchbar > [data-worker-filter-panel] {
+    display:inline-flex!important;
+    grid-column:1!important;
+    grid-row:1!important;
+    width:100%!important;
+  }
+  .worker-order-tools > .tech-order-searchbar > .worker-mobile-search {
+    grid-column:1!important;
+    grid-row:2!important;
+  }
+  .worker-order-tools > .tech-order-searchbar > .tech-order-filter-panel {
+    display:grid!important;
+    position:static!important;
+    grid-column:1!important;
+    grid-row:3!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    box-shadow:none!important;
   }
 }
