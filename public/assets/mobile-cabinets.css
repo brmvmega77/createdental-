@@ -1,9 +1,10 @@
+/* Phone breakpoints follow the short screen side. */
 /* Shared mobile navigation for the clinic, technician and chief-technician cabinets. */
 .mobile-bottom-nav { display: none; }
 .mobile-sidebar-logout { display: none; }
 .mobile-drawer-backdrop { display: none; }
 
-@media (max-width: 900px) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
   html, body, #app { width: 100%; max-width: 100%; overflow-x: hidden; }
   .sidebar {
     position: fixed;
@@ -147,7 +148,7 @@
   html[data-theme="dark"] .topbar { border-color: #343a41; background: #17191cf2; }
 }
 
-@media (max-width: 900px), (max-height: 560px) and (orientation: landscape) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))), (max-height: 560px) and (orientation: landscape) {
   .sidebar.open + .mobile-drawer-backdrop {
     position: fixed;
     z-index: 65;
@@ -162,7 +163,7 @@
   }
 }
 
-@media (max-width: 360px) {
+@media ((max-width: 360px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 360px))) {
   .mobile-bottom-nav { gap: 0; padding-inline: max(4px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-right)); }
   .mobile-bottom-item { font-size: 9px; }
 }
@@ -170,7 +171,7 @@
 /* Mobile task layouts: give each screen a clear focus instead of shrinking desktop columns. */
 .mobile-tooth-picker, .mobile-jaw-choice, .mobile-order-summary { display: none; }
 
-@media (max-width: 900px) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
   .page-title { align-items: flex-start; flex-direction: column; gap: 8px; margin: 10px 0 18px; }
   .page-title h1 { font-size: 23px; line-height: 1.2; }
   .page-title p { font-size: 13px; line-height: 1.45; }
@@ -380,7 +381,7 @@
   html[data-theme="dark"] .wizard-actions { border-top-color: #343a41; }
 }
 
-@media (max-width: 520px) {
+@media ((max-width: 520px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 520px))) {
   .shell, .tech-shell { padding-right: 12px; padding-left: 12px; }
   .topbar { margin-right: -12px; margin-left: -12px; padding-right: 12px; padding-left: 12px; }
   .order-flow > h2 { font-size: 19px; }
@@ -399,7 +400,7 @@
 
 /* The phone uses the same anatomical SVG selector as desktop. Keep the
    model large enough for touch targets instead of replacing it with a grid. */
-@media (max-width: 900px) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
   .tooth-picker .desktop-tooth-chart { display: block; }
   .tooth-picker .desktop-tooth-chart .tooth-chart { width: min(70%, 252px); max-width: 252px; padding: 0; }
   .tooth-picker .desktop-tooth-chart .tooth-chart svg { width: 100%; height: auto; max-height: none; touch-action: manipulation; }
@@ -410,7 +411,7 @@
 }
 
 /* Phone layouts: make single-purpose pages feel native to a narrow viewport. */
-@media (max-width: 760px) {
+@media ((max-width: 760px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 760px))) {
   .content { display: flex; flex-direction: column; gap: 16px; }
   .content > * { min-width: 0; }
   .content > .page-title, .content > .tech-heading, .content > .clinic-heading { margin-bottom: 0; }
@@ -467,7 +468,7 @@
 }
 
 /* The chief technician has many conversations, so keep clinic switching visible on phones. */
-@media (max-width: 900px) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
   .chief-messages { display: flex; min-height: 0; flex-direction: column; gap: 8px; overflow: visible; }
   .chief-messages > .contacts {
     display: flex;
@@ -489,17 +490,17 @@
   .chief-messages.is-empty > .conversation { min-height: 180px; }
 }
 
-@media (max-width: 620px) {
+@media ((max-width: 620px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 620px))) {
   .tech-pricing-row { grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr); }
   .tech-pricing-row select { padding-right: 24px; }
 }
 
-@media (max-width: 360px) {
+@media ((max-width: 360px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 360px))) {
   .tech-pricing-row { grid-template-columns: minmax(0, 1fr); }
   .tech-pricing-name { grid-column: 1; }
 }
 
-@media (max-width: 380px) {
+@media ((max-width: 380px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 380px))) {
   .shell, .tech-shell { padding-right: 10px; padding-left: 10px; }
   .topbar { margin-right: -10px; margin-left: -10px; padding-right: 10px; padding-left: 10px; }
   .clinic-orders-panel { padding: 10px; }
@@ -510,7 +511,7 @@
 }
 
 /* Order details: make the header, actions and status read as one compact mobile flow. */
-@media (max-width: 760px) {
+@media ((max-width: 760px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 760px))) {
   .detail-heading .page-title { gap: 12px; margin: 4px 0 12px; }
   .detail-heading .page-title > div:first-child { display: grid; gap: 7px; }
   .detail-heading .page-title h1 { font-size: 22px; line-height: 1.2; overflow-wrap: anywhere; }
@@ -544,7 +545,7 @@
 
 /* Short landscape screens need their own layout: width breakpoints alone leave
    phone interfaces too tall and make fixed navigation/actions cover content. */
-@media (max-width: 900px) and (max-height: 560px) and (orientation: landscape) {
+@media ((max-width: 900px) and (max-height: 560px) and (orientation: landscape)) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px))) {
   html, body, #app { width: 100%; max-width: 100%; overflow-x: hidden; }
   .sidebar { width: min(78vw, 300px); padding: 12px; transform: translateX(-105%); }
   .sidebar.open { transform: translateX(0); }
@@ -673,7 +674,7 @@
 }
 
 /* Mobile polish pass: readable labels, discoverable horizontal rails and touch targets. */
-@media (max-width: 900px) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
   html:not([data-theme="dark"]) .shell .topbar-label,
   html:not([data-theme="dark"]) .shell .page-title p,
   html:not([data-theme="dark"]) .shell .field,
@@ -754,14 +755,14 @@
   .step.active .step-label { max-width: min(28vw, 105px); }
 }
 
-@media (max-width: 340px) {
+@media ((max-width: 340px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 340px))) {
   .step.active .step-label { max-width: 78px; }
   .stepper { gap: 2px; }
   .step b { width: 24px; height: 24px; flex-basis: 24px; }
   .step-line { min-width: 3px; }
 }
 
-@media (min-width: 901px) and (max-height: 560px) and (orientation: landscape) {
+@media ((min-width: 901px) and (max-height: 560px) and (orientation: landscape)) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px))) {
   .mobile-bottom-nav { display: none !important; }
   .sidebar { transform: none !important; }
   .shell, .tech-shell { width: auto; max-width: none; margin-left: 226px; padding: 0 28px 42px; overflow: visible; }
@@ -771,7 +772,7 @@
   .topbar-label, .clinic-select { display: initial; }
 }
 
-@media (max-width: 900px) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
   .clinic-production-timeline { margin: 0 0 2px; padding: 0; border-left: 0; }
   .clinic-production-timeline > div { min-height: 32px; gap: 2px; padding: 0 0 12px 28px; font-size: 12px; line-height: 1.25; }
   .clinic-production-timeline > div:not(:last-child)::before { content: ""; position: absolute; left: 6px; top: 7px; bottom: -7px; width: 2px; background: #e7e7e7; }
@@ -804,14 +805,14 @@
 
 /* Keep the global mobile navigation visible during the order wizard. The
    wizard actions sit directly above it so neither control hides the other. */
-@media (max-width: 900px) and (max-height: 560px) and (orientation: landscape) {
+@media ((max-width: 900px) and (max-height: 560px) and (orientation: landscape)) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px))) {
   .wizard-actions { bottom: calc(52px + env(safe-area-inset-bottom)); }
   #app:has(.order-flow) .shell,
   #app:has(.order-builder-wizard) .shell { padding-bottom: calc(116px + env(safe-area-inset-bottom)); }
 }
 
 /* In the clinic chat, scroll the page itself instead of nesting two scroll areas. */
-@media (max-width: 900px) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
   html:has(.messages-layout:not(.chief-messages)),
   body:has(.messages-layout:not(.chief-messages)) { overflow-x: clip; overflow-y: visible; }
   #app:has(.messages-layout:not(.chief-messages)),
@@ -823,7 +824,7 @@
   .messages-layout:not(.chief-messages) .chat-compose { position: sticky; bottom: calc(64px + env(safe-area-inset-bottom)); z-index: 3; height: auto; flex: none; margin: 0; background: #fff; }
   .messages-layout:not(.chief-messages) .chat-compose-files .chat-pending-file { grid-column: 1 / -1; }
 }
-@media (max-width: 900px) and (max-height: 560px) and (orientation: landscape) {
+@media ((max-width: 900px) and (max-height: 560px) and (orientation: landscape)) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px))) {
   .messages-layout:not(.chief-messages) .conversation-head { top: 48px; }
   .messages-layout:not(.chief-messages) .chat-compose { bottom: calc(52px + env(safe-area-inset-bottom)); }
 }
@@ -831,7 +832,7 @@
 /* Employee order detail: keep the work data and execution progress beside
    each other on desktop. The mobile cabinet rules above intentionally stack
    the two panels only at the mobile breakpoint. */
-@media (min-width: 901px) {
+@media (((min-width: 901px) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)))) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (min-height: 901px))) {
   .worker-detail-grid {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) minmax(320px, 420px) !important;
@@ -845,7 +846,7 @@
   }
 }
 
-@media (max-width: 900px) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
   .worker-detail-grid {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) !important;
@@ -854,7 +855,7 @@
 }
 
 /* Keep labels and values close together in the clinic's mobile order cards. */
-@media (max-width: 900px) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
   .orders-table td {
     grid-template-columns: 58px minmax(0, 1fr) !important;
     column-gap: 6px;

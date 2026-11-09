@@ -1,3 +1,4 @@
+/* Phone breakpoints follow the short screen side. */
 /* Keep the clinic dashboard teeth artwork at a steady size as the window widens. */
 .hero img {
   width: auto;
@@ -8,7 +9,7 @@
   flex: 0 1 auto;
 }
 
-@media (max-width: 760px) {
+@media ((max-width: 760px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 760px))) {
   .hero img {
     display: none;
   }

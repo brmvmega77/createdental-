@@ -1,0 +1,27 @@
+/* A rotated phone keeps its mobile reading order and control sizes. */
+@media (pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px) {
+  .shell, .tech-shell {
+    width: min(100%, 560px) !important;
+    max-width: 560px !important;
+    margin-inline: auto !important;
+    padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+  }
+  .mobile-bottom-nav {
+    width: min(100%, 560px);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+  .wizard-actions {
+    width: min(calc(100% - 32px), 528px);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+  .clinic-mobile-sheet { max-height: calc(100dvh - 12px); }
+  .tech-dialog, .modal, .order-upload-dialog {
+    max-width: min(560px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+  }
+}
