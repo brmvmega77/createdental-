@@ -9,7 +9,7 @@ import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=reliability-retry-1';
 import {workCatalog,rubles,estimateWork,priceUnitsForSelection,camMethodForOrder,reorderCatalogService,reorderCatalogCategory,isHighVolumeLithiumRestoration} from './work-catalog.js?v=chief-parent-20261112-5';
 import {themeToggleMarkup,languageSwitcherMarkup} from './theme.js?v=light-only-1';
-import {openPricePrint} from './price-print.js?v=price-pdf-3';
+import {openPricePrint} from './price-print.js?v=price-isolated-print-20261112-4';
 import {openOrderPrint} from './order-print.js?v=order-print-22';
 const surgicalTemplateUtilities = await import(import.meta.url.startsWith('file:')
   ? './public/assets/surgical-template-utils.js'
@@ -1643,7 +1643,7 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
       return;
     }
     if(pricingAction&&pricingAction.dataset.techPricingAction==='download-pdf'){
-      openPricePrint({catalog:state.pricingDraft||workCatalog,logo:`${assets}create-dental-logo-print.png`});
+      openPricePrint({catalog:state.pricingDraft||workCatalog,logo:`${assets}create-dental-logo-print.png`,onError:()=>toast('Не удалось открыть печать прайса. Обновите страницу и повторите попытку.')});
       return;
     }
 
