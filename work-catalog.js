@@ -83,7 +83,8 @@ const jawPricedCategories=new Set(['Каппы','Ложки прикуса','С�
 const upperJawTeeth=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
 const lowerJawTeeth=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
 
-export function priceUnitsForSelection(work,teeth=[],units,pricingUnit){
+export function priceUnitsForSelection(work,teeth=[],units,pricingUnit,option=''){
+  if(isSiliconeKeySelection(work,option))return Math.max(1,siliconeKeyJaws({work,workOption:option,selectedTeeth:teeth}).length);
   if(units!==undefined&&units!==null&&units!==''&&Number.isFinite(Number(units)))return Math.max(1,Number(units));
   const category=workCatalog.find(item=>item.id===work||item.name===work||item.aliases?.includes(work));
   if((pricingUnit||category?.pricingUnit)==='jaw'||!category&&!pricingUnit&&jawPricedCategories.has(String(work||''))){
@@ -95,6 +96,54 @@ export function priceUnitsForSelection(work,teeth=[],units,pricingUnit){
 }
 
 const normalizeCatalogText=value=>String(value||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/[^а-яa-z0-9]+/gi,' ').trim();
+
+export function isSiliconeKeySelection(work,option=''){
+  const selection=resolveWorkSelection(work,option),names=['Силиконовый ключ','Прозрачный силиконовый ключ'].map(normalizeCatalogText);
+  return [selection.option?.name,...(selection.option?.aliases||[]),option].some(value=>value&&names.includes(normalizeCatalogText(value)));
+}
+
+// Compatibility for callers that previously detected these two services as a
+// fixed single item. Their unit is now one key per selected jaw.
+export function isFixedQuantityService(work,option=''){return isSiliconeKeySelection(work,option)}
+
+export function siliconeKeyJaws(variant,{completeOnly=false}={}){
+  if(!isSiliconeKeySelection(variant?.workId||variant?.work,variant?.serviceId||variant?.workOption)&&!isSiliconeKeySelection(variant?.work,variant?.workOption))return [];
+  const values=variant?.selectedTeeth||variant?.teeth||[],selected=new Set((Array.isArray(values)?values:[]).map(Number));
+  return [['upper',upperJawTeeth],['lower',lowerJawTeeth]].filter(([,teeth])=>completeOnly?teeth.every(tooth=>selected.has(tooth)):teeth.some(tooth=>selected.has(tooth))).map(([jaw])=>jaw);
+}
+
+export function siliconeKeySelectionError(variants,{requireComplete=true}={}){
+  const occupied=new Set(),allTeeth=new Set([...upperJawTeeth,...lowerJawTeeth]);
+  for(const variant of variants||[]){
+    if(!isSiliconeKeySelection(variant?.workId||variant?.work,variant?.serviceId||variant?.workOption)&&!isSiliconeKeySelection(variant?.work,variant?.workOption))continue;
+    const values=variant?.selectedTeeth||variant?.teeth||[],teeth=Array.isArray(values)?values.map(Number):[],jaws=siliconeKeyJaws(variant);
+    if(requireComplete&&(!jaws.length||siliconeKeyJaws(variant,{completeOnly:true}).length!==jaws.length||teeth.some(tooth=>!allTeeth.has(tooth))))return 'Для силиконового ключа выберите верхнюю или нижнюю челюсть целиком.';
+    for(const jaw of jaws){
+      if(occupied.has(jaw))return `На ${jaw==='upper'?'верхнюю':'нижнюю'} челюсть уже добавлен силиконовый ключ. Удалите его, чтобы выбрать другой вид.`;
+      occupied.add(jaw);
+    }
+  }
+  return '';
+}
+
+export function isProstheticVariant(variant){
+  const category=resolveWorkSelection(variant?.workId||variant?.work,variant?.serviceId||variant?.workOption).category;
+  return Boolean(category&&category===workCatalog.find(item=>item.name==='Протетика'||item.aliases?.includes('Протетика')));
+}
+
+export function prostheticSelectionError(variants,{requireTeeth=false}={}){
+  const occupied=new Set();
+  for(const variant of variants||[]){
+    if(!isProstheticVariant(variant))continue;
+    const teeth=[...new Set((variant.selectedTeeth||[]).map(Number))];
+    if(requireTeeth&&!teeth.length)return 'Выберите зубы для каждой комплектующей.';
+    for(const tooth of teeth){
+      if(occupied.has(tooth))return `Для зуба ${tooth} уже выбрана комплектующая. Удалите её, чтобы выбрать другую.`;
+      occupied.add(tooth);
+    }
+  }
+  return '';
+}
 
 export function isValidIsoDate(value){
  const raw=String(value||'');
@@ -213,7 +262,7 @@ export function rubles(amount){return new Intl.NumberFormat('ru-RU').format(amou
 
 export function estimateWork({work='',option='',teeth=[],units}={}){
   const selection=resolveWorkSelection(work,option);
-  const quantity=priceUnitsForSelection(selection.category?.name||work,teeth,units);
+  const quantity=priceUnitsForSelection(selection.category?.name||work,teeth,units,selection.option?.pricingUnit||selection.category?.pricingUnit,option);
   const amount=Number.isFinite(selection.price)?selection.price*quantity:null;
   return {...selection,units:quantity,amount,text:amount===null?'Стоимость уточняется':rubles(amount)};
 }

@@ -1,0 +1,300 @@
+/* Worker mobile screens share the clinic's controls, sheets and section rows. */
+.worker-detail-side .tech-cad-model { min-width:0; max-width:100%; box-sizing:border-box; padding:18px!important; }
+.worker-detail-side .tech-cad-model .tech-panel-heading { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; }
+.worker-detail-side .tech-cad-model .tech-stage { width:fit-content; max-width:100%; white-space:normal; box-sizing:border-box; }
+.worker-detail-side .tech-cad-file { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; min-width:0; max-width:100%; box-sizing:border-box; }
+.worker-detail-side .tech-cad-file strong { white-space:normal; overflow-wrap:anywhere; overflow:visible; text-overflow:clip; }
+.worker-detail-side .tech-cad-file small { margin:0; white-space:normal; }
+.worker-detail-side .tech-cad-file .btn { width:100%!important; min-width:0!important; max-width:100%!important; box-sizing:border-box; justify-self:stretch; }
+.worker-detail-side > .tech-panel > h2 + .tech-stage-progress { margin-top:16px!important; }
+.worker-upload-feedback { margin:16px 0 0; color:#555; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+.worker-upload-feedback.error { color:#b33b3b; }
+.worker-upload-feedback.success { color:#333; }
+.worker-order-upload-backdrop .order-upload-dialog > .worker-upload-feedback { margin:24px 0!important; }
+.worker-order-upload-backdrop .worker-upload-feedback + .upload-dialog-done { margin-top:0!important; }
+.worker-order-upload-backdrop .upload-dialog-picker { cursor:pointer; }
+.worker-order-upload-backdrop .upload-dialog-picker.disabled { pointer-events:none; cursor:progress; opacity:.65; }
+/* Full-width file rows override the generic dialog flex layout. */
+.worker-order-upload-backdrop .order-upload-dialog > .upload-progress-list {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  justify-content:stretch;
+  gap:12px;
+}
+.worker-order-upload-backdrop .upload-progress-file { width:100%; min-width:0; box-sizing:border-box; }
+.worker-order-upload-backdrop .upload-progress-file strong,
+.worker-order-upload-backdrop .upload-progress-file small {
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+  line-height:1.5;
+}
+.worker-order-upload-backdrop .order-upload-dialog > .upload-overall {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  justify-content:stretch;
+}
+@media (min-width:901px) {
+  .worker-order-tools > .tech-segment { flex:0 1 auto!important; width:max-content!important; max-width:100%!important; justify-self:start; }
+}
+.worker-profile-sections,.worker-profile-back { display: none; }
+.worker-mobile-search { display: contents; }
+.worker-mobile-search > svg { display: none; }
+.worker-mobile-order-list { display: none; }
+/* An SVG fill stays visible on iOS even when filtering an SVG image does not. */
+.worker-mobile-cabinet .tech-order-service-chart .tooth.selected .tooth-selection-overlay {
+  display: none !important;
+  opacity: 0 !important;
+}
+.worker-mobile-cabinet .tech-order-service-chart .tooth.selected text {
+  fill: #fff;
+  stroke: #666;
+  stroke-width: 1.5px;
+  paint-order: stroke;
+}
+@media (max-width: 900px), ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) {
+  .worker-mobile-cabinet > .tech-heading .tech-eyebrow { display: none; }
+  .worker-mobile-cabinet > .tech-heading { margin: 10px 0 18px; }
+  .worker-mobile-cabinet > .tech-heading h1 { font-size: 23px; line-height: 1.2; }
+  .worker-mobile-cabinet .worker-order-tools { display: grid !important; grid-template-columns: minmax(0,1fr); gap: 0; margin: 0 0 14px; }
+  .worker-order-tools > .tech-segment,
+  .worker-order-tools > .tech-order-searchbar > [data-worker-filter-panel],
+  .worker-order-tools > .tech-order-searchbar > .tech-order-filter-panel { display: none !important; }
+  .worker-order-tools > .clinic-mobile-order-controls { margin: 0 0 14px; }
+  .worker-order-tools > .tech-order-searchbar { display: block !important; width: 100% !important; max-width: none !important; min-width: 0; margin: 0 !important; flex: none; }
+  .worker-order-tools .worker-mobile-search { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; min-height: 46px; padding: 0 13px; border: 1px solid #e3e3e3; border-radius: 10px; background: #fff; color: #808080; }
+  .worker-order-tools .worker-mobile-search > svg { display: block; flex: none; width: 20px; height: 20px; }
+  .worker-order-tools .worker-mobile-search > input { flex: 1; width: 100% !important; min-width: 0 !important; height: 44px; padding: 0 !important; margin: 0; border: 0 !important; border-radius: 0; background: transparent; box-shadow: none; font-size: 16px !important; color: #333; }
+  .worker-mobile-search:focus-within { outline: 2px solid #808080; outline-offset: 2px; }
+  .worker-mobile-cabinet .worker-orders-wrap { overflow: visible; }
+  .worker-mobile-cabinet .worker-desktop-order-table { display: none; }
+  .worker-mobile-cabinet .worker-mobile-order-list { display: grid; gap: 10px; }
+  .worker-mobile-cabinet a.worker-mobile-order-card { text-decoration: none; }
+  .worker-mobile-cabinet .worker-mobile-order-card { display: grid; gap: 9px; min-width: 0; padding: 16px; border: 1px solid #e5e5e5; border-radius: 14px; background: #fff; color: #333; box-shadow: 0 2px 8px rgba(0,0,0,.035); cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+  .worker-mobile-cabinet .worker-mobile-order-card:active { transform: translateY(1px); }
+  .worker-mobile-cabinet .worker-mobile-order-card:focus-visible { outline: 2px solid #808080; outline-offset: 2px; }
+  .worker-mobile-cabinet .worker-mobile-order-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+  .worker-mobile-cabinet .worker-mobile-order-top > strong { min-width: 0; overflow: hidden; color: #555; font-size: 13px; font-weight: 700; letter-spacing: .01em; text-overflow: ellipsis; white-space: nowrap; }
+  .worker-mobile-cabinet .worker-mobile-order-top .tech-stage { flex: none; max-width: 52%; padding: 5px 9px; border-radius: 999px; font-size: 12px; line-height: 1.1; white-space: nowrap; }
+  .worker-mobile-cabinet .worker-mobile-order-card h3 { margin: 0; color: #333; font-size: 18px; line-height: 1.2; font-weight: 700; overflow-wrap: anywhere; }
+  .worker-mobile-cabinet .worker-mobile-order-work { margin: 0; color: #666; font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; }
+  .worker-mobile-cabinet .worker-mobile-order-meta { display: flex; flex-wrap: wrap; gap: 5px 12px; color: #8a8a8a; font-size: 13px; line-height: 1.3; }
+  .worker-mobile-cabinet .worker-mobile-order-meta span + span::before { content: '·'; margin-right: 12px; color: #b0b0b0; }
+  .worker-mobile-cabinet .worker-mobile-order-footer { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid #ededed; color: #8a8a8a; font-size: 13px; }
+  .worker-mobile-cabinet .worker-mobile-order-footer strong { color: #444; font-size: 14px; font-weight: 700; }
+  .worker-mobile-cabinet .worker-mobile-order-arrow { color: #777; font-size: 20px; line-height: 1; }
+  .worker-mobile-cabinet .worker-mobile-order-list > .tech-empty { display: block; padding: 24px 12px; border: 1px solid #e5e5e5; border-radius: 14px; text-align: center; }
+  .worker-mobile-cabinet .worker-table td { grid-template-columns: 58px minmax(0,1fr) !important; gap: 6px; }
+  .worker-mobile-cabinet .worker-table td small { grid-column: 2; margin-top: 3px; }
+  .worker-mobile-cabinet .worker-table td:nth-child(1) { grid-column: 1 / -1; grid-row: 1; }
+  .worker-mobile-cabinet .worker-table td:nth-child(3) { grid-column: 1 / -1; grid-row: 2; }
+  .worker-mobile-cabinet .worker-table td:nth-child(2) { grid-column: 1; grid-row: 3; }
+  .worker-mobile-cabinet .worker-table td:nth-child(4) { grid-column: 2; grid-row: 3; }
+  .worker-mobile-cabinet .worker-table td:nth-child(5) { grid-column: 1 / -1; grid-row: 4; }
+  .worker-mobile-cabinet .worker-table td:nth-child(6) { grid-column: 1 / -1; grid-row: 5; }
+  .worker-mobile-cabinet .worker-table .tech-empty { display: block !important; padding: 16px 0; text-align: center; }
+  .worker-mobile-cabinet .worker-table .tech-empty::before { content: none; }
+  .worker-mobile-cabinet .tech-order-service-body {
+    display: grid;
+    grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr) !important;
+    align-items: start;
+    gap: 12px;
+  }
+  .worker-mobile-cabinet .tech-order-service-chart {
+    width: 100%;
+    min-width: 0;
+    max-width: 160px;
+  }
+  .worker-mobile-cabinet .tech-order-service-chart .tooth-chart {
+    width: 100%;
+    max-width: 100%;
+  }
+  .worker-mobile-cabinet .tech-order-service-chart svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    overflow: visible;
+  }
+  .worker-mobile-cabinet .tech-order-service-body dl,
+  .worker-mobile-cabinet .tech-order-service-body dd { min-width: 0; overflow-wrap: anywhere; }
+  .worker-mobile-profile .worker-profile-sections { display: grid; }
+  .worker-mobile-profile .worker-profile-back { display: none; }
+  .worker-mobile-profile[data-worker-profile-section=""] .tech-profile-editor,
+  .worker-mobile-profile[data-worker-profile-section=""] .worker-telegram-panel { display: none; }
+  .worker-mobile-profile:not([data-worker-profile-section=""]) .worker-profile-sections { display: none; }
+  .worker-mobile-profile:not([data-worker-profile-section=""]) .worker-profile-back { display: flex; }
+  .worker-mobile-profile[data-worker-profile-section="info"] [data-worker-profile-part="security"],
+  .worker-mobile-profile[data-worker-profile-section="info"] .worker-telegram-panel,
+  .worker-mobile-profile[data-worker-profile-section="security"] [data-worker-profile-part="info"],
+  .worker-mobile-profile[data-worker-profile-section="security"] .worker-telegram-panel,
+  .worker-mobile-profile[data-worker-profile-section="telegram"] .tech-profile-editor { display: none; }
+  .worker-mobile-profile .tech-profile-editor,
+  .worker-mobile-profile .worker-telegram-panel { padding: 16px; border-radius: 13px; }
+  .worker-mobile-profile .tech-profile-editor #worker-profile-form { width: 100%; grid-template-columns: minmax(0,1fr); }
+  .worker-mobile-profile .tech-profile-editor .tech-client-form-actions { margin-top: 12px; }
+  .worker-mobile-profile .tech-profile-editor .tech-client-form-actions .btn { width: 100%; min-height: 48px; }
+}
+@media (max-width: 360px), ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 360px)) {
+  .worker-mobile-cabinet .worker-table td:nth-child(4) { grid-column: 1 / -1; grid-row: 4; }
+  .worker-mobile-cabinet .worker-table td:nth-child(2) { grid-column: 1 / -1; }
+  .worker-mobile-cabinet .worker-table td:nth-child(5) { grid-row: 5; }
+  .worker-mobile-cabinet .worker-table td:nth-child(6) { grid-row: 6; }
+}
+
+/* Keep the worker cabinet aligned with the desktop tooth treatment on phones. */
+@media (max-width: 900px) {
+  .worker-mobile-cabinet .tech-order-service-chart,
+  .worker-mobile-cabinet .tech-order-service-chart .tooth-chart {
+    min-width: 0;
+    width: 160px;
+    max-width: 160px;
+    margin-inline: auto;
+    overflow: visible;
+  }
+
+  .worker-mobile-cabinet .tech-order-service-chart .tooth-chart svg {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .worker-mobile-cabinet .tech-order-service-chart .tooth.selected .tooth-image {
+    filter: brightness(.65) saturate(0) !important;
+    opacity: 1;
+  }
+
+  .worker-mobile-cabinet .tech-order-service-chart .tooth.selected .tooth-selection-overlay {
+    display: none !important;
+    opacity: 0 !important;
+  }
+
+  .worker-mobile-cabinet .tech-order-service-chart .tooth.selected text {
+    fill: #fff;
+    stroke: #808080;
+    stroke-width: 1.5px;
+    paint-order: stroke;
+  }
+}
+
+/* The technician cabinet uses the same inline filter pattern as the other
+   cabinets: one trigger, with its panel directly underneath. */
+@media (max-width:900px), ((pointer:coarse) and (hover:none) and (orientation:landscape) and (max-height:560px)) {
+  .worker-order-tools > .clinic-mobile-order-controls > .clinic-mobile-filter-trigger {
+    display:none!important;
+  }
+  .worker-order-tools > .tech-order-searchbar {
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    grid-template-rows:auto auto auto!important;
+    gap:8px!important;
+    width:100%!important;
+    min-width:0!important;
+  }
+  .worker-order-tools > .tech-order-searchbar > [data-worker-filter-panel] {
+    display:inline-flex!important;
+    grid-column:1!important;
+    grid-row:1!important;
+    width:100%!important;
+  }
+  .worker-order-tools > .tech-order-searchbar > .worker-mobile-search {
+    grid-column:1!important;
+    grid-row:2!important;
+  }
+  .worker-order-tools > .tech-order-searchbar > .tech-order-filter-panel {
+    display:grid!important;
+    position:static!important;
+    grid-column:1!important;
+    grid-row:3!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    box-shadow:none!important;
+  }
+}
+
+/* Override the legacy flex toolbar on the worker page. The open filter is
+   a normal second grid row, never an absolutely positioned side popover. */
+.worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) {
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr)!important;
+  grid-template-rows:auto auto!important;
+  align-items:start!important;
+  gap:8px 10px!important;
+}
+.worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) > [data-worker-filter-panel] {
+  grid-column:1!important;
+  grid-row:1!important;
+}
+.worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) > .worker-mobile-search {
+  grid-column:2!important;
+  grid-row:1!important;
+}
+.worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) > .tech-order-filter-panel {
+  position:static!important;
+  inset:auto!important;
+  grid-column:1/-1!important;
+  grid-row:2!important;
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+  box-shadow:none!important;
+}
+@media (max-width:900px), ((pointer:coarse) and (hover:none) and (orientation:landscape) and (max-height:560px)) {
+  .worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) {
+    grid-template-columns:1fr!important;
+    grid-template-rows:auto auto auto!important;
+  }
+  .worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) > [data-worker-filter-panel] {
+    grid-column:1!important;
+    grid-row:1!important;
+  }
+  .worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) > .worker-mobile-search {
+    grid-column:1!important;
+    grid-row:2!important;
+  }
+  .worker-order-tools > .tech-order-searchbar:has(.tech-order-filter-panel) > .tech-order-filter-panel {
+    grid-column:1!important;
+    grid-row:3!important;
+  }
+}
+
+/* Match the mobile order controls used in the clinic cabinet: status and
+   filters share one row, while search remains on the row below. */
+@media (max-width:900px), ((pointer:coarse) and (hover:none) and (orientation:landscape) and (max-height:560px)) {
+  .worker-order-tools > .clinic-mobile-order-controls {
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    align-items:stretch!important;
+    gap:10px!important;
+    width:100%!important;
+    margin:0 0 14px!important;
+  }
+  .worker-order-tools > .clinic-mobile-order-controls > .clinic-mobile-filter-trigger {
+    display:flex!important;
+    width:auto!important;
+    min-width:126px!important;
+    white-space:nowrap!important;
+  }
+  .worker-order-tools > .tech-order-searchbar {
+    display:block!important;
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    margin:0!important;
+  }
+  .worker-order-tools > .tech-order-searchbar > [data-worker-filter-panel],
+  .worker-order-tools > .tech-order-searchbar > .tech-order-filter-panel {
+    display:none!important;
+  }
+  .worker-order-tools > .tech-order-searchbar > .worker-mobile-search {
+    display:flex!important;
+    width:100%!important;
+    min-width:0!important;
+  }
+}

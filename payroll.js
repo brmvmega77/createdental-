@@ -60,7 +60,7 @@ export function collectPayrollAccruals(state,{previousOverrides={},legacy=false,
       }else{
         const variants=Array.isArray(order.variants)&&order.variants.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[],units:order.quantity}];
         lines=variants.map(variant=>{
-          const work=String(variant.work||order.work||''),service=String(variant.workOption||variant.material||work),key=variant.serviceId?'service:'+variant.serviceId:payrollServiceKey(work,service),units=priceUnitsForSelection(variant.workId||work,variant.selectedTeeth||variant.teeth||[],variant.units,variant.pricingUnit),rate=payrollRate(state.payrollSettings,role.key,rank,key);
+          const work=String(variant.work||order.work||''),service=String(variant.workOption||variant.material||work),key=variant.serviceId?'service:'+variant.serviceId:payrollServiceKey(work,service),units=priceUnitsForSelection(variant.workId||work,variant.selectedTeeth||variant.teeth||[],variant.units,variant.pricingUnit,variant.serviceId||service),rate=payrollRate(state.payrollSettings,role.key,rank,key);
           return {key,work,service,units,rate,amount:roundMoney(rate*units)};
         });
       }

@@ -1,5 +1,6 @@
+/* Phone breakpoints follow the short screen side. */
 /* Order table overrides loaded after the shared stylesheet. */
-@media(min-width:761px){
+@media (((min-width: 761px) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)))) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (min-height: 761px))){
   .tech-shell{overflow-x:hidden}
   .tech-orders-table-wrap{overflow-x:hidden!important;overflow-y:visible}
   .tech-orders-table{
@@ -148,11 +149,11 @@
 /* Printable work order based on the supplied landscape template. */
 .order-print-root{display:none}
 .tech-print-order-button{align-self:flex-start;white-space:nowrap}
-@media(max-width:760px){.tech-print-order-button{grid-column:1/-1;justify-self:start}}
+@media ((max-width: 760px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 760px))){.tech-print-order-button{grid-column:1/-1;justify-self:start}}
 @media print{
   @page{size:A4 landscape;margin:8mm}
   html,body{background:#fff!important;color:#1f2933!important}
-  body>*:not(.order-print-root):not(.price-print-root){display:none!important}
+  body>*:not(.order-print-root){display:none!important}
   .order-print-root{display:block!important;color:#1f2933;font-family:Arial,"Helvetica Neue",sans-serif;font-size:10pt;line-height:1.25}
   .order-print-sheet{display:block;width:100%;box-sizing:border-box;padding:4mm 5mm 3mm;border:1px solid #d8dde2;background:#fff}
   .order-print-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20mm;border-bottom:1px solid #cdd3d9;padding-bottom:4mm}
@@ -181,7 +182,7 @@
   .order-print-notes strong{font-size:9pt;color:#66717d}
   .order-print-notes p{margin:1mm 0 0;font-size:10pt;min-height:9mm;color:#1f2933}
 }
-@media(max-width:760px){
+@media ((max-width: 760px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 760px))){
   .tech-orders-table td:nth-child(1)::before{content:"Заказ"}
   .tech-orders-table td:nth-child(2)::before{content:"Заказчик"}
   .tech-orders-table td:nth-child(3)::before{content:"Создан"}
@@ -195,7 +196,7 @@
 }
 
 /* Readable production stage, vertical employee list, and normal-sized actions. */
-@media(min-width:761px){
+@media (((min-width: 761px) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)))) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (min-height: 761px))){
   .tech-orders-table td:nth-child(8){
     white-space:normal!important;
     overflow:visible!important;
@@ -254,7 +255,7 @@
 }
 
 /* Let every order value use its full content and keep the reduced action group neat. */
-@media(min-width:761px){
+@media (((min-width: 761px) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)))) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (min-height: 761px))){
   .tech-orders-table th,
   .tech-orders-table td{
     white-space:normal!important;
@@ -281,7 +282,7 @@
 }
 
 /* Approved semantic highlights for order type and production stage. */
-@media(min-width:761px){
+@media (((min-width: 761px) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)))) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (min-height: 761px))){
   .tech-order-type-label{
     display:inline-block;
     font-weight:600;
@@ -304,7 +305,7 @@
 }
 
 /* Keep the approved stage colors, but render statuses as plain text instead of pills. */
-@media(min-width:761px){
+@media (((min-width: 761px) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)))) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (min-height: 761px))){
   .tech-orders-table td:nth-child(8) .tech-stage{
     display:inline-block!important;
     max-width:100%!important;
@@ -318,7 +319,7 @@
 }
 
 /* Use the blue accent for active/review stages instead of neutral gray. */
-@media(min-width:761px){
+@media (((min-width: 761px) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)))) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (min-height: 761px))){
   .tech-orders-table td:nth-child(8) .tech-stage.work,
   .tech-orders-table td:nth-child(8) .tech-stage.review{
     color:#66809d!important;
@@ -326,7 +327,7 @@
 }
 
 /* High-contrast text palette for both light and dark themes. */
-@media(min-width:761px){
+@media (((min-width: 761px) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)))) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (min-height: 761px))){
   .tech-order-type-label.analog{color:#b45309!important}
   .tech-order-type-label.digital{color:#047857!important}
   .tech-orders-table td:nth-child(8) .tech-stage.new{color:#c2410c!important}
@@ -375,7 +376,7 @@ html[data-theme="dark"] .tech-assign-rollback .btn{
 }
 
 /* Keep timeline progress cards inside the detail panel at 100% zoom. */
-@media(min-width:761px){
+@media (((min-width: 761px) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)))) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (min-height: 761px))){
   .tech-detail-side,
   .tech-detail-side>.tech-panel:first-child,
   .tech-timeline{min-width:0!important;overflow:visible!important}
@@ -458,10 +459,8 @@ html[data-theme="dark"] .tech-assign-rollback .btn{
 
 /* The source PDF is a compact landscape sheet (595 x 419 pt), so keep one order on one page. */
 @media print{
-  /* Keep the single work order, but give it enough vertical room for every
-     tooth/service line instead of squeezing or clipping the lower rows. */
-  @page{size:210mm 220mm;margin:3mm}
-  .order-print-sheet{min-height:214mm!important;height:auto!important;padding:0!important;overflow:visible!important}
+  @page{size:210mm 148mm;margin:3mm}
+  .order-print-sheet{min-height:142mm!important;height:142mm!important;padding:0!important;overflow:hidden!important}
   .order-print-project{font-size:13pt!important;margin-bottom:2mm!important}
   .order-print-top{grid-template-columns:minmax(0,1fr) 43mm!important;gap:5mm!important}
   .order-print-line-field{height:5.8mm!important;font-size:8.5pt!important}
@@ -484,10 +483,10 @@ html[data-theme="dark"] .tech-assign-rollback .btn{
   .order-print-top{grid-template-columns:minmax(0,1fr) 92mm!important;gap:4mm!important}
   .order-print-brand img{width:92mm!important;height:36mm!important}
   .order-print-brand{font-size:7.5pt!important;gap:.5mm!important}
-  .order-print-side{height:136mm!important;grid-template-rows:repeat(16,minmax(8.5mm,1fr))!important}
-  .order-print-jaw{height:136mm!important}
-  .order-print-jaw .tooth-chart{width:35mm!important;height:136mm!important}
-  .order-print-jaw .tooth-chart svg{width:35mm!important;height:136mm!important}
+  .order-print-side{height:56mm!important}
+  .order-print-jaw{height:56mm!important}
+  .order-print-jaw .tooth-chart{width:35mm!important;height:56mm!important}
+  .order-print-jaw .tooth-chart svg{width:35mm!important;height:56mm!important}
   .order-print-bottom{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 20mm!important;gap:4mm!important;align-items:end!important}
   .order-print-qr{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-end!important;gap:.5mm!important;width:20mm!important}
   .order-print-qr img{display:block!important;width:18mm!important;height:18mm!important;object-fit:contain!important}
@@ -496,7 +495,7 @@ html[data-theme="dark"] .tech-assign-rollback .btn{
   .order-print-side-left .order-print-line-content{justify-content:flex-end!important}
   .order-print-side-right .order-print-line-content{justify-content:flex-start!important}
   .order-print-line-content>span{flex:0 0 auto!important}
-  .order-print-line-content>b{min-width:0!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.05!important;font-size:5.5pt!important;font-weight:400!important}
+  .order-print-line-content>b{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:5.5pt!important;font-weight:400!important}
 }
 
 /* The print action uses the same clearly visible outline as the other detail actions. */
@@ -520,7 +519,7 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
 @media print{
   @page{size:A4 portrait;margin:0}
   html,body{width:210mm!important;min-height:297mm!important;margin:0!important;background:#fff!important;color:#111!important}
-  body>*:not(.order-print-root):not(.price-print-root){display:none!important}
+  body>*:not(.order-print-root){display:none!important}
   .order-print-root{display:block!important;width:210mm!important;font-family:Arial,"Helvetica Neue",sans-serif;font-size:7pt;line-height:1.1;color:#111}
   .order-print-sheet{
     display:block!important;position:relative;width:210mm!important;height:148mm!important;min-height:148mm!important;max-height:148mm!important;
@@ -609,620 +608,78 @@ html[data-theme="dark"] .tech-print-order-button{border-color:#59616b!important;
 .order-history-patient{margin:4px 0 8px}
 .order-history-services{display:grid;gap:6px;margin:0;padding-left:18px;list-style:disc}
 .order-history .order-history-services>li{display:list-item;margin:0;padding:0;border:0;font:inherit;color:inherit}
-@media(max-width:760px){.order-history>li{grid-template-columns:1fr;gap:4px}.order-history-description{margin-top:4px}}
+@media ((max-width: 760px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 760px))){.order-history>li{grid-template-columns:1fr;gap:4px}.order-history-description{margin-top:4px}}
 
 @media print{
   .order-print-qr svg{display:block!important;flex:none!important;width:14mm!important;height:14mm!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
 }
 
-/* Desktop order rows: the grid keeps every action in the same row, while flex
-   alignment centers wrapped cell content against the row height. */
-@media(min-width:761px){
-  .tech-orders-table thead th,
-  .tech-orders-table tbody td{
+/* Worker orders: desktop keeps the complete status rail on the left and the
+   filter/search controls in one fixed-width row on the right. */
+@media (min-width: 761px){
+  .worker-order-tools{
     display:flex!important;
     align-items:center!important;
-    align-self:stretch!important;
-    vertical-align:middle!important;
-  }
-  .tech-orders-table tbody td.tech-order-actions-cell{
-    justify-content:center!important;
-    padding-top:0!important;
-    padding-bottom:0!important;
-  }
-  .tech-orders-table tbody td.tech-order-actions-cell .tech-order-actions{
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    flex-wrap:nowrap!important;
-    width:100%!important;
-    height:auto!important;
-  }
-}
-
-/* Team directory: keep all employee actions on one compact horizontal line. */
-@media(min-width:761px){
-  .tech-employee-table .tech-client-actions{
-    display:flex!important;
-    align-items:center!important;
-    flex-wrap:nowrap!important;
-    gap:6px!important;
-    width:100%!important;
-  }
-  .tech-employee-table .tech-client-actions button{
-    flex:1 1 0!important;
-    min-width:0!important;
-    padding:7px 4px!important;
-    font-size:10px!important;
-    white-space:nowrap!important;
-  }
-}
-
-/* The chief order table has two intentional modes. Their grid tracks must
-   follow the corresponding semantic headers, including the extra doctor
-   column in the full production-work list. */
-@media(min-width:761px){
-  .tech-orders-table-list thead tr,
-  .tech-orders-table-list tbody tr{
-    grid-template-columns:11fr 8fr 8fr 9fr 14fr 12fr 9fr 8fr 9fr 8fr 4fr!important;
-  }
-  .tech-orders-table-grouped thead tr,
-  .tech-orders-table-grouped tbody tr{
-    grid-template-columns:3fr 15fr 12fr 8fr 11fr 17fr 9fr 11fr 10fr 4fr!important;
-  }
-  .tech-orders-table-grouped .tech-order-group-row{
-    grid-template-columns:minmax(0,1fr)!important;
-  }
-  .tech-orders-table-grouped .tech-order-group-row td{
-    display:block!important;
-    grid-column:1/-1!important;
-    width:100%!important;
-    max-width:none!important;
-  }
-  .tech-orders-table-grouped tbody tr:not(.tech-order-group-row) td:nth-child(3){
-    flex-direction:column!important;
-    align-items:flex-start!important;
-    justify-content:center!important;
-    white-space:normal!important;
-  }
-  .tech-orders-table-grouped tbody tr:not(.tech-order-group-row) td:nth-child(3) strong,
-  .tech-orders-table-grouped tbody tr:not(.tech-order-group-row) td:nth-child(3) small{
-    display:block!important;
-    line-height:1.3!important;
-  }
-  .tech-orders-table-list td:nth-child(9) .tech-stage,
-  .tech-orders-table-grouped td:nth-child(8) .tech-stage{
-    display:inline-block!important;
-    max-width:100%!important;
-    white-space:nowrap!important;
-    overflow:hidden!important;
-    text-overflow:ellipsis!important;
-  }
-  .tech-orders-table-list td:nth-child(10) .tech-order-participants,
-  .tech-orders-table-grouped td:nth-child(9) .tech-order-participants{
-    display:block!important;
-    max-width:100%!important;
-    overflow:hidden!important;
-    white-space:nowrap!important;
-    text-overflow:ellipsis!important;
-  }
-  .tech-orders-table-list td:nth-child(11) .tech-order-actions,
-  .tech-orders-table-grouped td:nth-child(10) .tech-order-actions{
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    flex-wrap:nowrap!important;
-    gap:5px!important;
-    width:100%!important;
-    overflow:visible!important;
-  }
-}
-
-/* Print narяд uses the same medium-gray selected teeth as the order card. */
-@media print{
-  .order-print-jaw .tooth.selected .tooth-image{filter:brightness(.65) saturate(0)!important}
-}
-
-/* A4 portrait paper stays fixed. The form starts in the upper half and its
-   service rows grow only when their text needs additional lines. */
-@media print{
-  @page{size:A4 portrait;margin:7mm}
-  html,body{
-    width:auto!important;min-width:0!important;max-width:none!important;
-    height:auto!important;min-height:0!important;margin:0!important;padding:0!important;
-    overflow:visible!important;
-  }
-  .order-print-root,.order-print-paper,.order-print-paper>.order-print-sheet{
-    display:block!important;position:static!important;inset:auto!important;
-    width:100%!important;max-width:100%!important;min-width:0!important;
-    height:auto!important;min-height:0!important;max-height:none!important;
-    box-sizing:border-box!important;margin:0!important;padding:0!important;
-    overflow:visible!important;transform:none!important;
-    break-before:auto!important;break-after:auto!important;
-    page-break-before:auto!important;page-break-after:auto!important;
-  }
-  .order-print-paper>.order-print-sheet{break-inside:avoid!important;page-break-inside:avoid!important}
-  .order-print-main{
-    height:auto!important;min-height:70mm!important;
-    grid-template-columns:minmax(0,1fr) 48mm minmax(0,1fr)!important;
-    align-items:stretch!important;
-  }
-  .order-print-side{
-    height:auto!important;min-height:68mm!important;
-    grid-template-rows:repeat(16,minmax(4.25mm,auto))!important;
-  }
-  .order-print-tooth-line{min-height:0!important;break-inside:avoid!important}
-  .order-print-line-content{
-    min-height:0!important;overflow:visible!important;align-items:center!important;
-    padding-block:.2mm!important;
-  }
-  .order-print-line-content>b{
-    flex:1 1 auto!important;min-width:0!important;max-width:none!important;
-    overflow:visible!important;text-overflow:clip!important;
-    white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.1!important;
-  }
-  .order-print-side-left .order-print-line-content>b{text-align:right!important}
-  .order-print-jaw{height:68mm!important;align-self:center!important;overflow:visible!important}
-  .order-print-jaw .tooth-chart,.order-print-jaw .tooth-chart svg{
-    width:45mm!important;height:68mm!important;max-height:none!important;
-  }
-  .order-print-bottom{break-inside:avoid!important;page-break-inside:avoid!important}
-}
-
-/* Grouped view: one calm parent surface with a clearly nested production list. */
-@media(min-width:761px){
-  .tech-orders-table-grouped tbody tr.tech-order-group-row{
-    margin-top:14px;
-    border:1px solid #e6e6e6;
-    border-radius:12px;
-    overflow:hidden;
-    background:#f8f8f8;
-  }
-  .tech-orders-table-grouped tbody tr.tech-order-group-row:first-child{margin-top:14px}
-  .tech-orders-table-grouped tbody tr.tech-order-group-row td{
-    border:0!important;
-    background:#f8f8f8!important;
-  }
-  .tech-orders-table-grouped .tech-order-group-summary{
-    min-height:76px;
-    padding:14px 18px;
-    background:transparent;
-  }
-  .tech-orders-table-grouped .tech-order-group-summary:hover{background:#f2f2f2}
-  .tech-orders-table-grouped .tech-order-group-primary strong{font-size:13px;letter-spacing:-.01em}
-  .tech-orders-table-grouped .tech-order-group-primary small{color:#707070}
-  .tech-orders-table-grouped .tech-order-group-stat{color:#6f6f6f}
-  .tech-orders-table-grouped .tech-order-group-count b{font-size:14px}
-  .tech-orders-table-grouped tbody tr.tech-order-child-row{
-    margin-inline:12px;
-    border-left:1px solid #e6e6e6;
-    border-right:1px solid #e6e6e6;
-    background:#fff;
-  }
-  .tech-orders-table-grouped tbody tr.tech-order-child-row td{
-    padding-top:14px!important;
-    padding-bottom:14px!important;
-    border-bottom:1px solid #eeeeee!important;
-    background:#fff!important;
-  }
-  .tech-orders-table-grouped tbody tr.tech-order-child-first{
-    border-top:1px solid #e6e6e6;
-    border-top-left-radius:9px;
-    border-top-right-radius:9px;
-  }
-  .tech-orders-table-grouped tbody tr.tech-order-child-last{
-    border-bottom:1px solid #e6e6e6;
-    border-bottom-left-radius:9px;
-    border-bottom-right-radius:9px;
-    margin-bottom:12px;
-  }
-  .tech-orders-table-grouped tbody tr.tech-order-child-row:hover td{background:#fbfbfb!important}
-  .tech-orders-table-grouped .tech-order-child-row td:first-child{padding-left:18px!important}
-  .tech-orders-table-grouped .tech-order-child-mark{color:#9a9a9a;font-size:15px}
-  .tech-orders-table-grouped .tech-order-child-placeholder{color:#b3b3b3}
-  .tech-orders-table-grouped .tech-order-child-service{font-size:13px;line-height:1.35;color:#3f3f3f;font-weight:650}
-  .tech-orders-table-grouped .tech-order-child-row td:nth-child(2){color:#5f5f5f;font-weight:600}
-  .tech-orders-table-grouped .tech-order-child-row td:nth-child(3),
-  .tech-orders-table-grouped .tech-order-child-row td:nth-child(4),
-  .tech-orders-table-grouped .tech-order-child-row td:nth-child(5){color:#adadad}
-  .tech-orders-table-grouped .tech-order-child-row td:nth-child(7){color:#6e6e6e}
-}
-
-/* A single-work order still belongs to the grouped view: keep its card rhythm
-   identical to multi-work clinical orders, without a misleading expand affordance. */
-@media(min-width:761px){
-  .tech-orders-table-grouped tbody tr.tech-order-single-row{
-    margin-top:14px;
-    border:1px solid #e6e6e6;
-    border-radius:12px;
-    overflow:hidden;
-    background:#fff;
-  }
-  .tech-orders-table-grouped tbody tr.tech-order-single-row:first-child{margin-top:0}
-  .tech-orders-table-grouped tbody tr.tech-order-single-row td{
-    padding-top:17px!important;
-    padding-bottom:17px!important;
-    border:0!important;
-    background:#fff!important;
-  }
-  .tech-orders-table-grouped tbody tr.tech-order-single-row:hover td{background:#fbfbfb!important}
-  .tech-orders-table-grouped tbody tr.tech-order-single-row td:first-child{padding-left:18px!important}
-  .tech-orders-table-grouped tbody tr.tech-order-single-row td:nth-child(2){font-weight:600;color:#3f3f3f}
-}
-
-/* Between tablet and desktop, keep the controls and every table column inside
-   the panel instead of letting the right edge disappear off-screen. */
-@media(min-width:761px) and (max-width:900px){
-  .tech-order-tools>.tech-order-searchbar{
-    display:grid!important;
-    grid-template-columns:auto auto minmax(180px,1fr)!important;
-    grid-template-rows:38px!important;
-    gap:8px!important;
-    align-items:center!important;
-    min-width:0!important;
-    width:100%!important;
-  }
-  .tech-order-tools>.tech-order-searchbar .tech-order-view-toggle{
-    grid-column:1!important;
-    grid-row:1!important;
-    width:max-content!important;
-    max-width:100%!important;
-  }
-  .tech-order-searchbar .tech-order-view-toggle button{
-    min-height:30px!important;
-    padding-inline:10px!important;
-    font-size:11px!important;
-  }
-  .tech-order-tools>.tech-order-searchbar .tech-filter-button{
-    grid-column:2!important;
-    grid-row:1!important;
-    width:auto!important;
-    min-width:92px!important;
-    min-height:38px!important;
-    white-space:nowrap!important;
-  }
-  .tech-order-tools>.tech-order-searchbar input#tech-search{
-    grid-column:3!important;
-    grid-row:1!important;
-    width:100%!important;
-    min-width:0!important;
-    max-width:none!important;
-  }
-  .tech-order-searchbar:has(.tech-order-filter-panel){grid-template-rows:38px auto!important}
-  .tech-order-searchbar:has(.tech-order-filter-panel) .tech-order-filter-panel{grid-column:1/-1!important;grid-row:2!important}
-
-  .tech-orders-table-wrap{overflow:visible!important}
-  .tech-orders-table-list thead tr,
-  .tech-orders-table-list tbody tr{
-    grid-template-columns:10fr 8fr 7fr 8fr 13fr 11fr 8fr 8fr 10fr 7fr 10fr!important;
-  }
-  .tech-orders-table-grouped thead tr,
-  .tech-orders-table-grouped tbody tr{
-    grid-template-columns:3fr 13fr 10fr 7fr 10fr 14fr 9fr 10fr 12fr 12fr!important;
-  }
-  .tech-orders-table-grouped .tech-order-group-summary{
-    grid-template-columns:3fr 13fr 10fr 7fr 10fr 14fr 9fr 10fr 12fr 12fr!important;
-  }
-  .tech-orders-table td.tech-order-actions-cell .tech-order-actions{
-    justify-content:flex-start!important;
-    gap:2px!important;
-    overflow:visible!important;
-  }
-  .tech-orders-table td.tech-order-actions-cell .tech-icon-btn{
-    width:22px!important;
-    height:28px!important;
-    flex:0 0 22px!important;
-  }
-  .tech-orders-table td.tech-order-actions-cell{padding-inline:3px!important;overflow:visible!important}
-  .tech-orders-table th,.tech-orders-table td{padding-inline:7px!important}
-}
-
-/* Final wide-screen order table pass: keep the controls in one line and give
-   the action cell enough room for all three buttons. */
-@media(min-width:901px){
-  .tech-order-tools{
-    display:grid!important;
-    grid-template-columns:minmax(0,1fr) minmax(360px,620px)!important;
     gap:12px!important;
-    align-items:start!important;
-  }
-  .tech-order-tools>.tech-segment{
-    grid-column:1!important;
-    grid-row:1!important;
+    flex-wrap:nowrap!important;
     min-width:0!important;
-    max-width:100%!important;
+  }
+  .worker-order-tools>.tech-segment{
+    display:flex!important;
+    flex:1 1 auto!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:none!important;
+    flex-wrap:nowrap!important;
     overflow-x:auto!important;
     overflow-y:hidden!important;
-    flex-wrap:nowrap!important;
+    scrollbar-width:none;
   }
-  .tech-order-tools>.tech-order-searchbar{
-    display:grid!important;
-    grid-template-columns:auto auto minmax(220px,1fr)!important;
-    grid-template-rows:36px!important;
-    gap:8px!important;
+  .worker-order-tools>.tech-segment::-webkit-scrollbar{display:none}
+  .worker-order-tools>.tech-segment button{flex:0 0 auto!important}
+  .worker-order-tools>.tech-order-searchbar{
+    display:flex!important;
+    flex:0 0 380px!important;
+    width:380px!important;
+    min-width:380px!important;
+    max-width:380px!important;
+    margin:0!important;
+    gap:9px!important;
     align-items:center!important;
-    flex:1 1 520px!important;
-    width:100%!important;
-    min-width:0!important;
   }
-  .tech-order-tools>.tech-order-searchbar .tech-order-view-toggle{
-    grid-column:1!important;
-    grid-row:1!important;
-    width:max-content!important;
-    max-width:100%!important;
-  }
-  .tech-order-tools>.tech-order-searchbar .tech-filter-button{
-    grid-column:2!important;
-    grid-row:1!important;
+  .worker-order-tools>.tech-order-searchbar>.tech-filter-button{
+    flex:0 0 auto!important;
     width:auto!important;
     min-width:96px!important;
-    min-height:36px!important;
+    height:36px!important;
     white-space:nowrap!important;
   }
-  .tech-order-tools>.tech-order-searchbar input#tech-search{
-    grid-column:3!important;
-    grid-row:1!important;
+  .worker-order-tools>.tech-order-searchbar>.worker-mobile-search{
+    display:flex!important;
+    flex:1 1 auto!important;
+    width:auto!important;
+    min-width:0!important;
+    height:36px!important;
+    padding:0 12px!important;
+    align-items:center!important;
+    gap:9px!important;
+    border:1px solid #f5f5f5!important;
+    border-radius:7px!important;
+    background:#fff!important;
+  }
+  .worker-order-tools>.tech-order-searchbar>.worker-mobile-search>svg{display:none!important}
+  .worker-order-tools>.tech-order-searchbar>.worker-mobile-search>input{
+    display:block!important;
+    flex:1 1 auto!important;
     width:100%!important;
     min-width:0!important;
-    max-width:none!important;
-  }
-  .tech-order-searchbar:has(.tech-order-filter-panel){grid-template-rows:36px auto!important}
-  .tech-order-searchbar:has(.tech-order-filter-panel) .tech-order-filter-panel{grid-column:1/-1!important;grid-row:2!important}
-
-  .tech-orders-table-list thead tr,
-  .tech-orders-table-list tbody tr{
-    grid-template-columns:11fr 8fr 8fr 9fr 12fr 11fr 8fr 8fr 9fr 8fr 8fr!important;
-  }
-  .tech-orders-table-list td.tech-order-actions-cell .tech-order-actions{
-    justify-content:flex-start!important;
-    gap:3px!important;
-    overflow:visible!important;
-  }
-  .tech-orders-table-list td.tech-order-actions-cell .tech-icon-btn{
-    width:24px!important;
-    height:28px!important;
-    flex:0 0 24px!important;
-  }
-  .tech-orders-table-list td.tech-order-actions-cell{padding-inline:4px!important;overflow:visible!important}
-}
-
-/* The view switch belongs to the page controls, above the data panel, so it
-   does not compete with status tabs, search, or the table columns. */
-.tech-order-viewbar{
-  display:flex!important;
-  justify-content:flex-end!important;
-  align-items:center!important;
-  min-height:36px!important;
-  margin:0 0 10px!important;
-}
-.tech-order-viewbar .tech-order-view-toggle{
-  width:max-content!important;
-  max-width:100%!important;
-  margin:0!important;
-}
-@media(max-width:760px){
-  .tech-order-viewbar{justify-content:flex-start!important;margin-bottom:8px!important}
-  .tech-order-viewbar .tech-order-view-toggle{overflow-x:auto!important;flex-wrap:nowrap!important}
-}
-
-/* Keep the three order actions visually separate even when the table is narrow. */
-@media(min-width:761px){
-  .tech-orders-table-list thead tr,
-  .tech-orders-table-list tbody tr{
-    grid-template-columns:11fr 8fr 8fr 9fr 12fr 11fr 8fr 8fr 9fr 7fr minmax(112px,9fr)!important;
-  }
-  .tech-orders-table-grouped{
-    --group-columns:minmax(0,3fr) minmax(0,14fr) minmax(0,11fr) minmax(0,7fr) minmax(0,9fr) minmax(0,18fr) minmax(0,10fr) minmax(0,10fr) minmax(0,10fr) minmax(112px,10fr);
-  }
-  .tech-orders-table .tech-order-actions,
-  .tech-orders-table-list td:last-child .tech-order-actions,
-  .tech-orders-table-grouped td:last-child .tech-order-actions{
-    gap:6px!important;
-    justify-content:flex-start!important;
-    overflow:visible!important;
-  }
-  .tech-orders-table .tech-order-actions .tech-icon-btn,
-  .tech-orders-table .tech-order-actions .tech-link{
-    width:28px!important;
-    min-width:28px!important;
-    max-width:28px!important;
-    height:30px!important;
-    flex:0 0 28px!important;
-  }
-}
-@media(max-width:760px){
-  .tech-orders-table .tech-order-actions{gap:8px!important}
-  .tech-orders-table .tech-order-actions .tech-icon-btn,
-  .tech-orders-table .tech-order-actions .tech-link{
-    width:34px!important;
-    min-width:34px!important;
     height:34px!important;
-    flex:0 0 34px!important;
-  }
-}
-
-/* One column system for the grouped header, order summary, and work rows.
-   Keeping their widths identical avoids the drift caused by nested gutters. */
-@media(min-width:761px){
-  .tech-orders-table-grouped{
-    --group-columns:minmax(0,3fr) minmax(0,14fr) minmax(0,11fr) minmax(0,7fr) minmax(0,9fr) minmax(0,18fr) minmax(0,10fr) minmax(0,10fr) minmax(0,10fr) minmax(78px,8fr);
-  }
-  .tech-orders-table-grouped thead tr,
-  .tech-orders-table-grouped tbody tr.tech-order-child-row,
-  .tech-orders-table-grouped .tech-order-group-summary{
-    grid-template-columns:var(--group-columns)!important;
-    column-gap:0!important;
-    width:100%!important;
-  }
-  .tech-orders-table-grouped tbody tr.tech-order-group-row{
-    border:0!important;
-    box-shadow:inset 0 0 0 1px #e6e6e6;
-  }
-  .tech-orders-table-grouped tbody tr.tech-order-group-row td{
     padding:0!important;
-  }
-  .tech-orders-table-grouped tbody tr.tech-order-child-row{
-    margin-inline:0!important;
-    border-left:0!important;
-    border-right:0!important;
-  }
-  .tech-orders-table-grouped .tech-order-child-service{
-    font-size:12px;
-    font-weight:600;
-    line-height:1.45;
-  }
-  .tech-orders-table-grouped .tech-order-group-summary{
-    box-sizing:border-box;
     margin:0!important;
-    padding:14px 0!important;
-  }
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-chevron{
-    grid-column:1!important;
-    grid-row:1!important;
-    justify-self:center!important;
-  }
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-primary{
-    grid-column:2 / 4!important;
-    grid-row:1!important;
-    padding-inline:12px!important;
-  }
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-count{
-    grid-column:4!important;
-    grid-row:1!important;
-  }
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-count,
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-type,
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-work,
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-deadline,
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-people{
-    box-sizing:border-box;
-    min-width:0;
-    padding-inline:12px!important;
-  }
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-type{grid-column:5!important;grid-row:1!important}
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-work{grid-column:6!important;grid-row:1!important}
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-deadline{grid-column:7!important;grid-row:1!important}
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-stage{
-    grid-column:8!important;
-    grid-row:1!important;
-    margin-left:12px!important;
-  }
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-people{grid-column:9!important;grid-row:1!important}
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-chevron,
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-primary,
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-order-group-stat,
-  .tech-orders-table-grouped .tech-order-group-summary>.tech-stage{position:static!important;left:auto!important}
-}
-
-/* A stable two-control toolbar: the view switch lives above this row.
-   Explicit placement prevents obsolete three-column rules creating empty tracks. */
-.tech-order-tools,
-.tech-order-tools>.tech-order-searchbar{overflow:visible!important}
-.tech-order-tools>.tech-order-searchbar,
-.tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel){
-  position:relative!important;
-  display:grid!important;
-  grid-template-columns:max-content minmax(0,1fr)!important;
-  grid-template-rows:36px!important;
-  align-items:center!important;
-  gap:8px!important;
-  height:36px!important;
-  min-height:36px!important;
-}
-.tech-order-tools>.tech-order-searchbar>.tech-filter-button{
-  grid-column:1!important;
-  grid-row:1!important;
-  justify-self:start!important;
-  width:max-content!important;
-  min-width:96px!important;
-  height:36px!important;
-  min-height:36px!important;
-}
-.tech-order-tools>.tech-order-searchbar>input#tech-search,
-.tech-order-tools>.tech-order-searchbar>input#tech-request-search{
-  grid-column:2!important;
-  grid-row:1!important;
-  width:100%!important;
-  min-width:0!important;
-  max-width:none!important;
-  height:36px!important;
-}
-.tech-order-tools>.tech-order-searchbar>.tech-order-filter-panel,
-.tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel)>.tech-order-filter-panel{
-  position:absolute!important;
-  top:calc(100% + 8px)!important;
-  left:0!important;
-  right:auto!important;
-  grid-column:auto!important;
-  grid-row:auto!important;
-  width:min(360px,100%)!important;
-  max-height:min(70vh,560px)!important;
-  overflow:auto!important;
-  justify-self:auto!important;
-  margin:0!important;
-  box-shadow:0 12px 32px rgba(35,35,35,.12)!important;
-  z-index:80!important;
-}
-@media(max-width:760px){
-  .tech-order-tools>.tech-order-searchbar,
-  .tech-order-tools>.tech-order-searchbar:has(.tech-order-filter-panel){
-    grid-template-rows:44px!important;
-    height:44px!important;
-    min-height:44px!important;
-  }
-  .tech-order-tools>.tech-order-searchbar>.tech-filter-button,
-  .tech-order-tools>.tech-order-searchbar>input{height:44px!important;min-height:44px!important}
-  .tech-order-tools>.tech-order-searchbar>.tech-order-filter-panel{max-height:65vh!important}
-}
-
-/* Outline hover must not wash out the white label of an active filter. */
-.btn.outline.tech-filter-button:hover,
-.btn.outline.tech-filter-button:focus-visible{
-  background:#f5f5f5;
-  border-color:#dedede;
-  color:#333;
-}
-.btn.outline.tech-filter-button.active,
-.btn.outline.tech-filter-button.active:hover,
-.btn.outline.tech-filter-button.active:focus-visible{
-  background:#333;
-  border-color:#333;
-  color:#fff;
-}
-
-/* Prioritize the complete status labels over an oversized search field. */
-@media(min-width:761px){
-  .tech-order-viewbar+.tech-panel>.tech-order-tools{
-    display:grid!important;
-    grid-template-columns:minmax(0,1fr) minmax(280px,411.2px)!important;
-  }
-  .tech-order-viewbar+.tech-panel>.tech-order-tools>.tech-segment{
-    flex-wrap:nowrap!important;
-    overflow-x:auto!important;
-    overflow-y:hidden!important;
-    white-space:nowrap!important;
-  }
-  .tech-order-viewbar+.tech-panel>.tech-order-tools>.tech-order-searchbar{
-    width:100%!important;
-    max-width:411.2px!important;
+    border:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
   }
 }
-
-/* A colspan cell must also span every CSS grid track in an empty table. */
-.tech-orders-table tbody td.tech-empty[colspan]{
-  grid-column:1/-1!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  width:100%!important;
-  min-width:0!important;
-  max-width:none!important;
-  min-height:120px;
-  height:auto!important;
-  padding:32px 16px!important;
-  white-space:normal!important;
-  overflow-wrap:normal!important;
-  word-break:normal!important;
-  text-align:center!important;
-}
-.tech-orders-table tbody td.tech-empty[colspan]::before{content:none!important}

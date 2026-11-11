@@ -2,7 +2,9 @@ const apiRoot='https://cloud-api.yandex.net/v1/disk';
 
 function diskError(data,status){
   const message=String(data?.message||data?.description||'').trim();
-  return new Error(message||`Яндекс Диск вернул ошибку ${status}`);
+  const error=new Error(message||`Яндекс Диск вернул ошибку ${status}`);
+  error.status=status;
+  return error;
 }
 
 async function diskRequest(token,pathname,{method='GET',body}={}){
@@ -36,7 +38,7 @@ export async function ensureDiskFolder(token,folderPath){
 
 export async function createDiskUpload(token,diskPath){
   const slash=String(diskPath).lastIndexOf('/');
-  await ensureDiskFolder(token,slash>0?diskPath.slice(0,slash):'/Клиенты');
+  await ensureDiskFolder(token,slash>0?diskPath.slice(0,slash):'/clients');
   const data=await diskRequest(token,query('/resources/upload',{path:diskPath,overwrite:'false'}));
   if(!data.href)throw new Error('Яндекс Диск не выдал адрес загрузки');
   return {href:data.href,method:data.method||'PUT',templated:Boolean(data.templated)};
@@ -81,7 +83,7 @@ export async function unpublishDiskResource(token,diskPath){
 
 export async function moveDiskResource(token,fromPath,toPath){
   const slash=String(toPath).lastIndexOf('/');
-  await ensureDiskFolder(token,slash>0?toPath.slice(0,slash):'/Клиенты');
+  await ensureDiskFolder(token,slash>0?toPath.slice(0,slash):'/clients');
   const response=await fetch(`${apiRoot}${query('/resources/move',{from:fromPath,path:toPath,overwrite:'false'})}`,{
     method:'POST',headers:{Authorization:`OAuth ${token}`},signal:AbortSignal.timeout(30000)
   });
@@ -93,7 +95,7 @@ export async function moveDiskResource(token,fromPath,toPath){
 
 export async function copyDiskResource(token,fromPath,toPath,{overwrite=false}={}){
   const slash=String(toPath).lastIndexOf('/');
-  await ensureDiskFolder(token,slash>0?toPath.slice(0,slash):'/Клиенты');
+  await ensureDiskFolder(token,slash>0?toPath.slice(0,slash):'/clients');
   const response=await fetch(`${apiRoot}${query('/resources/copy',{from:fromPath,path:toPath,overwrite:overwrite?'true':'false'})}`,{
     method:'POST',headers:{Authorization:`OAuth ${token}`},signal:AbortSignal.timeout(30000)
   });

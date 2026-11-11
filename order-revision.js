@@ -1,4 +1,4 @@
-import {resolveWorkSelection,priceUnitsForSelection,rubles} from './work-catalog.js';
+import {resolveWorkSelection,priceUnitsForSelection,rubles,prostheticSelectionError,isSiliconeKeySelection,siliconeKeySelectionError} from './work-catalog.js';
 import {samePortalValue} from './collection-concurrency.js';
 export class OrderRevisionError extends Error{constructor(message,code='invalid_revision'){super(message);this.code=code;this.status=400;}}
 export function reconcilePayment(previous,next){
@@ -17,7 +17,7 @@ export function orderVariants(order){
  const rows=structuredClone(order.variants?.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[],toothMode:order.toothMode||'Одиночка',bridgeRanges:order.bridgeRanges||[]}]);
  // Legacy single-service orders can recover their agreed price from the saved total.
  if(rows.length===1&&!Number.isFinite(rows[0].unitPrice)){
-  const v=rows[0],selection=resolveWorkSelection(v.workId||v.work,v.serviceId||v.workOption),units=priceUnitsForSelection(v.workId||v.work,teethOf(v),v.units,v.pricingUnit);
+  const v=rows[0],selection=resolveWorkSelection(v.workId||v.work,v.serviceId||v.workOption),units=priceUnitsForSelection(v.workId||v.work,teethOf(v),v.units,v.pricingUnit,v.serviceId||v.workOption);
   const subtotal=Number.isFinite(order.servicesTotal)?order.servicesTotal:order.sum?money(order.sum)-(Number(order.deliveryFee)||0):NaN;
   if(Number.isFinite(subtotal)&&subtotal>=0&&selection.option) v.unitPrice=Math.round(subtotal/units*100)/100;
  }
@@ -42,6 +42,10 @@ export function reviseOrderVariants(order,incoming,{deliverySettings={freeThresh
  const before=orderVariants(order);
  // No service edit means no recalculation, including delivery and legacy prices.
  if(incoming.length===before.length&&incoming.every((v,i)=>samePortalValue(shape(v),shape(before[i]))))return {...Object.fromEntries(['work','material','teeth','quantity','toothMode','bridgeRanges','servicesTotal','deliveryFee','sum'].filter(key=>Object.hasOwn(order,key)).map(key=>[key,structuredClone(order[key])])),variants:structuredClone(order.variants?.length?order.variants:before)};
+ const prostheticIssue=prostheticSelectionError(incoming);
+ if(prostheticIssue)throw new OrderRevisionError(prostheticIssue);
+ const siliconeKeyIssue=siliconeKeySelectionError(incoming);
+ if(siliconeKeyIssue)throw new OrderRevisionError(siliconeKeyIssue);
  let servicesTotal=0;
  const variants=incoming.map((raw,index)=>{
   const variant=structuredClone(raw),selection=resolveWorkSelection(variant.work,variant.workOption);
@@ -52,8 +56,10 @@ export function reviseOrderVariants(order,incoming,{deliverySettings={freeThresh
   const promo=selection.option?promoPrices[`${selection.category.name}|||${selection.option.name}`]:undefined;
   const unitPrice=knownPrice??(Number.isFinite(promo)?promo:Number(selection.price));
   if(!Number.isFinite(unitPrice)||unitPrice<0)throw new OrderRevisionError('Не удалось определить цену услуги');
-  const pricingUnit=variant.pricingUnit||selection.category?.pricingUnit,selectedTeeth=teethOf(variant);
-  const quantity=priceUnitsForSelection(selection.category?.id||variant.work,selectedTeeth,variant.units,pricingUnit);
+  const siliconeKey=isSiliconeKeySelection(selection.category?.id||variant.work,selection.option?.id||variant.workOption);
+  const pricingUnit=siliconeKey?'jaw':variant.pricingUnit||selection.category?.pricingUnit,selectedTeeth=teethOf(variant);
+  const quantity=priceUnitsForSelection(selection.category?.id||variant.work,selectedTeeth,variant.units,pricingUnit,variant.serviceId||variant.workOption);
+  if(siliconeKey){variant.units=quantity;variant.toothMode='Челюсть';variant.bridgeRanges=[]}
   if(pricingUnit==='jaw'&&!variant.units){const selected=new Set(selectedTeeth),jaws=[[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28],[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38]];if(!jaws.some(jaw=>jaw.every(n=>selected.has(n))))throw new OrderRevisionError('Для этой услуги выберите целую челюсть');}
   const bridgeRanges=variant.toothMode==='Мост'?(variant.bridgeRanges?.length?variant.bridgeRanges:[selectedTeeth]).map(range=>[...new Set(range.map(Number))].sort((a,b)=>a-b)):[];
   if(variant.toothMode==='Мост'&&selectedTeeth.length<2)throw new OrderRevisionError('Для моста выберите не меньше двух зубов');
@@ -66,7 +72,7 @@ export function reviseOrderVariants(order,incoming,{deliverySettings={freeThresh
  const oldSubtotal=Number.isFinite(order.servicesTotal)?order.servicesTotal:order.sum?money(order.sum)-(Number(order.deliveryFee)||0):NaN;
  const deliveryFee=servicesTotal===oldSubtotal&&Number.isFinite(order.deliveryFee)?order.deliveryFee:servicesTotal<Number(deliverySettings.freeThreshold??4000)?Number(deliverySettings.fee??500):0;
  const first=variants[0],teeth=[...new Set(variants.flatMap(v=>v.selectedTeeth))].sort((a,b)=>a-b);
- return {variants,work:variants.length>1?`Несколько услуг (${variants.length})`:first.work,material:variants.map(v=>v.workOption).join(' · '),teeth,quantity:variants.reduce((n,v)=>n+priceUnitsForSelection(v.workId||v.work,v.selectedTeeth,v.units,v.pricingUnit),0),toothMode:variants.length>1?'Несколько услуг':first.toothMode,bridgeRanges:variants.flatMap(v=>v.bridgeRanges),servicesTotal,deliveryFee,sum:rubles(servicesTotal+deliveryFee)};
+ return {variants,work:variants.length>1?`Несколько услуг (${variants.length})`:first.work,material:variants.map(v=>v.workOption).join(' · '),teeth,quantity:variants.reduce((n,v)=>n+priceUnitsForSelection(v.workId||v.work,v.selectedTeeth,v.units,v.pricingUnit,v.serviceId||v.workOption),0),toothMode:variants.length>1?'Несколько услуг':first.toothMode,bridgeRanges:variants.flatMap(v=>v.bridgeRanges),servicesTotal,deliveryFee,sum:rubles(servicesTotal+deliveryFee)};
 }
 export function reviseOrderServices(order,changes,options={}){
  const variants=orderVariants(order),position=options.variantIndex===undefined?(variants.length===1?0:-1):Number(options.variantIndex);

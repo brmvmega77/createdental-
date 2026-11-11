@@ -1,4 +1,4 @@
-import './theme.js?v=light-only-1';
+import './theme.js?v=light-only-2';
 import {displayOrderId} from './order-list-utils.js?v=order-fields-4';
 const root=document.querySelector('#owner-app');
 const titles={overview:'Обзор бизнеса',finance:'Финансы',economics:'Юнит-экономика',production:'Производство',team:'Команда и нагрузка',clients:'Клиенты',settings:'Цели и данные'};
@@ -26,7 +26,7 @@ async function api(path,options={}){
 }
 function loginView(message=''){
  closeMenu({restoreFocus:false});document.querySelector('#owner-period-dialog')?.close();document.querySelector('#owner-dialog')?.close();
- root.innerHTML=`<main class="portal-login owner-login"><section><img class="portal-logo" src="/assets/create-dental-logo.png" alt="Create Dental"><h1>Кабинет владельца</h1><p>Управление финансами, производством и развитием лаборатории.</p><form id="owner-login"><label class="field">Email<input type="email" name="email" autocomplete="username" required></label><label class="field">Пароль<input type="password" name="password" autocomplete="current-password" maxlength="200" required></label><button class="btn primary" type="submit">Войти</button><div class="form-error" role="alert">${esc(message)}</div></form><div class="auth-links"><a href="/login">Вход для клиник и сотрудников</a></div></section>${footer()}</main>`;
+ root.innerHTML=`<main class="portal-login owner-login"><section><img class="portal-logo" src="/assets/create-dental-logo-transparent.png" alt="Create Dental"><h1>Кабинет владельца</h1><p>Управление финансами, производством и развитием лаборатории.</p><form id="owner-login"><label class="field">Email<input type="email" name="email" autocomplete="username" required></label><label class="field">Пароль<input type="password" name="password" autocomplete="current-password" maxlength="200" required></label><button class="btn primary" type="submit">Войти</button><div class="form-error" role="alert">${esc(message)}</div></form><div class="auth-links"><a href="/login">Вход для клиник и сотрудников</a></div></section>${footer()}</main>`;
 }
 const nav=(key,label)=>`<a class="nav-link ${section===key?'active':''}" href="${key==='overview'?'/owner':`/owner/${key}`}" data-section="${key}" data-sidebar-label="${label||titles[key]}" title="${label||titles[key]}" ${section===key?'aria-current="page"':''}>${icon(key)}<span>${label||titles[key]}</span></a>`;
 function footer(){return `<footer class="portal-footer"><span class="portal-footer-copy">© 2019–2026 Create Dental</span><span class="portal-footer-tagline">Для клиник, которым важен результат</span><a class="portal-footer-email" href="mailto:orders@createdental.io">orders@createdental.io</a><nav class="portal-footer-legal" aria-label="Правовые документы"><a href="/assets/legal/privacy.html">Политика конфиденциальности</a><a href="/assets/legal/consent-data.html">Согласие на обработку персональных данных</a></nav></footer>`;}
@@ -41,7 +41,7 @@ function shell(content){
  const moreActive=!mobileItems.some(([key])=>key===section);
  root.innerHTML=`<a class="owner-skip-link" href="#main">К содержимому</a>
  <aside class="sidebar tech-sidebar owner-sidebar ${collapsed?'sidebar-collapsed':''}" id="owner-sidebar" aria-label="Разделы кабинета владельца">
- <a class="brand brand-home" href="/owner" data-section="overview" aria-label="На главную"><img class="portal-logo" src="/assets/create-dental-logo.png" alt="Create Dental">${mark}</a>
+ <a class="brand brand-home" href="/owner" data-section="overview" aria-label="На главную"><img class="portal-logo" src="/assets/create-dental-logo-transparent.png" alt="Create Dental">${mark}</a>
  <button class="sidebar-collapse-toggle" data-action="collapse" aria-label="${collapsed?'Развернуть':'Свернуть'} боковое меню" title="${collapsed?'Развернуть':'Свернуть'} боковое меню"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
  <div class="tech-side-label">Кабинет владельца</div><nav class="sidebar-nav">${Object.keys(titles).map(k=>nav(k)).join('')}</nav>
  <button type="button" class="mobile-sidebar-logout" data-action="logout"><span>Выйти из кабинета</span></button></aside>

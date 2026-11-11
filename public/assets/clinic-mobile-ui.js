@@ -10,12 +10,12 @@ export const clinicSections = [
   {key:'Рабочие настройки',label:'Рабочие настройки',description:'График и инструкции лаборатории'},
 ];
 
-export function createClinicMobileUI({getSnapshot,applyFilters,chooseStatus,chooseClinicSection,enabled=()=>true}) {
-  const media=window.matchMedia('(max-width: 900px)');
+export function createClinicMobileUI({getSnapshot,applyFilters,chooseStatus,chooseClinicSection,enabled=()=>true,filterFields=['work','status','month']}) {
+  const media=window.matchMedia('(max-width: 900px), ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px))');
   let dialog=null,draft=null,mode='',field='',returnAction='',bodyStyles=null,pageScroll=0;
-  const optionsFor=key=>getSnapshot()[key==='status'?'statuses':key==='work'?'works':'months'];
+  const optionsFor=key=>getSnapshot()[{status:'statuses',work:'works',month:'months',clinic:'clinics'}[key]]||[];
   const labelFor=(key,value)=>optionsFor(key).find(item=>item.value===value)?.label||value;
-  const titles={status:'Статус заказа',work:'Тип работы',month:'Период заказа'};
+  const titles={status:'Статус заказа',work:'Тип работы',month:'Период заказа',clinic:'Клиника'};
   const statusKey=()=>getSnapshot().filters.status;
   const actionButton=(action,text,primary=false)=>`<button type="button" class="clinic-sheet-action${primary?' primary':''}" data-sheet-action="${action}">${text}</button>`;
 
@@ -38,7 +38,7 @@ export function createClinicMobileUI({getSnapshot,applyFilters,chooseStatus,choo
   function paint(){
     if(!dialog)return;
     const picking=mode==='status'||Boolean(field),title=mode==='status'?'Статус заказа':field?titles[field]:'Фильтры';
-    const body=picking?rowsMarkup(field||'status',mode==='status'?statusKey():draft[field]):`<div class="clinic-sheet-fields">${['work','status','month'].map(key=>`<button type="button" class="clinic-sheet-field" data-sheet-field="${key}"><span><small>${titles[key]}</small><strong>${escapeHtml(labelFor(key,draft[key]))}</strong></span>${chevron}</button>`).join('')}</div>`;
+    const body=picking?rowsMarkup(field||'status',mode==='status'?statusKey():draft[field]):`<div class="clinic-sheet-fields">${filterFields.map(key=>`<button type="button" class="clinic-sheet-field" data-sheet-field="${key}"><span><small>${titles[key]}</small><strong>${escapeHtml(labelFor(key,draft[key]))}</strong></span>${chevron}</button>`).join('')}</div>`;
     const footer=mode==='filters'&&!field?`<footer class="clinic-sheet-footer">${actionButton('reset','Сбросить')}${actionButton('apply','Показать заказы',true)}</footer>`:'';
     dialog.innerHTML=`<header class="clinic-sheet-header">${field?`<button type="button" class="clinic-sheet-icon" data-sheet-action="back" aria-label="Назад к фильтрам">${backIcon}</button>`:''}<h2 id="clinic-sheet-title">${title}</h2><button type="button" class="clinic-sheet-icon" data-sheet-action="close" aria-label="Закрыть">${closeIcon}</button></header><div class="clinic-sheet-scroll">${body}</div>${footer}`;
     dialog.querySelector('.clinic-sheet-scroll').scrollTop=0;
@@ -70,7 +70,7 @@ export function createClinicMobileUI({getSnapshot,applyFilters,chooseStatus,choo
       const action=button.dataset.sheetAction;
       if(action==='close'){close();return}
       if(action==='back'){field='';paint();dialog.querySelector('.clinic-sheet-field')?.focus();return}
-      if(action==='reset'){draft={work:'',month:'',status:'Все'};paint();dialog.querySelector('[data-sheet-action="reset"]')?.focus();return}
+      if(action==='reset'){draft=Object.fromEntries(filterFields.map(key=>[key,key==='status'?'Все':'']));paint();dialog.querySelector('[data-sheet-action="reset"]')?.focus();return}
       if(action==='apply'){const selected={...draft};close();applyFilters(selected)}
     });
     document.body.append(dialog);paint();
@@ -94,7 +94,7 @@ export function createClinicMobileUI({getSnapshot,applyFilters,chooseStatus,choo
     close,
     controlsMarkup(){
       const snapshot=getSnapshot(),selected=snapshot.statuses.find(item=>item.value===snapshot.filters.status)||snapshot.statuses[0];
-      const active=Number(Boolean(snapshot.filters.work))+Number(Boolean(snapshot.filters.month))+Number(snapshot.filters.status!=='Все');
+      const active=filterFields.filter(key=>key==='status'?snapshot.filters[key]!=='Все':Boolean(snapshot.filters[key])).length;
       return `<div class="clinic-mobile-order-controls"><button type="button" class="clinic-mobile-status-trigger" data-mobile-ui="status" aria-haspopup="dialog"><span>${escapeHtml(selected.label)}</span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><button type="button" class="clinic-mobile-filter-trigger${active?' active':''}" data-mobile-ui="filters" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg><span>Фильтры${active?` · ${active}`:''}</span></button></div>`;
     },
     sectionsMarkup(openSection){

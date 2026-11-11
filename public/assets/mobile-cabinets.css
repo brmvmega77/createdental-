@@ -1,9 +1,10 @@
+/* Phone breakpoints follow the short screen side. */
 /* Shared mobile navigation for the clinic, technician and chief-technician cabinets. */
 .mobile-bottom-nav { display: none; }
 .mobile-sidebar-logout { display: none; }
 .mobile-drawer-backdrop { display: none; }
 
-@media (max-width: 900px) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
   html, body, #app { width: 100%; max-width: 100%; overflow-x: hidden; }
   .sidebar {
     position: fixed;
@@ -92,7 +93,7 @@
   .mobile-bottom-item svg { flex: 0 0 auto; }
   .mobile-bottom-item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mobile-bottom-item.active { background: #f5f5f5; color: #333; font-weight: 700; }
-  .mobile-bottom-item[data-page="new"] { background: #808080; color: #fff; }
+  .mobile-bottom-item[data-page="new"] { background: #707070; color: #fff; }
   .mobile-bottom-item:focus-visible { outline: 2px solid #808080; outline-offset: -2px; }
   .mobile-nav-count {
     position: absolute;
@@ -147,7 +148,7 @@
   html[data-theme="dark"] .topbar { border-color: #343a41; background: #17191cf2; }
 }
 
-@media (max-width: 900px), (max-height: 560px) and (orientation: landscape) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))), (max-height: 560px) and (orientation: landscape) {
   .sidebar.open + .mobile-drawer-backdrop {
     position: fixed;
     z-index: 65;
@@ -162,7 +163,7 @@
   }
 }
 
-@media (max-width: 360px) {
+@media ((max-width: 360px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 360px))) {
   .mobile-bottom-nav { gap: 0; padding-inline: max(4px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-right)); }
   .mobile-bottom-item { font-size: 9px; }
 }
@@ -170,7 +171,7 @@
 /* Mobile task layouts: give each screen a clear focus instead of shrinking desktop columns. */
 .mobile-tooth-picker, .mobile-jaw-choice, .mobile-order-summary { display: none; }
 
-@media (max-width: 900px) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
   .page-title { align-items: flex-start; flex-direction: column; gap: 8px; margin: 10px 0 18px; }
   .page-title h1 { font-size: 23px; line-height: 1.2; }
   .page-title p { font-size: 13px; line-height: 1.45; }
@@ -305,7 +306,7 @@
   .mobile-tooth-grid button { min-height: 44px; border: 1px solid #e9e9e9; border-radius: 10px; background: #fff; color: #444; font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
   .mobile-tooth-grid button.selected { border-color: #808080; background: #333; color: #fff; }
   .mobile-jaw-choice { display: grid; gap: 8px; }
-  .mobile-jaw-choice button { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border: 1px solid #e7e7e7; border-radius: 11px; background: #fbfbfb; color: #444; font-weight: 650; text-align: left; }
+  .mobile-jaw-choice button { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border: 1px solid #e7e7e7; border-radius: 11px; background: #fbfbfb; color: #444; font-weight: 650; text-align: left; cursor: pointer; }
   .mobile-jaw-choice button small { color: #888; font-size: 12px; font-weight: 550; }
   .mobile-jaw-choice button.selected { border-color: #808080; background: #f2f2f2; }
   .tooth-mode { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; }
@@ -333,11 +334,10 @@
   .mobile-order-summary strong { font-size: 14px; }
   .mobile-order-summary small { color: #808080; font-size: 11px; }
   .mobile-cart-chevron { color: #808080; font-size: 20px !important; }
-  .wizard-actions { position: fixed; z-index: 55; right: 0; bottom: 0; left: 0; display: flex; gap: 9px; padding: 10px max(14px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); border-top: 1px solid #e9e9e9; background: #fff; }
+  .wizard-actions { position: fixed; z-index: 55; right: 0; bottom: calc(64px + env(safe-area-inset-bottom)); left: 0; display: flex; gap: 9px; padding: 10px max(14px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); border-top: 1px solid #e9e9e9; background: #fff; }
   .wizard-actions:has([data-action="previous"]) { display: grid; grid-template-columns: minmax(86px, .72fr) minmax(0, 1.5fr); }
   .wizard-actions .btn { width: 100%; min-height: 48px; font-size: 14px; }
-  #app:has(.order-flow) .mobile-bottom-nav { display: none; }
-  #app:has(.order-flow) .shell { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+  #app:has(.order-flow) .shell { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
   #app:has(.order-builder-wizard) .shell { padding-bottom: calc(175px + env(safe-area-inset-bottom)); }
   #app:has(.order-builder-wizard) .order-draft { position: static; order: -1; z-index: auto; max-height: none; align-content: start; overflow: visible; gap: 12px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
   #app:has(.order-builder-wizard) .order-draft:not(.expanded) > :not(.mobile-order-summary) { display: none; }
@@ -381,7 +381,7 @@
   html[data-theme="dark"] .wizard-actions { border-top-color: #343a41; }
 }
 
-@media (max-width: 520px) {
+@media ((max-width: 520px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 520px))) {
   .shell, .tech-shell { padding-right: 12px; padding-left: 12px; }
   .topbar { margin-right: -12px; margin-left: -12px; padding-right: 12px; padding-left: 12px; }
   .order-flow > h2 { font-size: 19px; }
@@ -398,8 +398,20 @@
   .portal-footer { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 16px 0; text-align: center; }
 }
 
+/* The phone uses the same anatomical SVG selector as desktop. Keep the
+   model large enough for touch targets instead of replacing it with a grid. */
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
+  .tooth-picker .desktop-tooth-chart { display: block; }
+  .tooth-picker .desktop-tooth-chart .tooth-chart { width: min(70%, 252px); max-width: 252px; padding: 0; }
+  .tooth-picker .desktop-tooth-chart .tooth-chart svg { width: 100%; height: auto; max-height: none; touch-action: manipulation; }
+  .tooth-picker .desktop-tooth-chart .tooth[role="button"] { -webkit-tap-highlight-color: transparent; }
+  .tooth-picker .desktop-tooth-chart .tooth-hitbox { stroke-width: 14px; }
+  .tooth-picker .desktop-tooth-chart .tooth.selected .tooth-image { filter: brightness(.34) contrast(1.3) saturate(0); }
+  .tooth-picker .mobile-tooth-picker { display: none; }
+}
+
 /* Phone layouts: make single-purpose pages feel native to a narrow viewport. */
-@media (max-width: 760px) {
+@media ((max-width: 760px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 760px))) {
   .content { display: flex; flex-direction: column; gap: 16px; }
   .content > * { min-width: 0; }
   .content > .page-title, .content > .tech-heading, .content > .clinic-heading { margin-bottom: 0; }
@@ -456,7 +468,7 @@
 }
 
 /* The chief technician has many conversations, so keep clinic switching visible on phones. */
-@media (max-width: 900px) {
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
   .chief-messages { display: flex; min-height: 0; flex-direction: column; gap: 8px; overflow: visible; }
   .chief-messages > .contacts {
     display: flex;
@@ -478,17 +490,17 @@
   .chief-messages.is-empty > .conversation { min-height: 180px; }
 }
 
-@media (max-width: 620px) {
+@media ((max-width: 620px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 620px))) {
   .tech-pricing-row { grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr); }
   .tech-pricing-row select { padding-right: 24px; }
 }
 
-@media (max-width: 360px) {
+@media ((max-width: 360px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 360px))) {
   .tech-pricing-row { grid-template-columns: minmax(0, 1fr); }
   .tech-pricing-name { grid-column: 1; }
 }
 
-@media (max-width: 380px) {
+@media ((max-width: 380px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 380px))) {
   .shell, .tech-shell { padding-right: 10px; padding-left: 10px; }
   .topbar { margin-right: -10px; margin-left: -10px; padding-right: 10px; padding-left: 10px; }
   .clinic-orders-panel { padding: 10px; }
@@ -499,7 +511,7 @@
 }
 
 /* Order details: make the header, actions and status read as one compact mobile flow. */
-@media (max-width: 760px) {
+@media ((max-width: 760px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 760px))) {
   .detail-heading .page-title { gap: 12px; margin: 4px 0 12px; }
   .detail-heading .page-title > div:first-child { display: grid; gap: 7px; }
   .detail-heading .page-title h1 { font-size: 22px; line-height: 1.2; overflow-wrap: anywhere; }
@@ -517,9 +529,6 @@
   .detail-main-column .facts > div { display: flex; min-width: 0; min-height: 62px; flex-direction: column; justify-content: center; gap: 5px; padding: 9px; border: 1px solid #f0f0f0; border-radius: 10px; }
   .detail-main-column .facts span { font-size: 11px; font-weight: 600; }
   .detail-main-column .facts strong { overflow-wrap: anywhere; font-size: 13px; line-height: 1.35; }
-  .clinic-production-timeline { margin: 0 0 2px 5px; padding-left: 5px; }
-  .clinic-production-timeline > div { min-height: 30px; gap: 2px; padding: 0 0 10px 18px; font-size: 12px; line-height: 1.25; }
-  .clinic-production-timeline > div:last-child { min-height: 18px; padding-bottom: 0; }
   .clinic-stage-progress { width: 100%; max-width: none; margin: 10px 0 0; padding: 12px 13px; }
   .detail-side-column .clinic-accept-actions { grid-template-columns: 1fr !important; margin-top: 12px; }
   .detail-grid .order-service-card { padding: 12px; border-radius: 12px; }
@@ -536,7 +545,7 @@
 
 /* Short landscape screens need their own layout: width breakpoints alone leave
    phone interfaces too tall and make fixed navigation/actions cover content. */
-@media (max-height: 560px) and (orientation: landscape) {
+@media ((max-width: 900px) and (max-height: 560px) and (orientation: landscape)) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px))) {
   html, body, #app { width: 100%; max-width: 100%; overflow-x: hidden; }
   .sidebar { width: min(78vw, 300px); padding: 12px; transform: translateX(-105%); }
   .sidebar.open { transform: translateX(0); }
@@ -586,7 +595,7 @@
     text-align: center;
   }
   .mobile-bottom-item.active { background: #f5f5f5; color: #333; font-weight: 700; }
-  .mobile-bottom-item[data-page="new"] { background: #808080; color: #fff; }
+  .mobile-bottom-item[data-page="new"] { background: #707070; color: #fff; }
   .mobile-bottom-item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mobile-bottom-item svg { width: 17px; height: 17px; }
   .mobile-nav-count { top: 0; right: max(3px, calc((100% - 54px) / 2)); }
@@ -625,9 +634,9 @@
   .order-builder section { padding: 12px; }
   .order-builder .order-draft { grid-column: 1 / -1; }
   .order-work-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .wizard-actions { padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+  .wizard-actions { bottom: calc(64px + env(safe-area-inset-bottom)); padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
   .wizard-actions .btn { min-height: 38px; }
-  #app:has(.order-builder-wizard) .shell { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+  #app:has(.order-builder-wizard) .shell { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
   #app:has(.order-builder-wizard) .order-draft.expanded { bottom: calc(58px + env(safe-area-inset-bottom)); max-height: 52dvh; }
 
   .portal-login {
@@ -657,9 +666,302 @@
   .portal-login input { height: 36px; min-height: 36px; padding-inline: 10px; font-size: 14px; }
   .portal-login form .btn { min-height: 38px; }
   .portal-login .auth-links { grid-column: 2; grid-row: 4; display: flex; justify-content: space-between; gap: 10px; margin-top: 5px; font-size: 12px; }
-  .portal-login .portal-footer { display: grid; width: min(100%, 760px); grid-template-columns: 1fr auto; justify-items: center; gap: 2px 12px; margin: 0; font-size: 9px; line-height: 1.2; }
-  .portal-login .portal-footer-tagline { display: none; }
+  .portal-login .portal-footer { display: grid; width: min(100%, 760px); grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 4px; margin: 0; font-size: 9px; line-height: 1.2; text-align: center; }
+  .portal-login .portal-footer-tagline { display: block; grid-column: 1 / -1; justify-self: center; text-align: center; }
   .portal-login .portal-footer-legal { grid-column: 1 / -1; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
 
   html[data-theme="dark"] .portal-login > section { border-color: #343a41; background: #202428; }
+}
+
+/* Mobile polish pass: readable labels, discoverable horizontal rails and touch targets. */
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
+  html:not([data-theme="dark"]) .shell .topbar-label,
+  html:not([data-theme="dark"]) .shell .page-title p,
+  html:not([data-theme="dark"]) .shell .field,
+  html:not([data-theme="dark"]) .shell .hint,
+  html:not([data-theme="dark"]) .shell .info-note,
+  html:not([data-theme="dark"]) .tech-shell .topbar-label,
+  html:not([data-theme="dark"]) .tech-shell .tech-heading p,
+  html:not([data-theme="dark"]) .tech-shell .tech-demo-note,
+  html:not([data-theme="dark"]) .tech-shell .tech-panel p,
+  html:not([data-theme="dark"]) .tech-shell .tech-kpis article > span,
+  html:not([data-theme="dark"]) .tech-shell .tech-kpis article > small:not(.positive):not(.negative),
+  html:not([data-theme="dark"]) .tech-shell .tech-breakdown-name small,
+  html:not([data-theme="dark"]) .tech-shell .tech-table td:not(:has(.tech-stage)),
+  html:not([data-theme="dark"]) .tech-shell .tech-table td:not(:has(.tech-stage)) small,
+  html:not([data-theme="dark"]) .tech-shell .tech-detail-grid span,
+  html:not([data-theme="dark"]) .tech-shell .tech-timeline li:not(.current):not(.done),
+  html:not([data-theme="dark"]) .tech-shell .tech-empty,
+  html:not([data-theme="dark"]) .mobile-bottom-item:not([data-page="new"]),
+  html:not([data-theme="dark"]) .clinic-status-segment button,
+  html:not([data-theme="dark"]) .clinic-page-segment button,
+  html:not([data-theme="dark"]) .tech-segment button,
+  html:not([data-theme="dark"]) .tabs .tab {
+    color: #6f6f6f;
+  }
+
+  html:not([data-theme="dark"]) input::placeholder,
+  html:not([data-theme="dark"]) textarea::placeholder,
+  html:not([data-theme="dark"]) .search input::placeholder {
+    color: #707070;
+    opacity: 1;
+  }
+
+  .clinic-tabs, .tech-segment, .tabs,
+  .clinic-status-segment, .clinic-page-segment,
+  .clinic-detail-tabs, .tech-request-filters {
+    scrollbar-width: thin;
+    scrollbar-color: #a0a0a0 #eeeeee;
+    scroll-behavior: smooth;
+  }
+  .clinic-tabs::-webkit-scrollbar, .tech-segment::-webkit-scrollbar, .tabs::-webkit-scrollbar,
+  .clinic-status-segment::-webkit-scrollbar, .clinic-page-segment::-webkit-scrollbar,
+  .clinic-detail-tabs::-webkit-scrollbar, .tech-request-filters::-webkit-scrollbar {
+    display: block;
+    height: 4px;
+  }
+  .clinic-tabs::-webkit-scrollbar-thumb, .tech-segment::-webkit-scrollbar-thumb, .tabs::-webkit-scrollbar-thumb,
+  .clinic-status-segment::-webkit-scrollbar-thumb, .clinic-page-segment::-webkit-scrollbar-thumb,
+  .clinic-detail-tabs::-webkit-scrollbar-thumb, .tech-request-filters::-webkit-scrollbar-thumb {
+    border-radius: 99px;
+    background: #a0a0a0;
+  }
+  .clinic-status-segment button, .clinic-page-segment button,
+  .tech-segment button, .tabs .tab { min-height: 44px; }
+
+  .production-board {
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    scrollbar-color: #a0a0a0 #eeeeee;
+    padding-bottom: 12px;
+  }
+  .production-column {
+    flex-basis: min(84vw, 340px);
+    min-height: min(62dvh, 520px);
+    scroll-snap-align: start;
+  }
+
+  .tech-bars {
+    grid-template-columns: repeat(12, minmax(38px, 1fr));
+    gap: 4px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #a0a0a0 #eeeeee;
+  }
+  .tech-bar { min-height: 44px; }
+
+  .stepper { min-width: 0; gap: 3px; }
+  .step.active .step-label { max-width: min(28vw, 105px); }
+}
+
+@media ((max-width: 340px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 340px))) {
+  .step.active .step-label { max-width: 78px; }
+  .stepper { gap: 2px; }
+  .step b { width: 24px; height: 24px; flex-basis: 24px; }
+  .step-line { min-width: 3px; }
+}
+
+@media ((min-width: 901px) and (max-height: 560px) and (orientation: landscape)) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px))) {
+  .mobile-bottom-nav { display: none !important; }
+  .sidebar { transform: none !important; }
+  .shell, .tech-shell { width: auto; max-width: none; margin-left: 226px; padding: 0 28px 42px; overflow: visible; }
+  .topbar { height: 80px; margin: 0; padding: 0; }
+  .topbar .profile { max-width: none; }
+  .topbar .profile > span:nth-child(2), .topbar .profile > svg,
+  .topbar-label, .clinic-select { display: initial; }
+}
+
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
+  .clinic-production-timeline { margin: 0 0 2px; padding: 0; border-left: 0; }
+  .clinic-production-timeline > div { min-height: 32px; gap: 2px; padding: 0 0 12px 28px; font-size: 12px; line-height: 1.25; }
+  .clinic-production-timeline > div:not(:last-child)::before { content: ""; position: absolute; left: 6px; top: 7px; bottom: -7px; width: 2px; background: #e7e7e7; }
+  .clinic-production-timeline > div > i { left: 1px; top: 1px; z-index: 1; }
+  .clinic-production-timeline > div.current > i { left: 0; top: 0; }
+  .clinic-production-timeline > div:last-child { min-height: 18px; padding-bottom: 0; }
+
+  /* Service charts are reduced to a small mobile column. Increase the
+     selected-tooth contrast so the mark remains as clear as on desktop. */
+  .order-service-chart .tooth.selected .tooth-image,
+  .tech-order-service-chart .tooth.selected .tooth-image {
+    filter: brightness(.32) contrast(1.45) saturate(0) !important;
+    opacity: .98;
+  }
+  .order-service-chart .tooth.selected text,
+  .tech-order-service-chart .tooth.selected text {
+    fill: #fff;
+    stroke: #333;
+    stroke-width: 2.4px;
+    paint-order: stroke;
+  }
+  .order-service-chart .tooth-selection-overlay,
+  .tech-order-service-chart .tooth-selection-overlay {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none;
+  }
+}
+
+/* Keep the global mobile navigation visible during the order wizard. The
+   wizard actions sit directly above it so neither control hides the other. */
+@media ((max-width: 900px) and (max-height: 560px) and (orientation: landscape)) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px))) {
+  .wizard-actions { bottom: calc(52px + env(safe-area-inset-bottom)); }
+  #app:has(.order-flow) .shell,
+  #app:has(.order-builder-wizard) .shell { padding-bottom: calc(116px + env(safe-area-inset-bottom)); }
+}
+
+/* In the clinic chat, scroll the page itself instead of nesting two scroll areas. */
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
+  html:has(.messages-layout:not(.chief-messages)),
+  body:has(.messages-layout:not(.chief-messages)) { overflow-x: clip; overflow-y: visible; }
+  #app:has(.messages-layout:not(.chief-messages)),
+  .shell:has(.messages-layout:not(.chief-messages)) { overflow: visible; }
+  .messages-layout:not(.chief-messages) { height: auto; min-height: 0; overflow: visible; }
+  .messages-layout:not(.chief-messages) > .conversation { height: auto; min-height: 0; overflow: visible; }
+  .messages-layout:not(.chief-messages) .chat-bubbles { height: auto; min-height: 160px; max-height: none; overflow: visible; flex: none; }
+  .messages-layout:not(.chief-messages) .conversation-head { position: sticky; top: 60px; z-index: 2; height: auto; flex: none; background: #fff; }
+  .messages-layout:not(.chief-messages) .chat-compose { position: sticky; bottom: calc(64px + env(safe-area-inset-bottom)); z-index: 3; height: auto; flex: none; margin: 0; background: #fff; }
+  .messages-layout:not(.chief-messages) .chat-compose-files .chat-pending-file { grid-column: 1 / -1; }
+}
+@media ((max-width: 900px) and (max-height: 560px) and (orientation: landscape)) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px))) {
+  .messages-layout:not(.chief-messages) .conversation-head { top: 48px; }
+  .messages-layout:not(.chief-messages) .chat-compose { bottom: calc(52px + env(safe-area-inset-bottom)); }
+}
+
+/* Employee order detail: keep the work data and execution progress beside
+   each other on desktop. The mobile cabinet rules above intentionally stack
+   the two panels only at the mobile breakpoint. */
+@media (((min-width: 901px) and (not ((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)))) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (min-height: 901px))) {
+  .worker-detail-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 420px) !important;
+    gap: 24px !important;
+    align-items: start;
+  }
+
+  .worker-detail-grid > .tech-order-main,
+  .worker-detail-grid > .worker-detail-side {
+    min-width: 0;
+  }
+}
+
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
+  .worker-detail-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 16px !important;
+  }
+}
+
+/* Keep labels and values close together in the clinic's mobile order cards. */
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))) {
+  .orders-table td {
+    grid-template-columns: 58px minmax(0, 1fr) !important;
+    column-gap: 6px;
+  }
+
+  /* The current clinic table also includes the doctor before the work type. */
+  .orders-table tr:has(> td:nth-child(8)) > td:nth-child(3)::before { content: 'Врач'; }
+  .orders-table tr:has(> td:nth-child(8)) > td:nth-child(4)::before { content: 'Работа'; }
+  .orders-table tr:has(> td:nth-child(8)) > td:nth-child(5)::before { content: 'Создан'; }
+  .orders-table tr:has(> td:nth-child(8)) > td:nth-child(6)::before { content: 'Срок'; }
+  .orders-table tr:has(> td:nth-child(8)) > td:nth-child(7)::before { content: 'Статус'; }
+  .orders-table tr:has(> td:nth-child(8)) > td:nth-child(8)::before { content: 'Сумма'; }
+  .orders-table tr:has(> td:nth-child(8)) > td:nth-child(-n+4) { grid-column: 1 / -1; }
+  .orders-table tr:has(> td:nth-child(8)) > td:nth-child(5),
+  .orders-table tr:has(> td:nth-child(8)) > td:nth-child(7) { grid-column: 1; }
+  .orders-table tr:has(> td:nth-child(8)) > td:nth-child(6),
+  .orders-table tr:has(> td:nth-child(8)) > td:nth-child(8) { grid-column: 2; }
+}
+
+/* Tooth charts use the same compact footprint and graphite state on every
+   cabinet. Keep the anatomical SVG inside its column on phones. */
+@media (max-width: 900px) {
+  .tooth-picker,
+  .tooth-picker .desktop-tooth-chart,
+  .order-service-body,
+  .tech-order-service-body { min-width: 0; }
+
+  .tooth-picker .desktop-tooth-chart {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .tooth-picker .desktop-tooth-chart .tooth-chart {
+    flex: 0 1 252px;
+    width: min(100%, 252px) !important;
+    max-width: 252px !important;
+    margin: 0 auto;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .tooth-picker .desktop-tooth-chart .tooth-chart svg,
+  .order-service-chart .tooth-chart svg,
+  .tech-order-service-chart .tooth-chart svg {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .detail-grid .order-service-chart,
+  .detail-grid .order-service-chart .tooth-chart {
+    width: 84px;
+    max-width: 84px;
+    overflow: visible;
+  }
+
+  .order-service-chart,
+  .tech-order-service-chart {
+    min-width: 0;
+    max-width: 100%;
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .order-service-chart .tooth-chart {
+    flex: 0 1 105px;
+    width: 105px;
+    max-width: 105px;
+    margin-inline: auto;
+    overflow: visible;
+  }
+
+  .tech-order-service-chart .tooth-chart {
+    flex: 0 1 160px;
+    width: 160px;
+    max-width: 160px;
+    margin-inline: auto;
+    overflow: visible;
+  }
+
+  /* Match desktop: selected teeth stay neutral graphite. */
+  .tooth-picker .desktop-tooth-chart .tooth.selected .tooth-image,
+  .order-service-chart .tooth.selected .tooth-image,
+  .tech-order-service-chart .tooth.selected .tooth-image {
+    filter: brightness(.65) saturate(0) !important;
+    opacity: 1;
+  }
+
+  .order-service-chart .tooth-selection-overlay,
+  .tech-order-service-chart .tooth-selection-overlay {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none;
+  }
+
+  .order-service-chart .tooth.selected text,
+  .tech-order-service-chart .tooth.selected text {
+    fill: #fff;
+    stroke: #808080;
+    stroke-width: 1.5px;
+    paint-order: stroke;
+  }
 }

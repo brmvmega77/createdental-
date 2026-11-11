@@ -1,6 +1,6 @@
 const pages={
   clinic:new Set(['home','new','orders','messages','clinic']),
-  technician:new Set(['overview','orders','production','pulse','tasks','requests','intake','clients','messages','analytics','team','quality','pricing','cam-settings','production-settings','salary','profile']),
+  technician:new Set(['overview','orders','production','pulse','tasks','requests','intake','clients','messages','analytics','team','quality','pricing','salary','profile']),
   worker:new Set(['overview','orders','tasks','salary','profile'])
 };
 const localeSlugs={ru:'ru',am:'am',uz:'uz',kk:'kz',ar:'uea'};
@@ -25,8 +25,6 @@ export function pathFor(role,page,orderId,locale=null){
   const prefix='';
   if(!role)return `${prefix}${page==='register'?'/register':page==='recover'?'/forgot-password':'/login'}`||'/';
   const defaultPage=role==='clinic'?'home':'overview';
-  // Keep URLs readable and consistent with order numbers shown in the UI.
-  // The cabinets resolve this compact slug back to the stored internal ID.
   if(page==='detail'&&orderId){
     const compact=String(orderId).replace(/^CD-/i,'').replace(/_W(\d+)$/i,'_$1');
     return `/${role}/orders/${encodeURIComponent(compact)}`;

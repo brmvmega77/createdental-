@@ -1,0 +1,5 @@
+/* Keep authored type sizes when iOS rotates; browser/pinch zoom stays available. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}

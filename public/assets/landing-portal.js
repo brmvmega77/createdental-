@@ -179,10 +179,10 @@
       crownMesh=upload(crown);
       gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
       gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
-      gl.clearColor(0,0,0,0); host.dataset.ready='true'; toggle.hidden=false; lost=false;
+      gl.clearColor(0,0,0,0); host.dataset.ready='true'; if(toggle)toggle.hidden=false; lost=false;
       refresh();
     } catch (error) {
-      host.dataset.ready='false'; toggle.hidden=true; lost=true;
+      host.dataset.ready='false'; if(toggle)toggle.hidden=true; lost=true;
       console.warn('Portal uses its static fallback:',error.message);
     }
   }
@@ -236,7 +236,7 @@
     stageDuration=event.detail?.duration||3200;
     cycleStartedAt=event.detail?.cycleStartedAt ?? ((event.detail?.startedAt??performance.now())-(event.detail?.index||0)*stageDuration);
   });
-  toggle.addEventListener('click',()=>{
+  toggle?.addEventListener('click',()=>{
     paused=!paused;
     toggle.setAttribute('aria-pressed',String(paused));
     toggle.setAttribute('aria-label',paused?'Продолжить анимацию портала':'Приостановить анимацию портала'); refresh();
@@ -245,7 +245,7 @@
   new ResizeObserver(refresh).observe(canvas);
   new MutationObserver(()=>{dark=document.documentElement.dataset.theme==='dark';refresh();}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
   document.addEventListener('visibilitychange',refresh); motion.addEventListener('change',refresh);
-  canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();lost=true;cancelAnimationFrame(frame);host.dataset.ready='false';toggle.hidden=true;});
+  canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();lost=true;cancelAnimationFrame(frame);host.dataset.ready='false';if(toggle)toggle.hidden=true;});
   canvas.addEventListener('webglcontextrestored',initialize);
   initialize();
 })();

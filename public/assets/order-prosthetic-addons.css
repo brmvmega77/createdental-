@@ -16,6 +16,29 @@
 .prosthetic-addon-cta small{color:#666;font-size:9px;font-weight:700}
 .prosthetic-addon-list button:hover:not(:disabled) .prosthetic-addon-name svg{background:#808080;border-color:#808080;stroke:#fff}
 .prosthetic-addons-note{color:#555;font-size:10px;line-height:1.4}
+.prosthetic-tooth-editor{display:grid;gap:12px;padding:6px 12px 14px}
+.prosthetic-tooth-editor>p{font-weight:600;color:#333}
+.prosthetic-tooth-options{display:flex;flex-wrap:wrap;gap:8px}
+.prosthetic-addon-list .prosthetic-tooth-options button{width:40px;min-height:40px;padding:0;align-items:center;justify-content:center;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.prosthetic-addon-list .prosthetic-tooth-options button.selected{background:#333;border-color:#333;color:#fff}
+.prosthetic-addon-list .prosthetic-tooth-options button:disabled{background:#e8e8e8;border-color:#ddd;color:#666;text-decoration:line-through;opacity:1}
+.prosthetic-tooth-editor>small{color:#555;font-size:10px;line-height:1.5}
+.planning-jaw-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.prosthetic-addon-list .planning-jaw-options button{display:grid;align-content:center;align-items:center;justify-content:center;min-height:58px;gap:4px;text-align:center}
+.prosthetic-addon-list .planning-jaw-options button.selected{background:#333;border-color:#333;color:#fff}
+.prosthetic-addon-list .planning-jaw-options button:disabled{background:#e8e8e8;border-color:#ddd;color:#666;opacity:1}
+.planning-jaw-options small{font-size:10px;line-height:1.4}
+.key-jaw-note{margin:0;color:#555;font-size:12px;line-height:1.6}
+.jaw-choice button:disabled{background:#e8e8e8;color:#666;cursor:not-allowed}
+.order-service-body:has(>dl:only-child),.tech-order-service-body:has(>dl:only-child){grid-template-columns:1fr}
+.prosthetic-tooth-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px}
+.prosthetic-addon-list .prosthetic-tooth-actions button{width:auto;min-height:36px;padding:8px 12px;justify-content:center}
+.prosthetic-addon-list .prosthetic-tooth-actions [data-action="prosthetic-addon-confirm"]{background:#333;border-color:#333;color:#fff}
+.prosthetic-addon-list .prosthetic-tooth-actions [data-action="prosthetic-addon-confirm"]:disabled{opacity:.5}
+.prosthetic-addon-list .prosthetic-tooth-actions [data-action="prosthetic-addon-confirm"]:hover:not(:disabled){background:#444;border-color:#444}
+.tooth.unavailable{opacity:.35;cursor:not-allowed}
+@media ((max-width: 900px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 900px))){body .order-builder .tooth-picker .desktop-tooth-chart{display:block}}
+@media ((max-width: 600px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 600px))){.prosthetic-tooth-editor{padding:4px 0 12px}.prosthetic-addon-list .prosthetic-tooth-options button{width:44px;min-height:44px}.prosthetic-addon-list .prosthetic-tooth-actions button{min-height:44px}}
 html[data-theme="dark"] .prosthetic-addons{border-color:#555;background:#202020}
 html[data-theme="dark"] .prosthetic-addons h3{color:#eef0f2}
 html[data-theme="dark"] .prosthetic-addons p,html[data-theme="dark"] .prosthetic-addons-note{color:#c8c8c8}
@@ -24,7 +47,7 @@ html[data-theme="dark"] .prosthetic-addon-list button:hover:not(:disabled){backg
 html[data-theme="dark"] .prosthetic-addon-name svg{border-color:#666;stroke:#c8c8c8}
 html[data-theme="dark"] .prosthetic-addon-cta b,html[data-theme="dark"] .prosthetic-addon-cta small{color:#c8c8c8}
 html[data-theme="dark"] .prosthetic-addon-list button:hover:not(:disabled) .prosthetic-addon-name svg{background:#808080;border-color:#808080;stroke:#fff}
-@media(max-width:600px){.prosthetic-addons{padding:14px}.prosthetic-addon-list button{align-items:flex-start}.prosthetic-addon-cta{padding-top:2px}}
+@media ((max-width: 600px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 600px))){.prosthetic-addons{padding:14px}.prosthetic-addon-list button{align-items:flex-start}.prosthetic-addon-cta{padding-top:2px}}
 .surgical-socket-quantity{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
 .surgical-socket-quantity button{width:28px;height:28px;min-height:28px;padding:0!important;justify-content:center!important;border:1px solid #c8c8c8!important;border-radius:50%!important;background:#fff!important;color:#555!important;font-size:17px!important;line-height:1!important}
 .surgical-socket-quantity button:disabled{opacity:.4;cursor:not-allowed}
@@ -38,4 +61,4 @@ html[data-theme="dark"] .surgical-socket-quantity button{background:#1b1b1b!impo
 html[data-theme="dark"] .surgical-socket-quantity strong{color:#eee}
 html[data-theme="dark"] .surgical-socket-order-addon{background:#1d2831;border-color:#344656}
 html[data-theme="dark"] .surgical-socket-order-heading>span,html[data-theme="dark"] .surgical-socket-order-price,html[data-theme="dark"] .surgical-socket-order-price strong{color:#d6e1e9}
-@media(max-width:600px){.surgical-socket-quantity{gap:5px}.surgical-socket-quantity button{width:25px;height:25px;min-height:25px}}
+@media ((max-width: 600px) or (((pointer: coarse) and (hover: none) and (orientation: landscape) and (max-height: 560px)) and (max-height: 600px))){.surgical-socket-quantity{gap:5px}.surgical-socket-quantity button{width:25px;height:25px;min-height:25px}}

@@ -10,7 +10,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createRequire} from 'node:module';
 import {portalSnapshot,portalClient,replacePortalCollection,recordPortalEvent} from './portal-data.js';
-import {catalogForPrompt,resolveWorkSelection,estimateWork,orderDeadlineError,rubles,earliestDueDateForOrder,productionDaysForOrder,isWorkingDay,isoDateLocal} from './work-catalog.js';
+import {catalogForPrompt,resolveWorkSelection,estimateWork,isSiliconeKeySelection,siliconeKeySelectionError,orderDeadlineError,rubles,earliestDueDateForOrder,productionDaysForOrder,isWorkingDay,isoDateLocal} from './work-catalog.js';
 import {orderWorkLabel,orderExecutionLabel,orderConstructionLabel} from './order-list-utils.js';
 
 const require=createRequire(import.meta.url);
@@ -25,7 +25,7 @@ const validTeeth=new Set([...upperTeeth,...lowerTeeth]);
 // the upper jaw, while the two prosthetic base options do not require tooth input.
 const jawSplitCategories=new Set(['Каппы','Ложки прикуса','Сплинты','Хирургические шаблоны']);
 const prostheticNoTeethOptions=new Set(['Титановое основание Geo Medi','Титановое основание Аналог']);
-function isJawSplitSelection(work,option){const selection=resolveWorkSelection(work,option);return selection.category?.pricingUnit==='jaw'&&Boolean(selection.option)}
+function isJawSplitSelection(work,option){const selection=resolveWorkSelection(work,option);return isSiliconeKeySelection(work,option)||selection.category?.pricingUnit==='jaw'&&Boolean(selection.option)}
 function isNoTeethSelection(work,option){return String(work||'')==='Протетика'&&prostheticNoTeethOptions.has(String(option||''))}
 const allowedIntents=new Set(['create_order','update_order','cancel_order','status_request','accept_order','rework_order','general_message','clarify']);
 const botCommands=[
@@ -355,10 +355,15 @@ function canonicalizeCatalogSelection(analysis){
   if(selection.option&&isNoTeethSelection(selection.category?.name,selection.option.name)){
     analysis.fields.toothMode='Без зубов';analysis.fields.jaw='';analysis.fields.teeth=[];
   }
+  if(isSiliconeKeySelection(analysis.fields.work,analysis.fields.material)){
+    analysis.fields.toothMode=analysis.fields.jaw?'Челюсть':'';
+    analysis.fields.teeth=analysis.fields.jaw==='both'?[...upperTeeth,...lowerTeeth]:analysis.fields.jaw==='upper'?[...upperTeeth]:analysis.fields.jaw==='lower'?[...lowerTeeth]:[];
+  }
   analysis.fields.variants=(analysis.fields.variants||[]).map(variant=>{
     const selected=resolveWorkSelection(variant.work,variant.material);
     const normalized={...variant,work:selected.category?.name||variant.work,material:selected.option?.name||variant.material};
     if(selected.option&&isNoTeethSelection(selected.category?.name,selected.option.name))return {...normalized,toothMode:'Без зубов',jaw:'',teeth:[]};
+    if(isSiliconeKeySelection(normalized.work,normalized.material))return {...normalized,toothMode:normalized.jaw?'Челюсть':'',teeth:normalized.jaw==='both'?[...upperTeeth,...lowerTeeth]:normalized.jaw==='upper'?[...upperTeeth]:normalized.jaw==='lower'?[...lowerTeeth]:[]};
     return normalized;
   });
   return analysis;
@@ -503,7 +508,7 @@ function missingCreateFields(analysis){
     if(Number.isFinite(productionDaysForOrder({work:selection.category.name,workOption:selection.option.name}))&&!variant.dueDate)add('желаемый срок готовности');
     if(isNoTeethSelection(selection.category.name,selection.option.name))continue;
     if(isJawSplitSelection(selection.category.name,selection.option.name)){
-      if(!['upper','lower','both'].includes(variant.jaw))add('челюсть для шаблона');
+      if(!['upper','lower','both'].includes(variant.jaw))add(isSiliconeKeySelection(selection.category.name,selection.option.name)?'челюсть для силиконового ключа':'челюсть для шаблона');
       continue;
     }
     if(!variant.toothMode){add('режим: одиночка, мост или челюсть');continue}
@@ -511,6 +516,8 @@ function missingCreateFields(analysis){
     if(variant.toothMode==='Мост'&&variant.teeth.length<2){add('минимум два номера зубов для моста');continue}
     if(variant.toothMode!=='Челюсть'&&!variant.teeth.length)add('номер зуба или номера зубов');
   }
+  const keyIssue=siliconeKeySelectionError(analysisVariants(analysis).map(variant=>({work:variant.work,workOption:variant.material,selectedTeeth:variantEffectiveTeeth(variant)})),{requireComplete:false});
+  if(keyIssue)add(keyIssue);
   if(!fields.shade)add('цвет/оттенок или «не требуется»');
   return missing;
 }
@@ -553,6 +560,7 @@ function createOrderMissingPrompt(analysis){
   if(missing.includes('режим: одиночка, мост или челюсть'))options.push('• Режим: «Одиночка», «Мост» или «Челюсть».');
   if(missing.includes('верхнюю или нижнюю челюсть'))options.push('• Челюсть: верхняя или нижняя.');
   if(missing.includes('челюсть для шаблона'))options.push('• Выберите верхнюю, нижнюю или обе челюсти для шаблона.');
+  if(missing.includes('челюсть для силиконового ключа'))options.push('• Выберите верхнюю, нижнюю или обе челюсти для силиконового ключа. На челюсть можно добавить один ключ.');
   if(missing.includes('минимум два номера зубов для моста'))options.push('• Мост: назовите все зубы или его границы, например «11–13».');
   if(missing.includes('номер зуба или номера зубов'))options.push('• Зубы: номера по системе FDI, например «11 и 21».');
   if(missing.includes('вид работы из прайса'))options.push(`• Раздел работы: ${catalogForPrompt().filter(item=>item.services.length).map(item=>item.category).join(' / ')}.`);
@@ -600,7 +608,7 @@ function createOrderChoiceMarkup(analysis,wizardStep=''){
     const categoryIndex=catalog.findIndex(item=>item.category===fields.work),category=catalog[categoryIndex];
     if(category)return {inline_keyboard:[...category.services.map((service,index)=>[{text:`${service.name} · ${rubles(service.price)}`,callback_data:`tgnew:service:${categoryIndex}-${index}`}]),...guidedNavigationMarkup().inline_keyboard]};
   }
-  if(missing.includes('челюсть для шаблона'))return {inline_keyboard:[[
+  if(missing.includes('челюсть для шаблона')||missing.includes('челюсть для силиконового ключа'))return {inline_keyboard:[[
     {text:'Верхняя челюсть',callback_data:'tgnew:jaw:upper'},
     {text:'Нижняя челюсть',callback_data:'tgnew:jaw:lower'}
   ],[{text:'Обе челюсти',callback_data:'tgnew:jaw:both'}],...guidedNavigationMarkup().inline_keyboard]};
@@ -689,6 +697,7 @@ function createOrderWizardPrompt(analysis,wizardStep=''){
   if(missing.includes('вид работы из прайса'))return 'Выберите раздел работы:';
   if(missing.includes('точное название услуги из прайса'))return `Выберите услугу из раздела «${selection.category?.name||fields.work}»:`;
   if(missing.includes('челюсть для шаблона'))return 'Выберите челюсть для шаблона:';
+  if(missing.includes('челюсть для силиконового ключа'))return 'Выберите челюсть для силиконового ключа:';
   if(missing.includes('режим: одиночка, мост или челюсть'))return 'Выберите режим работы:';
   if(missing.includes('верхнюю или нижнюю челюсть'))return 'Выберите челюсть:';
   if(missing.includes('желаемый срок готовности'))return 'Выберите срок готовности:';
@@ -766,7 +775,7 @@ function backGuidedOrder(analysis,guided={}){
       else if(fields.shade)fields.shade='';
     }else if(missing.includes('минимум два номера зубов для моста')||missing.includes('номер зуба или номера зубов')){
       fields.teeth=[];wizardStep='teeth';
-    }else if(missing.includes('челюсть для шаблона')||missing.includes('режим: одиночка, мост или челюсть')||missing.includes('верхнюю или нижнюю челюсть')){
+    }else if(missing.includes('челюсть для шаблона')||missing.includes('челюсть для силиконового ключа')||missing.includes('режим: одиночка, мост или челюсть')||missing.includes('верхнюю или нижнюю челюсть')){
       fields.material='';fields.toothMode='';fields.jaw='';fields.teeth=[];
     }else if(missing.includes('точное название услуги из прайса')){
       fields.work='';fields.material='';fields.toothMode='';fields.jaw='';fields.teeth=[];
@@ -804,13 +813,13 @@ function summaryLines(analysis,order,clinic){
       lines.push(`Конструкция: ${variant.material||'—'}`);
       if(variant.toothMode)lines.push(`Режим: ${variant.toothMode}`);
       if(variant.jaw)lines.push(`Челюсть: ${variant.jaw==='upper'?'верхняя':variant.jaw==='both'?'верхняя и нижняя':'нижняя'}`);
-      lines.push(`Зубы: ${teeth}`);
+      if(!isSiliconeKeySelection(variant.work,variant.material))lines.push(`Зубы: ${teeth}`);
     });
   }else{
     lines.push('');
     if(fields.work)lines.push(`Раздел: ${fields.work}`);
     if(fields.material)lines.push(`Конструкция: ${fields.material}`);
-    if(fields.teeth.length)lines.push(`Зубы: ${fields.teeth.join(', ')}`);
+    if(fields.teeth.length&&!isSiliconeKeySelection(fields.work,fields.material))lines.push(`Зубы: ${fields.teeth.join(', ')}`);
     if(fields.toothMode)lines.push(`Режим: ${fields.toothMode}`);
     if(fields.jaw)lines.push(`Челюсть: ${fields.jaw==='upper'?'верхняя':fields.jaw==='both'?'верхняя и нижняя':'нижняя'}`);
   }
@@ -1223,6 +1232,8 @@ export function createTelegramBridge({onClinicMessage=async()=>{},onBotMessage=a
       if(activeDoctors.length&&!doctor)throw new Error('Выберите действующего врача клиники перед подтверждением заказа');
       const missing=missingCreateFields(analysis);
       if(missing.length)throw new Error(`Заказ не заполнен: ${missing.join(', ')}`);
+      const keyIssue=siliconeKeySelectionError(variants.map(variant=>({work:variant.work,workOption:variant.material,selectedTeeth:variantEffectiveTeeth(variant)})));
+      if(keyIssue)throw new Error(keyIssue);
       for(const variant of variants){
         const error=telegramDeadlineError({work:variant.work,workOption:variant.material},variant.dueDate,new Date());
         if(error)throw new Error(`${variant.material||variant.work}: ${error}`);
