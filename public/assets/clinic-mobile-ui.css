@@ -119,3 +119,11 @@
   }
   .shell .orders-table td:nth-child(6) .badge{overflow-wrap:normal}
 }
+@media(min-width:901px){
+  :is(.shell .orders-table,.clinic-orders-panel>.table-wrap>.orders-table) :is(th,td):nth-child(1){width:14%!important}
+  :is(.shell .orders-table,.clinic-orders-panel>.table-wrap>.orders-table) :is(th,td):nth-child(2){width:18%!important}
+  :is(.shell .orders-table,.clinic-orders-panel>.table-wrap>.orders-table) :is(th,td):nth-child(3){width:21%!important}
+  :is(.shell .orders-table,.clinic-orders-panel>.table-wrap>.orders-table) :is(th,td):nth-child(4),
+  :is(.shell .orders-table,.clinic-orders-panel>.table-wrap>.orders-table) :is(th,td):nth-child(5){width:11%!important}
+  :is(.shell .orders-table,.clinic-orders-panel>.table-wrap>.orders-table) :is(th,td):nth-child(7){width:9%!important}
+}
