@@ -1899,3 +1899,39 @@ html[data-theme="dark"] .tech-sidebar.sidebar-collapsed .tech-nav-group[open] .t
  .parent-card-grid .parent-order-control{order:1}
  .parent-card-grid .tech-restored-parent{order:2}
 }
+
+/* Detail pages share the parent card's resource rows and clear heading hierarchy. */
+.order-detail-context{display:flex;align-items:center;flex-wrap:wrap;column-gap:10px;row-gap:0;margin:0 0 12px;min-width:0;font-size:12px;line-height:1.5}
+.order-detail-context a{display:inline-flex;align-items:center;gap:6px;min-height:44px;max-width:100%;margin:0;padding:0;background:transparent;border:0;color:#666;font:inherit;text-decoration:none;cursor:pointer}
+.order-detail-context a span{min-width:0;overflow-wrap:anywhere}
+.order-detail-context a svg{flex:none}
+.order-detail-context a:hover{color:#333;text-decoration:underline;text-underline-offset:3px}
+.order-context-separator{color:#aaa}
+.tech-heading.order-detail-header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin:0 0 24px}
+.order-detail-identity{min-width:0}
+.order-detail-header h1{font-size:26px;line-height:1.25;letter-spacing:-.025em;font-weight:650;margin:0;overflow-wrap:anywhere}
+.order-detail-header .order-detail-subtitle{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;margin:10px 0 0;color:#555;font-size:14px;line-height:1.5;font-weight:400}
+.order-detail-subtitle>span:first-child{color:#333;font-weight:500}
+.order-detail-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;margin-top:10px;color:#666;font-size:12px;line-height:1.5}
+.order-detail-meta>span{min-width:0;overflow-wrap:anywhere}
+.order-detail-type{padding:3px 8px;border-radius:6px;background:#f1f1f1;color:#555;font-size:11px;font-weight:500}
+.order-detail-header-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;flex-shrink:0}
+.order-detail-action{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 14px;border:1px solid #e5e5e5;border-radius:8px;background:#fff;color:#333;font:inherit;font-size:13px;line-height:1.5;font-weight:500;text-align:center;cursor:pointer}
+.order-detail-action svg{flex:none;color:#666}
+.order-detail-action:hover{background:#f5f5f5}
+.order-detail-action:focus-visible,.order-detail-context a:focus-visible{outline:2px solid #555;outline-offset:3px}
+.suborder-file-panel.tech-order-files{margin:0;padding:24px;border:0;border-radius:12px;background:#fff;box-shadow:none}
+.suborder-file-panel.tech-order-files h3{margin:0;font-size:14px;font-weight:600;line-height:1.4;color:#333}
+.suborder-file-panel .parent-resource-actions{margin-top:10px}
+.suborder-file-panel .parent-resource-action{min-height:44px}
+.parent-resource-action:disabled,.parent-resource-action[aria-disabled="true"]{color:#888;cursor:not-allowed;background:transparent}
+.parent-resource-action:disabled svg,.parent-resource-action[aria-disabled="true"] svg{color:#aaa}
+.suborder-file-panel .suborder-files-help{margin:16px 0 0;font-size:12px;line-height:1.6;font-weight:400;color:#666;overflow-wrap:anywhere}
+@media(max-width:760px){
+ .tech-heading.order-detail-header{flex-direction:column;gap:16px;margin-bottom:20px}
+ .order-detail-header h1{font-size:22px}
+ .order-detail-header-actions{width:100%;justify-content:flex-start}
+ .order-detail-action{flex:1;min-width:0}
+ .order-detail-context{column-gap:8px;margin-bottom:8px}
+ .suborder-file-panel.tech-order-files{padding:20px}
+}
