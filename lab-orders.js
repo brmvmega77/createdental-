@@ -8,6 +8,7 @@ const clone=value=>structuredClone(value);
 const equal=samePortalValue;
 export const isLabWork=order=>Boolean(order?.parentOrderId);
 export const isLabGroup=order=>Array.isArray(order?.labWorkIds)&&order.labWorkIds.length>0;
+export const isAwaitingConfirmation=detail=>!detail?.stage||['Новый','Черновик из Telegram','Ожидает распределения','Ожидает подтверждения'].includes(detail.stage);
 const variantsOf=order=>order.variants?.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[]}];
 export function serviceKey(variant){
  const selected=resolveWorkSelection(variant.workId||variant.work,variant.serviceId||variant.workOption);
@@ -80,6 +81,7 @@ export function reconcileLabOrders(state,previousState=null,changedKey=''){
    if(changed.length){parent.variants=variantsOf(parent).filter(v=>!changed.includes(v.labWorkId));for(const id of changed)parent.variants.push(...clone(incomingById.get(id).variants).map(v=>({...v,labWorkId:id})));}
   }
   if(changedKey==='orders'&&oldParent)for(const field of ['patient','doctor','doctorId','birth','date','shade','priority']){const changed=state.orders.find(work=>work.parentOrderId===parent.id&&oldById.has(work.id)&&!equal(work[field],oldById.get(work.id)[field]));if(changed&&equal(parent[field],oldParent[field]))parent[field]=changed[field];}
+  if(overrides[parent.id]?.confirmedAt)parent.telegramDraft=false;
   const groups=serviceGroups(parent);
   if(groups.length<2&&!isLabGroup(parent)){const detail=overrides[parent.id];
    if(detail?.stage==='Согласование CAD'&&!requiresDoctorCadApproval(parent)){overrides[parent.id]={...detail,...afterProductionStep(parent,'cad',detail.qualityApprovedAt||new Date().toISOString()),cadOperatorStatus:'Передал дальше',cadQualityApprovedAt:detail.qualityApprovedAt||new Date().toISOString(),cadReview:{...detail.cadReview,status:'not-required'}};}
@@ -100,6 +102,10 @@ export function reconcileLabOrders(state,previousState=null,changedKey=''){
    for(const key of ['patient','doctor','doctorId','birth','clinic','clinicId','productionType','date','shade','comment','priority','createdAt','promoCode'])if(parent[key]!==undefined&&(key!=='comment'||!existing||!oldParent||parent.comment!==oldParent.comment))child[key]=parent[key];
    if(!existing){overrides[id]=inheritedDetail(parent,child,overrides[parent.id],state);}
    else if(!overrides[id])overrides[id]={stage:'Ожидает распределения'};
+   if(overrides[parent.id]?.confirmedAt){
+    child.telegramDraft=false;
+    if(isAwaitingConfirmation(overrides[id]))overrides[id]={...overrides[id],stage:'Подготовка',confirmedAt:overrides[parent.id].confirmedAt};
+   }
    childIds.push(id);annotated.push(...variants);orders.push(child);
   }
   parent={...parent,variants:annotated,labWorkIds:childIds,nextLabWorkNumber:nextWorkNumber};
@@ -114,7 +120,7 @@ export function reconcileLabOrders(state,previousState=null,changedKey=''){
   const details=childIds.map(id=>overrides[id]);
   if(details.some(d=>d.stage==='На доработке'))delete old.groupDeliveryAt;
   const allDone=details.every(d=>d.stage==='Принято доктором'),ready=details.every(d=>['В доставке','Принято доктором'].includes(d.stage));
-  const stage=parent.status==='Отменён'?'Отменён':allDone?'Принято доктором':old.groupDeliveryAt&&ready?'В доставке':ready?'Работа принята':details.some(d=>d.stage==='На доработке')?'На доработке':details.some(d=>d.stage==='Согласование CAD')?'Согласование CAD':details.every(d=>['Ожидает распределения','Черновик из Telegram','Ожидает подтверждения',undefined].includes(d.stage))?'Ожидает распределения':'Изготовление';
+  const stage=parent.status==='Отменён'?'Отменён':allDone?'Принято доктором':old.groupDeliveryAt&&ready?'В доставке':ready?'Работа принята':details.some(d=>d.stage==='На доработке')?'На доработке':details.some(d=>d.stage==='Согласование CAD')?'Согласование CAD':details.every(d=>['Ожидает распределения','Черновик из Telegram','Ожидает подтверждения',undefined].includes(d.stage))?'Ожидает распределения':details.every(d=>d.stage==='Подготовка')?'Подготовка':'Изготовление';
   overrides[parent.id]={...old,stage};
   for(const fields of Object.values(roleFields))for(const field of fields)delete overrides[parent.id][field];
   for(const field of ['qualityRequest','qualityDecision','manufacturingStatus','workerAcceptances','milling'])delete overrides[parent.id][field];

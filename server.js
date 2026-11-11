@@ -1,7 +1,7 @@
 import {createMillingHandoff} from './milling-handoff.js';
 import {orderDiskFolderPath} from './order-disk-path.js';
 import {promoRulesWithClients,normalizePromoCode,priceNewClinicOrder} from './promo-codes.js';
-import {projectLabSnapshot,isLabGroup,isLabWork,relatedFileOrderIds,stripLabProjection,afterProductionStep,reconcileLabOrders} from './lab-orders.js';
+import {projectLabSnapshot,isLabGroup,isLabWork,relatedFileOrderIds,stripLabProjection,afterProductionStep,reconcileLabOrders,isAwaitingConfirmation} from './lab-orders.js';
 import {requiresDoctorCadApproval,routeForOrder,cadReadyForProduction} from './production-routes.js';
 import {samePortalValue} from './collection-concurrency.js';
 import {clientRequestConflict,reviseOrderVariants,reviseOrderServices,reconcilePayment} from './order-revision.js';
@@ -569,6 +569,8 @@ async function handlePortal(req,res,url){
       if(!value||typeof value!=='object'||Array.isArray(value))return json(res,400,{error:'Неверные данные'});
       value={...Object.fromEntries(snapshot.orders.filter(isLabGroup).map(order=>[order.id,snapshot.orderOverrides[order.id]||{}])),...value};
       const ids=new Set([...Object.keys(snapshot.orderOverrides),...Object.keys(value)]);
+      const childConfirmation=[...ids].find(id=>snapshot.orders.some(order=>order.id===id&&isLabWork(order))&&isAwaitingConfirmation(snapshot.orderOverrides[id])&&value[id]?.stage==='Подготовка');
+      if(childConfirmation)return json(res,409,{error:'Подтвердите главный заказ. Подзаказы подтверждаются вместе с ним.'});
       const cadConfirmed=detail=>detail?.cadReview?.status==='approved'||['Изготовление','Контроль качества','Работа принята','В доставке','Принято доктором'].includes(detail?.stage);
       const assignmentViolation=[...ids].find(id=>{
         const old=snapshot.orderOverrides[id]||{},next=value[id]||{};
@@ -1271,6 +1273,27 @@ async function handleOrderFiles(req,res,url){
     try{const data=await fs.promises.readFile(path.join(uploadDir,record.file.id));res.writeHead(200,{'Content-Type':record.file.type,'Content-Length':data.length,'Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(record.file.name)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});return res.end(data)}catch{return json(res,404,{error:'Файл не найден'})}
   }
   return json(res,404,{error:'Не найдено'});
+}
+
+async function handleOrderConfirmation(req,res,url){
+ const user=session(req);if(!user)return json(res,401,{error:'Войдите в кабинет'});
+ if(user.role!=='technician')return json(res,403,{error:'Подтверждать заказ может только главный техник'});
+ if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
+ const id=url.pathname.match(/^\/api\/orders\/([A-Za-z0-9_-]{1,80})\/confirm$/)?.[1],snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===id);
+ if(!order)return json(res,404,{error:'Заказ не найден'});
+ if(isLabWork(order))return json(res,409,{error:'Подтвердите главный заказ. Подзаказы подтверждаются вместе с ним.'});
+ if(order.status==='Отменён'||snapshot.orderOverrides[id]?.stage==='Отменён')return json(res,409,{error:'Отменённый заказ подтвердить нельзя'});
+ const works=isLabGroup(order)?snapshot.orders.filter(item=>item.parentOrderId===id):[order];
+ const pending=works.filter(item=>isAwaitingConfirmation(snapshot.orderOverrides[item.id]));
+ if(!pending.length)return json(res,200,{ok:true,alreadyConfirmed:true});
+ for(const work of pending){const issue=orderDeadlineValidation({...work,acceptedAt:new Date()});if(issue)return json(res,409,{error:issue});}
+ const at=new Date().toISOString(),overrides={...snapshot.orderOverrides};
+ for(const work of pending)overrides[work.id]={...overrides[work.id],stage:'Подготовка',confirmedAt:at};
+ overrides[id]={...overrides[id],confirmedAt:at,...(!isLabGroup(order)?{stage:'Подготовка'}:{})};
+ try{
+  await replacePortalCollection('orderOverrides',overrides,{role:user.role,name:actorName(user)},{expectedVersion:snapshot.collectionVersions?.orderOverrides||0});
+  return json(res,200,{ok:true});
+ }catch(error){return json(res,error.message==='collection_conflict'?409:500,{error:error.message==='collection_conflict'?'Данные изменились. Обновите страницу и повторите подтверждение.':'Не удалось сохранить подтверждение заказа'});}
 }
 
 async function handleGroupDelivery(req,res,url){
@@ -2013,6 +2036,7 @@ const requestHandler=async (req,res) => {
     try{return await handleClinicMessageFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка файла сообщения'})}
   }
   if(/^\/api\/orders\/[A-Za-z0-9_-]{1,80}\/cad-preview-link$/.test(url.pathname))return handleCadPreviewLink(req,res,url);
+  if(/^\/api\/orders\/[A-Za-z0-9_-]{1,80}\/confirm$/.test(url.pathname))return handleOrderConfirmation(req,res,url);
   if(url.pathname.startsWith('/api/orders/')&&(url.pathname.endsWith('/files')||url.pathname.endsWith('/rework')||url.pathname.endsWith('/cad-review')||url.pathname.endsWith('/client-request')||url.pathname.endsWith('/milling')||url.pathname.endsWith('/delivery'))){
     try{return url.pathname.endsWith('/delivery')?await handleGroupDelivery(req,res,url):url.pathname.endsWith('/client-request')?await handleClientRequestCreate(req,res,url):url.pathname.endsWith('/cad-review')?await handleCadReview(req,res,url):url.pathname.endsWith('/rework')?await handleOrderRework(req,res,url):url.pathname.endsWith('/milling')?await handleOrderMilling(req,res,url):await handleOrderFiles(req,res,url)}catch(error){console.error('Order request failed:',error.message);return json(res,500,{error:'Ошибка обработки заказа'})}
   }
