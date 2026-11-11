@@ -1,6 +1,6 @@
 import {createClinicMobileUI,clinicSections} from './assets/clinic-mobile-ui.js?v=clinic-controls-2';
 import { seedOrders } from './seed-orders.js?v=mobile-fast-1';
-import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadReviewHtml} from './portal-client.js?v=reliability-retry-1';
+import {portalToken,setPortalToken,clearPortalToken,loadPortal,loadPortalSection,savePortal,authRequest,uploadOrderFile,loadOrderFiles,loadOrderFilePreview,requestOrderRework,uploadClinicMessageFile,downloadClinicMessageFile,decideCadReview,loadCadReviewHtml} from './portal-client.js?v=chief-cad-preview-20261112-5';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=order-route-1';
 import {notificationCenterMarkup,refreshNotificationCenter,markNotificationCenterRead,toggleNotificationCenter,closeNotificationCenter,notificationCenterState} from './notification-center.js?v=reliability-retry-1';
 import {workCatalog,rubles,productionDaysForOrder,earliestDueDateForOrder,isWorkingDay,isoDateLocal,estimateWork,priceUnitsForSelection} from './work-catalog.js?v=chief-parent-20261112-5';
@@ -1263,7 +1263,7 @@ async function hydratePortal(){
   // history and logo payload is fetched in the background for detail pages.
   const data=await loadPortal('compact');
   if(data.user.role==='technician'&&!technicianCabinet){
-      const {createTechnicianCabinet}=await import('./technician.js?v=price-isolated-print-20261112-4');
+      const {createTechnicianCabinet}=await import('./technician.js?v=chief-cad-preview-20261112-5');
     technicianCabinet=createTechnicianCabinet({root:()=>$('#app'),orders,assets,logo,icon,toothChart,isActive:()=>state.role==='technician',currentUser:()=>portalUser,orderHistory:()=>portalHistory,clientRequests:()=>portalClientRequests,tasks:()=>portalTasks,deliverySettings:()=>({...deliverySettings}),onDeliverySettingsUpdate:settings=>{deliverySettings={...defaultDeliverySettings,...settings}},promoCodes:()=>portalPromoCodes,onPromoCodesUpdate:items=>{portalPromoCodes=structuredClone(items)},onUserUpdate:user=>{portalUser=user}});
   }
   if(data.user.role==='worker'&&!workerCabinet){

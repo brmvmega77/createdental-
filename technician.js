@@ -4,7 +4,7 @@ import {createPayrollUI} from './payroll-ui.js?v=salary-ranks-2';
 import {employeeRank} from './payroll.js?v=salary-ranks-2';
 import {camWorkflowStages,camWorkflowStatus,camWorkflowProgress,camAfterMilling} from './cam-workflow.js?v=cam-flow-2';
 import {orderParticipants,orderWorkTypes,matchesParticipantAndWork,orderWorkLabel,orderEventSummary,displayOrderId,resolveOrderId} from './order-list-utils.js?v=chief-restore-20261112-1';
-import {loadPortal,savePortal,authRequest,portalToken,loadOrderFiles,loadCadReviewHtml,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js?v=reliability-retry-1';
+import {loadPortal,savePortal,authRequest,portalToken,loadOrderFiles,loadCadPreviewLink,loadCadReviewHtml,deleteOrder,uploadOrderFile,uploadClinicMessageFile,downloadClinicMessageFile,sendOrderToMilling} from './portal-client.js?v=chief-cad-preview-20261112-5';
 import {routeFromPath,pathFor,navigate} from './routes.js?v=salary-ranks-2';
 import {notificationCenterMarkup,toggleNotificationCenter,closeNotificationCenter,markNotificationCenterRead} from './notification-center.js?v=reliability-retry-1';
 import {workCatalog,rubles,estimateWork,priceUnitsForSelection,camMethodForOrder,reorderCatalogService,reorderCatalogCategory,isHighVolumeLithiumRestoration} from './work-catalog.js?v=chief-parent-20261112-5';
@@ -1520,7 +1520,17 @@ export function createTechnicianCabinet({root,orders,assets,logo,icon,toothChart
         finally{render()}
         return;
       }
-      if(action==='open-cad-page'){const popup=window.open('about:blank','_blank','noopener,noreferrer');try{const result=await loadOrderFiles(id);if(!result?.cadPreviewUrl)throw new Error('Страница CAD пока недоступна');if(popup)popup.location.replace(result.cadPreviewUrl);else window.location.assign(result.cadPreviewUrl)}catch(error){popup?.close();toast(error.message||'Не удалось открыть CAD')}return}
+      if(action==='open-cad-page'){
+        const fileId=orderAction.dataset.fileId;if(!fileId||orderAction.disabled)return;
+        const popup=window.open('about:blank','_blank');if(popup)popup.opener=null;
+        orderAction.disabled=true;orderAction.setAttribute('aria-busy','true');
+        try{
+          const previewUrl=await loadCadPreviewLink(id,fileId);
+          if(popup&&!popup.closed)popup.location.replace(previewUrl);else window.location.assign(previewUrl);
+        }catch(error){popup?.close();toast(error.message||'Не удалось открыть CAD')}
+        finally{orderAction.disabled=false;orderAction.removeAttribute('aria-busy')}
+        return;
+      }
       if(action==='open-cad'){
         const fileId=orderAction.dataset.fileId,order=orderById(id);
         if(!fileId||!order)return;
