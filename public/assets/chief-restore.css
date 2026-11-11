@@ -1866,3 +1866,36 @@ html[data-theme="dark"] .tech-sidebar.sidebar-collapsed .tech-nav-group[open] .t
 .parent-work-tracking dt{font-size:11px;color:#777;margin-bottom:5px}.parent-work-tracking dd{font-size:12px;line-height:1.5;margin:0;color:#444;overflow-wrap:anywhere}
 .parent-tracking-note{font-size:11px;color:#777;line-height:1.5}
 @media(max-width:760px){.parent-work-tracking dl{grid-template-columns:minmax(0,1fr);gap:12px}.tech-restored-parent .tech-panel-heading{flex-wrap:wrap;gap:8px}.parent-card-grid .tech-restored-parent{order:1}.parent-card-grid .parent-milling-panel{order:2}}
+
+/* Shared order actions: one primary action, quieter resources, explicit readiness. */
+.parent-order-control{padding:24px;box-shadow:none;border:0;border-radius:12px;color:var(--text,#333)}
+.parent-card-grid .parent-order-control h2{margin:0;font-size:18px;line-height:1.35;font-weight:650;letter-spacing:-.02em}
+.parent-card-grid .parent-order-control h3{margin:0;font-size:14px;line-height:1.4;font-weight:600}
+.parent-card-grid .parent-order-control p{margin:0;font-size:13px;line-height:1.6;font-weight:400;color:var(--muted,#666)}
+.parent-confirmation{display:grid;gap:16px;margin-top:12px}
+.parent-order-control .btn{width:100%;min-height:44px;height:auto;padding:11px 16px;border-radius:8px;font-size:13px;line-height:1.5;font-weight:600;white-space:normal;box-shadow:none;margin:0}
+.parent-order-control .btn.primary{background:var(--text,#333);border-color:var(--text,#333);color:#fff}
+.parent-order-control .btn.primary:hover:not(:disabled){background:#444;border-color:#444}
+.parent-order-control .btn:disabled{background:#f5f5f5;border:1px solid transparent;color:#777;opacity:1;cursor:not-allowed;box-shadow:none}
+.parent-order-control .btn:focus-visible,.parent-resource-action:focus-visible{outline:2px solid #555;outline-offset:3px}
+.parent-confirmed-state{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;line-height:1.5;color:var(--muted,#666)}
+.parent-confirmed-state svg{flex:none}
+.parent-control-section{margin-top:24px;padding-top:24px;border-top:1px solid var(--line,#eee)}
+.parent-resource-actions{display:grid;gap:4px;margin:10px -8px -4px}
+.parent-resource-action{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:10px 8px;border:0;border-radius:8px;background:transparent;color:var(--text,#333);font:inherit;font-size:13px;font-weight:500;line-height:1.5;text-align:left;text-decoration:none;cursor:pointer}
+.parent-resource-action span{flex:1;min-width:0;overflow-wrap:anywhere}
+.parent-resource-action svg{flex:none;color:var(--muted,#666)}
+.parent-resource-action svg:last-child{width:14px;color:#888}
+.parent-resource-action:hover{background:#f5f5f5}
+.parent-milling-heading{display:grid;gap:6px}
+.parent-milling-state{display:flex;align-items:flex-start;gap:10px;margin:16px 0;color:var(--muted,#666)}
+.parent-milling-state>svg{flex:none;margin-top:1px}
+.parent-milling-state>div{min-width:0;display:grid;gap:4px}
+.parent-milling-state strong{font-size:13px;line-height:1.5;font-weight:500;color:var(--text,#333)}
+.parent-card-grid .parent-milling-state p{font-size:12px;line-height:1.6}
+.parent-card-grid .parent-action-feedback{margin-top:12px}
+@media(max-width:760px){
+ .parent-order-control{padding:20px}
+ .parent-card-grid .parent-order-control{order:1}
+ .parent-card-grid .tech-restored-parent{order:2}
+}
