@@ -66,3 +66,56 @@
   .clinic-sheet-field { min-height:66px; padding-block:10px; }
   .clinic-sheet-footer { padding-block:8px calc(8px + env(safe-area-inset-bottom)); }
 }
+
+/* Quiet, readable statuses in clinic order tables and their mobile cards. */
+.shell .orders-table td:nth-child(6),
+.clinic-orders-panel>.table-wrap>.orders-table td:nth-child(6){
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+.shell .orders-table td:nth-child(6) .badge,
+.clinic-orders-panel>.table-wrap>.orders-table td:nth-child(6) .badge{
+  display:inline-flex;
+  align-items:flex-start;
+  gap:7px;
+  min-width:0;
+  max-width:100%;
+  min-height:24px;
+  padding:3px 0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:#555;
+  font-size:12px;
+  font-weight:500;
+  line-height:18px;
+  white-space:normal!important;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+.shell .orders-table td:nth-child(6) .badge::before{
+  content:"";
+  display:block;
+  flex:0 0 5px;
+  width:5px;
+  height:5px;
+  margin-top:6.5px;
+  border-radius:50%;
+  background:#b0b0b0;
+}
+.shell .orders-table td:nth-child(6) .badge.green::before{background:#666}
+.shell .orders-table td:nth-child(6) .badge.orange::before{background:#444}
+@media(min-width:901px){
+  .shell .orders-table th:nth-child(6),
+  .shell .orders-table td:nth-child(6),
+  .clinic-orders-panel>.table-wrap>.orders-table th:nth-child(6),
+  .clinic-orders-panel>.table-wrap>.orders-table td:nth-child(6){
+    width:144px!important;
+    min-width:144px!important;
+    max-width:none!important;
+  }
+  .shell .orders-table td:nth-child(6) .badge{overflow-wrap:normal}
+}
