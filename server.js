@@ -622,8 +622,8 @@ async function handlePortal(req,res,url){
         }
       }
       const normalizedOverrides={...value};
-      try{for(const id of ids){if(value[id])normalizedOverrides[id]=assignmentChange(snapshot.orderOverrides[id]||{},value[id]);}}
-      catch(error){return json(res,409,{error:error.message==='assignment_under_review'?'Сначала примите работу на ОТК или верните её на доработку, затем переназначьте исполнителя.':error.message})}
+      try{for(const id of ids){if(value[id])normalizedOverrides[id]=assignmentChange(snapshot.orderOverrides[id]||{},value[id],snapshot.orders.find(order=>order.id===id));}}
+      catch(error){return json(res,409,{error:error.message==='assignment_under_review'?'Во время проверки качества и согласования CAD исполнители не меняются. Сначала примите работу или верните её на доработку.':error.message==='assignment_stage_unavailable'?'Исполнитель назначается только на своём этапе производства.':error.message})}
 
       value=normalizedOverrides;
     }

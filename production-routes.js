@@ -183,3 +183,18 @@ export function cadReadyForProduction(order={},detail={}){
   if(requiresDoctorCadApproval(order))return detail.cadReview?.status==='approved';
   return Boolean(detail.cadQualityApprovedAt)||detail.cadReview?.status==='approved';
 }
+
+// Assignment windows follow the active specialist's stage, never a generic QC flag.
+export function productionAssignmentAllowed(order={},role){
+ const normalized={frame:'cam',painter:'esthetic'}[role]||role;
+ const stage=order.stage||'Ожидает распределения';
+ if(['Черновик из Telegram','Ожидает распределения','Ожидает подтверждения','Контроль качества','Согласование CAD','Работа принята','В доставке','Принято доктором','Готово к выдаче','Отменён'].includes(stage))return false;
+ if((order.work||order.variants?.length)&&!routeForOrder(order).roles.includes(normalized))return false;
+ if(stage==='На доработке')return order.reworkKind===normalized;
+ if(normalized==='preprod')return order.productionType==='analog'&&['Подготовка','Препрод'].includes(stage);
+ if(normalized==='cad')return stage==='Моделирование'||stage==='Подготовка'&&order.productionType!=='analog';
+ if(normalized==='cam')return stage==='Изготовление'&&order.manufacturingStatus==='В работе у Каркасиста'&&Boolean(order.milling?.sentAt);
+ if(normalized==='esthetic')return stage==='Изготовление'&&order.manufacturingStatus==='В работе у Красильщика';
+ if(normalized==='category1')return stage==='Техник первой категории';
+ return false;
+}

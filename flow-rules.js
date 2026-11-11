@@ -1,3 +1,4 @@
+import {productionAssignmentAllowed} from './production-routes.js';
 import {afterProductionStep} from './lab-orders.js';
 import {samePortalValue} from './collection-concurrency.js';
 import {camCanAccept,camCanSubmitQuality} from './cam-workflow.js';
@@ -103,7 +104,7 @@ export function reworkRouteChange(order,kind){
  return change;
 }
 
-export function assignmentChange(before,next){
+export function assignmentChange(before,next,order=null){
  const roles=Object.entries(assignments).filter(([,fields])=>{
   const a=fields.map(field=>before[field]).find(Boolean)||'',b=fields.map(field=>next[field]).find(Boolean)||'';
   return a!==b;
@@ -111,8 +112,8 @@ export function assignmentChange(before,next){
  // The generic assignee is a legacy fallback, not a separate CAD reassignment.
  if(before.cadOperator===next.cadOperator&&before.cadOperator)roles.splice(roles.indexOf('cad')<0?roles.length:roles.indexOf('cad'),1);
  if(!roles.length)return next;
- const checked=before.qualityRequest?.kind==='final'?'esthetic':before.qualityRequest?.kind;
- if(before.stage==='Контроль качества'&&roles.includes(checked)||before.stage==='Согласование CAD'&&roles.includes('cad'))throw new Error('assignment_under_review');
+ if(['Контроль качества','Согласование CAD'].includes(before.stage))throw new Error('assignment_under_review');
+ if(order&&roles.some(role=>!productionAssignmentAllowed({...order,...before},role)))throw new Error('assignment_stage_unavailable');
  const result={...next};
  for(const role of roles){
   result[statuses[role]]='';if(role==='esthetic')result.ceramicistStatus='';
