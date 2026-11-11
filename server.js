@@ -1,5 +1,7 @@
+import {createMillingHandoff} from './milling-handoff.js';
+import {orderDiskFolderPath} from './order-disk-path.js';
 import {promoRulesWithClients,normalizePromoCode,priceNewClinicOrder} from './promo-codes.js';
-import {projectLabSnapshot,isLabGroup,isLabWork,relatedFileOrderIds,stripLabProjection,afterProductionStep} from './lab-orders.js';
+import {projectLabSnapshot,isLabGroup,isLabWork,relatedFileOrderIds,stripLabProjection,afterProductionStep,reconcileLabOrders} from './lab-orders.js';
 import {requiresDoctorCadApproval,routeForOrder,cadReadyForProduction} from './production-routes.js';
 import {samePortalValue} from './collection-concurrency.js';
 import {clientRequestConflict,reviseOrderVariants,reviseOrderServices,reconcilePayment} from './order-revision.js';
@@ -20,8 +22,8 @@ import {validEmail,validPassword,hasAccount,createAccount,upsertWorkerAccount,up
 import {createTelegramBridge} from './telegram-bot.js';
 import {createEmployeeTelegramBridge} from './employee-telegram-bot.js';
 import {createDiskUpload,diskMetadata,diskDownloadUrl,deleteDiskResource,ensureDiskFolder,moveDiskResource,copyDiskResource,publishDiskResource,unpublishDiskResource} from './yandex-disk-storage.js';
-import {workCatalog,rubles,orderDeadlineError,earliestDueDateForOrder,isWorkingDay,isoDateLocal,isValidIsoDate,estimateWork,resolveWorkSelection} from './work-catalog.js';
-import {orderWorkLabel} from './order-list-utils.js';
+import {workCatalog,camMethodForOrder,rubles,orderDeadlineError,earliestDueDateForOrder,isWorkingDay,isoDateLocal,isValidIsoDate,estimateWork,resolveWorkSelection,prostheticSelectionError,isSiliconeKeySelection,siliconeKeySelectionError,siliconeKeyJaws} from './work-catalog.js';
+import {orderWorkLabel,displayOrderId} from './order-list-utils.js';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
@@ -512,6 +514,10 @@ async function handlePortal(req,res,url){
         const additions=value.filter(item=>!existing.has(item.id));
         if(!additions.length||additions.length>20||value.length!==snapshot.orders.filter(item=>item.clinicId===user.subjectId&&!isLabWork(item)).length+additions.length||additions.some(item=>item.clinicId!==user.subjectId||snapshot.orders.some(existingOrder=>existingOrder.id===item.id)))return json(res,403,{error:'Можно добавить до 20 своих заказов за один раз'});
         if(additions.some(order=>!orderCatalogIsValid(order)))return json(res,400,{error:'Выберите услугу из актуального прайса'});
+        const prostheticIssue=additions.map(order=>prostheticSelectionError(order.variants?.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[]}],{requireTeeth:true})).find(Boolean);
+        if(prostheticIssue)return json(res,400,{error:prostheticIssue});
+        const siliconeKeyIssue=additions.map(order=>siliconeKeySelectionError(order.variants?.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[]}])).find(Boolean);
+        if(siliconeKeyIssue)return json(res,400,{error:siliconeKeyIssue});
         const invalidDeadline=additions.map(order=>orderDeadlineValidation(order)).find(Boolean);
         if(invalidDeadline)return json(res,400,{error:invalidDeadline});
         // Keep the delivery rule authoritative on the server as well. The
@@ -520,7 +526,14 @@ async function handlePortal(req,res,url){
         // cannot save a mismatched total.
         const normalizedAdditions=additions.map(raw=>{
           const order=stripLabProjection(raw);delete order.parentOrderId;delete order.labWorkIds;delete order.serviceKey;if(order.variants)order.variants=order.variants.map(v=>{const copy={...v};delete copy.labWorkId;return copy;});
-          return priceNewClinicOrder(order,snapshot.clients.find(clinic=>clinic.id===user.subjectId),snapshot.promoCodes,snapshot.deliverySettings);
+          const priced=priceNewClinicOrder(order,snapshot.clients.find(clinic=>clinic.id===user.subjectId),snapshot.promoCodes,snapshot.deliverySettings);
+          if(priced.variants.some(variant=>isSiliconeKeySelection(variant.work,variant.workOption))){
+            priced.variants=priced.variants.map(variant=>isSiliconeKeySelection(variant.work,variant.workOption)?{...variant,units:siliconeKeyJaws(variant).length,pricingUnit:'jaw',toothMode:'Челюсть',bridgeRanges:[]}:variant);
+            priced.quantity=priced.variants.reduce((sum,variant)=>sum+estimateWork({work:variant.work,option:variant.workOption,teeth:variant.selectedTeeth||[],units:variant.units}).units,0);
+            priced.teeth=[...new Set(priced.variants.flatMap(variant=>variant.selectedTeeth||[]))].sort((a,b)=>a-b);
+            if(priced.variants.length===1)priced.toothMode='Челюсть';
+          }
+          return priced;
         });
         value=[...normalizedAdditions,...snapshot.orders];
       }else if(key==='orderOverrides'){
@@ -613,11 +626,16 @@ async function handlePortal(req,res,url){
       value=normalizedOverrides;
     }
     if(user.role==='technician'&&key==='clients'&&Array.isArray(value)){
+      const invalidPromo=value.some(client=>{
+        const previous=snapshot.clients.find(item=>item.id===client?.id),code=normalizePromoCode(Object.hasOwn(client||{},'promoCode')?client.promoCode:previous?.promoCode);
+        return !client?.deleted&&code&&code!==normalizePromoCode(previous?.promoCode)&&!snapshot.promoCodes?.some(rule=>rule.active!==false&&normalizePromoCode(rule.code)===code);
+      });
+      if(invalidPromo)return json(res,400,{error:'Выберите действующий промокод из списка или «Без промокода»'});
       // Compact technician loads omit heavy logo data. Preserve an existing
       // logo when a quick edit is saved before the background refresh arrives.
       value=value.map(client=>{
         const previous=snapshot.clients.find(item=>item.id===client?.id);
-        return client&&previous?.logo&& !Object.prototype.hasOwnProperty.call(client,'logo')?{...client,logo:previous.logo}:client;
+        return client?{...client,promoCode:normalizePromoCode(Object.hasOwn(client,'promoCode')?client.promoCode:previous?.promoCode),...(previous?.logo&&!Object.hasOwn(client,'logo')?{logo:previous.logo}:{})}:client;
       });
     }
     if(user.role==='technician'&&key==='employees'&&Array.isArray(value)&&value.some(employee=>employee.email&&!emailAvailableForEmployee(employee.email,employee.id)))return json(res,409,{error:'Email сотрудника уже используется другим входом'});
@@ -632,7 +650,17 @@ async function handlePortal(req,res,url){
         const serviceChanged=JSON.stringify(before.variants||[])!==JSON.stringify(updated.variants||[]);
         if(updated.date!==before.date||serviceChanged){const issue=orderDeadlineError(updated,updated.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)throw new Error(issue);}
         return updated;
-      });}catch(error){return json(res,400,{error:error.message})}
+      });
+        // A production work can be edited separately from its sibling key.
+        // Validate the same merged commercial lines that persistence will use.
+        const grouped=reconcileLabOrders({...snapshot,orders:value},snapshot,'orders');
+        for(const order of grouped.orders.filter(item=>!isLabWork(item))){
+          const before=snapshot.orders.find(item=>item.id===order.id);
+          if(before&&samePortalValue(before.variants||[],order.variants||[]))continue;
+          const issue=siliconeKeySelectionError(order.variants?.length?order.variants:[{work:order.work,workOption:order.material,selectedTeeth:order.teeth||[]}]);
+          if(issue)throw new Error(issue);
+        }
+      }catch(error){return json(res,400,{error:error.message})}
     }
     const newOrders=key==='orders'&&Array.isArray(value)?value.filter(order=>!snapshot.orders.some(existing=>existing.id===order.id)):[];
     try {
@@ -713,11 +741,16 @@ async function handleClientRequestCreate(req,res,url){
   const type=body.type==='cancel'?'cancel':body.type==='edit'?'edit':'';
   if(!type)return json(res,400,{error:'Выберите тип запроса'});
   const requestedBy=actorName(user),createdAt=new Date().toISOString();
+  const manual=type==='edit'&&body.field==='request';
   let reason='',summary='',changes={},requestType=type;
   if(type==='cancel'){
     reason=cleanRequestText(body.reason);
     if(reason.length<3)return json(res,400,{error:'Коротко укажите причину отмены'});
     summary=`Отмена заказа: ${reason}`;
+  }else if(manual){
+    reason=cleanRequestText(body.reason);
+    if(reason.length<3)return json(res,400,{error:'Опишите, что нужно изменить в заказе'});
+    summary=`Правка заказа: ${reason}`;
   }else{
     const field=cleanRequestText(body.field,40),value=body.value;
     if(field==='patient'){
@@ -761,7 +794,7 @@ async function handleClientRequestCreate(req,res,url){
   if(changes.date||changes.variants){const issue=orderDeadlineError({...order,...changes},changes.date||order.date,{referenceDate:new Date(),notBefore:new Date()});if(issue)return json(res,400,{error:issue});}
   if(snapshot.clientRequests.some(item=>item.orderId===order.id&&item.type===requestType&&item.status==='pending'))return json(res,409,{error:requestType==='cancel'?'Запрос на отмену уже ожидает решения':requestType==='deadline'?'Запрос на изменение срока уже ожидает решения':'По заказу уже есть правка, ожидающая решения'});
   const before=Object.fromEntries(Object.keys(changes).map(key=>[key,order[key]??'']));
-  const request={id:`cr-${randomBytes(10).toString('hex')}`,baseOrderRevision:order._revision||0,...(body.variantIndex!==undefined?{variantIndex:Number(body.variantIndex)}:{}),orderId:order.id,clinicId:order.clinicId,type:requestType,status:'pending',requestedBy,confirmedBy:requestedBy,summary,reason,changes,before,createdAt,source:'portal'};
+  const request={id:`cr-${randomBytes(10).toString('hex')}`,baseOrderRevision:order._revision||0,...(manual?{manual:true}:{}),...(body.variantIndex!==undefined?{variantIndex:Number(body.variantIndex)}:{}),orderId:order.id,clinicId:order.clinicId,type:requestType,status:'pending',requestedBy,confirmedBy:requestedBy,summary,reason,changes,before,createdAt,source:'portal'};
   try{
     await replacePortalCollection('clientRequests',[request,...snapshot.clientRequests],{role:'clinic',name:requestedBy});
     await recordPortalEvent(order.id,{role:'clinic',name:requestedBy},'client_change_requested',{clinicId:order.clinicId,summary:`Запрошено ${clientRequestLabel(requestType)}`,clientRequestId:request.id}).catch(()=>{});
@@ -783,7 +816,8 @@ async function handleClientRequestDecision(req,res,url){
   if(request.status!=='pending')return json(res,409,{error:'По этому запросу уже принято решение'});
   const order=snapshot.orders.find(item=>item.id===request.orderId&&item.clinicId===request.clinicId);
   if(!order)return json(res,404,{error:'Заказ не найден'});
-  if(decision==='approve'&&clientRequestConflict(request,order)&&!(request.baseOrderRevision===undefined&&!Object.keys(request.before||{}).length&&decisionBody.orderRevision===(order._revision||0)))return json(res,409,{error:'Заказ изменился после создания запроса. Проверьте актуальные данные и создайте новый запрос.'});
+  if(decision==='approve'&&request.manual&&(order._revision||0)<=(request.baseOrderRevision||0))return json(res,409,{error:'Сначала внесите и сохраните изменения в заказе, затем отметьте правки выполненными.'});
+  if(decision==='approve'&&!request.manual&&clientRequestConflict(request,order)&&!(request.baseOrderRevision===undefined&&!Object.keys(request.before||{}).length&&decisionBody.orderRevision===(order._revision||0)))return json(res,409,{error:'Заказ изменился после создания запроса. Проверьте актуальные данные и создайте новый запрос.'});
   const reviewedAt=new Date().toISOString(),reviewedBy=actorName(user),status='archived',decisionResult=decision==='approve'?'approved':'rejected';
   try{
     if(decision==='approve'){
@@ -792,7 +826,7 @@ async function handleClientRequestDecision(req,res,url){
         await replacePortalCollection('orders',snapshot.orders.map(item=>item.id===order.id?{...item,status:'Отменён',cancelledAt:reviewedAt,cancelReason:reason}:item),{role:'technician',name:reviewedBy});
         const current=portalSnapshot();
         await replacePortalCollection('orderOverrides',{...current.orderOverrides,[order.id]:{...(current.orderOverrides[order.id]||{}),stage:'Отменён',cancelledAt:reviewedAt,cancelReason:reason}},{role:'technician',name:reviewedBy});
-      }else{
+      }else if(!request.manual){
         const allowed=new Set(['patient','birth','work','material','teeth','quantity','toothMode','date','shade','comment','sum','bridgeRanges','variants','servicesTotal','deliveryFee']);
         const changes=Object.fromEntries(Object.entries(request.changes||{}).filter(([key])=>allowed.has(key)));
         if(!changes.variants&&['work','material','teeth','toothMode'].some(key=>Object.hasOwn(changes,key))){const revised=reviseOrderServices(order,changes,{variantIndex:request.variantIndex??decisionBody.variantIndex,deliverySettings:snapshot.deliverySettings,promoPrices:snapshot.promoCodes?.find(item=>item.active!==false&&item.code===order.promoCode)?.prices||{}});Object.assign(changes,revised);}
@@ -804,8 +838,8 @@ async function handleClientRequestDecision(req,res,url){
     const current=portalSnapshot();
     const reviewed=current.clientRequests.map(item=>item.id===request.id?{...item,status,decision:decisionResult,reviewedAt,reviewedBy}:item);
     await replacePortalCollection('clientRequests',reviewed,{role:'technician',name:reviewedBy});
-    await recordPortalEvent(order.id,{role:'technician',name:reviewedBy},decision==='approve'?'client_request_approved':'client_request_rejected',{clinicId:order.clinicId,summary:`Запрос на ${clientRequestLabel(request.type)} ${decision==='approve'?'одобрен':'отклонён'}`,clientRequestId:request.id}).catch(()=>{});
-    const resultText=decision==='approve'?`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} одобрен главным техником.`:`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} отклонён главным техником.`;
+    await recordPortalEvent(order.id,{role:'technician',name:reviewedBy},decision==='approve'?'client_request_approved':'client_request_rejected',{clinicId:order.clinicId,summary:request.manual&&decision==='approve'?'Правки по запросу клиники внесены':`Запрос на ${clientRequestLabel(request.type)} ${decision==='approve'?'одобрен':'отклонён'}`,clientRequestId:request.id}).catch(()=>{});
+    const resultText=decision==='approve'?(request.manual?`Правки по заказу ${order.id} внесены главным техником.`:`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} одобрен главным техником.`):`Запрос на ${clientRequestLabel(request.type)} по заказу ${order.id} отклонён главным техником.`;
     void telegramBridge?.sendAutomatedMessage(order.clinicId,resultText).catch(error=>console.error('Telegram client request notification failed:',error.message));
     return json(res,200,{ok:true,request:reviewed.find(item=>item.id===request.id),portal:portalSnapshot()});
   }catch(error){if(error.status===400)return json(res,400,{error:error.message});if(error.message==='collection_conflict')return json(res,409,{error:'Данные заказа изменились. Обновите страницу.'});console.error('Client request decision failed:',error.message);return json(res,500,{error:'Не удалось обработать запрос'})}
@@ -858,10 +892,8 @@ function newDiskPath({target,orderId,clinicId,name,purpose,largeLinkKey}){
 }
 function orderDiskFolder(orderId){
   const snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===orderId);
-  const parent=order?.parentOrderId?snapshot.orders.find(item=>item.id===order.parentOrderId)||order:order;
-  const clinic=safeDiskSegment(parent?.clinic||parent?.clinicId||'Клиника');
-  const patient=safeDiskSegment(parent?.patient||'Пациент');
-  return `/Клиенты/${clinic}/${patient}`;
+  const fileDates=[orderId,order?.parentOrderId].filter(Boolean).flatMap(id=>(orderFiles[id]||[]).map(file=>file.uploadedAt)).filter(Boolean).sort();
+  return orderDiskFolderPath(orderId,snapshot.orders,{fallbackDate:fileDates[0]||new Date()});
 }
 function orderMillingFolder(orderId){return `${orderDiskFolder(orderId)}/фрезеровка`}
 function isMillingFile(name){return /(?:\.constructionInfo|_cad\.stl)$/i.test(String(name||''))}
@@ -888,7 +920,8 @@ function sendTextEmail({to,subject,text,from='orders@createdental.io'}){
 }
 
 async function ensurePublicOrderFolder(orderId){
-  const key=String(orderId||'');
+  const order=portalSnapshot().orders.find(item=>item.id===String(orderId||''));
+  const key=String(order?.parentOrderId||orderId||'');
   if(!key)throw new Error('Не указан ID заказа');
   if(publicOrderFolderLinks.has(key))return publicOrderFolderLinks.get(key);
   const token=readIntegrationSecret('yandexDiskToken');
@@ -926,7 +959,8 @@ async function deleteOrderWithFolder(user,orderId){
 }
 async function ensureOrderFilesOnDisk(orderId){
   const key=String(orderId||'');
-  const legacy=(orderFiles[key]||[]).filter(file=>file.storage!=='yandex-disk');
+  const folder=orderDiskFolder(key);
+  const legacy=(orderFiles[key]||[]).filter(file=>file.storage!=='yandex-disk'||!String(file.diskPath||'').startsWith(folder+'/'));
   if(!legacy.length)return;
   if(orderFileMigrationJobs.has(key))return orderFileMigrationJobs.get(key);
   const job=(async()=>{
@@ -935,6 +969,17 @@ async function ensureOrderFilesOnDisk(orderId){
     await ensurePublicOrderFolder(key);
     let changed=false;
     for(const file of legacy){
+      if(file.storage==='yandex-disk'&&file.diskPath){
+        const destination=`${folder}/${file.purpose==='source-photo'?'Исходные фото/':''}${safeDiskSegment(file.id)}-${cleanUploadName(file.name)}`;
+        const sourceMetadata=await diskMetadata(token,file.diskPath);
+        let targetMetadata;
+        try{targetMetadata=await diskMetadata(token,destination)}catch(error){if(error.status!==404)throw error;}
+        if(!targetMetadata){await copyDiskResource(token,file.diskPath,destination);targetMetadata=await diskMetadata(token,destination)}
+        if(Number(targetMetadata.size)!==Number(sourceMetadata.size)||!sourceMetadata.md5||targetMetadata.md5!==sourceMetadata.md5)throw new Error(`Не удалось проверить копию ${file.name}`);
+        const previousPath=file.diskPath;file.diskPath=destination;
+        try{await persistOrderFiles()}catch(error){file.diskPath=previousPath;throw error}
+        continue;
+      }
       const source=path.join(uploadDir,file.id),diskPath=`${orderDiskFolder(key)}/import-${safeDiskSegment(file.id)}-${cleanUploadName(file.name)}`;
       const data=await fs.promises.readFile(source);
       let metadata=null;
@@ -1169,9 +1214,9 @@ async function handleOrderFiles(req,res,url){
     if(!canAccessOrder(user,order))return json(res,404,{error:'Заказ не найден'});
     if(req.method==='GET'){
       let folderUrl='';
-      try{await ensureOrderFilesOnDisk(orderId)}catch(error){console.error('Legacy order file migration failed:',error.message)}
-      try{folderUrl=await ensurePublicOrderFolder(order.parentOrderId||orderId)}catch(error){console.error('Yandex Disk folder publication failed:',error.message)}
       const fileIds=relatedFileOrderIds(order,portalSnapshot().orders,{all:user.role!=='worker'});
+      for(const id of fileIds)try{await ensureOrderFilesOnDisk(id)}catch(error){console.error('Order file migration failed:',error.message)}
+      try{folderUrl=await ensurePublicOrderFolder(order.parentOrderId||orderId)}catch(error){console.error('Yandex Disk folder publication failed:',error.message)}
       const rawFiles=[...new Map(fileIds.flatMap(id=>(orderFiles[id]||[]).filter(file=>canAccessOrderFile(user,{orderId:id,file}))).map(file=>[file.id,file])).values()];
       for(const file of rawFiles.filter(item=>item.purpose==='cad-review'&&path.extname(item.name).toLowerCase()==='.html'))void readCadHtml({file}).catch(error=>console.error('CAD prefetch failed:',error.message));
       const visibleFiles=rawFiles.map(({id,name,size,type,uploadedAt,uploadedBy,purpose})=>({id,name,size,type,uploadedAt,uploadedBy,purpose:purpose||'order-file'}));
@@ -1244,51 +1289,30 @@ function orderMillingIdFromRoute(pathname){
   return pathname.match(/^\/api\/orders\/([A-Za-z0-9_-]{1,80})\/milling$/)?.[1]||'';
 }
 
+const sharedMillingHandoff=createMillingHandoff({
+ snapshot:portalSnapshot,
+ saveOverrides:async(patch,actor)=>{for(let attempt=0;attempt<3;attempt++){const current=portalSnapshot();try{return await replacePortalCollection('orderOverrides',patch(current.orderOverrides),actor,{expectedVersion:current.collectionVersions?.orderOverrides||0})}catch(error){if(error.message!=='collection_conflict'||attempt===2)throw error}}},
+ migrateFiles:ensureOrderFilesOnDisk,
+ getFiles:id=>orderFiles[id]||[],
+ usesMilling:order=>camMethodForOrder(order)==='milling'&&routeForOrder(order).flow.includes('cam'),
+ cadReady:cadReadyForProduction,requiresApproval:requiresDoctorCadApproval,
+ createId:()=>randomBytes(16).toString('hex'),
+ preparePackage:async(order,sourceFiles)=>{
+  const token=readIntegrationSecret('yandexDiskToken');if(!token)throw Object.assign(new Error('Яндекс Диск не подключён'),{status:503});
+  const folder=orderMillingFolder(order.id);await ensureDiskFolder(token,folder);
+  const fileNames=[],usedNames=new Set();
+  for(const source of sourceFiles){const base=cleanUploadName(path.basename(source.name))||'файл';let name=base,index=2;while(usedNames.has(name))name=`${path.parse(base).name}-${index++}${path.extname(base)}`;usedNames.add(name);fileNames.push(name);await copyDiskResource(token,source.diskPath,`${folder}/${name}`,{overwrite:true});}
+  return {folderUrl:await publishDiskResource(token,folder),fileNames};
+ },
+ sendPackage:(order,prepared)=>sendTextEmail({to:'e.brmv97@gmail.com',subject:`${order.id} фрезеровка`,text:`Заказ ${order.id} целиком\n\nПапка фрезеровки на Яндекс Диске:\n${prepared.folderUrl}\n`}),
+ recordEvent:recordPortalEvent
+});
 async function handleOrderMilling(req,res,url){
-  const user=session(req);
-  if(!user)return json(res,401,{error:'Войдите в кабинет'});
-  if(user.role!=='technician')return json(res,403,{error:'Отправлять файлы на фрезеровку может только главный техник'});
-  if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
-  const orderId=orderMillingIdFromRoute(url.pathname),snapshot=portalSnapshot(),order=snapshot.orders.find(item=>item.id===orderId);
-  if(!order)return json(res,404,{error:'Заказ не найден'});
-  try{
-    const details=snapshot.orderOverrides[orderId]||{};
-    if(!cadReadyForProduction(order,details))return json(res,409,{error:requiresDoctorCadApproval(order)?'Отправка на фрезеровку доступна только после согласования CAD врачом':'Сначала подтвердите CAD на внутренней ОТК'});
-    if(details.stage!=='Изготовление'||details.manufacturingStatus!=='В работе у Каркасиста')return json(res,409,{error:'Отправка на фрезеровку доступна только на этапе CAM'});
-    if(!details.frameTechnician&&!details.technician)return json(res,409,{error:'Сначала назначьте CAM-оператора'});
-    await ensureOrderFilesOnDisk(orderId);
-    const sourceFiles=relatedFileOrderIds(order,snapshot.orders).flatMap(id=>orderFiles[id]||[]).filter(file=>file.storage==='yandex-disk'&&file.diskPath&&isMillingFile(file.name));
-    if(!sourceFiles.length)return json(res,409,{error:'В папке заказа нет файлов .constructionInfo или _cad.stl'});
-    const token=readIntegrationSecret('yandexDiskToken');
-    if(!token)return json(res,503,{error:'Яндекс Диск не подключён'});
-    const folder=orderMillingFolder(orderId);
-    await ensureDiskFolder(token,folder);
-    const fileNames=[];
-    const usedNames=new Set();
-    for(const source of sourceFiles){
-      const base=cleanUploadName(path.basename(source.name))||'файл';
-      let targetName=base,index=2;
-      while(usedNames.has(targetName)){targetName=`${path.parse(base).name}-${index++}${path.extname(base)}`}
-      usedNames.add(targetName);fileNames.push(targetName);
-      const targetPath=`${folder}/${targetName}`;
-      let exists=false;
-      try{await diskMetadata(token,targetPath);exists=true}catch{/* The copy below creates a missing duplicate. */}
-      if(!exists)await copyDiskResource(token,source.diskPath,targetPath);
-      else await copyDiskResource(token,source.diskPath,targetPath,{overwrite:true});
-    }
-    const folderUrl=await publishDiskResource(token,folder);
-    const previous=snapshot.orderOverrides[orderId]||{},previousMilling=previous.milling||{},sendCount=Number(previousMilling.sendCount)||0;
-    const sentAt=new Date().toISOString();
-    const repeated=Boolean(previousMilling.sentAt);
-    await sendTextEmail({to:'e.brmv97@gmail.com',subject:`${order.id} фрезеровка${repeated?' (повторно)':''}`,text:`Заказ ${order.id}${repeated?'\nПовторная отправка':''}\n\nПапка фрезеровки на Яндекс Диске:\n${folderUrl}\n`});
-    const milling={...previousMilling,folderUrl,fileNames,sentAt,lastSentAt:sentAt,completedAt:'',sendCount:sendCount+1,recipient:'e.brmv97@gmail.com'};
-    await replacePortalCollection('orderOverrides',{...snapshot.orderOverrides,[orderId]:{...previous,milling}},{role:'technician',name:actorName(user)});
-    await recordPortalEvent(orderId,{role:'technician',name:actorName(user)},'milling_sent',{clinicId:order.clinicId,summary:repeated?'Файлы повторно отправлены на фрезеровку':'Файлы отправлены на фрезеровку',fileNames}).catch(()=>{});
-    return json(res,200,{ok:true,resent:repeated,folderUrl,files:fileNames,sentAt,milling});
-  }catch(error){
-    console.error('Order milling request failed:',error.message);
-    return json(res,502,{error:error.message||'Не удалось отправить файлы на фрезеровку'});
-  }
+ const user=session(req);if(!user)return json(res,401,{error:'Войдите в кабинет'});
+ if(user.role!=='technician')return json(res,403,{error:'Отправлять файлы на фрезеровку может только главный техник'});
+ if(req.method!=='POST')return json(res,405,{error:'Метод не поддерживается'});
+ try{return json(res,200,await sharedMillingHandoff(orderMillingIdFromRoute(url.pathname),{role:'technician',name:actorName(user)}));}
+ catch(error){console.error('Shared milling handoff failed:',error.message);return json(res,error.status||502,{error:error.message||'Не удалось отправить заказ на фрезеровку'});}
 }
 
 async function handleCadReview(req,res,url){
@@ -1390,7 +1414,7 @@ async function handleNotifications(req,res){
     };
     const notificationMeta=event=>{
       if(event.action==='clinic_registered')return {type:'registration',target:'clients',clinicId:event.clinicId||''};
-      if(event.action==='message_received')return {type:'message',target:'messages',clinicId:event.clinicId||''};
+      if(['message_received','message_replied'].includes(event.action))return {type:'message',target:'messages',clinicId:event.clinicId||''};
       if(event.action==='telegram_binding_requested')return {type:'registration',target:'profile',clinicId:event.clinicId||''};
       if(event.action==='order_created')return {type:'order',target:'detail',clinicId:event.clinicId||''};
       if(event.action==='stage_changed'&&event.to==='Контроль качества')return {type:'quality',target:'detail',clinicId:event.clinicId||''};
@@ -1451,7 +1475,7 @@ async function handleTelegramIntegration(req,res){
   for(const [name] of supplied)if(!validIntegrationSecret(name,body[name].trim()))return json(res,400,{error:name==='telegramBotToken'?'Проверьте токен Telegram-бота':name==='employeeTelegramBotToken'?'Проверьте токен Telegram-бота сотрудников':name==='folderId'?'Проверьте ID каталога Yandex Cloud':name==='yandexDiskToken'?'Проверьте OAuth-токен Яндекс Диска':'Проверьте API-ключ Yandex Cloud'});
   try{
     const diskEntry=supplied.find(([name])=>name==='yandexDiskToken');
-    if(diskEntry)await ensureDiskFolder(body.yandexDiskToken.trim(),'/Клиенты');
+    if(diskEntry)await ensureDiskFolder(body.yandexDiskToken.trim(),'/clients');
     for(const [name,file] of supplied)await writeIntegrationSecret(file,body[name].trim());
     await telegramBridge.reloadSecrets();
     await employeeTelegramBridge?.reloadSecrets();
@@ -1697,9 +1721,9 @@ async function deliverSupportMessage(clinicId,message){
   if(!message||message.from!=='support')return message;
   message.deliveryStatus='sending';message.deliveryError='';message.deliveryAttempts=(Number(message.deliveryAttempts)||0)+1;await saveClinicChats();
   try{
-    const delivered=await telegramBridge?.sendClinicMessage(clinicId,message.text,message.attachment);
-    if(!delivered)throw new Error('Чат Telegram не подключён');
-    message.deliveryStatus='delivered';message.deliveredAt=new Date().toISOString();message.deliveryError='';
+    const text=message.orderId?`Заказ ${message.orderLabel||displayOrderId(message.orderId)}\n\n${message.text||''}`:message.text;
+    const delivered=await telegramBridge?.sendClinicMessage(clinicId,text,message.attachment);
+    message.deliveryStatus=delivered?'delivered':'portal';message.deliveredAt=new Date().toISOString();message.deliveryError='';
   }catch(error){message.deliveryStatus='error';message.deliveryError=String(error.message||'Ошибка Telegram').slice(0,300)}
   await saveClinicChats();return message;
 }
@@ -1765,22 +1789,65 @@ async function handleClinicMessageFiles(req,res,url){
   return json(res,404,{error:'Не найдено'});
 }
 
+function clinicMessageReadState(chat){
+  const messages=chat?.messages||[],readIndex=chat?.clinicReadMessageId?messages.findIndex(message=>message.id===chat.clinicReadMessageId):-1;
+  return {unreadCount:messages.slice(readIndex+1).filter(message=>['support','bot'].includes(message.from)).length,lastMessageId:messages.at(-1)?.id||''};
+}
+
+function chiefMessageReadState(chat){
+  const messages=chat?.messages||[],readIndex=chat?.chiefReadMessageId?messages.findIndex(message=>message.id===chat.chiefReadMessageId):-1;
+  return {unreadCount:messages.slice(readIndex+1).filter(message=>message.from==='client').length,lastMessageId:messages.at(-1)?.id||''};
+}
+
+function chiefUnreadMessageCount(){
+  return portalSnapshot().clients.filter(clinic=>!clinic.deleted).reduce((total,clinic)=>total+chiefMessageReadState(clinicChats[clinic.id]).unreadCount,0);
+}
+
 async function handleClinicMessages(req,res,url){
   const user=session(req);
   if(!user)return json(res,401,{error:'Войдите в кабинет'});
-  if(url.pathname==='/api/clinic-messages'&&user.role==='clinic'){
-    if(req.method==='GET')return json(res,200,{messages:clinicChats[user.subjectId]?.messages||[]});
-    if(req.method==='POST')return addClinicMessage(req,res,user.subjectId,'client');
+  if(['/api/clinic-messages','/api/clinic-messages/unread','/api/clinic-messages/read'].includes(url.pathname)){
+    if(user.role!=='clinic')return json(res,403,{error:'Доступ запрещён'});
+    const chat=clinicChats[user.subjectId];
+    if(req.method==='GET'&&url.pathname==='/api/clinic-messages/unread')return json(res,200,clinicMessageReadState(chat));
+    if(req.method==='GET'&&url.pathname==='/api/clinic-messages')return json(res,200,{messages:chat?.messages||[],...clinicMessageReadState(chat)});
+    if(req.method==='POST'&&url.pathname==='/api/clinic-messages')return addClinicMessage(req,res,user.subjectId,'client');
+    if(req.method==='POST'&&url.pathname==='/api/clinic-messages/read'){
+      let body;try{body=await readBody(req,2000)}catch{return json(res,400,{error:'Неверная отметка прочтения'})}
+      if(!body||typeof body.messageId!=='string'||body.messageId.length>120)return json(res,400,{error:'Неверная отметка прочтения'});
+      const index=chat?.messages.findIndex(message=>message.id===body.messageId)??-1;
+      if(index<0)return json(res,400,{error:'Сообщение не найдено'});
+      const previous=chat.clinicReadMessageId,readIndex=previous?chat.messages.findIndex(message=>message.id===previous):-1;
+      if(index>readIndex){
+        chat.clinicReadMessageId=body.messageId;
+        try{await saveClinicChats()}catch{if(chat.clinicReadMessageId===body.messageId)chat.clinicReadMessageId=previous;return json(res,500,{error:'Не удалось сохранить прочтение'})}
+      }
+      return json(res,200,clinicMessageReadState(chat));
+    }
+    return json(res,405,{error:'Метод не поддерживается'});
   }
   if(user.role!=='technician')return json(res,403,{error:'Доступ запрещён'});
   if(req.method==='GET'&&url.pathname==='/api/chief/conversations'){
-    const conversations=Object.entries(clinicChats).filter(([id])=>portalClient(id)).map(([id,chat])=>{const clinic=portalClient(id),last=chat.messages.at(-1);return {id,name:clinic.name,logo:clinic.logo||'',lastMessage:last?.text||(last?.attachment?`📎 ${last.attachment.name}`:''),updatedAt:chat.updatedAt}}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
-    return json(res,200,{conversations});
+    const conversations=portalSnapshot().clients.filter(clinic=>!clinic.deleted).map(clinic=>{const chat=clinicChats[clinic.id],last=chat?.messages?.at(-1),preview=last?.text||(last?.attachment?`Файл: ${last.attachment.name}`:''),readState=chiefMessageReadState(chat);return {id:clinic.id,name:clinic.name,logo:clinic.logo||'',lastMessage:last?.orderId?`Заказ ${last.orderLabel||displayOrderId(last.orderId)} · ${preview}`:preview,updatedAt:chat?.updatedAt||'',unreadCount:readState.unreadCount}}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||a.name.localeCompare(b.name,'ru'));
+    return json(res,200,{conversations,totalUnreadCount:chiefUnreadMessageCount()});
   }
-  const match=url.pathname.match(/^\/api\/chief\/conversations\/([A-Za-z0-9_-]+)(?:\/(reply|retry)\/?)?(?:\/([a-f0-9]{24}))?$/);
+  const match=url.pathname.match(/^\/api\/chief\/conversations\/([A-Za-z0-9_-]+)(?:\/(reply|retry|read)\/?)?(?:\/([a-f0-9]{24}))?$/);
   if(!match||!portalClient(match[1]))return json(res,404,{error:'Диалог не найден'});
-  if(req.method==='GET'&&!match[2])return json(res,200,{messages:clinicChats[match[1]]?.messages||[]});
-  if(req.method==='POST'&&match[2]==='reply'&&clinicChats[match[1]])return addClinicMessage(req,res,match[1],'support');
+  const chat=clinicChats[match[1]]||={messages:[],updatedAt:''};
+  if(req.method==='GET'&&!match[2])return json(res,200,{messages:chat.messages||[],...chiefMessageReadState(chat),totalUnreadCount:chiefUnreadMessageCount()});
+  if(req.method==='POST'&&match[2]==='read'){
+    let body;try{body=await readBody(req,2000)}catch{return json(res,400,{error:'Неверная отметка прочтения'})}
+    if(!body||typeof body.messageId!=='string'||body.messageId.length>120)return json(res,400,{error:'Неверная отметка прочтения'});
+    const index=chat.messages.findIndex(message=>message.id===body.messageId);
+    if(index<0)return json(res,400,{error:'Сообщение не найдено'});
+    const previous=chat.chiefReadMessageId,readIndex=previous?chat.messages.findIndex(message=>message.id===previous):-1;
+    if(index>readIndex){
+      chat.chiefReadMessageId=body.messageId;
+      try{await saveClinicChats()}catch{if(chat.chiefReadMessageId===body.messageId)chat.chiefReadMessageId=previous;return json(res,500,{error:'Не удалось сохранить прочтение'})}
+    }
+    return json(res,200,{...chiefMessageReadState(chat),totalUnreadCount:chiefUnreadMessageCount()});
+  }
+  if(req.method==='POST'&&match[2]==='reply')return addClinicMessage(req,res,match[1],'support');
   if(req.method==='POST'&&match[2]==='retry'&&match[3]){
     const message=clinicChats[match[1]]?.messages?.find(item=>item.id===match[3]&&item.from==='support');
     if(!message)return json(res,404,{error:'Сообщение не найдено'});
@@ -1792,19 +1859,21 @@ async function handleClinicMessages(req,res,url){
 async function addClinicMessage(req,res,id,from){
   let body;try{body=await readBody(req,220000)}catch{return json(res,400,{error:'Неверное сообщение'})}
   const message=String(body.text||'').trim();
+  const orderId=String(body.orderId||'').trim(),order=orderId?portalSnapshot().orders.find(item=>item.id===orderId&&item.clinicId===id):null;
+  if(orderId&&!order)return json(res,400,{error:'Заказ не найден или не относится к этой клинике'});
   const requested=body.attachment&&typeof body.attachment==='object'?body.attachment:null;
   const stored=requested&&clinicMessageFiles[String(requested.id||'')];
   if(requested&&(!stored||stored.clinicId!==id))return json(res,400,{error:'Не удалось найти прикреплённый файл'});
   if(!message&&!stored||message.length>2000)return json(res,400,{error:'Добавьте текст или файл'});
   const preview=stored&&typeof requested.preview==='string'&&requested.preview.length<=180000&&/^data:image\/(?:jpeg|png|webp);base64,/i.test(requested.preview)?requested.preview:'';
   const attachment=stored?{id:stored.id,name:stored.name,size:stored.size,type:stored.type,preview}:null;
-  const entry={id:randomBytes(12).toString('hex'),from,text:attachment?.type?.startsWith('image/')?'Послано изображение':message,time:new Date().toISOString(),...(attachment?{attachment}:{}),...(from==='support'?{deliveryStatus:'sending',deliveryError:''}:{})};
+  const entry={id:randomBytes(12).toString('hex'),from,text:attachment?.type?.startsWith('image/')?'Послано изображение':message,time:new Date().toISOString(),...(order?{orderId:order.id,orderLabel:displayOrderId(order),orderParentId:order.parentOrderId||order.id}:{}),...(attachment?{attachment}:{}),...(from==='support'?{deliveryStatus:'sending',deliveryError:''}:{})};
   const chat=clinicChats[id]||={messages:[],updatedAt:''};
   chat.messages.push(entry);chat.updatedAt=entry.time;
   try{await saveClinicChats()}catch{return json(res,500,{error:'Не удалось сохранить сообщение'})}
-  await recordPortalEvent('',{role:from==='client'?'clinic':'technician',name:from==='client'?(portalClient(id)?.name||'Клиника'):'Главный техник'},from==='client'?'message_received':'message_replied',{clinicId:id,summary:from==='client'?'Новое сообщение от клиники':'Лаборатория ответила на сообщение'}).catch(()=>{});
+  await recordPortalEvent(order?.id||'',{role:from==='client'?'clinic':'technician',name:from==='client'?(portalClient(id)?.name||'Клиника'):'Главный техник'},from==='client'?'message_received':'message_replied',{clinicId:id,summary:(order?`Заказ ${displayOrderId(order)} · `:'')+(from==='client'?'Новое сообщение от клиники':'Лаборатория ответила на сообщение')}).catch(()=>{});
   if(from==='support')await deliverSupportMessage(id,entry);
-  return json(res,from==='support'&&entry.deliveryStatus!=='delivered'?202:201,{message:entry});
+  return json(res,from==='support'&&entry.deliveryStatus==='error'?202:201,{message:entry});
 }
 
 async function handleLocations(req,res,url){
@@ -1953,7 +2022,7 @@ const requestHandler=async (req,res) => {
   if(url.pathname==='/api/employee-telegram/pair')return handleEmployeeTelegramPair(req,res);
   if(url.pathname.startsWith('/api/order-files/')){try{return await handleOrderFiles(req,res,url)}catch{return json(res,500,{error:'Ошибка чтения файла'})}}
   if(url.pathname==='/api/locations')return handleLocations(req,res,url);
-  if(url.pathname==='/api/clinic-messages'||url.pathname.startsWith('/api/chief/conversations')){
+  if(url.pathname==='/api/clinic-messages'||url.pathname.startsWith('/api/clinic-messages/')||url.pathname.startsWith('/api/chief/conversations')){
     try{return await handleClinicMessages(req,res,url)}catch{return json(res,500,{error:'Ошибка сообщений'})}
   }
   if(url.pathname.startsWith('/api/client-requests/'))return handleClientRequestDecision(req,res,url);
